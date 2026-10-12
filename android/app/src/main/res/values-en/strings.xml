@@ -182,4 +182,17 @@
     <string name="notif_playing_on">Playing on %1$s</string>
     <string name="notif_paused_on">Paused · %1$s</string>
     <string name="notif_connected_to">Connected to %1$s</string>
+
+    <string name="section_system_volume">Windows volume</string>
+    <string name="section_audio_device">Audio device</string>
+    <string name="audio_device_default">Default</string>
+    <string name="audio_devices_none">No devices listed. Press "Refresh".</string>
+    <string name="section_display">Display</string>
+    <string name="display_n">Display %1$d</string>
+    <string name="display_primary">primary</string>
+    <string name="displays_none">No displays found. Press "Refresh".</string>
+    <string name="action_move_vlc_here">Move VLC here</string>
+    <string name="display_vlc_here">VLC is here</string>
+    <string name="section_power">Power</string>
+    <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
 </resources>

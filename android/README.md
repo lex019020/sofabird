@@ -112,7 +112,7 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
 
 - **M3 — Bluetooth RFCOMM** (`BtTransport`, `CompanionDeviceManager`, автопереключение LAN↔BT) — `Capability.BLUETOOTH` и NDJSON‑кодек уже готовы.
 - **M4 — постеры/метаданные** (TMDB через компаньон, Room для «продолжить просмотр», Quick Settings‑плитка, Glance‑виджет).
-- Таймер сна, аудиоустройство/монитор в UI (команды `sys` и `listDisplays`/`getAudioDevices` в backend есть, экранов нет).
+- Таймер сна.
 
 ## Проверить на устройстве
 
@@ -127,3 +127,4 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
 6. `EncryptedSharedPreferences` на целевом устройстве (fallback не должен срабатывать).
 7. Ландшафтный макет пульта (две колонки), predictive back в sheet’ах.
 8. Сопряжение с компаньоном кодом, сохранение токена, реконнект после сна ноутбука.
+9. Sheet «Ещё» с компаньоном: список аудиоустройств (`getAudioDevices` → `sys audioDevice`), экраны (`listDisplays` → `sys moveToDisplay`), «не спать»/экран/сон (`sys keepAwake|displayPower|sleep`), слайдер громкости Windows (`sys systemVolume`) — секции появляются только при соответствующих `caps`.

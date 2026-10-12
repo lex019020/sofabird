@@ -197,4 +197,50 @@ class CompanionMessagesTest {
         assertEquals("sleep", CommandMapping.toSys("5", SystemCommand.Sleep).name)
         assertEquals(JsonPrimitive(true), CommandMapping.toSys("6", SystemCommand.KeepAwake(true)).args["on"])
     }
+
+    @Test
+    fun `system request and response round-trips`() {
+        fun JsonObject.str(k: String) = this[k]!!.jsonPrimitive.content
+        fun obj(m: CompanionMessage) = CompanionCodec.json.parseToJsonElement(CompanionCodec.encode(m)) as JsonObject
+
+        // getAudioDevices → audioDevices
+        val getDevices = obj(CompanionMessage.GetAudioDevices("8"))
+        assertEquals("getAudioDevices", getDevices.str("t"))
+        assertEquals("8", getDevices.str("id"))
+        val devices = known("""{"t":"audioDevices","id":"8","items":[{"id":"","name":"Default","current":false},{"id":"{0.0.0.00000000}.{guid}","name":"HDMI (TV)","current":true}]}""") as CompanionMessage.AudioDevices
+        assertEquals("8", devices.id)
+        assertEquals(2, devices.items.size)
+        assertEquals("{0.0.0.00000000}.{guid}", devices.items.first { it.current }.id)
+        assertEquals(devices, (known(CompanionCodec.encode(devices)) as CompanionMessage.AudioDevices))
+
+        // sys listDisplays → displays
+        val listDisplays = obj(CommandMapping.toSys("9", SystemCommand.ListDisplays))
+        assertEquals("sys", listDisplays.str("t"))
+        assertEquals("listDisplays", listDisplays.str("name"))
+        assertTrue((listDisplays["args"] as JsonObject).isEmpty())
+        val displays = known("""{"t":"displays","id":"9","items":[{"index":0,"name":"Laptop","primary":true,"bounds":{"x":0,"y":0,"width":1920,"height":1080}},{"index":1,"name":"TV","primary":false,"bounds":{"x":1920,"y":0,"width":3840,"height":2160}}]}""") as CompanionMessage.Displays
+        assertEquals("9", displays.id)
+        assertEquals(listOf(0, 1), displays.items.map { it.index })
+        assertTrue(displays.items[0].primary)
+        assertEquals(3840, displays.items[1].bounds!!.width)
+        assertEquals(displays, known(CompanionCodec.encode(displays)) as CompanionMessage.Displays)
+
+        // sys commands used by the "More" sheet
+        val audio = obj(CommandMapping.toSys("10", SystemCommand.AudioDevice("{guid}")))
+        assertEquals("audioDevice", audio.str("name"))
+        assertEquals("{guid}", (audio["args"] as JsonObject).str("id"))
+        val move = obj(CommandMapping.toSys("11", SystemCommand.MoveToDisplay(1)))
+        assertEquals("moveToDisplay", move.str("name"))
+        assertEquals("1", (move["args"] as JsonObject).str("display"))
+        val awake = obj(CommandMapping.toSys("12", SystemCommand.KeepAwake(false)))
+        assertEquals("false", (awake["args"] as JsonObject).str("on"))
+        val power = obj(CommandMapping.toSys("13", SystemCommand.DisplayPower(false)))
+        assertEquals("displayPower", power.str("name"))
+        assertEquals("sleep", obj(CommandMapping.toSys("14", SystemCommand.Sleep)).str("name"))
+        val vol = obj(CommandMapping.toSys("15", SystemCommand.SystemVolume(value = 150)))
+        assertEquals("100", (vol["args"] as JsonObject).str("value")) // clamped
+        val mute = obj(CommandMapping.toSys("16", SystemCommand.SystemVolume(mute = true)))
+        assertEquals("true", (mute["args"] as JsonObject).str("mute"))
+        assertNull((mute["args"] as JsonObject)["value"])
+    }
 }

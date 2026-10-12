@@ -99,6 +99,7 @@ fun AppRoot() {
         controller.events.collectLatest { event ->
             when (event) {
                 is PlayerEvent.CommandFailed -> snackbar.showSnackbar(event.error.commandErrorMessage(context))
+                is PlayerEvent.SystemCommandFailed -> snackbar.showSnackbar(event.error.commandErrorMessage(context))
                 is PlayerEvent.VolumeChanged -> snackbar.showSnackbar(context.getString(R.string.volume_percent, event.percent))
                 is PlayerEvent.Paired -> snackbar.showSnackbar(context.getString(R.string.paired_with, event.server.displayName))
             }

@@ -1,6 +1,20 @@
 package dev.vlcremote.app.ui.remote
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import dev.vlcremote.app.R
 import dev.vlcremote.app.ui.common.formatRate
 import dev.vlcremote.app.ui.common.rememberTick
-import dev.vlcremote.protocol.backend.SystemCommand
 
 private val RATE_PRESETS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2.21:1", "2.35:1", "2.39:1", "5:4")
@@ -49,6 +62,7 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
     val tick = rememberTick(ui.settings.haptics)
     val online = ui.connection.isOnline
     var showChapters by remember { mutableStateOf(false) }
+    LaunchedEffect(ui.capabilities) { viewModel.loadPcInfo() }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         if (showChapters) {
@@ -130,9 +144,9 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 onToggle = { tick(); viewModel.toggleFullscreen() },
             )
 
-            // Companion-only
+            // Companion-only sections, gated by capabilities.
             val caps = ui.capabilities
-            if (ui.isCompanion || caps.launchVlc || caps.power || caps.windowControl) {
+            if (ui.isCompanion || caps.launchVlc) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 SectionTitle(stringResource(R.string.section_pc))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -143,24 +157,24 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                         Text(stringResource(R.string.action_quit_vlc))
                     }
                 }
-                if (caps.power) {
-                    Spacer(Modifier.height(8.dp))
-                    SwitchRow(
-                        title = stringResource(R.string.keep_awake),
-                        checked = ui.state.system?.keepAwake == true,
-                        enabled = online,
-                        onToggle = { tick(); viewModel.sendSystem(SystemCommand.KeepAwake(ui.state.system?.keepAwake != true)) },
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { tick(); viewModel.sendSystem(SystemCommand.DisplayPower(false)) }, enabled = online) {
-                            Text(stringResource(R.string.action_display_off))
-                        }
-                        OutlinedButton(onClick = { tick(); viewModel.sendSystem(SystemCommand.Sleep); onDismiss() }, enabled = online) {
-                            Text(stringResource(R.string.action_sleep_pc))
-                        }
-                    }
-                }
-            } else if (!ui.isCompanion && online) {
+            }
+            if (caps.systemVolume) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                SystemVolumeSection(ui, viewModel)
+            }
+            if (caps.audioDevices) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                AudioDeviceSection(ui, viewModel)
+            }
+            if (caps.windowControl) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                DisplaysSection(ui, viewModel)
+            }
+            if (caps.power) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                PowerSection(ui, viewModel, onDismiss)
+            }
+            if (!ui.isCompanion && online) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online) {
@@ -175,6 +189,188 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 )
             }
         }
+    }
+}
+
+/** `systemVolume`: Windows master volume, separate from VLC's own. */
+@Composable
+private fun SystemVolumeSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
+    val system = ui.state.system
+    val online = ui.connection.isOnline
+    val tick = rememberTick(ui.settings.haptics)
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    SectionTitle(stringResource(R.string.section_system_volume))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { tick(); viewModel.toggleSystemMute() }, enabled = online) {
+            Icon(
+                if (system?.muted == true) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                contentDescription = stringResource(R.string.action_mute),
+            )
+        }
+        Slider(
+            value = dragging ?: (system?.volume ?: 0).toFloat(),
+            onValueChange = { dragging = it },
+            onValueChangeFinished = {
+                dragging?.let { tick(); viewModel.setSystemVolume(it.toInt()) }
+                dragging = null
+            },
+            valueRange = 0f..100f,
+            enabled = online && system?.volume != null,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            "${(dragging ?: (system?.volume ?: 0).toFloat()).toInt()} %",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.width(56.dp),
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+/** `audioDevices`: radio list from `getAudioDevices`; "" = Windows default device. */
+@Composable
+private fun AudioDeviceSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
+    val tick = rememberTick(ui.settings.haptics)
+    val online = ui.connection.isOnline
+    val currentId = ui.state.system?.audioDevice
+    val devices = ui.audioDevices
+    val hasDefault = devices.any { it.id.isEmpty() }
+    val anyCurrent = devices.any { it.current }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SectionTitle(stringResource(R.string.section_audio_device))
+        Spacer(Modifier.weight(1f))
+        if (ui.pcInfoLoading) CircularProgressIndicator(Modifier.width(16.dp), strokeWidth = 2.dp)
+        IconButton(onClick = { viewModel.loadPcInfo() }, enabled = online) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
+    }
+    if (devices.isEmpty() && !ui.pcInfoLoading) {
+        Text(stringResource(R.string.audio_devices_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (!hasDefault) {
+        RadioRow(
+            title = stringResource(R.string.audio_device_default),
+            selected = !anyCurrent && currentId.isNullOrEmpty(),
+            enabled = online,
+            onClick = { tick(); viewModel.selectAudioDevice("") },
+        )
+    }
+    devices.forEach { device ->
+        RadioRow(
+            title = if (device.id.isEmpty()) stringResource(R.string.audio_device_default) else device.name,
+            selected = if (anyCurrent) device.current else currentId == device.id,
+            enabled = online,
+            onClick = { tick(); viewModel.selectAudioDevice(device.id) },
+        )
+    }
+}
+
+/** `windowControl`: displays from `listDisplays`, "move VLC here". */
+@Composable
+private fun DisplaysSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
+    val tick = rememberTick(ui.settings.haptics)
+    val online = ui.connection.isOnline
+    val current = ui.state.system?.display
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SectionTitle(stringResource(R.string.section_display))
+        Spacer(Modifier.weight(1f))
+        if (ui.pcInfoLoading) CircularProgressIndicator(Modifier.width(16.dp), strokeWidth = 2.dp)
+        IconButton(onClick = { viewModel.loadPcInfo() }, enabled = online) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
+    }
+    if (ui.displays.isEmpty() && !ui.pcInfoLoading) {
+        Text(stringResource(R.string.displays_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    ui.displays.forEach { display ->
+        val isCurrent = current == display.index
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        display.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.display_n, display.index + 1),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (display.primary) {
+                        Text(
+                            stringResource(R.string.display_primary),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                display.bounds?.let { b ->
+                    Text(
+                        "${b.width}×${b.height} @ ${b.x},${b.y}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = { tick(); viewModel.moveToDisplay(display.index) },
+                enabled = online && !isCurrent,
+            ) { Text(stringResource(if (isCurrent) R.string.display_vlc_here else R.string.action_move_vlc_here)) }
+        }
+    }
+}
+
+/** `power`: keep-awake switch, display off, sleep (behind a confirmation). */
+@Composable
+private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit) {
+    val tick = rememberTick(ui.settings.haptics)
+    val online = ui.connection.isOnline
+    var confirmSleep by remember { mutableStateOf(false) }
+    SectionTitle(stringResource(R.string.section_power))
+    val keepAwake = ui.state.system?.keepAwake == true
+    SwitchRow(
+        title = stringResource(R.string.keep_awake),
+        checked = keepAwake,
+        enabled = online,
+        onToggle = { tick(); viewModel.setKeepAwake(!keepAwake) },
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        OutlinedButton(onClick = { tick(); viewModel.displayPower(false) }, enabled = online) {
+            Text(stringResource(R.string.action_display_off))
+        }
+        OutlinedButton(onClick = { tick(); confirmSleep = true }, enabled = online) {
+            Text(stringResource(R.string.action_sleep_pc))
+        }
+    }
+    if (confirmSleep) {
+        AlertDialog(
+            onDismissRequest = { confirmSleep = false },
+            title = { Text(stringResource(R.string.action_sleep_pc)) },
+            text = { Text(stringResource(R.string.sleep_pc_confirm, ui.hostName ?: "")) },
+            confirmButton = {
+                TextButton(onClick = { confirmSleep = false; viewModel.sleepPc(); onDismiss() }) {
+                    Text(stringResource(R.string.action_sleep_pc))
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmSleep = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+}
+
+@Composable
+private fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick, enabled = enabled)
+        Spacer(Modifier.width(8.dp))
+        Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

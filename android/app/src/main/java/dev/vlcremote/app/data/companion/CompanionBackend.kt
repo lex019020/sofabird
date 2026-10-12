@@ -278,12 +278,12 @@ class CompanionBackend(
     }
 
     /** `listDisplays` returns data, not just `ok`. */
-    suspend fun listDisplays(): Result<List<dev.vlcremote.protocol.companion.Display>> = runCatching {
+    override suspend fun listDisplays(): Result<List<dev.vlcremote.protocol.companion.Display>> = runCatching {
         val reply = request { id -> CommandMapping.toSys(id, SystemCommand.ListDisplays) }
         (reply as? CompanionMessage.Displays)?.items ?: emptyList()
     }
 
-    suspend fun audioDevices(): Result<List<dev.vlcremote.protocol.companion.AudioDevice>> = runCatching {
+    override suspend fun audioDevices(): Result<List<dev.vlcremote.protocol.companion.AudioDevice>> = runCatching {
         val reply = request { id -> CompanionMessage.GetAudioDevices(id) }
         (reply as? CompanionMessage.AudioDevices)?.items ?: emptyList()
     }

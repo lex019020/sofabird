@@ -5,18 +5,23 @@ import androidx.lifecycle.viewModelScope
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.domain.model.AppSettings
+import dev.vlcremote.app.domain.model.SavedServer
+import dev.vlcremote.protocol.companion.AudioDevice
+import dev.vlcremote.protocol.companion.Display
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.TrackKind
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -30,6 +35,10 @@ data class RemoteUiState(
     /** User is dragging the scrub bar: show the target instead of the live position. */
     val scrubTarget: Double? = null,
     val hostName: String? = null,
+    /** Companion `getAudioDevices` / `listDisplays`; loaded when the "More" sheet opens. */
+    val audioDevices: List<AudioDevice> = emptyList(),
+    val displays: List<Display> = emptyList(),
+    val pcInfoLoading: Boolean = false,
 ) {
     val displayedPosition: Double get() = scrubTarget ?: position
     val isCompanion: Boolean get() = state.vlc.level >= 2
@@ -42,22 +51,35 @@ class RemoteViewModel(
 
     private val position = MutableStateFlow(0.0)
     private val scrubTarget = MutableStateFlow<Double?>(null)
+    private val pcInfo = MutableStateFlow(PcInfo())
+    private var pcInfoJob: Job? = null
+
+    private data class PcInfo(
+        val audioDevices: List<AudioDevice> = emptyList(),
+        val displays: List<Display> = emptyList(),
+        val loading: Boolean = false,
+    )
+
+    private data class Extras(val position: Double, val scrubTarget: Double?, val server: SavedServer?, val pcInfo: PcInfo)
 
     val uiState: StateFlow<RemoteUiState> = combine(
         controller.state,
         controller.connection,
         controller.capabilities,
         settings.flow,
-        combine(position, scrubTarget, controller.activeServer) { p, t, s -> Triple(p, t, s) },
-    ) { state, connection, caps, prefs, (pos, target, server) ->
+        combine(position, scrubTarget, controller.activeServer, pcInfo) { p, t, s, i -> Extras(p, t, s, i) },
+    ) { state, connection, caps, prefs, extras ->
         RemoteUiState(
             state = state,
             connection = connection,
             capabilities = caps,
             settings = prefs,
-            position = pos,
-            scrubTarget = target,
-            hostName = server?.displayName,
+            position = extras.position,
+            scrubTarget = extras.scrubTarget,
+            hostName = extras.server?.displayName,
+            audioDevices = extras.pcInfo.audioDevices,
+            displays = extras.pcInfo.displays,
+            pcInfoLoading = extras.pcInfo.loading,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
@@ -120,4 +142,43 @@ class RemoteViewModel(
     fun toggleFullscreen() = send(PlayerCommand.Fullscreen(null))
     fun launchVlc() = send(PlayerCommand.Launch())
     fun quitVlc() = send(PlayerCommand.Quit)
+
+    // ---------------------------------------------------------------- companion system controls
+
+    /** Refresh audio devices / displays (only the lists the capabilities allow). */
+    fun loadPcInfo() {
+        val caps = controller.capabilities.value
+        if (!caps.audioDevices && !caps.windowControl) return
+        pcInfoJob?.cancel()
+        pcInfoJob = viewModelScope.launch {
+            pcInfo.update { it.copy(loading = true) }
+            val devices = if (caps.audioDevices) controller.audioDevices().getOrNull() else null
+            val displays = if (caps.windowControl) controller.listDisplays().getOrNull() else null
+            pcInfo.update {
+                it.copy(
+                    audioDevices = devices ?: it.audioDevices,
+                    displays = displays ?: it.displays,
+                    loading = false,
+                )
+            }
+        }
+    }
+
+    fun selectAudioDevice(id: String) {
+        viewModelScope.launch {
+            if (controller.sendSystemAwait(SystemCommand.AudioDevice(id)).isSuccess) {
+                pcInfo.update { info ->
+                    info.copy(audioDevices = info.audioDevices.map { d -> d.copy(current = d.id == id) })
+                }
+                loadPcInfo()
+            }
+        }
+    }
+
+    fun moveToDisplay(index: Int) = sendSystem(SystemCommand.MoveToDisplay(index))
+    fun setKeepAwake(on: Boolean) = sendSystem(SystemCommand.KeepAwake(on))
+    fun displayPower(on: Boolean) = sendSystem(SystemCommand.DisplayPower(on))
+    fun sleepPc() = sendSystem(SystemCommand.Sleep)
+    fun setSystemVolume(value: Int) = sendSystem(SystemCommand.SystemVolume(value = value.coerceIn(0, 100)))
+    fun toggleSystemMute() = sendSystem(SystemCommand.SystemVolume(mute = controller.state.value.system?.muted != true))
 }

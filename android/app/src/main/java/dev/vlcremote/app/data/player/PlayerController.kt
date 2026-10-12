@@ -14,7 +14,9 @@ import dev.vlcremote.app.domain.model.ServerMode
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
+import dev.vlcremote.protocol.companion.AudioDevice
 import dev.vlcremote.protocol.companion.DeviceInfo
+import dev.vlcremote.protocol.companion.Display
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
@@ -45,6 +47,7 @@ import kotlinx.coroutines.sync.withLock
 /** One-shot things the UI shows as snackbars/overlays. */
 sealed class PlayerEvent {
     data class CommandFailed(val command: PlayerCommand, val error: Throwable) : PlayerEvent()
+    data class SystemCommandFailed(val command: SystemCommand, val error: Throwable) : PlayerEvent()
     data class VolumeChanged(val percent: Int) : PlayerEvent()
     data class Paired(val server: SavedServer) : PlayerEvent()
 }
@@ -190,13 +193,24 @@ class PlayerController(
     }
 
     fun sendSystem(command: SystemCommand) {
-        scope.launch {
-            val backend = _backend.value ?: return@launch
-            backend.sendSystem(command).onFailure { e ->
-                _events.tryEmit(PlayerEvent.CommandFailed(PlayerCommand.Stop, e))
-            }
-        }
+        scope.launch { sendSystemAwait(command) }
     }
+
+    suspend fun sendSystemAwait(command: SystemCommand): Result<Unit> {
+        val backend = _backend.value ?: return Result.failure(IllegalStateException("not connected"))
+        val result = backend.sendSystem(command)
+        result.onFailure { e ->
+            Log.d(TAG, "system command $command failed: ${e.message}")
+            _events.tryEmit(PlayerEvent.SystemCommandFailed(command, e))
+        }
+        return result
+    }
+
+    suspend fun audioDevices(): Result<List<AudioDevice>> =
+        _backend.value?.audioDevices() ?: Result.failure(IllegalStateException("not connected"))
+
+    suspend fun listDisplays(): Result<List<Display>> =
+        _backend.value?.listDisplays() ?: Result.failure(IllegalStateException("not connected"))
 
     /** Hardware volume keys: ±[delta] VLC units, then report the resulting percentage. */
     fun adjustVolume(delta: Int) {

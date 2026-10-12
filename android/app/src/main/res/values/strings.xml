@@ -193,4 +193,18 @@
     <string name="notif_playing_on">Играет на %1$s</string>
     <string name="notif_paused_on">Пауза · %1$s</string>
     <string name="notif_connected_to">Подключено к %1$s</string>
+
+    <!-- Компаньон: системные функции -->
+    <string name="section_system_volume">Громкость Windows</string>
+    <string name="section_audio_device">Аудиоустройство</string>
+    <string name="audio_device_default">По умолчанию</string>
+    <string name="audio_devices_none">Список устройств пуст. Нажмите «Обновить».</string>
+    <string name="section_display">Экран</string>
+    <string name="display_n">Экран %1$d</string>
+    <string name="display_primary">основной</string>
+    <string name="displays_none">Экраны не найдены. Нажмите «Обновить».</string>
+    <string name="action_move_vlc_here">Перенести VLC сюда</string>
+    <string name="display_vlc_here">VLC здесь</string>
+    <string name="section_power">Питание</string>
+    <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
 </resources>
