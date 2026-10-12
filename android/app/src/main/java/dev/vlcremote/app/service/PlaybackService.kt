@@ -1,0 +1,222 @@
+package dev.vlcremote.app.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.ServiceCompat
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaStyleNotificationHelper
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
+import dev.vlcremote.app.R
+import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.data.settings.SettingsRepository
+import dev.vlcremote.app.ui.MainActivity
+import dev.vlcremote.protocol.backend.PlayerCommand
+import dev.vlcremote.protocol.model.PlaybackStatus
+import dev.vlcremote.protocol.model.PlayerState
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+
+/**
+ * Foreground service (type `connectedDevice`) that keeps the connection to the PC alive while the
+ * app is in the background and shows a media-style notification with transport buttons. Hosts a
+ * media3 [MediaSession] backed by [RemotePlayer] so headset buttons and the lock screen work.
+ *
+ * Deliberately a plain service rather than `MediaSessionService`: that class calls
+ * `startForeground` with type `mediaPlayback` itself, which would conflict with the
+ * `connectedDevice` declaration we need (nothing plays on the phone).
+ */
+class PlaybackService : LifecycleService() {
+
+    private val controller: PlayerController by inject()
+    private val settings: SettingsRepository by inject()
+    private val imageLoader: ImageLoader by lazy { coil3.SingletonImageLoader.get(this) }
+
+    private var player: RemotePlayer? = null
+    private var session: MediaSession? = null
+    private var artBitmap: Bitmap? = null
+    private var artUrlLoaded: String? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createChannel()
+        val s = settings.settings.value
+        val player = RemotePlayer(controller, s.seekShortSec * 1000L, s.seekLongSec * 1000L)
+        this.player = player
+        session = MediaSession.Builder(this, player)
+            .setId("vlc-remote")
+            .setSessionActivity(contentIntent())
+            .build()
+
+        startForegroundWith(buildNotification(controller.state.value))
+        controller.serviceRunning.value = true
+
+        lifecycleScope.launch {
+            combine(controller.state, controller.activeServer) { state, server -> state to (server?.displayName ?: "") }
+                .collectLatest { (state, host) ->
+                    player.update(state, host)
+                    loadArt(state)
+                    notify(buildNotification(state))
+                }
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        when (intent?.action) {
+            ACTION_PLAY_PAUSE -> controller.send(PlayerCommand.TogglePause)
+            ACTION_SEEK_BACK -> controller.send(PlayerCommand.SeekBy(-settings.settings.value.seekShortSec.toLong()))
+            ACTION_SEEK_FORWARD -> controller.send(PlayerCommand.SeekBy(settings.settings.value.seekLongSec.toLong()))
+            ACTION_PREV -> controller.send(PlayerCommand.Prev)
+            ACTION_NEXT -> controller.send(PlayerCommand.Next)
+            ACTION_STOP_SERVICE -> {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+        }
+        return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        controller.serviceRunning.value = false
+        session?.release()
+        session = null
+        player?.release()
+        player = null
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------ notification
+
+    private fun startForegroundWith(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun notify(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            return // foreground notification still exists; we just cannot update it visibly
+        }
+        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun buildNotification(state: PlayerState): Notification {
+        val host = controller.activeServer.value?.displayName ?: getString(R.string.app_name)
+        val playing = state.playback.state == PlaybackStatus.PLAYING
+        val title = state.item.title ?: getString(R.string.notif_nothing_playing)
+        val subtitle = when (state.playback.state) {
+            PlaybackStatus.PLAYING -> getString(R.string.notif_playing_on, host)
+            PlaybackStatus.PAUSED -> getString(R.string.notif_paused_on, host)
+            PlaybackStatus.STOPPED -> getString(R.string.notif_connected_to, host)
+        }
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(subtitle)
+            .setContentIntent(contentIntent())
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setDeleteIntent(actionIntent(ACTION_STOP_SERVICE))
+            .addAction(android.R.drawable.ic_media_previous, getString(R.string.action_prev), actionIntent(ACTION_PREV))
+            .addAction(android.R.drawable.ic_media_rew, getString(R.string.action_seek_back), actionIntent(ACTION_SEEK_BACK))
+            .addAction(
+                if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                getString(if (playing) R.string.action_pause else R.string.action_play),
+                actionIntent(ACTION_PLAY_PAUSE),
+            )
+            .addAction(android.R.drawable.ic_media_ff, getString(R.string.action_seek_forward), actionIntent(ACTION_SEEK_FORWARD))
+            .addAction(android.R.drawable.ic_media_next, getString(R.string.action_next), actionIntent(ACTION_NEXT))
+        artBitmap?.let { builder.setLargeIcon(it) }
+        session?.let { s ->
+            builder.setStyle(MediaStyleNotificationHelper.MediaStyle(s).setShowActionsInCompactView(1, 2, 3))
+        }
+        return builder.build()
+    }
+
+    private suspend fun loadArt(state: PlayerState) {
+        val url = state.item.artUrl
+        if (url == artUrlLoaded) return
+        artUrlLoaded = url
+        artBitmap = null
+        if (url == null) return
+        val result = runCatching {
+            imageLoader.execute(ImageRequest.Builder(this).data(url).size(512).build())
+        }.getOrNull()
+        if (result is SuccessResult && artUrlLoaded == url) {
+            artBitmap = runCatching { result.image.toBitmap() }.getOrNull()
+        }
+    }
+
+    private fun contentIntent(): PendingIntent = PendingIntent.getActivity(
+        this,
+        0,
+        Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun actionIntent(action: String): PendingIntent = PendingIntent.getService(
+        this,
+        action.hashCode(),
+        Intent(this, PlaybackService::class.java).setAction(action),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun createChannel() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.notif_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+            description = getString(R.string.notif_channel_description)
+            setShowBadge(false)
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    companion object {
+        const val CHANNEL_ID = "playback"
+        const val NOTIFICATION_ID = 1
+        const val ACTION_PLAY_PAUSE = "dev.vlcremote.app.PLAY_PAUSE"
+        const val ACTION_SEEK_BACK = "dev.vlcremote.app.SEEK_BACK"
+        const val ACTION_SEEK_FORWARD = "dev.vlcremote.app.SEEK_FORWARD"
+        const val ACTION_PREV = "dev.vlcremote.app.PREV"
+        const val ACTION_NEXT = "dev.vlcremote.app.NEXT"
+        const val ACTION_STOP_SERVICE = "dev.vlcremote.app.STOP_SERVICE"
+
+        fun start(context: Context) {
+            val intent = Intent(context, PlaybackService::class.java)
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, PlaybackService::class.java))
+        }
+    }
+}

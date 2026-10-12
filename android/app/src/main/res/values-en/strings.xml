@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VLC Remote</string>
+
+    <string name="tab_remote">Remote</string>
+    <string name="tab_library">Library</string>
+    <string name="tab_playlist">Playlist</string>
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+    <string name="refresh">Refresh</string>
+    <string name="edit">Edit</string>
+    <string name="forget">Forget</string>
+    <string name="remove">Remove</string>
+
+    <string name="no_server">No PC selected</string>
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_connecting">Connecting…</string>
+    <string name="state_reconnecting">Reconnecting (attempt %1$d)…</string>
+    <string name="state_degraded">PC is not responding, retrying…</string>
+    <string name="level_http">VLC over HTTP</string>
+    <string name="level_lua">VLC + Lua pages</string>
+    <string name="level_companion">Companion</string>
+    <string name="latency_ms">%1$d ms</string>
+    <string name="reconnecting_detail">Connection lost: %1$s. Reconnecting…</string>
+    <string name="paired_with">Paired with %1$s</string>
+    <string name="volume_percent">Volume %1$d %%</string>
+
+    <string name="err_no_password_set">No web-interface password is set in VLC (HTTP 403)</string>
+    <string name="err_wrong_password">Wrong web-interface password (HTTP 401)</string>
+    <string name="err_refused">Connection refused: VLC web interface is off or the port differs</string>
+    <string name="err_timeout">PC is not responding: firewall, different network or the PC is asleep</string>
+    <string name="err_empty_body">Empty reply: VLC is still starting, try again in a few seconds</string>
+    <string name="err_lua">VLC Lua page error %1$s</string>
+    <string name="err_unknown_host">Could not resolve the PC address</string>
+    <string name="err_pairing_required">Pairing required: enter the code shown on the PC</string>
+    <string name="err_vlc_not_running">VLC is not running on the PC</string>
+    <string name="err_protocol_mismatch">The companion speaks another protocol version (%1$s) — update the app or the companion</string>
+    <string name="err_other">Error: %1$s</string>
+    <string name="err_command_failed">Command failed: %1$s</string>
+    <string name="err_unsupported">The companion does not support this command</string>
+    <string name="err_needs_companion">This needs the companion on the PC</string>
+    <string name="err_not_connected">Not connected to a PC</string>
+
+    <string name="hint_no_password_set">Tools → Preferences → All → Interface → Main interfaces → Lua: set the Lua HTTP password and restart VLC.</string>
+    <string name="hint_wrong_password">The password is "Lua HTTP → Password" in VLC preferences. The user name stays empty.</string>
+    <string name="hint_refused">Check that "Web" is enabled under Main interfaces in VLC and the port matches (8080 by default).</string>
+    <string name="hint_timeout">Phone and PC must be on the same Wi-Fi. Windows Firewall must allow vlc.exe on private networks.</string>
+    <string name="hint_empty_body">Wait for VLC to finish starting and press "Test" again.</string>
+    <string name="hint_pairing_required">On the PC tray: VLC Remote → "Pair phone". The code is valid for 5 minutes.</string>
+
+    <string name="not_connected_title">Not connected</string>
+    <string name="vlc_not_running_title">VLC is not running</string>
+    <string name="nothing_playing">Nothing is playing</string>
+    <string name="no_link_with">No connection to %1$s</string>
+    <string name="no_server_configured">No PC configured yet</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_next">Next</string>
+    <string name="action_prev">Previous</string>
+    <string name="action_seek_back">Back</string>
+    <string name="action_seek_forward">Forward</string>
+    <string name="action_mute">Mute</string>
+    <string name="action_enqueue">Add to queue</string>
+    <string name="chapter_n_of">Chapter %1$d of %2$d</string>
+    <string name="chapter_n_named">Chapter %1$d/%2$d · %3$s</string>
+    <string name="chapter_unnamed">Chapter %1$d</string>
+    <string name="chip_audio">Audio: %1$s</string>
+    <string name="chip_subtitles">Subtitles: %1$s</string>
+    <string name="chip_more">More</string>
+    <string name="track_off">off</string>
+    <string name="track_unknown_count">\? of %1$d</string>
+
+    <string name="sheet_audio_title">Audio track</string>
+    <string name="sheet_subtitles_title">Subtitles</string>
+    <string name="sheet_video_title">Video track</string>
+    <string name="tracks_current_unknown_hint">VLC does not report the active track without Lua pages or the companion — the one chosen here is remembered on the phone.</string>
+    <string name="tracks_none">No tracks: nothing is playing</string>
+    <string name="track_disable">Disable</string>
+    <string name="delay_audio">Audio delay</string>
+    <string name="delay_subtitles">Subtitle delay</string>
+    <string name="delay_reset">Reset delay</string>
+
+    <string name="sheet_more_title">More</string>
+    <string name="section_chapters">Chapters</string>
+    <string name="chapters_none">This file has no chapters</string>
+    <string name="chapters_all">All chapters</string>
+    <string name="section_rate">Speed · %1$s</string>
+    <string name="section_aspect">Aspect ratio</string>
+    <string name="aspect_default">Auto</string>
+    <string name="fullscreen">Fullscreen</string>
+    <string name="section_pc">Computer</string>
+    <string name="action_launch_vlc">Launch VLC</string>
+    <string name="action_quit_vlc">Quit VLC</string>
+    <string name="keep_awake">Keep PC awake</string>
+    <string name="action_display_off">Turn display off</string>
+    <string name="action_sleep_pc">Sleep PC</string>
+    <string name="needs_companion_hint">Launching VLC, moving the window to the TV, audio device and PC sleep need the Windows companion.</string>
+
+    <string name="up">Up</string>
+    <string name="drives">Drives</string>
+    <string name="favorite">Favourite folder</string>
+    <string name="media_only">Media only</string>
+    <string name="library_offline">Connect to a PC to browse files</string>
+    <string name="folder_empty">Folder is empty</string>
+
+    <string name="playlist_count">Playlist · %1$d</string>
+    <string name="playlist_empty">The queue is empty. Pick a movie in the Library.</string>
+    <string name="playlist_clear">Clear</string>
+    <string name="playlist_clear_confirm">Remove all items from the VLC playlist?</string>
+
+    <string name="connection_title">Connection</string>
+    <string name="saved_pcs">Saved PCs</string>
+    <string name="found_pcs">Found on the network</string>
+    <string name="searching">Looking for a companion on the network…</string>
+    <string name="nothing_found">Nothing found yet. The companion announces itself; VLC without a companion can be found by scanning the network.</string>
+    <string name="sweep_subnet">Find VLC by scanning the network</string>
+    <string name="sweeping">Scanning the network…</string>
+    <string name="sweep_hint">Probes port 8080 on every address of your subnet (about 10 seconds).</string>
+    <string name="manual_entry">Manual</string>
+    <string name="mode_direct">Directly to VLC</string>
+    <string name="mode_companion">Companion</string>
+    <string name="field_host">PC address or name</string>
+    <string name="field_port">Port</string>
+    <string name="field_name_optional">Name (optional)</string>
+    <string name="field_password">VLC web-interface password</string>
+    <string name="field_pair_code">Pairing code (6 digits)</string>
+    <string name="field_pair_code_again">New pairing code (to pair again)</string>
+    <string name="pair_code_hint">PC tray → VLC Remote → "Pair phone"</string>
+    <string name="already_paired">This phone is already paired with this PC</string>
+    <string name="testing">Testing…</string>
+    <string name="test_ok_direct">Works: %1$s, %2$s</string>
+    <string name="test_ok_companion">Works: %1$s · %2$s</string>
+    <string name="action_test">Test</string>
+    <string name="action_save_connect">Save and connect</string>
+    <string name="badge_pc_found">PC found</string>
+    <string name="badge_companion">companion</string>
+    <string name="badge_vlc_running">VLC running</string>
+    <string name="badge_vlc_not_running">VLC not running</string>
+    <string name="badge_needs_pairing">needs pairing</string>
+
+    <string name="instructions_show">How to enable the VLC web interface</string>
+    <string name="instructions_hide">Hide instructions</string>
+    <string name="instructions_title">Without the companion: enable the web interface in VLC on the PC</string>
+    <string name="instructions_step1">In VLC open Tools → Preferences (Ctrl+P) and choose "Show settings: All" at the bottom left.</string>
+    <string name="instructions_step2">Interface → Main interfaces: tick "Web".</string>
+    <string name="instructions_step3">Interface → Main interfaces → Lua: set a password in "Lua HTTP → Password". Without a password VLC answers 403.</string>
+    <string name="instructions_step4">Save and fully restart VLC. On first start allow vlc.exe in Windows Firewall for private networks.</string>
+    <string name="instructions_step5">Find the PC address: run ipconfig in Windows (IPv4 address) or use the PC name.</string>
+    <string name="instructions_step6">Enter the address, port 8080 and the password above and press "Test" — nothing changes on the TV, we only read the status.</string>
+    <string name="instructions_lua" formatted="false">To see the current track and chapter names without the companion, copy the pages from companion/lua into %APPDATA%\\vlc\\lua\\http (install.ps1) and restart VLC.</string>
+    <string name="instructions_companion">With the Windows companion all of this is automatic: the PC is discovered, VLC starts on the TV, and audio device, sleep and Bluetooth become available.</string>
+
+    <string name="settings_control">Control</string>
+    <string name="settings_volume_keys">Volume keys control the PC</string>
+    <string name="settings_volume_keys_hint">While the app is on screen. Otherwise the phone volume.</string>
+    <string name="settings_volume_step">Volume step</string>
+    <string name="settings_seek_short">Short seek</string>
+    <string name="settings_seek_long">Long seek</string>
+    <string name="seconds_short">%1$d s</string>
+    <string name="settings_haptics">Button vibration</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="settings_true_black">Black background (OLED)</string>
+    <string name="settings_true_black_hint">Pure black surfaces in the dark theme</string>
+    <string name="settings_dynamic_color">Wallpaper colours</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_keep_connection">Keep the connection in the background</string>
+    <string name="settings_keep_connection_hint">A notification with controls while the PC is playing; removed 10 minutes after stop.</string>
+    <string name="settings_about">About</string>
+    <string name="about_text">VLC Remote — a remote for VLC 3.0.x on Windows. The VLC password and companion token are kept in the phone\'s encrypted storage. Levels: VLC over HTTP → VLC + Lua pages (current track, chapters) → companion (discovery, VLC launch, system functions).</string>
+
+    <string name="notif_channel_name">VLC control</string>
+    <string name="notif_channel_description">Transport buttons and PC connection status</string>
+    <string name="notif_nothing_playing">Nothing is playing</string>
+    <string name="notif_playing_on">Playing on %1$s</string>
+    <string name="notif_paused_on">Paused · %1$s</string>
+    <string name="notif_connected_to">Connected to %1$s</string>
+</resources>

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VLC Remote</string>
+
+    <!-- Навигация -->
+    <string name="tab_remote">Пульт</string>
+    <string name="tab_library">Библиотека</string>
+    <string name="tab_playlist">Плейлист</string>
+    <string name="settings">Настройки</string>
+    <string name="back">Назад</string>
+    <string name="cancel">Отмена</string>
+    <string name="retry">Повторить</string>
+    <string name="refresh">Обновить</string>
+    <string name="edit">Изменить</string>
+    <string name="forget">Забыть</string>
+    <string name="remove">Удалить</string>
+
+    <!-- Состояние соединения -->
+    <string name="no_server">ПК не выбран</string>
+    <string name="state_disconnected">Не подключено</string>
+    <string name="state_connecting">Подключение…</string>
+    <string name="state_reconnecting">Переподключение (попытка %1$d)…</string>
+    <string name="state_degraded">ПК не отвечает, пробую снова…</string>
+    <string name="level_http">VLC по HTTP</string>
+    <string name="level_lua">VLC + Lua‑страницы</string>
+    <string name="level_companion">Компаньон</string>
+    <string name="latency_ms">%1$d мс</string>
+    <string name="reconnecting_detail">Нет связи: %1$s. Переподключаюсь…</string>
+    <string name="paired_with">Сопряжение с %1$s выполнено</string>
+    <string name="volume_percent">Громкость %1$d %%</string>
+
+    <!-- Ошибки (точные, по классам) -->
+    <string name="err_no_password_set">В VLC не задан пароль веб‑интерфейса (ответ 403)</string>
+    <string name="err_wrong_password">Неверный пароль веб‑интерфейса (ответ 401)</string>
+    <string name="err_refused">Соединение отклонено: веб‑интерфейс VLC выключен или порт другой</string>
+    <string name="err_timeout">ПК не отвечает: брандмауэр, другая сеть или ПК спит</string>
+    <string name="err_empty_body">Пустой ответ: VLC ещё запускается, повторите через пару секунд</string>
+    <string name="err_lua">Ошибка Lua‑страницы в VLC %1$s</string>
+    <string name="err_unknown_host">Не удалось определить адрес ПК</string>
+    <string name="err_pairing_required">Нужно сопряжение: введите код с экрана ПК</string>
+    <string name="err_vlc_not_running">VLC не запущен на ПК</string>
+    <string name="err_protocol_mismatch">Компаньон использует другую версию протокола (%1$s) — обновите приложение или компаньон</string>
+    <string name="err_other">Ошибка: %1$s</string>
+    <string name="err_command_failed">Команда не выполнена: %1$s</string>
+    <string name="err_unsupported">Эта команда не поддерживается компаньоном</string>
+    <string name="err_needs_companion">Для этого нужен компаньон на ПК</string>
+    <string name="err_not_connected">Нет подключения к ПК</string>
+
+    <string name="hint_no_password_set">Инструменты → Настройки → Все → Интерфейс → Основные интерфейсы → Lua: задайте пароль Lua HTTP и перезапустите VLC.</string>
+    <string name="hint_wrong_password">Пароль — это «Lua HTTP → Пароль» в настройках VLC. Логин оставляется пустым.</string>
+    <string name="hint_refused">Проверьте, что в VLC включён «Веб» в основных интерфейсах и что порт совпадает (по умолчанию 8080).</string>
+    <string name="hint_timeout">Телефон и ПК должны быть в одной Wi‑Fi‑сети. Брандмауэр Windows должен разрешать vlc.exe в частной сети.</string>
+    <string name="hint_empty_body">Подождите, пока VLC полностью запустится, и нажмите «Проверить» ещё раз.</string>
+    <string name="hint_pairing_required">В трее на ПК: VLC Remote → «Сопряжение телефона». Код действует 5 минут.</string>
+
+    <!-- Пульт -->
+    <string name="not_connected_title">Нет подключения</string>
+    <string name="vlc_not_running_title">VLC не запущен</string>
+    <string name="nothing_playing">Ничего не играет</string>
+    <string name="no_link_with">Нет связи с %1$s</string>
+    <string name="no_server_configured">ПК ещё не настроен</string>
+    <string name="action_connect">Подключить</string>
+    <string name="action_disconnect">Отключиться</string>
+    <string name="action_play">Воспроизвести</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_stop">Стоп</string>
+    <string name="action_next">Следующий</string>
+    <string name="action_prev">Предыдущий</string>
+    <string name="action_seek_back">Назад</string>
+    <string name="action_seek_forward">Вперёд</string>
+    <string name="action_mute">Без звука</string>
+    <string name="action_enqueue">В очередь</string>
+    <string name="chapter_n_of">Глава %1$d из %2$d</string>
+    <string name="chapter_n_named">Глава %1$d/%2$d · %3$s</string>
+    <string name="chapter_unnamed">Глава %1$d</string>
+    <string name="chip_audio">Аудио: %1$s</string>
+    <string name="chip_subtitles">Субтитры: %1$s</string>
+    <string name="chip_more">Ещё</string>
+    <string name="track_off">выкл.</string>
+    <string name="track_unknown_count">\? из %1$d</string>
+
+    <!-- Sheet дорожек -->
+    <string name="sheet_audio_title">Аудиодорожка</string>
+    <string name="sheet_subtitles_title">Субтитры</string>
+    <string name="sheet_video_title">Видеодорожка</string>
+    <string name="tracks_current_unknown_hint">VLC не сообщает текущую дорожку без Lua‑страниц или компаньона — выбранная здесь запоминается на телефоне.</string>
+    <string name="tracks_none">Дорожек нет: ничего не воспроизводится</string>
+    <string name="track_disable">Выключить</string>
+    <string name="delay_audio">Задержка звука</string>
+    <string name="delay_subtitles">Задержка субтитров</string>
+    <string name="delay_reset">Сбросить задержку</string>
+
+    <!-- Sheet «Ещё» -->
+    <string name="sheet_more_title">Ещё</string>
+    <string name="section_chapters">Главы</string>
+    <string name="chapters_none">В этом файле нет глав</string>
+    <string name="chapters_all">Все главы</string>
+    <string name="section_rate">Скорость · %1$s</string>
+    <string name="section_aspect">Соотношение сторон</string>
+    <string name="aspect_default">Авто</string>
+    <string name="fullscreen">Полный экран</string>
+    <string name="section_pc">Компьютер</string>
+    <string name="action_launch_vlc">Запустить VLC</string>
+    <string name="action_quit_vlc">Закрыть VLC</string>
+    <string name="keep_awake">Не давать ПК уснуть</string>
+    <string name="action_display_off">Выключить экран</string>
+    <string name="action_sleep_pc">Усыпить ПК</string>
+    <string name="needs_companion_hint">Запуск VLC, перенос окна на ТВ, аудиоустройство и сон ПК доступны только с компаньоном на Windows.</string>
+
+    <!-- Библиотека -->
+    <string name="up">Вверх</string>
+    <string name="drives">Диски</string>
+    <string name="favorite">Избранная папка</string>
+    <string name="media_only">Только медиа</string>
+    <string name="library_offline">Подключитесь к ПК, чтобы просматривать файлы</string>
+    <string name="folder_empty">Папка пуста</string>
+
+    <!-- Плейлист -->
+    <string name="playlist_count">Плейлист · %1$d</string>
+    <string name="playlist_empty">Очередь пуста. Выберите фильм в Библиотеке.</string>
+    <string name="playlist_clear">Очистить</string>
+    <string name="playlist_clear_confirm">Удалить все элементы из плейлиста VLC?</string>
+
+    <!-- Подключение -->
+    <string name="connection_title">Подключение</string>
+    <string name="saved_pcs">Сохранённые ПК</string>
+    <string name="found_pcs">Найдено в сети</string>
+    <string name="searching">Ищу компаньон в сети…</string>
+    <string name="nothing_found">Пока ничего не найдено. Компаньон объявляет себя сам; VLC без компаньона можно найти сканированием сети.</string>
+    <string name="sweep_subnet">Найти VLC сканированием сети</string>
+    <string name="sweeping">Сканирую сеть…</string>
+    <string name="sweep_hint">Проверяет порт 8080 на всех адресах вашей подсети (около 10 секунд).</string>
+    <string name="manual_entry">Вручную</string>
+    <string name="mode_direct">Напрямую к VLC</string>
+    <string name="mode_companion">Компаньон</string>
+    <string name="field_host">Адрес или имя ПК</string>
+    <string name="field_port">Порт</string>
+    <string name="field_name_optional">Название (необязательно)</string>
+    <string name="field_password">Пароль веб‑интерфейса VLC</string>
+    <string name="field_pair_code">Код сопряжения (6 цифр)</string>
+    <string name="field_pair_code_again">Новый код сопряжения (если нужно пересопрячь)</string>
+    <string name="pair_code_hint">Трей на ПК → VLC Remote → «Сопряжение телефона»</string>
+    <string name="already_paired">Телефон уже сопряжён с этим ПК</string>
+    <string name="testing">Проверяю…</string>
+    <string name="test_ok_direct">Работает: %1$s, %2$s</string>
+    <string name="test_ok_companion">Работает: %1$s · %2$s</string>
+    <string name="action_test">Проверить</string>
+    <string name="action_save_connect">Сохранить и подключить</string>
+    <string name="badge_pc_found">ПК найден</string>
+    <string name="badge_companion">компаньон</string>
+    <string name="badge_vlc_running">VLC запущен</string>
+    <string name="badge_vlc_not_running">VLC не запущен</string>
+    <string name="badge_needs_pairing">нужно сопряжение</string>
+
+    <string name="instructions_show">Как включить веб‑интерфейс VLC</string>
+    <string name="instructions_hide">Скрыть инструкцию</string>
+    <string name="instructions_title">Без компаньона: включите веб‑интерфейс в VLC на ПК</string>
+    <string name="instructions_step1">В VLC откройте Инструменты → Настройки (Ctrl+P) и внизу слева выберите «Показывать настройки: Все».</string>
+    <string name="instructions_step2">Интерфейс → Основные интерфейсы: поставьте галочку «Веб» (web/http).</string>
+    <string name="instructions_step3">Интерфейс → Основные интерфейсы → Lua: в поле «Пароль» (Lua HTTP) задайте пароль. Без пароля VLC отвечает 403.</string>
+    <string name="instructions_step4">Сохраните и полностью перезапустите VLC. При первом запуске разрешите vlc.exe в брандмауэре Windows для частных сетей.</string>
+    <string name="instructions_step5">Узнайте адрес ПК: в Windows выполните ipconfig (IPv4‑адрес) или используйте имя ПК.</string>
+    <string name="instructions_step6">Введите адрес, порт 8080 и пароль выше и нажмите «Проверить» — на ТВ ничего не изменится, мы только читаем статус.</string>
+    <string name="instructions_lua" formatted="false">Чтобы видеть текущую дорожку и названия глав без компаньона, скопируйте страницы из companion/lua в %APPDATA%\\vlc\\lua\\http (скрипт install.ps1) и перезапустите VLC.</string>
+    <string name="instructions_companion">С компаньоном на Windows всё это делается автоматически: ПК находится сам, VLC запускается на ТВ, появляются звук, сон и Bluetooth.</string>
+
+    <!-- Настройки -->
+    <string name="settings_control">Управление</string>
+    <string name="settings_volume_keys">Клавиши громкости управляют ПК</string>
+    <string name="settings_volume_keys_hint">Пока приложение на экране. Иначе — громкость телефона.</string>
+    <string name="settings_volume_step">Шаг громкости</string>
+    <string name="settings_seek_short">Короткая перемотка</string>
+    <string name="settings_seek_long">Длинная перемотка</string>
+    <string name="seconds_short">%1$d с</string>
+    <string name="settings_haptics">Вибрация на кнопках</string>
+    <string name="settings_appearance">Вид</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="settings_true_black">Чёрный фон (OLED)</string>
+    <string name="settings_true_black_hint">Полностью чёрные поверхности в тёмной теме</string>
+    <string name="settings_dynamic_color">Цвета из обоев</string>
+    <string name="settings_background">Фон</string>
+    <string name="settings_keep_connection">Держать соединение в фоне</string>
+    <string name="settings_keep_connection_hint">Уведомление с кнопками, пока на ПК идёт воспроизведение; снимается через 10 минут после остановки.</string>
+    <string name="settings_about">О программе</string>
+    <string name="about_text">VLC Remote — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
+
+    <!-- Уведомление -->
+    <string name="notif_channel_name">Управление VLC</string>
+    <string name="notif_channel_description">Кнопки управления и состояние подключения к ПК</string>
+    <string name="notif_nothing_playing">Ничего не играет</string>
+    <string name="notif_playing_on">Играет на %1$s</string>
+    <string name="notif_paused_on">Пауза · %1$s</string>
+    <string name="notif_connected_to">Подключено к %1$s</string>
+</resources>

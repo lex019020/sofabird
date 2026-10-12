@@ -1,0 +1,185 @@
+package dev.vlcremote.app.ui.library
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.data.servers.ServerRepository
+import dev.vlcremote.app.data.settings.SettingsRepository
+import dev.vlcremote.app.ui.common.displayNameFromUri
+import dev.vlcremote.protocol.backend.PlayerCommand
+import dev.vlcremote.protocol.model.Entry
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+const val ROOT_URI = "file:///"
+
+data class Crumb(val name: String, val uri: String)
+
+data class LibraryUiState(
+    val uri: String = ROOT_URI,
+    val crumbs: List<Crumb> = emptyList(),
+    val entries: List<Entry> = emptyList(),
+    val loading: Boolean = false,
+    val error: Throwable? = null,
+    val mediaOnly: Boolean = true,
+    val favorites: List<String> = emptyList(),
+    val online: Boolean = false,
+    /** Entry whose context menu is open (long press). */
+    val menuFor: Entry? = null,
+) {
+    val isRoot: Boolean get() = uri == ROOT_URI
+    val isFavorite: Boolean get() = uri in favorites
+    val visibleEntries: List<Entry>
+        get() = entries
+            .filter { it.isDir || !mediaOnly || it.isMediaFile }
+            .sortedWith(compareByDescending<Entry> { it.isDir }.thenBy { it.name.lowercase() })
+}
+
+class LibraryViewModel(
+    private val controller: PlayerController,
+    private val servers: ServerRepository,
+    private val settings: SettingsRepository,
+) : ViewModel() {
+
+    private val uri = MutableStateFlow(ROOT_URI)
+    private val entries = MutableStateFlow<List<Entry>>(emptyList())
+    private val loading = MutableStateFlow(false)
+    private val error = MutableStateFlow<Throwable?>(null)
+    private val menuFor = MutableStateFlow<Entry?>(null)
+    private var loadJob: Job? = null
+    private var restoredFor: String? = null
+
+    val uiState: StateFlow<LibraryUiState> = combine(
+        combine(uri, entries, loading, error) { u, e, l, err -> Quad(u, e, l, err) },
+        settings.flow.map { it.libraryMediaOnly },
+        controller.activeServer,
+        controller.connection,
+        menuFor,
+    ) { (u, e, l, err), mediaOnly, server, connection, menu ->
+        LibraryUiState(
+            uri = u,
+            crumbs = crumbs(u),
+            entries = e,
+            loading = l,
+            error = err,
+            mediaOnly = mediaOnly,
+            favorites = server?.favoriteFolders.orEmpty(),
+            online = connection.isOnline,
+            menuFor = menu,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+
+    init {
+        // Restore the last folder per server, reload when the connection comes (back) up.
+        viewModelScope.launch {
+            combine(controller.activeServer, controller.connection.map { it.isOnline }.distinctUntilChanged()) { s, online -> s to online }
+                .collect { (server, online) ->
+                    if (server == null) return@collect
+                    if (restoredFor != server.id) {
+                        restoredFor = server.id
+                        uri.value = server.lastBrowseUri ?: ROOT_URI
+                    }
+                    if (online) load()
+                }
+        }
+    }
+
+    fun open(entryUri: String) {
+        uri.value = normalizeDir(entryUri)
+        load()
+        rememberPath()
+    }
+
+    fun up() {
+        val current = uri.value
+        if (current == ROOT_URI) return
+        val trimmed = current.trimEnd('/')
+        val parent = trimmed.substringBeforeLast('/', "")
+        uri.value = if (parent.isEmpty() || parent == "file://" || parent.length < "file:///".length) ROOT_URI else "$parent/"
+        load()
+        rememberPath()
+    }
+
+    fun goRoot() = open(ROOT_URI)
+
+    fun reload() = load()
+
+    fun setMediaOnly(value: Boolean) {
+        viewModelScope.launch { settings.update { it.copy(libraryMediaOnly = value) } }
+    }
+
+    fun toggleFavorite() {
+        val server = controller.activeServer.value ?: return
+        val u = uri.value
+        viewModelScope.launch {
+            servers.update(server.id) { s ->
+                s.copy(favoriteFolders = if (u in s.favoriteFolders) s.favoriteFolders - u else s.favoriteFolders + u)
+            }
+        }
+    }
+
+    fun play(entry: Entry) {
+        controller.send(PlayerCommand.Open(entry.uri, enqueue = false, subtitle = siblingSubtitle(entry)))
+    }
+
+    fun enqueue(entry: Entry) {
+        controller.send(PlayerCommand.Open(entry.uri, enqueue = true))
+    }
+
+    fun showMenu(entry: Entry?) {
+        menuFor.value = entry
+    }
+
+    private fun load() {
+        loadJob?.cancel()
+        val target = uri.value
+        loadJob = viewModelScope.launch {
+            loading.value = true
+            error.value = null
+            val result = controller.browse(target)
+            if (uri.value != target) return@launch
+            result.onSuccess { entries.value = it }
+                .onFailure { error.value = it }
+            loading.value = false
+        }
+    }
+
+    private fun rememberPath() {
+        val server = controller.activeServer.value ?: return
+        val u = uri.value
+        viewModelScope.launch { servers.update(server.id) { it.copy(lastBrowseUri = u) } }
+    }
+
+    /** A subtitle file with the same base name next to the video is attached automatically. */
+    private fun siblingSubtitle(entry: Entry): String? {
+        val base = entry.name.substringBeforeLast('.')
+        return entries.value.firstOrNull { e ->
+            !e.isDir && e.extension in Entry.SUBTITLE_EXTENSIONS && e.name.substringBeforeLast('.').startsWith(base)
+        }?.uri
+    }
+
+    private fun normalizeDir(u: String): String = if (u.endsWith("/")) u else "$u/"
+
+    private fun crumbs(u: String): List<Crumb> {
+        if (u == ROOT_URI) return emptyList()
+        val path = u.removePrefix(ROOT_URI).trimEnd('/')
+        val parts = path.split('/').filter { it.isNotEmpty() }
+        val result = mutableListOf<Crumb>()
+        var acc = ROOT_URI
+        for (part in parts) {
+            acc += "$part/"
+            result += Crumb(displayNameFromUri(acc), acc)
+        }
+        return result
+    }
+
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+}

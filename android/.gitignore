@@ -1,0 +1,5 @@
+# Kotlin 2.x compiler session data
+.kotlin/
+# Android Studio captures / profiler
+captures/
+*.hprof

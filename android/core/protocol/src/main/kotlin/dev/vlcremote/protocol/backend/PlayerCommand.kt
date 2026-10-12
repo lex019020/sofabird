@@ -1,0 +1,78 @@
+package dev.vlcremote.protocol.backend
+
+import dev.vlcremote.protocol.model.TrackKind
+
+/** Player commands, transport-agnostic. See protocol/README.md "Команды плеера". */
+sealed class PlayerCommand {
+    /** Resume, or start the given playlist item. */
+    data class Play(val plId: Int? = null) : PlayerCommand()
+    data object Pause : PlayerCommand()
+    data object TogglePause : PlayerCommand()
+    data object Stop : PlayerCommand()
+    data object Next : PlayerCommand()
+    data object Prev : PlayerCommand()
+
+    /** Absolute seek, seconds. */
+    data class SeekTo(val seconds: Long) : PlayerCommand()
+
+    /** Relative seek, seconds (negative = backwards). */
+    data class SeekBy(val delta: Long) : PlayerCommand()
+
+    /** VLC volume 0..512. */
+    data class SetVolume(val value: Int) : PlayerCommand()
+    data class VolumeBy(val delta: Int) : PlayerCommand()
+    data class Mute(val on: Boolean) : PlayerCommand()
+
+    data class Rate(val value: Double) : PlayerCommand()
+
+    /** `id = -1` disables the track. */
+    data class SelectTrack(val kind: TrackKind, val id: Int) : PlayerCommand()
+
+    data class Chapter(val index: Int) : PlayerCommand()
+    data class ChapterBy(val delta: Int) : PlayerCommand()
+    data class Title(val index: Int) : PlayerCommand()
+
+    /** Audio/subtitle delay in seconds. */
+    data class Delay(val kind: TrackKind, val seconds: Double) : PlayerCommand()
+
+    /** `on = null` toggles. */
+    data class Fullscreen(val on: Boolean? = null) : PlayerCommand()
+    data class Aspect(val value: String) : PlayerCommand()
+
+    data class Open(
+        val uri: String,
+        val enqueue: Boolean = false,
+        val subtitle: String? = null,
+        val audioTrack: Int? = null,
+        val subtitleTrack: Int? = null,
+    ) : PlayerCommand()
+
+    data class PlaylistRemove(val plId: Int) : PlayerCommand()
+    data object PlaylistClear : PlayerCommand()
+
+    data class Random(val on: Boolean) : PlayerCommand()
+    data class Loop(val on: Boolean) : PlayerCommand()
+    data class Repeat(val on: Boolean) : PlayerCommand()
+
+    /** Companion only: start VLC (optionally with a file and on a display). */
+    data class Launch(val uri: String? = null, val display: Int? = null) : PlayerCommand()
+    data object Quit : PlayerCommand()
+}
+
+/** System-level commands; each needs the corresponding capability (companion only). */
+sealed class SystemCommand {
+    data class MoveToDisplay(val display: Int) : SystemCommand()
+    data object ListDisplays : SystemCommand()
+    data class KeepAwake(val on: Boolean) : SystemCommand()
+    data class DisplayPower(val on: Boolean) : SystemCommand()
+    data object Sleep : SystemCommand()
+    data object Shutdown : SystemCommand()
+
+    /** `""` = default device. */
+    data class AudioDevice(val id: String) : SystemCommand()
+    data class SystemVolume(
+        val value: Int? = null,
+        val delta: Int? = null,
+        val mute: Boolean? = null,
+    ) : SystemCommand()
+}
