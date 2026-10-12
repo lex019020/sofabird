@@ -1,0 +1,9 @@
+status change: ( new input: file:///D:/shared/The.Lord.of.the.Rings.The.Fellowship.of.the.Ring.2001.US.Warner.Bros.UHD.BDRemux.2160p-rutracker.mkv )
+status change: ( play state: 3 )
++----[ adev ]
+|  - Default *
+| {0.0.0.00000000}.{6818d89e-1693-4344-b875-b940b8d98b67} - Speakers (High Definition Audio Device)
+| {0.0.0.00000000}.{98351b19-b7cb-44c1-92e3-e22d7d917a19} - Speakers (Steam Streaming Speakers)
+| {0.0.0.00000000}.{9ee43b93-8c68-460d-b55a-7026dd42063c} - 1 - L27q-35 (AMD High Definition Audio Device)
++----[ end of adev ]
+adev: returned 0 (no error)
