@@ -1,0 +1,30 @@
+<?vlc --[[
+  setvar.json — vlc-remote: установить переменную VLC.
+  GET /requests/setvar.json?obj=input|aout|vout&name=<var>&val=<value>
+  Числовые значения передаются как числа, если val целиком число; иначе строкой.
+  Ответ: {"ok":true,"current":<значение после установки>} или {"ok":false,"err":"..."}.
+]]?>
+<?vlc
+local dkjson = require("dkjson")
+local obj, name, val = _GET["obj"], _GET["name"], _GET["val"]
+local o = nil
+if obj == "aout" then o = vlc.object.aout()
+elseif obj == "vout" then o = vlc.object.vout()
+elseif obj == "input" then o = vlc.object.input() end
+
+local res = { ok = false }
+if not o then
+  res.err = "no such object or nothing is playing"
+elseif not name or not val then
+  res.err = "name and val are required"
+else
+  local v = val
+  if string.match(val, "^-?%d+$") then v = tonumber(val) end
+  local ok, err = pcall(vlc.var.set, o, name, v)
+  res.ok = ok
+  if not ok then res.err = tostring(err) end
+  local ok2, cur = pcall(vlc.var.get, o, name)
+  if ok2 then res.current = cur end
+end
+print(dkjson.encode(res))
+?>

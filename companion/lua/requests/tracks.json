@@ -1,0 +1,38 @@
+<?vlc --[[
+  tracks.json — vlc-remote: списки дорожек/глав/видео-параметров с текущим выбором.
+  Кладётся в %APPDATA%\vlc\lua\http\requests\ вместе с копией штатных страниц VLC.
+  Ответ: JSON. Поля отсутствуют (null), если объекта нет (например, ничего не играет).
+]]?>
+<?vlc
+local dkjson = require("dkjson")
+
+local function lst(obj, name)
+  if not obj then return nil end
+  local ok, vals, texts = pcall(vlc.var.get_list, obj, name)
+  if not ok then return nil end
+  local items = {}
+  for i, v in ipairs(vals) do items[#items + 1] = { id = v, name = texts[i] } end
+  local cur = nil
+  pcall(function() cur = vlc.var.get(obj, name) end)
+  return { current = cur, items = items }
+end
+
+local input = vlc.object.input()
+local aout  = vlc.object.aout()
+local vout  = vlc.object.vout()
+
+local out = {
+  vlcremote = 1,                 -- маркер: страница установлена
+  audio       = lst(input, "audio-es"),
+  spu         = lst(input, "spu-es"),
+  video       = lst(input, "video-es"),
+  chapter     = lst(input, "chapter"),
+  title       = lst(input, "title"),
+  stereo_mode = lst(aout,  "stereo-mode"),
+  aspect      = lst(vout,  "aspect-ratio"),
+  crop        = lst(vout,  "crop"),
+  zoom        = lst(vout,  "zoom"),
+  deinterlace = lst(vout,  "deinterlace"),
+}
+print(dkjson.encode(out, { indent = false }))
+?>
