@@ -1,0 +1,119 @@
+using System.Text.Json;
+using VlcRemote.Core.Protocol;
+using Xunit;
+
+namespace VlcRemote.Core.Tests;
+
+public class ProtocolJsonTests
+{
+    [Fact]
+    public void Hello_RoundTrip()
+    {
+        const string line = """{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"abc"},"token":null,"pairCode":"123456"}""";
+        var msg = Assert.IsType<HelloMessage>(ProtocolJson.Deserialize(line));
+        Assert.Equal(1, msg.V);
+        Assert.Equal("Pixel 8", msg.Device!.Name);
+        Assert.Null(msg.Token);
+        Assert.Equal("123456", msg.PairCode);
+
+        var json = ProtocolJson.Serialize(msg);
+        Assert.StartsWith("{\"t\":\"hello\"", json);
+        Assert.DoesNotContain("token", json); // null не пишется
+    }
+
+    [Fact]
+    public void Discriminator_MayComeLast()
+    {
+        var msg = ProtocolJson.Deserialize("""{"id":"7","name":"seek","args":{"delta":30},"t":"cmd"}""");
+        var cmd = Assert.IsType<CmdMessage>(msg);
+        Assert.Equal("7", cmd.Id);
+        Assert.Equal("seek", cmd.Name);
+        Assert.Equal(30, cmd.Args!.Value.GetProperty("delta").GetInt32());
+    }
+
+    [Fact]
+    public void UnknownType_Throws()
+    {
+        Assert.ThrowsAny<JsonException>(() => ProtocolJson.Deserialize("""{"t":"bogus"}"""));
+        Assert.ThrowsAny<JsonException>(() => ProtocolJson.Deserialize("""{"id":"1"}"""));
+    }
+
+    [Fact]
+    public void Welcome_UsesIdForPcGuid()
+    {
+        var json = ProtocolJson.Serialize(new WelcomeMessage
+        {
+            Id = "pc-guid",
+            Name = "HTPC",
+            Caps = [Caps.CurrentTrack, Caps.Power],
+            Token = "tok",
+            Vlc = new VlcInfo { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 },
+        });
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        Assert.Equal("welcome", root.GetProperty("t").GetString());
+        Assert.Equal("pc-guid", root.GetProperty("id").GetString());
+        Assert.Equal(1, root.GetProperty("v").GetInt32());
+        Assert.Equal("currentTrack", root.GetProperty("caps")[0].GetString());
+        Assert.Equal(2, root.GetProperty("vlc").GetProperty("level").GetInt32());
+    }
+
+    [Fact]
+    public void Err_And_Ok_And_Pong()
+    {
+        Assert.Equal("""{"t":"err","id":"3","code":"unauthorized","msg":"pairing required"}""",
+            ProtocolJson.Serialize(new ErrMessage { Id = "3", Code = ErrorCodes.Unauthorized, Msg = "pairing required" }));
+        Assert.Equal("""{"t":"ok","id":"4"}""", ProtocolJson.Serialize(new OkMessage { Id = "4" }));
+        Assert.Equal("""{"t":"pong"}""", ProtocolJson.Serialize(new PongMessage()));
+        Assert.IsType<PingMessage>(ProtocolJson.Deserialize("""{"t":"ping"}"""));
+    }
+
+    [Fact]
+    public void Beacon_Shape()
+    {
+        var json = ProtocolJson.Serialize(new BeaconMessage { Id = "g", Name = "PC", WsPort = 47555, NeedsPairing = true });
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal("beacon", doc.RootElement.GetProperty("t").GetString());
+        Assert.Equal(47555, doc.RootElement.GetProperty("wsPort").GetInt32());
+        Assert.Equal(1, doc.RootElement.GetProperty("protocol").GetInt32());
+        Assert.True(doc.RootElement.GetProperty("needsPairing").GetBoolean());
+    }
+
+    [Fact]
+    public void Entries_Playlist_Tracks_Displays_RoundTrip()
+    {
+        var entries = new EntriesMessage { Id = "3", Uri = "file:///", Items = [new BrowseEntry { Name = "D:\\", Uri = "file:///D:/", Type = "dir" }] };
+        var back = Assert.IsType<EntriesMessage>(ProtocolJson.Deserialize(ProtocolJson.Serialize(entries)));
+        Assert.Equal("file:///D:/", back.Items[0].Uri);
+
+        var tracks = TracksMessage.From(new TracksInfo { Audio = [new TrackInfo { Id = 1, Name = "A" }], CurrentAudio = 1 }, "6");
+        var tj = ProtocolJson.Serialize(tracks);
+        Assert.Contains("\"currentAudio\":1", tj);
+        Assert.Contains("\"id\":\"6\"", tj);
+
+        var displays = new DisplaysMessage { Items = [new DisplayEntry { Index = 1, Name = "TV", Bounds = new DisplayBounds { X = 1920, Width = 3840, Height = 2160 } }] };
+        var dj = ProtocolJson.Serialize(displays);
+        Assert.Contains("\"bounds\":{\"x\":1920", dj);
+    }
+
+    [Fact]
+    public void Cyrillic_IsNotEscaped()
+    {
+        var json = ProtocolJson.Serialize(new EventMessage { Name = "paired", Device = "Телефон Алексея" });
+        Assert.Contains("\"device\":\"Телефон Алексея\"", json);
+        Assert.DoesNotContain("\\u04", json);
+        var back = Assert.IsType<EventMessage>(ProtocolJson.Deserialize(json));
+        Assert.Equal("Телефон Алексея", back.Device);
+    }
+
+    [Fact]
+    public void Info_Shape()
+    {
+        var json = ProtocolJson.SerializeInfo(new InfoResponse { Name = "PC", Version = "0.2.0", WsPort = 47555, NeedsPairing = true, PcId = "g" });
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal("PC", doc.RootElement.GetProperty("name").GetString());
+        Assert.Equal(1, doc.RootElement.GetProperty("protocol").GetInt32());
+        Assert.Equal("g", doc.RootElement.GetProperty("id").GetString());
+        Assert.Equal(47555, doc.RootElement.GetProperty("wsPort").GetInt32());
+    }
+}
