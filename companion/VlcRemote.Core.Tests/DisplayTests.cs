@@ -255,13 +255,14 @@ public class DisplayControllerTests
     {
         var monitors = new FakeMonitors();
         var prefs = new FakePrefs { PreferredId = TvPath };
-        var vlc = new FakeVlc { ProcessId = 10 };
+        var vlc = new FakeVlc { ProcessId = null }; // cold start: the manager has not adopted the process yet
         vlc.Windows[10] = 42;
         vlc.WindowMonitor[42] = @"\\.\DISPLAY1";
         var delays = 0;
         var c = new DisplayController(monitors, prefs, vlc, delay: (_, _) =>
         {
-            if (++delays == 3) vlc.IsControllable = true; // HTTP comes up a moment after the window
+            if (++delays == 2) vlc.ProcessId = 10;
+            if (delays == 3) vlc.IsControllable = true; // HTTP comes up a moment after the window
             return Task.CompletedTask;
         })
         {

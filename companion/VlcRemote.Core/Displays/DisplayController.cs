@@ -255,7 +255,13 @@ public sealed class DisplayController
         var requested = false;
         for (var i = 0; i < attempts; i++)
         {
-            if (_vlc.ProcessId != pid) return false;
+            // Right after a cold start the manager may not have adopted this process yet (ProcessId is null),
+            // so only stop when it follows a different VLC.
+            if (_vlc.ProcessId is int followed && followed != pid)
+            {
+                _log.LogInformation("VLC {Pid}: another VLC ({Other}) is followed now; fullscreen skipped", pid, followed);
+                return false;
+            }
             if (_vlc.IsControllable)
             {
                 bool? fs = null;
