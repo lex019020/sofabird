@@ -3,6 +3,7 @@ package dev.vlcremote.protocol.companion
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.model.TrackKind
+import dev.vlcremote.protocol.model.VlcVolume
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -20,7 +21,7 @@ object CommandMapping {
             PlayerCommand.Prev -> "prev" to EMPTY
             is PlayerCommand.SeekTo -> "seek" to args { put("seconds", command.seconds) }
             is PlayerCommand.SeekBy -> "seek" to args { put("delta", command.delta) }
-            is PlayerCommand.SetVolume -> "volume" to args { put("value", command.value.coerceIn(0, 512)) }
+            is PlayerCommand.SetVolume -> "volume" to args { put("value", VlcVolume.clamp(command.value)) }
             is PlayerCommand.VolumeBy -> "volume" to args { put("delta", command.delta) }
             is PlayerCommand.Mute -> "mute" to args { put("on", command.on) }
             is PlayerCommand.Rate -> "rate" to args { put("value", command.value) }

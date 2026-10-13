@@ -1,6 +1,7 @@
 package dev.vlcremote.app.data.vlc
 
 import android.util.Log
+import dev.vlcremote.app.data.net.Backoff
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.Capabilities
@@ -9,6 +10,7 @@ import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.VlcVolume
 import dev.vlcremote.protocol.vlc.RememberedTracks
 import dev.vlcremote.protocol.vlc.VlcCommands
 import dev.vlcremote.protocol.vlc.VlcStateMapper
@@ -32,9 +34,9 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.net.HttpURLConnection
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.random.Random
 
 /**
  * Direct mode (levels 0/1): polls `status.json` 1 s while playing, 3 s otherwise, only while
@@ -74,6 +76,7 @@ class VlcHttpBackend(
     private val browseMutex = Mutex()
 
     private val seq = AtomicLong(0)
+
     @Volatile private var lastAppliedSeq = 0L
 
     private var pollJob: Job? = null
@@ -133,10 +136,7 @@ class VlcHttpBackend(
         }
     }
 
-    private fun backoff(attempt: Int): Long {
-        val base = (1_000L shl attempt.coerceAtMost(4)).coerceAtMost(16_000L)
-        return base + Random.nextLong(0, 500)
-    }
+    private fun backoff(attempt: Int): Long = Backoff.VlcHttp.delayMillis(attempt)
 
     /** One status poll (+ tracks page on level 1). Returns false on failure. */
     private suspend fun pollOnce(): Boolean {
@@ -167,13 +167,14 @@ class VlcHttpBackend(
     private suspend fun detectLevel() {
         level = try {
             val page = VlcStatusParser.parseTracks(api.tracks().body)
-            if (page.audio != null || page.chapter != null || page.video != null || page.spu != null) 1 else 0
+            val hasVars = listOf(page.audio, page.chapter, page.video, page.spu).any { it != null }
+            if (hasVars) 1 else 0
         } catch (e: CancellationException) {
             throw e
         } catch (e: VlcHttpException) {
-            if (e.statusCode == 404) 0 else if (VlcErrorClassifier.isAuthError(e.error)) throw e else 0
-        } catch (e: Throwable) {
-            0
+            if (e.statusCode == HttpURLConnection.HTTP_NOT_FOUND) 0 else if (VlcErrorClassifier.isAuthError(e.error)) throw e else 0
+        } catch (ignored: Throwable) {
+            0 // no Lua pages (or a broken one): level 0
         }
         _capabilities.value = if (level >= 1) Capabilities.LEVEL1 else Capabilities.LEVEL0
     }
@@ -191,8 +192,8 @@ class VlcHttpBackend(
                 VlcStatusParser.parseTracks(api.tracks().body)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Throwable) {
-                null
+            } catch (ignored: Throwable) {
+                null // the tracks page is optional: the status alone is still applied
             }
         } else {
             null
@@ -274,7 +275,7 @@ class VlcHttpBackend(
             muted = true
         } else {
             muted = false
-            runCommand(VlcCommands.volume(volumeBeforeMute ?: 256))
+            runCommand(VlcCommands.volume(volumeBeforeMute ?: VlcVolume.UNITY))
         }
         _state.value = _state.value.copy(volume = _state.value.volume.copy(muted = muted))
     }

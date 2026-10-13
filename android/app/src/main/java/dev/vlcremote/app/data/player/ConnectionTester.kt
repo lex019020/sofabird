@@ -75,7 +75,9 @@ class ConnectionTester(private val ktor: HttpClient, private val transports: Com
         token: String?,
         pairCode: String?,
         device: DeviceInfo,
-    ): TestResult = helloOver(token, pairCode, device, timeoutMs = 25_000, timeoutError = ConnectionError.BluetoothFailed) { transports.openRfcomm(address) }
+    ): TestResult = helloOver(token, pairCode, device, timeoutMs = 25_000, timeoutError = ConnectionError.BluetoothFailed) {
+        transports.openRfcomm(address)
+    }
 
     private suspend fun helloOver(
         token: String?,

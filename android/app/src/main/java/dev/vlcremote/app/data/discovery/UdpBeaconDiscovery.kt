@@ -25,7 +25,7 @@ class UdpBeaconDiscovery(private val localNetwork: LocalNetwork) {
     fun discover(windowMs: Long = 3_000, sends: Int = 3): Flow<DiscoveredHost> = flow {
         val socket = DatagramSocket().apply {
             broadcast = true
-            soTimeout = 400
+            soTimeout = RECEIVE_POLL_MS
         }
         socket.use { s ->
             val payload = BEACON_REQUEST.toByteArray(Charsets.UTF_8)
@@ -37,7 +37,7 @@ class UdpBeaconDiscovery(private val localNetwork: LocalNetwork) {
             val sendEvery = windowMs / sends
             var nextSend = 0L
             val seen = HashSet<String>()
-            val buffer = ByteArray(2048)
+            val buffer = ByteArray(MAX_REPLY_BYTES)
             while (System.currentTimeMillis() < deadline) {
                 val now = System.currentTimeMillis()
                 if (now >= nextSend) {
@@ -47,34 +47,41 @@ class UdpBeaconDiscovery(private val localNetwork: LocalNetwork) {
                     }
                     nextSend = now + sendEvery
                 }
-                val packet = DatagramPacket(buffer, buffer.size)
-                try {
-                    s.receive(packet)
-                } catch (_: SocketTimeoutException) {
-                    continue
-                }
-                val text = String(packet.data, packet.offset, packet.length, Charsets.UTF_8)
-                val decoded = runCatching { CompanionCodec.decode(text) }.getOrNull() as? DecodedMessage.Known ?: continue
-                val beacon = decoded.message as? CompanionMessage.Beacon ?: continue
-                val host = packet.address.hostAddress ?: continue
-                if (!seen.add(host)) continue
-                emit(
-                    DiscoveredHost(
-                        host = host,
-                        name = beacon.name,
-                        hasCompanion = true,
-                        wsPort = beacon.wsPort,
-                        needsPairing = beacon.needsPairing,
-                        pcId = beacon.pcId,
-                        bt = BtAddress.normalize(beacon.bt),
-                        sources = setOf(DiscoverySource.UDP_BEACON),
-                    ),
-                )
+                val found = receiveBeacon(s, buffer) ?: continue
+                if (seen.add(found.host)) emit(found)
             }
         }
     }.flowOn(Dispatchers.IO)
 
+    /** The next companion beacon reply; `null` on a receive timeout or for anything that is not a beacon. */
+    private fun receiveBeacon(socket: DatagramSocket, buffer: ByteArray): DiscoveredHost? {
+        val packet = DatagramPacket(buffer, buffer.size)
+        try {
+            socket.receive(packet)
+        } catch (_: SocketTimeoutException) {
+            return null
+        }
+        val text = String(packet.data, packet.offset, packet.length, Charsets.UTF_8)
+        val decoded = runCatching { CompanionCodec.decode(text) }.getOrNull() as? DecodedMessage.Known
+        val beacon = decoded?.message as? CompanionMessage.Beacon ?: return null
+        val host = packet.address.hostAddress ?: return null
+        return DiscoveredHost(
+            host = host,
+            name = beacon.name,
+            hasCompanion = true,
+            wsPort = beacon.wsPort,
+            needsPairing = beacon.needsPairing,
+            pcId = beacon.pcId,
+            bt = BtAddress.normalize(beacon.bt),
+            sources = setOf(DiscoverySource.UDP_BEACON),
+        )
+    }
+
     private companion object {
         const val TAG = "UdpBeacon"
+
+        /** The receive loop wakes up this often to send the next request and to check the deadline. */
+        const val RECEIVE_POLL_MS = 400
+        const val MAX_REPLY_BYTES = 2048
     }
 }

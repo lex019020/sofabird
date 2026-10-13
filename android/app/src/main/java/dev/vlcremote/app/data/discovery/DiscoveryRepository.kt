@@ -136,7 +136,7 @@ class DiscoveryRepository(
     }
 
     private suspend fun enrichFromInfo(host: DiscoveredHost) {
-        val info = withTimeoutOrNull(3_000) {
+        val info = withTimeoutOrNull(INFO_TIMEOUT_MS) {
             runCatching {
                 val body = ktor.get("http://${host.host}:${host.wsPort}/info").bodyAsText()
                 CompanionCodec.decodeInfo(body)
@@ -164,5 +164,6 @@ class DiscoveryRepository(
         const val LOST_DEBOUNCE_MS = 3_000L
         const val BEACON_PERIOD_MS = 10_000L
         const val INFO_REFRESH_MS = 8_000L
+        const val INFO_TIMEOUT_MS = 3_000L
     }
 }

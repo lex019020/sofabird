@@ -9,6 +9,7 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 
 /** A classified failure of a VLC HTTP request. */
@@ -50,30 +51,36 @@ class VlcHttpApi(
     private suspend fun get(path: String, query: String?): VlcHttpResponse {
         val url = if (query.isNullOrEmpty()) "$baseUrl$path" else "$baseUrl$path?$query"
         val started = System.nanoTime()
-        val response = try {
+        val response = classifyFailures(statusCode = null) {
             client.get(url) { header(HttpHeaders.Authorization, authorization) }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            throw VlcHttpException(VlcErrorClassifier.fromThrowable(e), cause = e)
         }
-        val latency = (System.nanoTime() - started) / 1_000_000
+        val latency = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
         val code = response.status.value
+        checkStatus(code)
+        val body = classifyFailures(code) { response.bodyAsText() }
+        checkBody(body, code)
+        return VlcHttpResponse(body, latency)
+    }
+
+    /** A network step: any failure but cancellation becomes a [VlcHttpException] with a user-facing class. */
+    private inline fun <T> classifyFailures(statusCode: Int?, step: () -> T): T = try {
+        step()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        throw VlcHttpException(VlcErrorClassifier.fromThrowable(e), statusCode, e)
+    }
+
+    private fun checkStatus(code: Int) {
         VlcErrorClassifier.fromStatusCode(code)?.let { throw VlcHttpException(it, code) }
-        if (code !in 200..299) {
-            throw VlcHttpException(ConnectionError.Other("HTTP $code"), code)
-        }
-        val body = try {
-            response.bodyAsText()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            throw VlcHttpException(VlcErrorClassifier.fromThrowable(e), code, e)
-        }
+        if (code / 100 != 2) throw VlcHttpException(ConnectionError.Other("HTTP $code"), code) // not 2xx
+    }
+
+    /** VLC answers a broken Lua page with 200 and an HTML error page. */
+    private fun checkBody(body: String, code: Int) {
         if (body.isBlank()) throw VlcHttpException(ConnectionError.EmptyBody, code)
         if (VlcErrorPage.isErrorPage(body)) {
             throw VlcHttpException(ConnectionError.LuaError(VlcErrorPage.extractDetail(body)), code)
         }
-        return VlcHttpResponse(body, latency)
     }
 }

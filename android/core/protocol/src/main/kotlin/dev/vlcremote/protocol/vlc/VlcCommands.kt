@@ -2,12 +2,14 @@ package dev.vlcremote.protocol.vlc
 
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.TrackKind
+import dev.vlcremote.protocol.model.VlcVolume
 import java.net.URLEncoder
 
 /**
  * Builds query strings for `status.json?command=…`. Values are percent-encoded; VLC does not
  * decode `+` as space, and a literal `+` (relative seek/volume) must be sent as `%2B`.
  */
+@Suppress("TooManyFunctions") // one function per VLC HTTP command
 object VlcCommands {
     const val STATUS_PATH = "/requests/status.json"
     const val PLAYLIST_PATH = "/requests/playlist.json"
@@ -51,7 +53,7 @@ object VlcCommands {
 
     // Playback
     fun toggleFullscreen() = query("fullscreen")
-    fun volume(value: Int) = query("volume", "val" to value.coerceIn(0, 512).toString())
+    fun volume(value: Int) = query("volume", "val" to VlcVolume.clamp(value).toString())
     fun volumeBy(delta: Int) = query("volume", "val" to signed(delta))
     fun seekTo(seconds: Long) = query("seek", "val" to seconds.coerceAtLeast(0).toString())
     fun seekBy(delta: Long) = query("seek", "val" to signed(delta))

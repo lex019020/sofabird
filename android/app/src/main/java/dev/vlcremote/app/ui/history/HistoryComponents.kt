@@ -47,13 +47,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
-import dev.vlcremote.app.ui.common.LabelText
-import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.settings.SettingsRepository
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.displayNameFromUri
 import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.app.ui.common.rememberConfirmHaptic
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.ResumeChoice
 import dev.vlcremote.protocol.model.ResumePrompt

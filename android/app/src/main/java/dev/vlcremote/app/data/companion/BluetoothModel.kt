@@ -39,12 +39,14 @@ enum class BluetoothStatus {
             bonded: (String) -> Boolean,
         ): BluetoothStatus {
             val normalized = BtAddress.normalize(address)
-            if (pcAddressRequired && normalized == null) return NO_ADDRESS
-            if (!supported) return UNSUPPORTED
-            if (!permission) return NO_PERMISSION
-            if (!enabled) return OFF
-            if (normalized != null && !bonded(normalized)) return NOT_BONDED
-            return READY
+            return when {
+                pcAddressRequired && normalized == null -> NO_ADDRESS
+                !supported -> UNSUPPORTED
+                !permission -> NO_PERMISSION
+                !enabled -> OFF
+                normalized != null && !bonded(normalized) -> NOT_BONDED
+                else -> READY
+            }
         }
     }
 }

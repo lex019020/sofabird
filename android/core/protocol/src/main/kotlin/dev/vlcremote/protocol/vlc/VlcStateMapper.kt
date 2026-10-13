@@ -3,8 +3,8 @@ package dev.vlcremote.protocol.vlc
 import dev.vlcremote.protocol.model.Chapters
 import dev.vlcremote.protocol.model.Delays
 import dev.vlcremote.protocol.model.Flags
-import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.Playback
+import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlayingItem
 import dev.vlcremote.protocol.model.Titles

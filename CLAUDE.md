@@ -33,7 +33,7 @@ translation is available.** No UI literals in code:
 dotnet build companion\VlcRemote.sln -c Release
 dotnet test  companion\VlcRemote.sln
 $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # on this PC; any JDK 17/21 will do
-android\gradlew.bat -p android test :app:assembleDebug
+android\gradlew.bat -p android detekt test :app:assembleDebug   # detekt: --auto-correct fixes formatting
 android\gradlew.bat -p android :app:verifyRoborazziDebug   # layout screenshots; recordRoborazziDebug updates them
 ```
 

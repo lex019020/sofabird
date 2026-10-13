@@ -28,8 +28,8 @@ import dev.vlcremote.app.ui.MainActivity
 import dev.vlcremote.app.ui.common.displayNameFromUri
 import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.protocol.backend.PlayerCommand
-import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.NextEpisode
+import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.ResumeChoice
 import dev.vlcremote.protocol.model.ResumePrompt
@@ -178,7 +178,9 @@ class PlaybackService : LifecycleService() {
             .addAction(android.R.drawable.ic_media_next, getString(R.string.action_next), actionIntent(ACTION_NEXT))
         artBitmap?.let { builder.setLargeIcon(it) }
         session?.let { s ->
-            builder.setStyle(MediaStyleNotificationHelper.MediaStyle(s).setShowActionsInCompactView(1, 2, 3))
+            val style = MediaStyleNotificationHelper.MediaStyle(s)
+                .setShowActionsInCompactView(INDEX_SEEK_BACK, INDEX_PLAY_PAUSE, INDEX_SEEK_FORWARD)
+            builder.setStyle(style)
         }
         return builder.build()
     }
@@ -212,7 +214,11 @@ class PlaybackService : LifecycleService() {
                 getString(if (playing) R.string.action_pause else R.string.action_play),
                 actionIntent(ACTION_PLAY_PAUSE),
             )
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.next_episode_dismiss), actionIntent(ACTION_DISMISS_NEXT_EPISODE))
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                getString(R.string.next_episode_dismiss),
+                actionIntent(ACTION_DISMISS_NEXT_EPISODE),
+            )
             .apply { artBitmap?.let { setLargeIcon(it) } }
             .build()
     }
@@ -234,7 +240,7 @@ class PlaybackService : LifecycleService() {
         artBitmap = null
         if (url == null) return
         val result = runCatching {
-            imageLoader.execute(ImageRequest.Builder(this).data(url).size(512).build())
+            imageLoader.execute(ImageRequest.Builder(this).data(url).size(ARTWORK_PX).build())
         }.getOrNull()
         if (result is SuccessResult && artUrlLoaded == url) {
             artBitmap = runCatching { result.image.toBitmap() }.getOrNull()
@@ -267,6 +273,12 @@ class PlaybackService : LifecycleService() {
 
     companion object {
         const val CHANNEL_ID = "playback"
+
+        // Positions of the notification actions shown in the compact view (after "previous").
+        private const val INDEX_SEEK_BACK = 1
+        private const val INDEX_PLAY_PAUSE = 2
+        private const val INDEX_SEEK_FORWARD = 3
+        private const val ARTWORK_PX = 512
         const val NOTIFICATION_ID = 1
         const val ACTION_PLAY_PAUSE = "dev.vlcremote.app.PLAY_PAUSE"
         const val ACTION_SEEK_BACK = "dev.vlcremote.app.SEEK_BACK"

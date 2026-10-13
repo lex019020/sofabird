@@ -26,6 +26,12 @@ data class PlaylistUiState(
 
 class PlaylistViewModel(private val controller: PlayerController) : ViewModel() {
 
+    private companion object {
+        /** VLC applies pl_delete asynchronously: read the playlist again after a moment. */
+        const val RELOAD_AFTER_REMOVE_MS = 400L
+        const val RELOAD_AFTER_CHANGE_MS = 600L
+    }
+
     private val items = MutableStateFlow<List<PlaylistItem>>(emptyList())
     private val loading = MutableStateFlow(false)
     private val error = MutableStateFlow<Throwable?>(null)
@@ -69,7 +75,7 @@ class PlaylistViewModel(private val controller: PlayerController) : ViewModel() 
         items.value = items.value.filterNot { it.plId == item.plId } // optimistic
         viewModelScope.launch {
             controller.sendAwait(PlayerCommand.PlaylistRemove(item.plId))
-            delay(400)
+            delay(RELOAD_AFTER_REMOVE_MS)
             load() // pl_delete is unreliable: re-read the truth
         }
     }
@@ -83,7 +89,7 @@ class PlaylistViewModel(private val controller: PlayerController) : ViewModel() 
 
     private fun scheduleReload() {
         viewModelScope.launch {
-            delay(600)
+            delay(RELOAD_AFTER_CHANGE_MS)
             load()
         }
     }

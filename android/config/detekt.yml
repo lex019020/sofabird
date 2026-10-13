@@ -1,0 +1,91 @@
+# Project adjustments on top of detekt's default configuration (buildUponDefaultConfig). Every change says why.
+
+style:
+  MaxLineLength:
+    # The project's line length (the companion uses the same). Tests keep JSON fixtures on one line.
+    maxLineLength: 140
+    excludes: ['**/test/**']
+  MagicNumber:
+    # Compose sizes, colour palettes and protocol constants read better inline than as named constants.
+    ignoreAnnotated: ['Composable', 'Preview']
+    excludes: ['**/ui/theme/**', '**/test/**', '**/androidTest/**']
+    ignorePropertyDeclaration: true
+    # Unit conversions (ms, s, min, h), IPv4 octets and bit shifts, percentages.
+    ignoreNumbers: ['-1', '0', '1', '2', '8', '16', '24', '60', '100', '255', '1000', '3600', '0xFF']
+    ignoreCompanionObjectPropertyDeclaration: true
+  ReturnCount:
+    # Early returns for guard clauses are the house style.
+    max: 4
+    excludeGuardClauses: true
+  ThrowsCount:
+    # Connection setup maps every failure to its own user-facing error.
+    max: 6
+  UnusedPrivateMember:
+    # Compose previews are used by the IDE.
+    ignoreAnnotated: ['Preview']
+  LoopWithTooManyJumpStatements:
+    # Parsers skip unknown entries with `continue`.
+    maxJumpCount: 3
+  DestructuringDeclarationWithTooManyEntries:
+    maxDestructuringEntries: 4
+
+naming:
+  FunctionNaming:
+    # Composable functions are nouns in PascalCase.
+    ignoreAnnotated: ['Composable']
+  MatchingDeclarationName:
+    # Files are named after the screen or the feature, not after their first declaration.
+    active: false
+
+complexity:
+  LongMethod:
+    # A screen's composable lays out the whole screen; it is split where parts are reused or testable.
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    # Composables take state and callbacks as parameters by design.
+    ignoreAnnotated: ['Composable']
+    # Pure mapping functions take every input they combine.
+    functionThreshold: 9
+    # Constructors receive their collaborators from dependency injection.
+    constructorThreshold: 12
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+    # Protocol parsers and connection state machines; each is covered by unit tests.
+    threshold: 20
+    # A `when` over protocol message types or commands is one decision, not many.
+    ignoreSimpleWhenEntries: true
+  TooManyFunctions:
+    thresholdInFiles: 20
+    # A ViewModel has one public function per UI action of its screen.
+    thresholdInClasses: 30
+    thresholdInInterfaces: 15
+    thresholdInObjects: 20
+    ignorePrivate: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    # Network/Bluetooth code turns any failure of a connection attempt into a connection state; it also must not
+    # crash on a malformed message from the PC. Cancellation is rethrown explicitly where it matters.
+    excludes: ['**/data/**', '**/service/**', '**/test/**']
+
+formatting:
+  MaximumLineLength:
+    maxLineLength: 140
+    excludes: ['**/test/**']
+  # The ktlint wrapping rules below reformat argument and parameter lists one-per-line as soon as a call wraps;
+  # the code base keeps related arguments together on a line. Turned off rather than reformatting every file.
+  ArgumentListWrapping:
+    active: false
+  ParameterListWrapping:
+    active: false
+  Wrapping:
+    active: false
+  MultiLineIfElse:
+    active: false
+  PropertyWrapping:
+    active: false
+
+performance:
+  SpreadOperator:
+    # VLC queries are built from a handful of pairs per user action; the copy costs nothing here.
+    active: false

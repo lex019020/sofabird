@@ -7,10 +7,10 @@ import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.SavedServer
-import dev.vlcremote.protocol.companion.AudioDevice
-import dev.vlcremote.protocol.companion.Display
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
+import dev.vlcremote.protocol.companion.AudioDevice
+import dev.vlcremote.protocol.companion.Display
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlayerState
@@ -18,6 +18,7 @@ import dev.vlcremote.protocol.model.SystemState
 import dev.vlcremote.protocol.model.TrackKind
 import dev.vlcremote.protocol.model.VlcInfo
 import dev.vlcremote.protocol.model.VlcProcessStatus
+import dev.vlcremote.protocol.model.VlcVolume
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -26,8 +27,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -170,7 +171,7 @@ class RemoteViewModel(
             while (isActive) {
                 val s = controller.state.value
                 position.value = s.interpolatedTime(System.currentTimeMillis())
-                delay(if (s.isPlaying) 250 else 1_000)
+                delay(if (s.isPlaying) TICK_PLAYING_MS else TICK_IDLE_MS)
             }
         }
         // Monitor names for the "Display" chip: load once a companion with `windowControl` is online.
@@ -213,12 +214,12 @@ class RemoteViewModel(
         val target = scrubTarget.value ?: return
         send(PlayerCommand.SeekTo(target.toLong()))
         viewModelScope.launch {
-            delay(700) // keep the target until the clean status arrives
+            delay(SCRUB_HOLD_MS) // keep the target until the clean status arrives
             if (scrubTarget.value == target) scrubTarget.value = null
         }
     }
 
-    fun setVolume(value: Int) = send(PlayerCommand.SetVolume(value.coerceIn(0, 512)))
+    fun setVolume(value: Int) = send(PlayerCommand.SetVolume(VlcVolume.clamp(value)))
 
     fun toggleMute() {
         val v = controller.state.value.volume
@@ -240,6 +241,7 @@ class RemoteViewModel(
     fun rate(value: Double) = send(PlayerCommand.Rate(value))
     fun aspect(value: String) = send(PlayerCommand.Aspect(value))
     fun toggleFullscreen() = send(PlayerCommand.Fullscreen(null))
+
     /**
      * `cmd launch`: starts VLC, or (status `noControl`) restarts it with control. Shows progress until
      * the companion reports a new VLC state (at most [LAUNCH_WAIT_MS]).
@@ -359,5 +361,12 @@ class RemoteViewModel(
 
     private companion object {
         const val LAUNCH_WAIT_MS = 20_000L
+
+        /** The position ticker: 4 Hz while playing, 1 Hz otherwise. */
+        const val TICK_PLAYING_MS = 250L
+        const val TICK_IDLE_MS = 1_000L
+
+        /** A finished scrub keeps its target this long, until VLC reports the new position. */
+        const val SCRUB_HOLD_MS = 700L
     }
 }

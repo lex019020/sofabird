@@ -56,12 +56,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.vlcremote.app.R
-import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.player.PlayerEvent
 import dev.vlcremote.app.data.servers.ServerRepository
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.domain.permissions.PermissionRegistry
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.StatusDot
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.message
@@ -127,9 +127,9 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(connection.isConnected, showPermissions) {
         val permission = Manifest.permission.POST_NOTIFICATIONS
-        if (showPermissions == false && connection.isConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        val askable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !isGranted(context, permission) && permission !in settings.requestedPermissions.value
-        ) {
+        if (showPermissions == false && connection.isConnected && askable) {
             settings.noteRequested(listOf(permission))
             notifLauncher.launch(permission)
         }
@@ -298,7 +298,7 @@ private fun ConnectionTopBar(
     onClick: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    val (color, text) = connectionSummary(connection, hostName)
+    val (color, text) = connectionSummary(connection)
     TopAppBar(
         title = {
             Row(
@@ -359,7 +359,7 @@ private fun TransportIndicator(transport: TransportKind) {
 }
 
 @Composable
-fun connectionSummary(connection: ConnectionState, hostName: String?): Pair<Color, String> {
+fun connectionSummary(connection: ConnectionState): Pair<Color, String> {
     val context = LocalContext.current
     return when (connection) {
         is ConnectionState.Disconnected -> Color.Gray to stringResource(R.string.state_disconnected)
