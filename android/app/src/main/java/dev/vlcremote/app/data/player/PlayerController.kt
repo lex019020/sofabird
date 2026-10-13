@@ -294,11 +294,7 @@ class PlayerController(
         return result
     }
 
-    suspend fun refresh() {
-        _backend.value?.refresh()
-    }
-
-    fun companionBackend(): CompanionBackend? = _backend.value as? CompanionBackend
+    private fun companionBackend(): CompanionBackend? = _backend.value as? CompanionBackend
 
     /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */
     fun retryNow() {

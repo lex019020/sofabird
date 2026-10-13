@@ -11,6 +11,7 @@ import androidx.media3.common.util.Util
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
@@ -23,9 +24,12 @@ import dev.vlcremote.protocol.model.VlcVolume
  */
 class RemotePlayer(
     private val controller: PlayerController,
-    private val seekBackMs: Long,
-    private val seekForwardMs: Long,
+    /** Read on every use: the seek steps can change in the settings while the service runs. */
+    private val settings: () -> AppSettings,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
+
+    private val seekBackMs: Long get() = settings().seekShortSec * 1000L
+    private val seekForwardMs: Long get() = settings().seekLongSec * 1000L
 
     private var current: PlayerState = controller.state.value
     private var hostName: String = ""

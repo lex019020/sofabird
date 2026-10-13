@@ -9,7 +9,6 @@ import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -95,7 +94,6 @@ class HistoryViewModel(
         loadJob = viewModelScope.launch {
             data.update { it.copy(loading = true, error = null) }
             val result = controller.history(HistoryFilter.ALL, keep, 0)
-            ensureActive()
             data.update { d ->
                 result.fold(
                     onSuccess = { page -> Data(items = page.items.distinctBy { it.uri }, total = page.total) },
@@ -113,7 +111,6 @@ class HistoryViewModel(
         loadJob = viewModelScope.launch {
             data.update { it.copy(loadingMore = true) }
             val result = controller.history(HistoryFilter.ALL, PAGE, d.items.size)
-            ensureActive()
             data.update { cur ->
                 result.fold(
                     onSuccess = { page ->

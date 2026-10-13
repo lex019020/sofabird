@@ -4,6 +4,7 @@ import android.util.Log
 import dev.vlcremote.app.data.net.Backoff
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
+import dev.vlcremote.protocol.backend.resultOf
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.ConnectionState
@@ -313,11 +314,11 @@ class VlcHttpBackend(
     // ------------------------------------------------------------------ data
 
     override suspend fun browse(uri: String): Result<List<Entry>> = browseMutex.withLock {
-        runCatching { VlcStatusParser.parseBrowse(api.browse(uri).body) }
+        resultOf { VlcStatusParser.parseBrowse(api.browse(uri).body) }
     }
 
     override suspend fun playlist(): Result<List<PlaylistItem>> = playlistMutex.withLock {
-        runCatching { VlcStatusParser.parsePlaylist(api.playlist().body) }
+        resultOf { VlcStatusParser.parsePlaylist(api.playlist().body) }
     }
 
     private companion object {

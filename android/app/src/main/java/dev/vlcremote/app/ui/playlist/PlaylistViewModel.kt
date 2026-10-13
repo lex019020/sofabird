@@ -3,6 +3,7 @@ package dev.vlcremote.app.ui.playlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.PlaylistItem
 import kotlinx.coroutines.Job
@@ -24,7 +25,7 @@ data class PlaylistUiState(
     val online: Boolean = false,
 )
 
-class PlaylistViewModel(private val controller: PlayerController) : ViewModel() {
+class PlaylistViewModel(private val controller: PlayerController, private val settings: SettingsRepository) : ViewModel() {
 
     private companion object {
         /** VLC applies pl_delete asynchronously: read the playlist again after a moment. */
@@ -36,6 +37,10 @@ class PlaylistViewModel(private val controller: PlayerController) : ViewModel() 
     private val loading = MutableStateFlow(false)
     private val error = MutableStateFlow<Throwable?>(null)
     private var loadJob: Job? = null
+
+    /** The "button vibration" setting. */
+    val haptics: StateFlow<Boolean> = settings.settings.map { it.haptics }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), settings.settings.value.haptics)
 
     val uiState: StateFlow<PlaylistUiState> = combine(
         items,

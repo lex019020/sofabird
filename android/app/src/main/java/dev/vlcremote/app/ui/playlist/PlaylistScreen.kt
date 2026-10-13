@@ -56,7 +56,8 @@ import org.koin.androidx.compose.koinViewModel
 fun PlaylistScreen(viewModel: PlaylistViewModel = koinViewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val tick = rememberTick(true)
+    val haptics by viewModel.haptics.collectAsStateWithLifecycle()
+    val tick = rememberTick(haptics)
     var confirmClear by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {

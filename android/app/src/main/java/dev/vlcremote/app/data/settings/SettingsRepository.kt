@@ -41,9 +41,11 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
         val permissionsRequested = stringSetPreferencesKey("permissions_requested")
     }
 
-    val flow: Flow<AppSettings> = store.data.map { p ->
+    val flow: Flow<AppSettings> = store.data.map(::read)
+
+    private fun read(p: Preferences): AppSettings {
         val defaults = AppSettings()
-        AppSettings(
+        return AppSettings(
             volumeKeysControlPc = p[Keys.volumeKeys] ?: defaults.volumeKeysControlPc,
             volumeKeyStep = p[Keys.volumeStep] ?: defaults.volumeKeyStep,
             seekShortSec = p[Keys.seekShort] ?: defaults.seekShortSec,
@@ -62,9 +64,9 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
     val settings: StateFlow<AppSettings> = flow.stateIn(scope, SharingStarted.Eagerly, AppSettings())
 
     suspend fun update(block: (AppSettings) -> AppSettings) {
+        // `p` is the stored value at this moment: two quick edits in a row both apply.
         store.edit { p ->
-            val current = settings.value
-            val next = block(current)
+            val next = block(read(p))
             p[Keys.volumeKeys] = next.volumeKeysControlPc
             p[Keys.volumeStep] = next.volumeKeyStep
             p[Keys.seekShort] = next.seekShortSec
@@ -88,11 +90,6 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
 
     suspend fun markPermissionsScreenSeen(version: Int) {
         store.edit { p -> if ((p[Keys.permissionsScreenVersion] ?: 0) < version) p[Keys.permissionsScreenVersion] = version }
-    }
-
-    /** Debug/test hook: show the permissions screen again on the next start. */
-    suspend fun resetPermissionsScreen() {
-        store.edit { p -> p.remove(Keys.permissionsScreenVersion) }
     }
 
     /**

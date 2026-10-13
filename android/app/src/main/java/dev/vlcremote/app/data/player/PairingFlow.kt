@@ -80,8 +80,6 @@ class PairingFlow(private val scope: CoroutineScope, private val link: Companion
 
     private var job: Job? = null
 
-    val isBusy: Boolean get() = _state.value !is PairingState.Idle && _state.value !is PairingState.Done
-
     fun start(target: PairingTarget, auto: Boolean = false) {
         job?.cancel()
         _state.value = PairingState.Connecting(target, auto)

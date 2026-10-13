@@ -34,15 +34,11 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
     val servers: Flow<List<SavedServer>> = store.data.map { p -> decode(p[keyServers]) }
     val serversState: StateFlow<List<SavedServer>> = servers.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
-    val lastServerId: Flow<String?> = store.data.map { it[keyLastId] }
-
     suspend fun lastServer(): SavedServer? {
         val p = store.data.first()
         val id = p[keyLastId] ?: return null
         return decode(p[keyServers]).firstOrNull { it.id == id }
     }
-
-    suspend fun get(id: String): SavedServer? = servers.first().firstOrNull { it.id == id }
 
     /** Inserts or replaces by id, and marks it as last used. */
     suspend fun upsert(server: SavedServer, markLastUsed: Boolean = true) {
@@ -83,11 +79,6 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
             p[keyServers] = json.encodeToString(serializer, list.map { if (it.id == match.id) merged else it })
         }
         return updated
-    }
-
-    suspend fun markLastUsed(id: String) {
-        store.edit { p -> p[keyLastId] = id }
-        update(id) { it.copy(lastUsedAt = System.currentTimeMillis()) }
     }
 
     private fun decode(raw: String?): List<SavedServer> =

@@ -104,10 +104,6 @@ class DiscoveryRepository(
         }
     }
 
-    fun clear() {
-        _hosts.value = emptyMap()
-    }
-
     private fun add(host: DiscoveredHost) {
         _hosts.update { map ->
             val merged = map[host.host]?.merge(host) ?: host

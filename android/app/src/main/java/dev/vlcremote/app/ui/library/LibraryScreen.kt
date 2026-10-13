@@ -79,7 +79,8 @@ import org.koin.compose.koinInject
 fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: LibraryViewModel = koinViewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val tick = rememberTick(true)
+    val haptics by viewModel.haptics.collectAsStateWithLifecycle()
+    val tick = rememberTick(haptics)
 
     // The PC reports a changed history: refresh "Continue watching" and the progress marks (only while shown).
     val controller: PlayerController = koinInject()

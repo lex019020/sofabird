@@ -16,7 +16,6 @@ import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +60,10 @@ class LibraryViewModel(
     private val servers: ServerRepository,
     private val settings: SettingsRepository,
 ) : ViewModel() {
+
+    /** The "button vibration" setting. */
+    val haptics: StateFlow<Boolean> = settings.settings.map { it.haptics }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), settings.settings.value.haptics)
 
     private val uri = MutableStateFlow(ROOT_URI)
     private val entries = MutableStateFlow<List<Entry>>(emptyList())
@@ -144,7 +147,6 @@ class LibraryViewModel(
         continueJob?.cancel()
         continueJob = viewModelScope.launch {
             val result = controller.history(HistoryFilter.CONTINUE, CONTINUE_LIMIT, 0)
-            ensureActive()
             result.onSuccess { continueItems.value = it.items } // a failure keeps the last row
         }
     }
