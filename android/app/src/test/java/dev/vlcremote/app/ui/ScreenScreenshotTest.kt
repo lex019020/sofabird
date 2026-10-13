@@ -125,7 +125,6 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             ),
             connection = ConnectionState.Connected("WIN-BBARDOEIJL4", level = 2),
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
-            position = 2246.0,
             hostName = "WIN-BBARDOEIJL4",
             companionMode = true,
         )
