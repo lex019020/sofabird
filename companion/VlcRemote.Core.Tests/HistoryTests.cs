@@ -21,10 +21,10 @@ internal sealed class FakeHistoryFileSystem : IHistoryFileSystem
         Writes++;
     }
 
-    public void Move(string from, string to)
+    public void Move(string source, string destination)
     {
-        Files[to] = Files[from];
-        Files.Remove(from);
+        Files[destination] = Files[source];
+        Files.Remove(source);
     }
 
     public long? TryGetFileSize(string path) => Sizes.TryGetValue(path, out var s) ? s : null;

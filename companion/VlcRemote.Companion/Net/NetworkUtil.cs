@@ -38,5 +38,5 @@ public static class NetworkUtil
         return result.OrderByDescending(r => r.Score).Select(r => r.Address).ToList();
     }
 
-    public static string? GetPrimaryLanAddress() => GetLanAddresses().FirstOrDefault()?.ToString();
+    public static string? GetPrimaryLanAddress() => GetLanAddresses() is [var first, ..] ? first.ToString() : null;
 }

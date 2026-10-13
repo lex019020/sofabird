@@ -72,7 +72,7 @@ public class RcParserTests
         var lines = Fixtures.ReadLines("rc-help.txt");
         var block = RcParser.ExtractBlockLines(lines);
         Assert.Contains(block, l => l.Contains("adev [device]"));
-        Assert.DoesNotContain(block, l => l.StartsWith("+----"));
+        Assert.DoesNotContain(block, l => l.StartsWith("+----", StringComparison.Ordinal));
         Assert.True(RcParser.TryParseBlockStart("+----[ Remote control commands ]", out var name));
         Assert.Equal("Remote control commands", name);
         Assert.False(RcParser.TryParseBlockStart("+----[ end of help ]", out _));

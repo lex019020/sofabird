@@ -30,6 +30,7 @@ internal static class Program
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.File(Path.Combine(paths.LogsDir, "companion-.log"),
+                formatProvider: System.Globalization.CultureInfo.InvariantCulture,
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 shared: true,
@@ -216,6 +217,7 @@ internal static class Program
             await web.DisposeAsync();
             await vlc.DisposeAsync();
             historyStore.Dispose(); // writes the last positions
+            host.Displays.Dispose();
             display.Dispose();
             sessions.Dispose();
         }

@@ -48,7 +48,7 @@ public sealed class LocalFileBrowser
             .ToList();
     }
 
-    private IReadOnlyList<BrowseEntry> ListRoots()
+    private List<BrowseEntry> ListRoots()
     {
         var result = new List<BrowseEntry>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

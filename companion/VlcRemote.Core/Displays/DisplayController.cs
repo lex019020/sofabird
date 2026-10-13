@@ -12,7 +12,7 @@ namespace VlcRemote.Core.Displays;
 /// window on it and the recovery after a monitor change (<see cref="OnTopologyChanged"/>).
 /// Win32 specifics live behind <see cref="IMonitorSource"/> and <see cref="IVlcWindowHost"/>.
 /// </summary>
-public sealed class DisplayController
+public sealed class DisplayController : IDisposable
 {
     private readonly IMonitorSource _monitors;
     private readonly IDisplayPreferenceStore _prefs;
@@ -440,6 +440,17 @@ public sealed class DisplayController
         }
         RaiseChanged();
         return ok;
+    }
+
+    /// <summary>Cancels a pending monitor change reaction (the companion is exiting).</summary>
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            _topologyCts?.Cancel();
+            _topologyCts?.Dispose();
+            _topologyCts = null;
+        }
     }
 
     private void RaiseChanged()

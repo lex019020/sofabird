@@ -8,7 +8,7 @@ public class PairingPrompterTests
 {
     private static (PairingService pairing, PairingPrompter prompter, FakeTimeProvider time) Create()
     {
-        var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-13T12:00:00Z"));
+        var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-13T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
         var pairing = new PairingService(new InMemoryTokenStore(), time);
         return (pairing, new PairingPrompter(pairing, time), time);
     }

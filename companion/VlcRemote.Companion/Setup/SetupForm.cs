@@ -400,7 +400,7 @@ public sealed class SetupForm : Form
         else
             SetStatus(_firewall, UiText.SetupFirewallOk, Tone.Ok);
 
-        var publicNet = s.PublicNetworks.FirstOrDefault();
+        var publicNet = s.PublicNetworks.Count > 0 ? s.PublicNetworks[0] : null;
         _networkHint.Visible = _networkLink.Visible = publicNet is not null;
         if (publicNet is not null) _networkHint.Text = UiText.SetupPublicNetwork(publicNet.Name);
     }

@@ -1,0 +1,15 @@
+# Code analysis exceptions for the companion (Directory.Build.props turns analysis on at 9.0-recommended
+# and treats warnings as errors). Every exception says why.
+
+[*.cs]
+# LoggerMessage source-generated delegates: an allocation-free logging path for hot server code. The companion logs
+# a few lines per user action; the plain ILogger extension methods keep the code readable.
+dotnet_diagnostic.CA1848.severity = none
+# The same for argument evaluation in log calls (.NET 10 analyzers).
+dotnet_diagnostic.CA1873.severity = none
+
+[VlcRemote.Core.Tests/**.cs]
+# xUnit test names read as sentences: Method_Condition_Result.
+dotnet_diagnostic.CA1707.severity = none
+# Expected values written inline next to the assertion; each test runs once.
+dotnet_diagnostic.CA1861.severity = none

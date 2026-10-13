@@ -95,7 +95,8 @@ public sealed class VlcRcClient : IAsyncDisposable
             _stream = stream;
             _writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
             _readCts = new CancellationTokenSource();
-            _readLoop = Task.Run(() => ReadLoopAsync(stream, _readCts.Token));
+            // The read loop lives as long as the connection, not as long as the connect request.
+            _readLoop = Task.Run(() => ReadLoopAsync(stream, _readCts.Token), CancellationToken.None);
             _log.LogInformation("RC connected to {Host}:{Port}", Host, Port);
         }
         finally
@@ -130,7 +131,7 @@ public sealed class VlcRcClient : IAsyncDisposable
     }
 
     /// <summary>Send a command and wait for the response. The command name must be exact (any command starting with "f" = fullscreen).</summary>
-    public async Task<RcResponse> SendAsync(string command, CancellationToken ct = default, TimeSpan? timeout = null)
+    public async Task<RcResponse> SendAsync(string command, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(command)) throw new ArgumentException("empty command", nameof(command));
         command = command.Trim();
@@ -186,7 +187,7 @@ public sealed class VlcRcClient : IAsyncDisposable
 
     public async Task<IReadOnlyList<RcListEntry>> ListAudioDevicesAsync(CancellationToken ct = default)
     {
-        var r = await SendAsync("adev", ct).ConfigureAwait(false);
+        var r = await SendAsync("adev", ct: ct).ConfigureAwait(false);
         return RcParser.ParseAudioDevices(r.Lines);
     }
 
@@ -194,7 +195,7 @@ public sealed class VlcRcClient : IAsyncDisposable
     {
         if (string.IsNullOrEmpty(deviceId))
             throw new ArgumentException("RC adev cannot select the default device by empty id", nameof(deviceId));
-        var r = await SendAsync("adev " + deviceId, ct).ConfigureAwait(false);
+        var r = await SendAsync("adev " + deviceId, ct: ct).ConfigureAwait(false);
         if (r.IsError) throw new VlcRcException($"adev failed: {r.ReturnMessage}");
     }
 
@@ -208,7 +209,7 @@ public sealed class VlcRcClient : IAsyncDisposable
             VlcTrackKind.Video => "vtrack",
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
-        var r = await SendAsync(cmd, ct).ConfigureAwait(false);
+        var r = await SendAsync(cmd, ct: ct).ConfigureAwait(false);
         if (r.PausedRefusal) return null;
         return RcParser.ParseTracks(r.Lines);
     }
@@ -218,7 +219,7 @@ public sealed class VlcRcClient : IAsyncDisposable
     {
         try
         {
-            await SendAsync("quit", ct, TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            await SendAsync("quit", TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
         }
         catch (VlcRcException)
         {

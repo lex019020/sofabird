@@ -132,7 +132,7 @@ public sealed class Settings
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, ReadCommentHandling = JsonCommentHandling.Skip,
     AllowTrailingCommas = true)]
 [JsonSerializable(typeof(Settings))]
-internal partial class SettingsJsonContext : JsonSerializerContext;
+internal sealed partial class SettingsJsonContext : JsonSerializerContext;
 
 public sealed class SettingsStore
 {

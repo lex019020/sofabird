@@ -36,7 +36,7 @@ public sealed class DnsSdAdvertiser : IDisposable
             var serviceName = $"{safeName}.{ProtocolConstants.DnsSdServiceType}.local";
             var hostName = $"{safeName}.local";
             string[] keys = ["v", "name", "id"];
-            string[] values = [ProtocolConstants.Version.ToString(), machineName, installationId];
+            string[] values = [ProtocolConstants.Version.ToString(System.Globalization.CultureInfo.InvariantCulture), machineName, installationId];
 
             _instance = NativeMethods.DnsServiceConstructInstance(serviceName, hostName, IntPtr.Zero, IntPtr.Zero,
                 (ushort)port, 0, 0, (uint)keys.Length, keys, values);
@@ -112,7 +112,7 @@ public sealed class DnsSdAdvertiser : IDisposable
         {
             if (_registered)
             {
-                NativeMethods.DnsServiceDeRegister(ref _request, IntPtr.Zero);
+                _ = NativeMethods.DnsServiceDeRegister(ref _request, IntPtr.Zero); // best effort at exit
                 _registered = false;
             }
             if (_instance != IntPtr.Zero)

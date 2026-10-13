@@ -1,0 +1,10 @@
+<Project>
+  <!-- Shared by all companion projects. -->
+  <PropertyGroup>
+    <!-- .NET code analysis at the "recommended" level, pinned to the .NET 9 rule set so that a newer SDK on CI does
+         not bring new rules unannounced; exceptions with reasons are in .editorconfig. -->
+    <AnalysisLevel>9.0-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

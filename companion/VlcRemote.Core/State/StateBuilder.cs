@@ -167,7 +167,7 @@ public static partial class StateBuilder
         tracks.CurrentVideo = page?.Video?.CurrentInt ?? rc?.Video;
     }
 
-    private static IReadOnlyList<TrackInfo> FromVarList(VlcVarList? list)
+    private static List<TrackInfo> FromVarList(VlcVarList? list)
     {
         if (list is null) return [];
         var result = new List<TrackInfo>();
@@ -204,7 +204,7 @@ public static partial class StateBuilder
         return chapters;
     }
 
-    internal static string TrackName(VlcStream s)
+    internal static string TrackName(VlcStreamInfo s)
     {
         var name = s.Description;
         if (string.IsNullOrWhiteSpace(name))

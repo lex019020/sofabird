@@ -65,7 +65,7 @@ public static partial class VlcJsonParser
         if (info.TryGetProperty("category", out var category) && category.ValueKind == JsonValueKind.Object)
         {
             var meta = new Dictionary<string, string>(StringComparer.Ordinal);
-            var streams = new List<VlcStream>();
+            var streams = new List<VlcStreamInfo>();
             foreach (var prop in category.EnumerateObject())
             {
                 if (prop.Value.ValueKind != JsonValueKind.Object) continue;
@@ -81,7 +81,7 @@ public static partial class VlcJsonParser
                 if (!prop.Value.TryGetProperty("Type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String)
                     continue;
 
-                var stream = new VlcStream
+                var stream = new VlcStreamInfo
                 {
                     Type = typeEl.GetString() ?? "",
                     Language = GetString(prop.Value, "Language"),

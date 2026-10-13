@@ -25,7 +25,7 @@ public sealed class VlcWindowHost : IVlcWindowHost
 
     public Task<bool?> GetFullscreenAsync(CancellationToken ct) => _vlc.GetFullscreenAsync(ct);
 
-    public Task SetFullscreenAsync(bool on, CancellationToken ct) => _vlc.SetFullscreenAsync(on, ct);
+    public Task SetFullscreenAsync(bool enabled, CancellationToken ct) => _vlc.SetFullscreenAsync(enabled, ct);
 
     public bool MoveWindow(long window, MonitorInfo target) => _display.MoveWindowToMonitor(new IntPtr(window), target);
 

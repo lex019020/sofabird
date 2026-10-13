@@ -110,7 +110,7 @@ public sealed class PairingForm : Form
             Close();
             return;
         }
-        _timerLabel.Text = UiText.PairingTimer(left.ToString(@"m\:ss"));
+        _timerLabel.Text = UiText.PairingTimer(left.ToString(@"m\:ss", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     public void ShowPaired(string? deviceName)

@@ -239,10 +239,10 @@ public class DisplayControllerTests
 
         public Task<bool?> GetFullscreenAsync(CancellationToken ct) => Task.FromResult<bool?>(IsControllable ? Fullscreen : null);
 
-        public Task SetFullscreenAsync(bool on, CancellationToken ct)
+        public Task SetFullscreenAsync(bool enabled, CancellationToken ct)
         {
-            Log.Add(on ? "fullscreen" : "unfullscreen");
-            if (!NoVideoOutput) Fullscreen = on;
+            Log.Add(enabled ? "fullscreen" : "unfullscreen");
+            if (!NoVideoOutput) Fullscreen = enabled;
             return Task.CompletedTask;
         }
 

@@ -123,7 +123,7 @@ public sealed class PairingService
     {
         lock (_lock)
         {
-            _code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+            _code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
             _expiresAt = _time.GetUtcNow() + CodeLifetime;
             _attempts = 0;
             return _code;

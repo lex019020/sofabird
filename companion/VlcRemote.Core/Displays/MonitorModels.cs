@@ -95,7 +95,7 @@ public interface IVlcWindowHost
     bool IsControllable { get; }
     /// <summary>Fullscreen state of the video output via HTTP; <c>null</c> — not controllable or failed.</summary>
     Task<bool?> GetFullscreenAsync(CancellationToken ct);
-    Task SetFullscreenAsync(bool on, CancellationToken ct);
+    Task SetFullscreenAsync(bool enabled, CancellationToken ct);
     /// <summary>
     /// Move the window to <paramref name="target"/>: a normal window keeps its size (clamped to the work area) and is
     /// centred, a maximized one is maximized again there, a borderless fullscreen one covers the target bounds.

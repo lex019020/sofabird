@@ -112,14 +112,14 @@ public sealed class DisplayService : IMonitorSource, IDisposable
         var fallback = IntPtr.Zero;
         NativeMethods.EnumWindows((h, _) =>
         {
-            NativeMethods.GetWindowThreadProcessId(h, out var p);
-            if (p != pid || !NativeMethods.IsWindowVisible(h)) return true;
+            // Returns the thread id (0 — the window is gone); only the process id is needed.
+            if (NativeMethods.GetWindowThreadProcessId(h, out var p) == 0 || p != pid || !NativeMethods.IsWindowVisible(h)) return true;
             if (NativeMethods.GetWindow(h, NativeMethods.GW_OWNER) != IntPtr.Zero) return true;
             var len = NativeMethods.GetWindowTextLength(h);
             if (len <= 0) return true;
-            var sb = new StringBuilder(len + 1);
-            NativeMethods.GetWindowText(h, sb, sb.Capacity);
-            var title = sb.ToString();
+            var buffer = new char[len + 1];
+            var copied = NativeMethods.GetWindowText(h, buffer, buffer.Length);
+            var title = new string(buffer, 0, Math.Max(0, copied));
             if (title.EndsWith("VLC media player", StringComparison.OrdinalIgnoreCase))
             {
                 best = h;

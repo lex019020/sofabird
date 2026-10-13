@@ -4,7 +4,7 @@ using Xunit;
 
 namespace VlcRemote.Core.Tests;
 
-public class VlcrcConfiguratorTests : IDisposable
+public sealed class VlcrcConfiguratorTests : IDisposable
 {
     private static readonly VlcrcSettings S = new(8080, "Secret123", 4212);
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "vlcremote-vlcrc-" + Guid.NewGuid().ToString("N"));
@@ -65,7 +65,7 @@ public class VlcrcConfiguratorTests : IDisposable
         var inside = false;
         foreach (var l in lines)
         {
-            if (l.StartsWith('[')) { inside = l.StartsWith($"[{name}]"); continue; }
+            if (l.StartsWith('[')) { inside = l.StartsWith($"[{name}]", StringComparison.Ordinal); continue; }
             if (inside) result.Add(l);
         }
         return result;
@@ -120,7 +120,7 @@ public class VlcrcConfiguratorTests : IDisposable
         var text = "[core] # core program\n" + existing + "\nhttp-port=8080\n";
         var result = VlcrcEditor.Apply(text, S, out _);
         Assert.Contains(expected + "\n", result);
-        Assert.Single(Section(result, "core"), l => l.StartsWith("extraintf="));
+        Assert.Single(Section(result, "core"), l => l.StartsWith("extraintf=", StringComparison.Ordinal));
     }
 
     [Fact]

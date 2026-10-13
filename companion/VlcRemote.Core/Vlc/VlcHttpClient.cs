@@ -140,8 +140,9 @@ public sealed class VlcHttpClient : IDisposable
             if (trimmed.Length > 0 && trimmed[0] == '<')
             {
                 // Lua errors arrive as 200 with an HTML body.
-                var idx = text.IndexOf("<title>Error loading", StringComparison.OrdinalIgnoreCase);
-                var message = idx >= 0 ? ExtractLuaError(text) : "VLC returned HTML instead of JSON";
+                var message = text.Contains("<title>Error loading", StringComparison.OrdinalIgnoreCase)
+                    ? ExtractLuaError(text)
+                    : "VLC returned HTML instead of JSON";
                 throw new VlcLuaException(message);
             }
             return text;

@@ -102,7 +102,7 @@ public static class VlcrcEditor
             {
                 var t = lines[i].TrimStart();
                 if (t.StartsWith(key + "=", StringComparison.Ordinal)) { active = i; break; }
-                if (commented < 0 && t.StartsWith("#", StringComparison.Ordinal)
+                if (commented < 0 && t.StartsWith('#')
                     && t[1..].TrimStart().StartsWith(key + "=", StringComparison.Ordinal))
                     commented = i;
             }
