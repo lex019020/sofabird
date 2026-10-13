@@ -96,8 +96,8 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
   `deploy-android -Local` builds — commits in `origin/main` × 10 + 5: newer than the current test build, older than the next one.
 - A **test build** (pre-release `v<VERSION>-beta.<N>`) is created automatically on every merge to `main`
   (`.github/workflows/release.yml`). Description — the release notes of the merged PR + installation instructions.
-  Files: `VlcRemoteCompanion-win-Setup.exe` + the Velopack update feed (`*-full.nupkg`, `*-delta.nupkg`,
-  `releases.win.json`, …), `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
+  Files: `VlcRemote-Companion-Setup.exe` (linked from the notes) + the Velopack update feed (`*-full.nupkg`,
+  `*-delta.nupkg`, `releases.win.json`), `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
 - **The companion updates itself** (Velopack, `UpdateService`): a few minutes after the start and every 6 h it checks
   GitHub Releases, downloads in the background and restarts into the new version when VLC is not playing. Test builds
   stay on test builds, releases on releases (tray: "Get test builds"); `-local` builds never update themselves.
@@ -122,7 +122,7 @@ messages in English:
 | `-Firewall` / `-Autostart` | firewall rules for the companion and VLC (private network, one UAC prompt) / autostart |
 | `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs) |
 
-The companion is installed by its Velopack installer (`VlcRemoteCompanion-win-Setup.exe`, which a user can also just
+The companion is installed by its Velopack installer (`VlcRemote-Companion-Setup.exe`, which a user can also just
 run) into `%LOCALAPPDATA%\VlcRemoteCompanion` (`current\VlcRemote.Companion.exe` — a stable path for the firewall
 rules and autostart) for the current user; the .NET 9 runtime, when missing, is installed by it with one administrator
 prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the

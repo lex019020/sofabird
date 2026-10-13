@@ -65,7 +65,7 @@ For debugging with a separate data folder: `VlcRemote.Companion.exe --data-dir D
 
 ## Installing and updates
 
-The companion is installed by `VlcRemoteCompanion-win-Setup.exe` from GitHub Releases (Velopack; per user, into
+The companion is installed by `VlcRemote-Companion-Setup.exe` from GitHub Releases (Velopack; per user, into
 `%LOCALAPPDATA%\VlcRemoteCompanion`, with the .NET 9 runtime when it is missing) — by hand or through
 `scripts\deploy-windows.ps1` (which adds VLC, the firewall rules and autostart; `-Local` builds the installer from
 source). Then it updates itself (`Services/UpdateService.cs`): a few minutes after the start and every 6 hours it checks
