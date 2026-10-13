@@ -5,6 +5,7 @@ import dev.vlcremote.app.data.net.Backoff
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
+import dev.vlcremote.protocol.backend.resultOf
 import dev.vlcremote.protocol.companion.BtAddress
 import dev.vlcremote.protocol.companion.CommandMapping
 import dev.vlcremote.protocol.companion.CompanionErrorException
@@ -30,11 +31,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -107,9 +105,6 @@ class CompanionBackend(
 
     private val _connection = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     override val connection: StateFlow<ConnectionState> = _connection.asStateFlow()
-
-    private val _events = MutableSharedFlow<CompanionMessage.Event>(extraBufferCapacity = 16)
-    val events: SharedFlow<CompanionMessage.Event> = _events.asSharedFlow()
 
     /**
      * The LAN is down and Bluetooth could take over, but the user has to act first: grant
@@ -371,7 +366,6 @@ class CompanionBackend(
                 is CompanionMessage.Pong -> pongDeferred?.complete(Unit)
                 is CompanionMessage.Ping -> t.sendMessage(CompanionMessage.Pong())
                 is CompanionMessage.Event -> {
-                    _events.tryEmit(msg)
                     if (msg.name == "vlcExited") {
                         _state.value = _state.value.copy(vlc = _state.value.vlc.exited())
                     }
@@ -469,44 +463,44 @@ class CompanionBackend(
         } is ConnectionState.Connected
     }
 
-    override suspend fun send(command: PlayerCommand): Result<Unit> = runCatching {
+    override suspend fun send(command: PlayerCommand): Result<Unit> = resultOf {
         request { id -> CommandMapping.toCmd(id, command) }
         Unit
     }
 
-    override suspend fun sendSystem(command: SystemCommand): Result<Unit> = runCatching {
+    override suspend fun sendSystem(command: SystemCommand): Result<Unit> = resultOf {
         request { id -> CommandMapping.toSys(id, command) }
         Unit
     }
 
     /** `listDisplays` returns data, not just `ok`. */
-    override suspend fun listDisplays(): Result<dev.vlcremote.protocol.companion.DisplayList> = runCatching {
+    override suspend fun listDisplays(): Result<dev.vlcremote.protocol.companion.DisplayList> = resultOf {
         val reply = request { id -> CommandMapping.toSys(id, SystemCommand.ListDisplays) }
         (reply as? CompanionMessage.Displays)?.toList() ?: dev.vlcremote.protocol.companion.DisplayList()
     }
 
-    override suspend fun audioDevices(): Result<List<dev.vlcremote.protocol.companion.AudioDevice>> = runCatching {
+    override suspend fun audioDevices(): Result<List<dev.vlcremote.protocol.companion.AudioDevice>> = resultOf {
         val reply = request { id -> CompanionMessage.GetAudioDevices(id) }
         (reply as? CompanionMessage.AudioDevices)?.items ?: emptyList()
     }
 
-    override suspend fun browse(uri: String): Result<List<Entry>> = runCatching {
+    override suspend fun browse(uri: String): Result<List<Entry>> = resultOf {
         val reply = request { id -> CompanionMessage.Browse(id, uri) }
         (reply as? CompanionMessage.Entries)?.items ?: error("unexpected reply ${reply::class.simpleName}")
     }
 
-    override suspend fun playlist(): Result<List<PlaylistItem>> = runCatching {
+    override suspend fun playlist(): Result<List<PlaylistItem>> = resultOf {
         val reply = request { id -> CompanionMessage.GetPlaylist(id) }
         (reply as? CompanionMessage.Playlist)?.items ?: error("unexpected reply ${reply::class.simpleName}")
     }
 
-    override suspend fun history(filter: HistoryFilter, limit: Int, offset: Int): Result<HistoryPage> = runCatching {
+    override suspend fun history(filter: HistoryFilter, limit: Int, offset: Int): Result<HistoryPage> = resultOf {
         val reply = request { id -> CompanionMessage.GetHistory(id, filter.wire, limit, offset) }
         val history = reply as? CompanionMessage.History ?: error("unexpected reply ${reply::class.simpleName}")
         HistoryPage(history.items, history.total)
     }
 
-    override suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> = runCatching {
+    override suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> = resultOf {
         request { id ->
             when (change) {
                 is HistoryChange.SetFinished -> CompanionMessage.HistoryUpdate(id, uri, finished = change.finished)
@@ -516,13 +510,10 @@ class CompanionBackend(
         Unit
     }
 
-    override suspend fun clearHistory(): Result<Unit> = runCatching {
+    override suspend fun clearHistory(): Result<Unit> = resultOf {
         request { id -> CompanionMessage.HistoryClear(id) }
         Unit
     }
-
-    /** Bearer header for the companion's `/art` proxy. */
-    fun authorizationHeader(): String? = credentials.token?.let { "Bearer $it" }
 
     private companion object {
         const val TAG = "CompanionBackend"

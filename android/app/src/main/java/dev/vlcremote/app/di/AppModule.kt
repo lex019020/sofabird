@@ -71,7 +71,7 @@ val appModule = module {
     viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RemoteViewModel(get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
-    viewModel { PlaylistViewModel(get()) }
+    viewModel { PlaylistViewModel(get(), get()) }
     viewModel { HistoryViewModel(get()) }
     viewModel { SettingsViewModel(get()) }
 }

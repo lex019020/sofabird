@@ -21,7 +21,6 @@ import dev.vlcremote.protocol.model.VlcProcessStatus
 import dev.vlcremote.protocol.model.VlcVolume
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -297,7 +296,6 @@ class RemoteViewModel(
         displaysJob = viewModelScope.launch {
             displayPanel.update { it.copy(loading = true) }
             val result = controller.listDisplays()
-            ensureActive() // runCatching inside the backend swallows cancellation
             val system = controller.state.value.system
             displayPanel.update { panel ->
                 result.fold(

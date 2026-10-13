@@ -28,6 +28,7 @@ import dev.vlcremote.app.ui.MainActivity
 import dev.vlcremote.app.ui.common.displayNameFromUri
 import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.protocol.backend.PlayerCommand
+import dev.vlcremote.protocol.backend.resultOf
 import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
@@ -35,6 +36,8 @@ import dev.vlcremote.protocol.model.ResumeChoice
 import dev.vlcremote.protocol.model.ResumePrompt
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -57,13 +60,12 @@ class PlaybackService : LifecycleService() {
     private var player: RemotePlayer? = null
     private var session: MediaSession? = null
     private var artBitmap: Bitmap? = null
-    private var artUrlLoaded: String? = null
+    private var lastSnapshot: Snapshot? = null
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        val s = settings.settings.value
-        val player = RemotePlayer(controller, s.seekShortSec * 1000L, s.seekLongSec * 1000L)
+        val player = RemotePlayer(controller) { settings.settings.value }
         this.player = player
         session = MediaSession.Builder(this, player)
             .setId("vlc-remote")
@@ -79,11 +81,20 @@ class PlaybackService : LifecycleService() {
                 prompts.resume,
                 prompts.next,
             ) { (state, host), resume, next -> Snapshot(state, host, resume, next) }
-                .collectLatest { snap ->
+                .collect { snap ->
+                    lastSnapshot = snap
                     player.update(snap.state, snap.host)
-                    loadArt(snap.state)
                     notify(buildNotification(snap.state, snap.resume, snap.next))
                 }
+        }
+        // Artwork per item, in its own collector: the state changes every second while playing and must not
+        // cancel a download in progress.
+        lifecycleScope.launch {
+            controller.state.map { it.item.artUrl }.distinctUntilChanged().collectLatest { url ->
+                artBitmap = null
+                artBitmap = url?.let { loadArt(it) }
+                lastSnapshot?.let { notify(buildNotification(it.state, it.resume, it.next)) }
+            }
         }
     }
 
@@ -233,18 +244,9 @@ class PlaybackService : LifecycleService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setDeleteIntent(actionIntent(ACTION_STOP_SERVICE))
 
-    private suspend fun loadArt(state: PlayerState) {
-        val url = state.item.artUrl
-        if (url == artUrlLoaded) return
-        artUrlLoaded = url
-        artBitmap = null
-        if (url == null) return
-        val result = runCatching {
-            imageLoader.execute(ImageRequest.Builder(this).data(url).size(ARTWORK_PX).build())
-        }.getOrNull()
-        if (result is SuccessResult && artUrlLoaded == url) {
-            artBitmap = runCatching { result.image.toBitmap() }.getOrNull()
-        }
+    private suspend fun loadArt(url: String): Bitmap? {
+        val result = resultOf { imageLoader.execute(ImageRequest.Builder(this).data(url).size(ARTWORK_PX).build()) }.getOrNull()
+        return (result as? SuccessResult)?.let { resultOf { it.image.toBitmap() }.getOrNull() }
     }
 
     private fun contentIntent(): PendingIntent = PendingIntent.getActivity(
