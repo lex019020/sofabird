@@ -6,7 +6,6 @@ import dev.vlcremote.app.data.companion.BluetoothStatus
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.domain.model.AppSettings
-import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.companion.AudioDevice
@@ -30,7 +29,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -39,8 +37,6 @@ data class RemoteUiState(
     val connection: ConnectionState = ConnectionState.Disconnected,
     val capabilities: Capabilities = Capabilities.NONE,
     val settings: AppSettings = AppSettings(),
-    /** Interpolated position, seconds. */
-    val position: Double = 0.0,
     /** User is dragging the scrub bar: show the target instead of the live position. */
     val scrubTarget: Double? = null,
     val hostName: String? = null,
@@ -61,7 +57,6 @@ data class RemoteUiState(
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
 ) {
-    val displayedPosition: Double get() = scrubTarget ?: position
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
@@ -95,22 +90,15 @@ class RemoteViewModel(
     settings: SettingsRepository,
 ) : ViewModel() {
 
-    private val position = MutableStateFlow(0.0)
-    private val scrubTarget = MutableStateFlow<Double?>(null)
-    private val pcInfo = MutableStateFlow(PcInfo())
-    private var pcInfoJob: Job? = null
-    private val displayPanel = MutableStateFlow(DisplayPanel())
-    private var displaysJob: Job? = null
-    private var displayActionJob: Job? = null
-    private val launching = MutableStateFlow(false)
-    private var launchJob: Job? = null
-
-    /** "Not now" on the Bluetooth card: hidden while this screen lives. */
-    private val bluetoothDismissed = MutableStateFlow(false)
-
-    private data class PcInfo(
+    /** What this screen adds to the player state; one flow, changed with [update]. */
+    private data class Local(
+        val scrubTarget: Double? = null,
         val audioDevices: List<AudioDevice> = emptyList(),
-        val loading: Boolean = false,
+        val audioLoading: Boolean = false,
+        val displays: DisplayPanel = DisplayPanel(),
+        val launching: Boolean = false,
+        /** "Not now" on the Bluetooth card: hidden while this screen lives. */
+        val bluetoothDismissed: Boolean = false,
     )
 
     private data class DisplayPanel(
@@ -121,71 +109,54 @@ class RemoteViewModel(
         val error: Throwable? = null,
     )
 
-    private data class Extras(
-        val position: Double,
-        val scrubTarget: Double?,
-        val server: SavedServer?,
-        val pcInfo: PcInfo,
-        val launching: Boolean,
-        val bluetoothNeed: BluetoothStatus?,
-        val displays: DisplayPanel,
-    )
+    private val local = MutableStateFlow(Local())
+    private var pcInfoJob: Job? = null
+    private var displaysJob: Job? = null
+    private var displayActionJob: Job? = null
+    private var launchJob: Job? = null
 
     val uiState: StateFlow<RemoteUiState> = combine(
-        controller.state,
-        controller.connection,
-        controller.capabilities,
+        combine(controller.state, controller.connection, controller.capabilities, ::Triple),
         settings.flow,
-        combine(
-            combine(position, scrubTarget, controller.activeServer) { p, t, s -> Triple(p, t, s) },
-            pcInfo,
-            launching,
-            combine(controller.bluetoothNeed, bluetoothDismissed) { need, dismissed -> need.takeUnless { dismissed } },
-            displayPanel,
-        ) { (p, t, s), i, l, bt, d -> Extras(p, t, s, i, l, bt, d) },
-    ) { state, connection, caps, prefs, extras ->
+        controller.activeServer,
+        controller.bluetoothNeed,
+        local,
+    ) { (state, connection, caps), prefs, server, bluetoothNeed, l ->
         RemoteUiState(
             state = state,
             connection = connection,
             capabilities = caps,
             settings = prefs,
-            position = extras.position,
-            scrubTarget = extras.scrubTarget,
-            hostName = extras.server?.displayName,
-            audioDevices = extras.pcInfo.audioDevices,
-            pcInfoLoading = extras.pcInfo.loading,
-            displayChoice = displayChoice(extras.displays, state),
-            displaysLoading = extras.displays.loading,
-            displayPending = extras.displays.pendingKey,
-            displayError = extras.displays.error,
-            companionMode = extras.server?.isCompanion == true,
-            launching = extras.launching,
-            bluetoothNeed = extras.bluetoothNeed,
+            scrubTarget = l.scrubTarget,
+            hostName = server?.displayName,
+            audioDevices = l.audioDevices,
+            pcInfoLoading = l.audioLoading,
+            displayChoice = displayChoice(l.displays, state),
+            displaysLoading = l.displays.loading,
+            displayPending = l.displays.pendingKey,
+            displayError = l.displays.error,
+            companionMode = server?.isCompanion == true,
+            launching = l.launching,
+            bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
+    private fun updateDisplays(change: (DisplayPanel) -> DisplayPanel) = local.update { it.copy(displays = change(it.displays)) }
+
     init {
-        // Position ticker: 4 Hz while playing, otherwise follow the reported time.
-        viewModelScope.launch {
-            while (isActive) {
-                val s = controller.state.value
-                position.value = s.interpolatedTime(System.currentTimeMillis())
-                delay(if (s.isPlaying) TICK_PLAYING_MS else TICK_IDLE_MS)
-            }
-        }
         // Monitor names for the "Display" chip: load once a companion with `windowControl` is online.
         viewModelScope.launch {
             combine(controller.capabilities, controller.connection) { caps, c -> caps.windowControl && c.isOnline }
                 .distinctUntilChanged()
                 .collect { ready ->
                     if (ready) loadDisplays()
-                    else if (!controller.capabilities.value.windowControl) displayPanel.value = DisplayPanel()
+                    else if (!controller.capabilities.value.windowControl) updateDisplays { DisplayPanel() }
                 }
         }
         // VLC showed up on a monitor the list does not know (plugged in since): re-read the list.
         viewModelScope.launch {
             controller.state.map { it.system?.displayId }.distinctUntilChanged().collect { id ->
-                val snapshot = displayPanel.value.snapshot ?: return@collect
+                val snapshot = local.value.displays.snapshot ?: return@collect
                 if (!id.isNullOrEmpty() && snapshot.list.items.none { it.id == id }) loadDisplays()
             }
         }
@@ -206,15 +177,15 @@ class RemoteViewModel(
     fun seekBy(delta: Long) = send(PlayerCommand.SeekBy(delta))
 
     fun onScrub(seconds: Double) {
-        scrubTarget.value = seconds
+        local.update { it.copy(scrubTarget = seconds) }
     }
 
     fun onScrubFinished() {
-        val target = scrubTarget.value ?: return
+        val target = local.value.scrubTarget ?: return
         send(PlayerCommand.SeekTo(target.toLong()))
         viewModelScope.launch {
             delay(SCRUB_HOLD_MS) // keep the target until the clean status arrives
-            if (scrubTarget.value == target) scrubTarget.value = null
+            local.update { if (it.scrubTarget == target) it.copy(scrubTarget = null) else it }
         }
     }
 
@@ -248,7 +219,7 @@ class RemoteViewModel(
     fun launchVlc() {
         launchJob?.cancel()
         launchJob = viewModelScope.launch {
-            launching.value = true
+            local.update { it.copy(launching = true) }
             try {
                 val before = controller.state.value.vlc.effectiveStatus
                 if (controller.sendAwait(PlayerCommand.Launch()).isFailure) return@launch
@@ -256,7 +227,7 @@ class RemoteViewModel(
                     controller.state.first { it.vlc.effectiveStatus != before }
                 }
             } finally {
-                launching.value = false
+                local.update { it.copy(launching = false) }
             }
         }
     }
@@ -268,7 +239,7 @@ class RemoteViewModel(
     fun bluetoothReady() = controller.retryNow()
 
     fun dismissBluetooth() {
-        bluetoothDismissed.value = true
+        local.update { it.copy(bluetoothDismissed = true) }
     }
 
     // ---------------------------------------------------------------- companion system controls
@@ -281,9 +252,9 @@ class RemoteViewModel(
         pcInfoJob = viewModelScope.launch {
             if (caps.windowControl) loadDisplays()
             if (!caps.audioDevices) return@launch
-            pcInfo.update { it.copy(loading = true) }
+            local.update { it.copy(audioLoading = true) }
             val devices = controller.audioDevices().getOrNull()
-            pcInfo.update { it.copy(audioDevices = devices ?: it.audioDevices, loading = false) }
+            local.update { it.copy(audioDevices = devices ?: it.audioDevices, audioLoading = false) }
         }
     }
 
@@ -294,10 +265,10 @@ class RemoteViewModel(
         if (!controller.capabilities.value.windowControl) return
         displaysJob?.cancel()
         displaysJob = viewModelScope.launch {
-            displayPanel.update { it.copy(loading = true) }
+            updateDisplays { it.copy(loading = true) }
             val result = controller.listDisplays()
             val system = controller.state.value.system
-            displayPanel.update { panel ->
+            updateDisplays { panel ->
                 result.fold(
                     onSuccess = { panel.copy(snapshot = DisplaySnapshot(it, system), loading = false, error = null) },
                     onFailure = { panel.copy(loading = false, error = it) },
@@ -306,7 +277,7 @@ class RemoteViewModel(
         }
     }
 
-    private fun currentDisplayChoice(): DisplayChoice = displayChoice(displayPanel.value, controller.state.value)
+    private fun currentDisplayChoice(): DisplayChoice = displayChoice(local.value.displays, controller.state.value)
 
     /** Tap on a monitor: move the VLC window there (if open) and remember it as the preferred one. */
     fun moveVlcTo(display: Display) {
@@ -324,17 +295,17 @@ class RemoteViewModel(
     private fun runDisplayAction(key: String, command: SystemCommand, mark: (SystemState?) -> DisplayMark) {
         if (displayActionJob?.isActive == true) return
         displayActionJob = viewModelScope.launch {
-            displayPanel.update { it.copy(pendingKey = key, error = null) }
+            updateDisplays { it.copy(pendingKey = key, error = null) }
             try {
                 val result = controller.sendSystemAwait(command) // failures also reach the snackbar
-                displayPanel.update { panel ->
+                updateDisplays { panel ->
                     result.fold(
                         onSuccess = { panel.copy(mark = mark(controller.state.value.system)) },
                         onFailure = { panel.copy(error = it) },
                     )
                 }
             } finally {
-                displayPanel.update { it.copy(pendingKey = null) }
+                updateDisplays { it.copy(pendingKey = null) }
             }
             loadDisplays()
         }
@@ -343,9 +314,7 @@ class RemoteViewModel(
     fun selectAudioDevice(id: String) {
         viewModelScope.launch {
             if (controller.sendSystemAwait(SystemCommand.AudioDevice(id)).isSuccess) {
-                pcInfo.update { info ->
-                    info.copy(audioDevices = info.audioDevices.map { d -> d.copy(current = d.id == id) })
-                }
+                local.update { l -> l.copy(audioDevices = l.audioDevices.map { d -> d.copy(current = d.id == id) }) }
                 loadPcInfo()
             }
         }
@@ -359,10 +328,6 @@ class RemoteViewModel(
 
     private companion object {
         const val LAUNCH_WAIT_MS = 20_000L
-
-        /** The position ticker: 4 Hz while playing, 1 Hz otherwise. */
-        const val TICK_PLAYING_MS = 250L
-        const val TICK_IDLE_MS = 1_000L
 
         /** A finished scrub keeps its target this long, until VLC reports the new position. */
         const val SCRUB_HOLD_MS = 700L

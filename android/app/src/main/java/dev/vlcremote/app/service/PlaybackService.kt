@@ -73,7 +73,7 @@ class PlaybackService : LifecycleService() {
             .build()
 
         startForegroundWith(buildNotification(controller.state.value, prompts.resume.value, prompts.next.value))
-        controller.serviceRunning.value = true
+        controller.setServiceRunning(true)
 
         lifecycleScope.launch {
             combine(
@@ -119,7 +119,7 @@ class PlaybackService : LifecycleService() {
     }
 
     override fun onDestroy() {
-        controller.serviceRunning.value = false
+        controller.setServiceRunning(false)
         session?.release()
         session = null
         player?.release()

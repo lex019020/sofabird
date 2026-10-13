@@ -19,6 +19,7 @@ import dev.vlcremote.app.domain.model.mergeSighting
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
+import dev.vlcremote.protocol.backend.resultOf
 import dev.vlcremote.protocol.companion.AudioDevice
 import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.Capabilities
@@ -107,15 +108,17 @@ class PlayerController(
     private val _events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 16)
     val events: SharedFlow<PlayerEvent> = _events.asSharedFlow()
 
-    /** Set by the foreground service while it runs; keeps polling alive in the background. */
-    val serviceRunning = MutableStateFlow(false)
+    private val _serviceRunning = MutableStateFlow(false)
+
+    /** The foreground service runs; it keeps polling alive in the background. */
+    val serviceRunning: StateFlow<Boolean> = _serviceRunning.asStateFlow()
 
     private var backendScope: CoroutineScope? = null
     private val connectMutex = Mutex()
     private var autoConnectJob: Job? = null
 
     init {
-        combine(appVisibility.visible, serviceRunning) { visible, service -> visible || service }
+        combine(appVisibility.visible, _serviceRunning) { visible, service -> visible || service }
             .onEach { active -> _backend.value?.setActive(active) }
             .launchIn(scope)
         appVisibility.visible
@@ -138,6 +141,11 @@ class PlayerController(
             .launchIn(scope)
     }
 
+    /** Called by the foreground service when it starts and stops. */
+    fun setServiceRunning(running: Boolean) {
+        _serviceRunning.value = running
+    }
+
     /** Connect to the last used server if nothing is connected yet (app start). */
     fun autoConnectLast() {
         if (_backend.value != null || autoConnectJob?.isActive == true) return
@@ -154,7 +162,7 @@ class PlayerController(
         val backend = createBackend(server, newScope)
         _activeServer.value = server
         _backend.value = backend
-        backend.setActive(appVisibility.visible.value || serviceRunning.value)
+        backend.setActive(appVisibility.visible.value || _serviceRunning.value)
         servers.upsert(server.copy(lastUsedAt = System.currentTimeMillis()))
         backend.connect()
     }
@@ -165,10 +173,13 @@ class PlayerController(
         val old = _backend.value ?: return
         _backend.value = null
         _activeServer.value = null
-        runCatching { old.disconnect() }
-        backendScope?.cancel()
-        backendScope = null
-        artAuth.clear()
+        try {
+            resultOf { old.disconnect() }.onFailure { Log.d(TAG, "disconnect failed: ${it.message}") }
+        } finally {
+            backendScope?.cancel()
+            backendScope = null
+            artAuth.clear()
+        }
     }
 
     private fun createBackend(server: SavedServer, backendScope: CoroutineScope): PlayerBackend = when (server.mode) {
@@ -223,39 +234,28 @@ class PlayerController(
         scope.launch { sendAwait(command) }
     }
 
-    suspend fun sendAwait(command: PlayerCommand): Result<Unit> {
-        val backend = _backend.value ?: return Result.failure(IllegalStateException("not connected"))
-        val result = backend.send(command)
-        result.onFailure { e ->
+    suspend fun sendAwait(command: PlayerCommand): Result<Unit> =
+        withBackend { it.send(command) }.onFailure { e ->
             Log.d(TAG, "command $command failed: ${e.message}")
             _events.tryEmit(PlayerEvent.CommandFailed(command, e))
         }
-        return result
-    }
 
     /** Like [sendAwait] but without the "command failed" event: the caller reports the outcome itself. */
-    suspend fun sendQuiet(command: PlayerCommand): Result<Unit> =
-        _backend.value?.send(command) ?: Result.failure(IllegalStateException("not connected"))
+    suspend fun sendQuiet(command: PlayerCommand): Result<Unit> = withBackend { it.send(command) }
 
     fun sendSystem(command: SystemCommand) {
         scope.launch { sendSystemAwait(command) }
     }
 
-    suspend fun sendSystemAwait(command: SystemCommand): Result<Unit> {
-        val backend = _backend.value ?: return Result.failure(IllegalStateException("not connected"))
-        val result = backend.sendSystem(command)
-        result.onFailure { e ->
+    suspend fun sendSystemAwait(command: SystemCommand): Result<Unit> =
+        withBackend { it.sendSystem(command) }.onFailure { e ->
             Log.d(TAG, "system command $command failed: ${e.message}")
             _events.tryEmit(PlayerEvent.SystemCommandFailed(command, e))
         }
-        return result
-    }
 
-    suspend fun audioDevices(): Result<List<AudioDevice>> =
-        _backend.value?.audioDevices() ?: Result.failure(IllegalStateException("not connected"))
+    suspend fun audioDevices(): Result<List<AudioDevice>> = withBackend { it.audioDevices() }
 
-    suspend fun listDisplays(): Result<DisplayList> =
-        _backend.value?.listDisplays() ?: Result.failure(IllegalStateException("not connected"))
+    suspend fun listDisplays(): Result<DisplayList> = withBackend { it.listDisplays() }
 
     /** Hardware volume keys: ±[delta] VLC units, then report the resulting percentage. */
     fun adjustVolume(delta: Int) {
@@ -269,37 +269,31 @@ class PlayerController(
         }
     }
 
-    suspend fun browse(uri: String): Result<List<Entry>> =
-        _backend.value?.browse(uri) ?: Result.failure(IllegalStateException("not connected"))
+    suspend fun browse(uri: String): Result<List<Entry>> = withBackend { it.browse(uri) }
 
-    suspend fun playlist(): Result<List<PlaylistItem>> =
-        _backend.value?.playlist() ?: Result.failure(IllegalStateException("not connected"))
+    suspend fun playlist(): Result<List<PlaylistItem>> = withBackend { it.playlist() }
 
     // ------------------------------------------------------------------ watch history (`history` capability)
 
     suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage> =
-        _backend.value?.history(filter, limit, offset) ?: Result.failure(IllegalStateException("not connected"))
+        withBackend { it.history(filter, limit, offset) }
 
     /** Failures are reported through [events]. */
-    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> {
-        val result = _backend.value?.updateHistory(uri, change) ?: Result.failure(IllegalStateException("not connected"))
-        result.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
-        return result
-    }
+    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> =
+        withBackend { it.updateHistory(uri, change) }.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
 
     /** Failures are reported through [events]. */
-    suspend fun clearHistory(): Result<Unit> {
-        val result = _backend.value?.clearHistory() ?: Result.failure(IllegalStateException("not connected"))
-        result.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
-        return result
-    }
-
-    private fun companionBackend(): CompanionBackend? = _backend.value as? CompanionBackend
+    suspend fun clearHistory(): Result<Unit> =
+        withBackend { it.clearHistory() }.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
 
     /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */
     fun retryNow() {
-        companionBackend()?.retryNow()
+        (_backend.value as? CompanionBackend)?.retryNow()
     }
+
+    /** [block] on the active backend, or a "not connected" failure. */
+    private inline fun <T> withBackend(block: (PlayerBackend) -> Result<T>): Result<T> =
+        _backend.value?.let(block) ?: Result.failure(IllegalStateException("not connected"))
 
     private companion object {
         const val TAG = "PlayerController"

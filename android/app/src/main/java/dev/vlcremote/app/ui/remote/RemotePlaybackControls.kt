@@ -28,8 +28,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,12 +48,15 @@ import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.app.ui.common.rememberTick
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.PlaybackStatus
+import dev.vlcremote.protocol.model.PlayerState
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun ScrubBar(ui: RemoteUiState, actions: RemoteActions) {
     val length = ui.state.playback.length
     val enabled = ui.connection.isOnline && length > 0 && !ui.state.isStopped
-    val pos = ui.displayedPosition.coerceIn(0.0, length.toDouble().coerceAtLeast(0.0))
+    val live by rememberLivePosition(ui.state)
+    val pos = (ui.scrubTarget ?: live).coerceIn(0.0, length.toDouble().coerceAtLeast(0.0))
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
             // Chapter ticks
@@ -104,6 +109,22 @@ internal fun ScrubBar(ui: RemoteUiState, actions: RemoteActions) {
         }
     }
 }
+
+/**
+ * The position between status updates, in seconds: interpolated 4 times a second while playing. It lives here, not in
+ * the ViewModel, so the ticks recompose only the scrub bar.
+ */
+@Composable
+private fun rememberLivePosition(state: PlayerState): State<Double> =
+    produceState(state.interpolatedTime(System.currentTimeMillis()), state) {
+        if (!state.isPlaying || state.playback.updatedAt <= 0L) return@produceState
+        while (true) {
+            delay(POSITION_TICK_MS)
+            value = state.interpolatedTime(System.currentTimeMillis())
+        }
+    }
+
+private const val POSITION_TICK_MS = 250L
 
 @Composable
 internal fun TransportRow(ui: RemoteUiState, actions: RemoteActions) {
