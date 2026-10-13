@@ -1,27 +1,27 @@
 <!--
-Заголовок PR: <тип>(<область>): <что сделано, по-русски, с маленькой буквы>
-  типы: feat · fix · perf · refactor · docs · test · build · ci · chore · revert; «!» после области — ломающее изменение
-  области: android · companion · protocol · lua · deploy · docs · ci · deps (можно через запятую)
-  пример: feat(android): список дорожек с языками вместо перебора
-Подробно — CLAUDE.md, раздел «Pull request'ы и release notes».
+Title: <type>(<scope>): <summary in English, lower case, imperative, no trailing period>
+  types: feat · fix · perf · refactor · docs · test · build · ci · chore · revert; "!" after the scope = breaking
+  scopes: android · companion · protocol · lua · deploy · docs · ci · deps (comma-separated if several)
+  example: feat(android): show audio tracks with languages instead of cycling
+Details: CLAUDE.md, "Pull requests and release notes".
 -->
 
-## Что сделано
+## Summary
 -
 
 ## Release notes
 <!--
-Попадает в описание тестовой сборки и релиза дословно. Пишите для пользователя пульта, по-русски,
-по одному пункту «- …» на заметное изменение: что теперь можно / что исправлено, без имён классов.
-Если пользователь ничего не заметит (рефакторинг, CI, тесты) — одно слово: нет
+Copied verbatim into the test build and release descriptions. Write for the remote's user, in English, one
+"- …" bullet per visible change: what you can do now / what got fixed, no class or file names.
+If users won't notice anything (refactoring, CI, tests), write the single word: none
 -->
 -
 
-## Как проверено
+## Testing
 - [ ] `dotnet test companion/VlcRemote.sln`
-- [ ] `android\gradlew.bat test`
+- [ ] `android\gradlew.bat -p android test`
 -
 
-## Проверить на устройстве
-<!-- Что осталось проверить на телефоне / ноутбуке у ТВ. «—», если нечего. -->
+## Device checks pending
+<!-- What still has to be checked on the phone / the TV laptop. "—" if nothing. -->
 —

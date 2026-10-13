@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Release notes для vlc-remote из описаний pull request'ов.
+"""Release notes for vlc-remote, built from pull request descriptions.
 
-Правила оформления PR — в CLAUDE.md. Кратко: заголовок `<тип>(<область>): <описание>`,
-в теле секция `## Release notes` со списком пунктов для пользователя или словом «нет».
+PR conventions are in CLAUDE.md. In short: an English title `<type>(<scope>): <summary>`, and the body has a
+`## Release notes` section with user-facing English bullet points, or the single word `none`.
 
-Команды:
-  check                      проверить заголовок и тело PR (env PR_TITLE, PR_BODY); код 1 при ошибке
-  beta   --sha SHA           заметки для тестовой сборки: PR, из которого получен коммит
-  stable [--since-tag TAG]   заметки для релиза: все PR, смёрдженные в main после предыдущего релиза
+Commands:
+  check                      validate PR title and body (env PR_TITLE, PR_BODY); exit code 1 on error
+  beta   --sha SHA           notes for a test build: the PR the commit came from
+  stable [--since-tag TAG]   notes for a release: all PRs merged into main after the previous release
 
-Для beta/stable нужны gh CLI и GH_TOKEN; репозиторий берётся из GITHUB_REPOSITORY или --repo.
-Результат (Markdown) печатается в stdout.
+beta/stable need the gh CLI and GH_TOKEN; the repository comes from GITHUB_REPOSITORY or --repo.
+Markdown is printed to stdout.
 """
 from __future__ import annotations
 
@@ -29,19 +29,20 @@ TITLE_RE = re.compile(
     r"(?P<breaking>!)?: (?P<subject>\S.*)$"
 )
 NOTES_HEADING_RE = re.compile(r"^##\s+release\s+notes\s*$", re.IGNORECASE | re.MULTILINE)
-EMPTY_MARKERS = {"нет", "-", "—", "none", "n/a"}
+CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
+EMPTY_MARKERS = {"none", "n/a", "-", "—"}
 
-SECTIONS = [  # (заголовок в релизе, предикат по типу/breaking)
-    ("⚠️ Важно", lambda t, b: b),
-    ("Новое", lambda t, b: t == "feat"),
-    ("Исправления", lambda t, b: t == "fix"),
-    ("Улучшения", lambda t, b: t in ("perf", "refactor")),
-    ("Прочее", lambda t, b: True),
+SECTIONS = [  # (release section heading, predicate on (type, breaking))
+    ("⚠️ Breaking changes", lambda t, b: b),
+    ("New", lambda t, b: t == "feat"),
+    ("Fixes", lambda t, b: t == "fix"),
+    ("Improvements", lambda t, b: t in ("perf", "refactor")),
+    ("Other", lambda t, b: True),
 ]
 
 
 def extract_notes(body: str | None) -> list[str] | None:
-    """Пункты из секции `## Release notes`. None — секции нет; [] — явно «нет»."""
+    """Bullets of the `## Release notes` section. None: no section; []: explicitly `none`."""
     if not body:
         return None
     body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL).replace("\r\n", "\n")
@@ -60,7 +61,7 @@ def extract_notes(body: str | None) -> list[str] | None:
         if s.startswith(("- ", "* ")):
             items.append(s[2:].strip())
         elif items and ln.startswith((" ", "\t")):
-            items[-1] += " " + s  # перенос строки внутри пункта
+            items[-1] += " " + s  # wrapped line inside a bullet
         else:
             items.append(s)
     return [i for i in items if i and i.lower() not in EMPTY_MARKERS]
@@ -80,23 +81,28 @@ def cmd_check() -> int:
     m = TITLE_RE.match(title.strip())
     if not m:
         errors.append(
-            f"Заголовок «{title}» не по формату `<тип>(<область>): <описание>`. "
-            f"Типы: {', '.join(TYPES)}. Области: {', '.join(SCOPES)}."
+            f'Title "{title}" does not match `<type>(<scope>): <summary>`. '
+            f"Types: {', '.join(TYPES)}. Scopes: {', '.join(SCOPES)}."
         )
     else:
         bad = [s for s in (m.group("scope") or "").split(",") if s and s not in SCOPES]
         if bad:
-            errors.append(f"Неизвестная область: {', '.join(bad)}. Допустимые: {', '.join(SCOPES)}.")
+            errors.append(f"Unknown scope: {', '.join(bad)}. Allowed: {', '.join(SCOPES)}.")
+    if CYRILLIC_RE.search(title):
+        errors.append("The PR title must be in English.")
     notes = extract_notes(body)
     if notes is None:
-        errors.append("В описании нет секции `## Release notes` (пункты для пользователя или «нет»).")
-    elif m and m.group("type") in ("feat", "fix") and not notes:
-        errors.append("Для feat/fix секция `## Release notes` не может быть пустой: опишите изменение для пользователя.")
+        errors.append("The description has no `## Release notes` section (user-facing bullets, or `none`).")
+    else:
+        if m and m.group("type") in ("feat", "fix") and not notes:
+            errors.append("For feat/fix the `## Release notes` section cannot be `none`: describe the change for users.")
+        if any(CYRILLIC_RE.search(n) for n in notes):
+            errors.append("Release notes must be in English.")
     for e in errors:
         print(f"::error::{e}")
     if not errors:
-        print("PR оформлен правильно. Release notes:")
-        print("\n".join(f"- {n}" for n in notes) if notes else "(нет — изменение не попадёт в заметки)")
+        print("PR is well-formed. Release notes:")
+        print("\n".join(f"- {n}" for n in notes) if notes else "(none: the change will not appear in release notes)")
     return 1 if errors else 0
 
 
@@ -117,7 +123,7 @@ def render(prs: list[dict]) -> str:
                 buckets[name].extend(f"{n} (#{pr['number']})" for n in notes)
                 break
     parts = [f"## {name}\n" + "\n".join(f"- {i}" for i in items) for name, items in buckets.items() if items]
-    return "\n\n".join(parts) if parts else "Изменений, заметных пользователю, нет."
+    return "\n\n".join(parts) if parts else "No user-visible changes."
 
 
 def cmd_beta(repo: str, sha: str) -> int:
@@ -126,7 +132,7 @@ def cmd_beta(repo: str, sha: str) -> int:
     if not prs:
         subject = subprocess.run(["git", "log", "-1", "--format=%s", sha], capture_output=True, text=True,
                                  encoding="utf-8").stdout.strip()
-        print(f"Сборка из коммита без pull request: {subject}")
+        print(f"Built from a commit without a pull request: {subject}")
         return 0
     print(render([{"number": p["number"], "title": p["title"], "body": p.get("body")} for p in prs[:1]]))
     return 0
@@ -156,10 +162,10 @@ def main() -> int:
     if a.command == "check":
         return cmd_check()
     if not a.repo:
-        ap.error("--repo или GITHUB_REPOSITORY обязателен")
+        ap.error("--repo or GITHUB_REPOSITORY is required")
     if a.command == "beta":
         if not a.sha:
-            ap.error("--sha обязателен для beta")
+            ap.error("--sha is required for beta")
         return cmd_beta(a.repo, a.sha)
     return cmd_stable(a.repo, a.since_tag)
 
