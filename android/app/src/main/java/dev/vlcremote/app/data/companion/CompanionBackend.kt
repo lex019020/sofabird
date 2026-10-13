@@ -1,6 +1,7 @@
 package dev.vlcremote.app.data.companion
 
 import android.util.Log
+import dev.vlcremote.app.data.net.Backoff
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
@@ -44,7 +45,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.random.Random
 
 /** Where the companion can be reached; read again before every connection attempt. */
 data class CompanionEndpoint(
@@ -130,8 +130,10 @@ class CompanionBackend(
 
     /** The link requests go to; swapped atomically when switching back to the LAN. */
     @Volatile private var transport: CompanionTransport? = null
+
     @Volatile private var currentKind: TransportKind = TransportKind.WIFI
     private var sessionJob: Job? = null
+
     @Volatile private var pongDeferred: CompletableDeferred<Unit>? = null
 
     private class Link(val transport: CompanionTransport, val welcome: CompanionMessage.Welcome)
@@ -208,10 +210,7 @@ class CompanionBackend(
         }
     }
 
-    private fun backoff(attempt: Int): Long {
-        val base = (1_000L shl attempt.coerceAtMost(5)).coerceAtMost(30_000L)
-        return base + Random.nextLong(0, 750)
-    }
+    private fun backoff(attempt: Int): Long = Backoff.CompanionLink.delayMillis(attempt)
 
     private suspend fun runSession() {
         var link = openLink()
@@ -221,23 +220,38 @@ class CompanionBackend(
     }
 
     /** WebSocket first; RFCOMM when the LAN fails and Bluetooth may be used. */
+    /** LAN first; Bluetooth when the LAN does not answer (a refusal from the PC is final). */
     private suspend fun openLink(): Link {
         val ep = endpoint()
         var lanFailure: Throwable? = null
         if (ep.host.isNotBlank()) {
-            try {
-                tryLan(ep.host, ep.port)?.let { return it }
-                lanFailure = CompanionHandshakeException(ConnectionError.Timeout, "no answer on ${ep.host}:${ep.port}")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: CompanionHandshakeException) {
-                if (e.error.isTerminalHandshakeError) throw e // the same PC would say the same over RFCOMM
-                lanFailure = e
-            } catch (e: Throwable) {
-                lanFailure = e
+            when (val lan = attemptLan(ep)) {
+                is LanAttempt.Connected -> return lan.link
+                is LanAttempt.Failed -> lanFailure = lan.error
             }
         }
+        return openBluetooth(ep, lanFailure)
+    }
 
+    private sealed interface LanAttempt {
+        class Connected(val link: Link) : LanAttempt
+        class Failed(val error: Throwable) : LanAttempt
+    }
+
+    private suspend fun attemptLan(ep: CompanionEndpoint): LanAttempt = try {
+        tryLan(ep.host, ep.port)?.let { LanAttempt.Connected(it) }
+            ?: LanAttempt.Failed(CompanionHandshakeException(ConnectionError.Timeout, "no answer on ${ep.host}:${ep.port}"))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: CompanionHandshakeException) {
+        if (e.error.isTerminalHandshakeError) throw e // the same PC would say the same over RFCOMM
+        LanAttempt.Failed(e)
+    } catch (e: Throwable) {
+        LanAttempt.Failed(e)
+    }
+
+    /** RFCOMM to the bonded PC; without it, the LAN failure is the more useful error to report. */
+    private suspend fun openBluetooth(ep: CompanionEndpoint, lanFailure: Throwable?): Link {
         val bt = BtAddress.normalize(ep.btAddress)
         if (bt == null || !bluetoothAllowed()) {
             _bluetoothNeed.value = null
@@ -396,8 +410,8 @@ class CompanionBackend(
                 transports.probeLan(ep.host, ep.port, ep.pcId, ep.btAddress)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Throwable) {
-                null
+            } catch (ignored: Throwable) {
+                null // the LAN is still down: keep waiting
             } ?: continue
             if (!found.host.equals(ep.host, ignoreCase = true) || found.port != ep.port) {
                 runCatching { onLanFound(found) }
@@ -430,7 +444,7 @@ class CompanionBackend(
 
     private suspend fun request(build: (String) -> CompanionMessage): CompanionMessage {
         if (!awaitOnline()) throw CompanionHandshakeException(ConnectionError.Timeout, "not connected")
-        val t = transport ?: throw IllegalStateException("no session")
+        val t = transport ?: error("no session")
         val id = nextId()
         val deferred = CompletableDeferred<CompanionMessage>()
         pending[id] = deferred

@@ -29,6 +29,7 @@ import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryPage
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.VlcVolume
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -128,7 +129,8 @@ class PlayerController(
                     if (fresh == active) return@let
                     _activeServer.value = fresh
                     // A Bluetooth-paired PC got its LAN address (or DHCP moved it): artwork needs the token there.
-                    if (fresh.isCompanion && fresh.host.isNotBlank() && (fresh.host != active.host || fresh.wsPort != active.wsPort)) {
+                    val addressChanged = fresh.host != active.host || fresh.wsPort != active.wsPort
+                    if (fresh.isCompanion && fresh.host.isNotBlank() && addressChanged) {
                         secrets.companionToken(fresh.id)?.let { artAuth.set(fresh.host, fresh.wsPort, "Bearer $it") }
                     }
                 }
@@ -259,7 +261,7 @@ class PlayerController(
     fun adjustVolume(delta: Int) {
         scope.launch {
             val before = state.value.volume.value
-            val target = (before + delta).coerceIn(0, 512)
+            val target = VlcVolume.clamp(before + delta)
             val result = sendAwait(PlayerCommand.SetVolume(target))
             if (result.isSuccess) {
                 _events.tryEmit(PlayerEvent.VolumeChanged(state.value.volume.percent))

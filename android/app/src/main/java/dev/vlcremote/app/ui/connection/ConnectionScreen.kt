@@ -88,9 +88,9 @@ import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.BluetoothPermissionRationaleDialog
 import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.StatusDot
-import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.hint
 import dev.vlcremote.app.ui.common.message
+import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.connectionSummary
 import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.ConnectionState
@@ -308,7 +308,7 @@ private fun PairingFailedCard(state: PairingState.Failed, onRetry: () -> Unit, o
 @Composable
 private fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Unit, onEnterCode: () -> Unit) {
     val server = ui.activeServer ?: return
-    val (color, text) = connectionSummary(ui.connection, server.displayName)
+    val (color, text) = connectionSummary(ui.connection)
     Card(Modifier.fillMaxWidth()) {
         // The action sits under the name, not beside it: a PC name is one long word and must keep the full width.
         Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp)) {
@@ -440,7 +440,11 @@ private fun SavedServerRow(server: SavedServer, active: Boolean, onConnect: () -
                 .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.Computer, null, tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Default.Computer,
+                null,
+                tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -451,7 +455,13 @@ private fun SavedServerRow(server: SavedServer, active: Boolean, onConnect: () -
                     } else {
                         "${server.host}:${if (server.isCompanion) server.wsPort else server.httpPort} · " +
                             stringResource(if (server.isCompanion) R.string.mode_companion else R.string.mode_direct) +
-                            (if (server.isCompanion && server.btAddress != null) " · " + stringResource(R.string.transport_bluetooth) else "")
+                            (
+                                if (server.isCompanion && server.btAddress != null) {
+                                    " · " + stringResource(R.string.transport_bluetooth)
+                                } else {
+                                    ""
+                                }
+                                )
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -533,12 +543,25 @@ private fun BluetoothPicker(state: BtPickerState, viewModel: ConnectionViewModel
                             Icon(
                                 if (device.isComputer) Icons.Default.Computer else Icons.Default.Bluetooth,
                                 null,
-                                tint = if (device.isComputer) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = if (device.isComputer) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                             )
                             Spacer(Modifier.width(16.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(device.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(device.address, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    device.displayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    device.address,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
@@ -590,7 +613,11 @@ private fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(host.displayName, style = MaterialTheme.typography.titleSmall)
                 Text(host.host, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
                     Badge(stringResource(R.string.badge_pc_found))
                     if (host.vlcRunning == true) {
                         Badge(stringResource(R.string.badge_vlc_running) + (host.vlcVersion?.let { " $it" } ?: ""))
@@ -729,7 +756,10 @@ private fun ManualForm(ui: ConnectionUiState, viewModel: ConnectionViewModel, on
 @Composable
 private fun Instructions(expanded: Boolean, onToggle: () -> Unit) {
     Column {
-        AssistChip(onClick = onToggle, label = { Text(stringResource(if (expanded) R.string.instructions_hide else R.string.instructions_show)) })
+        AssistChip(
+            onClick = onToggle,
+            label = { Text(stringResource(if (expanded) R.string.instructions_hide else R.string.instructions_show)) },
+        )
         AnimatedVisibility(expanded) {
             Column {
                 Spacer(Modifier.height(8.dp))
@@ -749,9 +779,17 @@ private fun Instructions(expanded: Boolean, onToggle: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.instructions_lua), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.instructions_lua),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.instructions_companion), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.instructions_companion),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

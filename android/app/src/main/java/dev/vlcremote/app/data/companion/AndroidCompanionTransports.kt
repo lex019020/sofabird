@@ -38,8 +38,8 @@ class AndroidCompanionTransports(
                     if (response.status.isSuccess()) CompanionCodec.decodeInfo(response.bodyAsText()) else null
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: Exception) {
-                    null
+                } catch (ignored: Exception) {
+                    null // not a companion (or not reachable): the probe just fails
                 }
             }
             if (info != null) return LanEndpoint(host, info.wsPort, BtAddress.normalize(info.bt))

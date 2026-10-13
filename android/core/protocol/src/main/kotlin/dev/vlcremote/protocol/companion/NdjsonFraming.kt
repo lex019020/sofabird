@@ -4,6 +4,8 @@ import java.io.IOException
 import java.io.InputStream
 
 /** The peer sent a line longer than the protocol allows: the stream is out of sync, drop the link. */
+private const val DEFAULT_CHUNK_BYTES = 8 * 1024
+
 class LineTooLongException(val limit: Int) : IOException("NDJSON line exceeds $limit bytes")
 
 /**
@@ -87,7 +89,7 @@ class NdjsonFramer(private val maxLineBytes: Int = NDJSON_MAX_LINE_BYTES) {
 class NdjsonReader(
     private val input: InputStream,
     maxLineBytes: Int = NDJSON_MAX_LINE_BYTES,
-    chunkSize: Int = 8 * 1024,
+    chunkSize: Int = DEFAULT_CHUNK_BYTES,
 ) {
     private val framer = NdjsonFramer(maxLineBytes)
     private val ready = ArrayDeque<String>()

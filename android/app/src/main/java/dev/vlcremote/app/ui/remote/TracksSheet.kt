@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,7 +47,13 @@ fun TracksSheet(kind: TrackKind, ui: RemoteUiState, viewModel: RemoteViewModel, 
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
                 Text(
-                    stringResource(if (kind == TrackKind.AUDIO) R.string.sheet_audio_title else if (kind == TrackKind.SUBTITLE) R.string.sheet_subtitles_title else R.string.sheet_video_title),
+                    stringResource(
+                        when (kind) {
+                            TrackKind.AUDIO -> R.string.sheet_audio_title
+                            TrackKind.SUBTITLE -> R.string.sheet_subtitles_title
+                            else -> R.string.sheet_video_title
+                        },
+                    ),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
@@ -103,7 +108,10 @@ fun TracksSheet(kind: TrackKind, ui: RemoteUiState, viewModel: RemoteViewModel, 
                         stringResource(if (kind == TrackKind.AUDIO) R.string.delay_audio else R.string.delay_subtitles),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    Text(formatDelay(delay, androidx.compose.ui.res.stringResource(dev.vlcremote.app.R.string.unit_ms)), style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        formatDelay(delay, androidx.compose.ui.res.stringResource(dev.vlcremote.app.R.string.unit_ms)),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
                 }
                 Row(
                     Modifier

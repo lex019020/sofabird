@@ -55,13 +55,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
-import dev.vlcremote.app.ui.common.LabelText
-import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.displayNameFromUri
 import dev.vlcremote.app.ui.common.formatSize
 import dev.vlcremote.app.ui.common.rememberTick
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.ui.history.ContinueWatchingRow
 import dev.vlcremote.app.ui.history.EntryBadge
 import dev.vlcremote.app.ui.history.HistoryMenuEntries
@@ -182,7 +182,13 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
 
     ui.menuFor?.let { entry ->
         ModalBottomSheet(onDismissRequest = { viewModel.showMenu(null) }) {
-            Text(entry.name.withNameBreaks(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                entry.name.withNameBreaks(),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_play)) },
                 leadingContent = { Icon(Icons.Default.PlayArrow, null) },

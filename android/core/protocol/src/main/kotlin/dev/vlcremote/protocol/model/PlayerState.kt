@@ -12,9 +12,14 @@ import kotlinx.serialization.encoding.Encoder
 /** Playback state as reported by VLC (`state` in status.json / `playback.state` in the protocol). */
 @Serializable
 enum class PlaybackStatus {
-    @SerialName("playing") PLAYING,
-    @SerialName("paused") PAUSED,
-    @SerialName("stopped") STOPPED;
+    @SerialName("playing")
+    PLAYING,
+
+    @SerialName("paused")
+    PAUSED,
+
+    @SerialName("stopped")
+    STOPPED;
 
     val isPlaying: Boolean get() = this == PLAYING
 
@@ -112,9 +117,14 @@ data class PlayingItem(
 
 @Serializable
 enum class TrackKind {
-    @SerialName("audio") AUDIO,
-    @SerialName("subtitle") SUBTITLE,
-    @SerialName("video") VIDEO;
+    @SerialName("audio")
+    AUDIO,
+
+    @SerialName("subtitle")
+    SUBTITLE,
+
+    @SerialName("video")
+    VIDEO;
 
     val wire: String get() = when (this) {
         AUDIO -> "audio"
@@ -181,10 +191,10 @@ data class Titles(
 @Serializable
 data class Volume(
     /** VLC volume 0..512, 256 = 100 %. */
-    val value: Int = 256,
+    val value: Int = VlcVolume.UNITY,
     val muted: Boolean = false,
 ) {
-    val percent: Int get() = (value * 100 + 128) / 256
+    val percent: Int get() = VlcVolume.toPercent(value)
 }
 
 @Serializable

@@ -5,9 +5,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class EntryType {
-    @SerialName("dir") DIR,
-    @SerialName("file") FILE,
-    @SerialName("unknown") UNKNOWN,
+    @SerialName("dir")
+    DIR,
+
+    @SerialName("file")
+    FILE,
+
+    @SerialName("unknown")
+    UNKNOWN,
 }
 
 /** One item of a directory listing (`browse.json` element or companion `entries.items[]`). */

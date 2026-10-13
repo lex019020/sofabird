@@ -46,7 +46,8 @@ class CompanionPairingLink(
         )
         // Same rule as the live session: LAN first, then the bonded PC over RFCOMM.
         val lanDown = lan is TestResult.Failed && !lan.error.isTerminalHandshakeError
-        if (lanDown && bt != null && settings.settings.value.bluetoothFallback && bluetooth.status(bt) == BluetoothStatus.READY) {
+        val bluetoothUsable = bt != null && settings.settings.value.bluetoothFallback && bluetooth.status(bt) == BluetoothStatus.READY
+        if (lanDown && bluetoothUsable) {
             val viaBt = helloBluetooth(bt, token, pairCode)
             // A refusal over Bluetooth (pairing required…) is the answer; a dead RFCOMM link is not.
             return if (viaBt is TestResult.Failed && !viaBt.error.isTerminalHandshakeError) lan else viaBt

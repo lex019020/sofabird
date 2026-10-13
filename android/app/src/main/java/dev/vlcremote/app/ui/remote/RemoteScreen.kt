@@ -25,8 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Forward30
-import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -61,19 +61,21 @@ import coil3.compose.AsyncImage
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.companion.BluetoothStatus
 import dev.vlcremote.app.data.history.WatchPrompts
-import dev.vlcremote.app.ui.history.NextEpisodeCard
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
-import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.RemoteButton
-import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.ui.common.formatRemaining
 import dev.vlcremote.app.ui.common.formatTime
+import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.rememberTick
+import dev.vlcremote.app.ui.common.withNameBreaks
+import dev.vlcremote.app.ui.history.NextEpisodeCard
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.TrackKind
+import dev.vlcremote.protocol.model.TrackKind.AUDIO
+import dev.vlcremote.protocol.model.TrackKind.SUBTITLE
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -249,7 +251,7 @@ private fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit) {
         Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Column(Modifier.padding(16.dp)) {
                 Text(
-                    if (ui.hostName != null) stringResource(R.string.no_link_with, ui.hostName) else stringResource(R.string.no_server_configured),
+                    ui.hostName?.let { stringResource(R.string.no_link_with, it) } ?: stringResource(R.string.no_server_configured),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -476,16 +478,25 @@ private fun VolumeRow(ui: RemoteUiState, viewModel: RemoteViewModel) {
 @Composable
 private fun QuickActions(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDisplays: () -> Unit, onMore: () -> Unit) {
     val tracks = ui.state.tracks
-    val audioLabel = trackChipLabel(tracks.audio.firstOrNull { it.id == tracks.currentAudio }?.let { it.lang ?: it.name }, tracks.currentAudio, tracks.audio.size)
-    val subLabel = trackChipLabel(tracks.subtitle.firstOrNull { it.id == tracks.currentSubtitle }?.let { it.lang ?: it.name }, tracks.currentSubtitle, tracks.subtitle.size)
+    val audioLabel = trackChipLabel(
+        tracks.audio.firstOrNull { it.id == tracks.currentAudio }?.let { it.lang ?: it.name },
+        tracks.currentAudio,
+        tracks.audio.size,
+    )
+    val subLabel = trackChipLabel(
+        tracks.subtitle.firstOrNull { it.id == tracks.currentSubtitle }?.let { it.lang ?: it.name },
+        tracks.currentSubtitle,
+        tracks.subtitle.size,
+    )
     val tracksEnabled = ui.connection.isOnline && ui.vlcBlock == null
     val actions = buildList {
-        add(QuickAction(Icons.Default.Audiotrack, stringResource(R.string.quick_audio), audioLabel, tracksEnabled) { onTracks(TrackKind.AUDIO) })
-        add(QuickAction(Icons.Default.Subtitles, stringResource(R.string.quick_subtitles), subLabel, tracksEnabled) { onTracks(TrackKind.SUBTITLE) })
+        add(QuickAction(Icons.Default.Audiotrack, stringResource(R.string.quick_audio), audioLabel, tracksEnabled) { onTracks(AUDIO) })
+        add(QuickAction(Icons.Default.Subtitles, stringResource(R.string.quick_subtitles), subLabel, tracksEnabled) { onTracks(SUBTITLE) })
         if (ui.showDisplayChoice) {
             // Where VLC is now, or (VLC closed) where it will open. Usable while VLC is closed too.
             val shown = ui.displayChoice.chipDisplay
-            add(QuickAction(displayIcon(shown), stringResource(R.string.section_display), shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays))
+            val title = stringResource(R.string.section_display)
+            add(QuickAction(displayIcon(shown), title, shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays))
         }
         add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, onMore))
     }

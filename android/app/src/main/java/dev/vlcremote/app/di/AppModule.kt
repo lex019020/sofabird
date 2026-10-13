@@ -8,9 +8,9 @@ import dev.vlcremote.app.data.discovery.LocalNetwork
 import dev.vlcremote.app.data.discovery.NsdDiscovery
 import dev.vlcremote.app.data.discovery.SubnetScanner
 import dev.vlcremote.app.data.discovery.UdpBeaconDiscovery
+import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.net.ArtAuth
 import dev.vlcremote.app.data.net.HttpClients
-import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.player.AppVisibility
 import dev.vlcremote.app.data.player.CompanionLink
 import dev.vlcremote.app.data.player.CompanionPairingLink

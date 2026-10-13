@@ -50,16 +50,15 @@ fun List<SavedServer>.findCompanion(
     btAddress: String? = null,
 ): SavedServer? {
     val companions = filter { it.isCompanion }
-    serverId?.let { id -> companions.firstOrNull { it.id == id }?.let { return it } }
-    pcId?.let { pc -> companions.firstOrNull { it.pcId == pc }?.let { return it } }
-    if (BtAddress.normalize(btAddress) != null) {
-        companions.firstOrNull { BtAddress.same(it.btAddress, btAddress) && (it.pcId == null || pcId == null || it.pcId == pcId) }
-            ?.let { return it }
-    }
-    if (host.isBlank()) return null
-    return companions.firstOrNull {
-        it.host.equals(host, ignoreCase = true) && it.wsPort == wsPort && (it.pcId == null || pcId == null || it.pcId == pcId)
-    }
+
+    // A different installation GUID means another PC, whatever the address says.
+    fun samePc(s: SavedServer) = s.pcId == null || pcId == null || s.pcId == pcId
+    return serverId?.let { id -> companions.firstOrNull { it.id == id } }
+        ?: pcId?.let { pc -> companions.firstOrNull { it.pcId == pc } }
+        ?: btAddress.takeIf { BtAddress.normalize(it) != null }
+            ?.let { bt -> companions.firstOrNull { BtAddress.same(it.btAddress, bt) && samePc(it) } }
+        ?: host.takeIf { it.isNotBlank() }
+            ?.let { h -> companions.firstOrNull { it.host.equals(h, ignoreCase = true) && it.wsPort == wsPort && samePc(it) } }
 }
 
 /** A companion seen on the LAN (beacon, NSD + `/info`) or greeting us (`welcome`). */

@@ -14,15 +14,18 @@ import java.util.concurrent.TimeUnit
  * client sends any `Connection` header at all.
  */
 object HttpClients {
+    private const val CONNECT_TIMEOUT_MS = 3_000L
+    private const val IO_TIMEOUT_MS = 8_000L
+
     val stripConnectionHeader = Interceptor { chain ->
         val request = chain.request().newBuilder().removeHeader("Connection").build()
         chain.proceed(request)
     }
 
     fun okHttp(authInterceptor: Interceptor? = null): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
-        .writeTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(IO_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .writeTimeout(IO_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .retryOnConnectionFailure(true)
         .apply { authInterceptor?.let { addInterceptor(it) } }
         .addNetworkInterceptor(stripConnectionHeader)
@@ -32,9 +35,9 @@ object HttpClients {
         engine { preconfigured = okHttpClient }
         install(WebSockets)
         install(HttpTimeout) {
-            connectTimeoutMillis = 3_000
-            requestTimeoutMillis = 8_000
-            socketTimeoutMillis = 8_000
+            connectTimeoutMillis = CONNECT_TIMEOUT_MS
+            requestTimeoutMillis = IO_TIMEOUT_MS
+            socketTimeoutMillis = IO_TIMEOUT_MS
         }
         expectSuccess = false
     }

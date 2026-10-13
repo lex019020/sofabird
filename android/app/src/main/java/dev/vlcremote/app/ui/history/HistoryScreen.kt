@@ -58,12 +58,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
-import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.rememberConfirmHaptic
 import dev.vlcremote.app.ui.common.rememberTick
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -95,11 +95,15 @@ fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryVi
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.history_title)) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
+                },
                 actions = {
                     if (ui.available && ui.online && ui.items.isNotEmpty()) {
                         Box {
-                            IconButton(onClick = { overflow = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_actions)) }
+                            IconButton(onClick = { overflow = true }) {
+                                Icon(Icons.Default.MoreVert, stringResource(R.string.more_actions))
+                            }
                             DropdownMenu(expanded = overflow, onDismissRequest = { overflow = false }) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.history_clear)) },

@@ -108,7 +108,8 @@ class HistoryViewModel(
 
     fun loadMore() {
         val d = data.value
-        if (d.items.size >= d.total || d.loading || d.loadingMore || loadJob?.isActive == true) return
+        val busy = d.loading || d.loadingMore || loadJob?.isActive == true
+        if (d.items.size >= d.total || busy) return
         loadJob = viewModelScope.launch {
             data.update { it.copy(loadingMore = true) }
             val result = controller.history(HistoryFilter.ALL, PAGE, d.items.size)

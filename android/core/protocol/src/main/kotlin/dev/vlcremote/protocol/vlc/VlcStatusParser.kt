@@ -3,6 +3,7 @@ package dev.vlcremote.protocol.vlc
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.EntryType
 import dev.vlcremote.protocol.model.PlaylistItem
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -58,25 +59,10 @@ object VlcStatusParser {
 
     private fun parseInformation(info: JsonObject): VlcInformation {
         val category = info["category"]?.asObjectOrNull() ?: JsonObject(emptyMap())
-        var meta = VlcMeta()
-        val streams = mutableListOf<VlcStream>()
-        for ((key, value) in category) {
-            val obj = value.asObjectOrNull() ?: continue
-            if (key == "meta") {
-                meta = parseMeta(obj)
-                continue
-            }
-            val type = obj.str("Type") ?: continue // stream categories are the ones with Type
-            val id = obj.int("Original_ID") ?: numberInKey(key) ?: continue
-            streams += VlcStream(
-                id = id,
-                type = VlcStreamType.parse(type),
-                language = obj.str("Language"),
-                description = obj.str("Description"),
-                codec = obj.str("Codec"),
-            )
-        }
-        streams.sortBy { it.id }
+        val meta = category["meta"]?.asObjectOrNull()?.let(::parseMeta) ?: VlcMeta()
+        val streams = category.filterKeys { it != "meta" }
+            .mapNotNull { (key, value) -> value.asObjectOrNull()?.let { parseStream(key, it) } }
+            .sortedBy { it.id }
         return VlcInformation(
             chapter = info.int("chapter") ?: -1,
             title = info.int("title") ?: -1,
@@ -84,6 +70,19 @@ object VlcStatusParser {
             titles = info["titles"]?.asIntList() ?: emptyList(),
             meta = meta,
             streams = streams,
+        )
+    }
+
+    /** A "Stream N" category; `null` for other categories (stream ones are those with `Type`). */
+    private fun parseStream(key: String, obj: JsonObject): VlcStream? {
+        val type = obj.str("Type") ?: return null
+        val id = obj.int("Original_ID") ?: numberInKey(key) ?: return null
+        return VlcStream(
+            id = id,
+            type = VlcStreamType.parse(type),
+            language = obj.str("Language"),
+            description = obj.str("Description"),
+            codec = obj.str("Codec"),
         )
     }
 
@@ -221,7 +220,9 @@ object VlcStatusParser {
         VlcErrorPage.check(body)
         return try {
             json.parseToJsonElement(body).jsonObject
-        } catch (e: Exception) {
+        } catch (e: SerializationException) {
+            throw VlcParseException("not JSON", e)
+        } catch (e: IllegalArgumentException) {
             throw VlcParseException("not a JSON object", e)
         }
     }

@@ -14,6 +14,7 @@ import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
+import dev.vlcremote.protocol.model.VlcVolume
 
 /**
  * A media3 [Player] that mirrors the VLC [PlayerState] and forwards transport commands to the PC.
@@ -117,7 +118,7 @@ class RemotePlayer(
     }
 
     override fun handleSetDeviceVolume(deviceVolume: Int, flags: Int): ListenableFuture<*> {
-        controller.send(PlayerCommand.SetVolume(deviceVolume.coerceIn(0, 100) * 256 / 100))
+        controller.send(PlayerCommand.SetVolume(VlcVolume.fromPercent(deviceVolume)))
         return Futures.immediateVoidFuture()
     }
 
