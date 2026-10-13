@@ -52,12 +52,24 @@ import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.protocol.model.PlaylistItem
 import org.koin.androidx.compose.koinViewModel
 
+/** What the playlist screen can do; no-op defaults for previews and screenshot tests. */
+interface PlaylistActions {
+    fun refresh() {}
+    fun play(item: PlaylistItem) {}
+    fun remove(item: PlaylistItem) {}
+    fun clear() {}
+}
+
 @Composable
 fun PlaylistScreen(viewModel: PlaylistViewModel = koinViewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    PlaylistContent(ui, viewModel)
+}
+
+@Composable
+fun PlaylistContent(ui: PlaylistUiState, actions: PlaylistActions) {
     val context = LocalContext.current
-    val haptics by viewModel.haptics.collectAsStateWithLifecycle()
-    val tick = rememberTick(haptics)
+    val tick = rememberTick(ui.haptics)
     var confirmClear by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -73,7 +85,7 @@ fun PlaylistScreen(viewModel: PlaylistViewModel = koinViewModel()) {
                 modifier = Modifier.weight(1f),
             )
             if (ui.loading) CircularProgressIndicator(Modifier.width(18.dp), strokeWidth = 2.dp)
-            IconButton(onClick = viewModel::refresh, enabled = ui.online) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
+            IconButton(onClick = actions::refresh, enabled = ui.online) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
             IconButton(onClick = { confirmClear = true }, enabled = ui.online && ui.items.isNotEmpty()) {
                 Icon(Icons.Default.DeleteSweep, stringResource(R.string.playlist_clear))
             }
@@ -86,8 +98,8 @@ fun PlaylistScreen(viewModel: PlaylistViewModel = koinViewModel()) {
                 ui.items.isEmpty() && !ui.loading -> Center(stringResource(R.string.playlist_empty))
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(ui.items, key = { it.plId }) { item ->
-                        DismissibleRow(onRemove = { tick(); viewModel.remove(item) }) {
-                            PlaylistRow(item, onClick = { tick(); viewModel.play(item) })
+                        DismissibleRow(onRemove = { tick(); actions.remove(item) }) {
+                            PlaylistRow(item, onClick = { tick(); actions.play(item) })
                         }
                     }
                 }
@@ -101,7 +113,7 @@ fun PlaylistScreen(viewModel: PlaylistViewModel = koinViewModel()) {
             title = { Text(stringResource(R.string.playlist_clear)) },
             text = { Text(stringResource(R.string.playlist_clear_confirm)) },
             confirmButton = {
-                TextButton(onClick = { confirmClear = false; viewModel.clear() }) { Text(stringResource(R.string.playlist_clear)) }
+                TextButton(onClick = { confirmClear = false; actions.clear() }) { Text(stringResource(R.string.playlist_clear)) }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
         )

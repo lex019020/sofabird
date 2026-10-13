@@ -16,6 +16,7 @@ import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,8 @@ data class LibraryUiState(
     val continueCards: List<ContinueCard> = emptyList(),
     /** "Continue watching" card whose menu is open (long press). */
     val continueMenuFor: HistoryItem? = null,
+    /** The "button vibration" setting. */
+    val haptics: Boolean = true,
 ) {
     val isRoot: Boolean get() = uri == ROOT_URI
     val isFavorite: Boolean get() = uri in favorites
@@ -59,19 +62,20 @@ class LibraryViewModel(
     private val controller: PlayerController,
     private val servers: ServerRepository,
     private val settings: SettingsRepository,
-) : ViewModel() {
+) : ViewModel(), LibraryActions {
 
-    /** The "button vibration" setting. */
-    val haptics: StateFlow<Boolean> = settings.settings.map { it.haptics }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), settings.settings.value.haptics)
+    /** What this screen keeps besides the player and the settings; one flow, changed with [update]. */
+    private data class Local(
+        val uri: String = ROOT_URI,
+        val entries: List<Entry> = emptyList(),
+        val loading: Boolean = false,
+        val error: Throwable? = null,
+        val menuFor: Entry? = null,
+        val continueItems: List<HistoryItem> = emptyList(),
+        val continueMenuFor: HistoryItem? = null,
+    )
 
-    private val uri = MutableStateFlow(ROOT_URI)
-    private val entries = MutableStateFlow<List<Entry>>(emptyList())
-    private val loading = MutableStateFlow(false)
-    private val error = MutableStateFlow<Throwable?>(null)
-    private val menuFor = MutableStateFlow<Entry?>(null)
-    private val continueItems = MutableStateFlow<List<HistoryItem>>(emptyList())
-    private val continueMenuFor = MutableStateFlow<HistoryItem?>(null)
+    private val local = MutableStateFlow(Local())
     private var loadJob: Job? = null
     private var continueJob: Job? = null
     private var refreshJob: Job? = null
@@ -81,28 +85,30 @@ class LibraryViewModel(
     private val historyEnabled = combine(controller.capabilities, controller.connection) { caps, c -> caps.history && c.isOnline }
         .distinctUntilChanged()
 
-    private data class HistoryPart(val enabled: Boolean, val items: List<HistoryItem>, val menu: HistoryItem?)
+    /** `state.history.revision`: the screen passes it to [onHistoryRevision] while it is shown. */
+    val historyRevision: Flow<Long?> = controller.state.map { it.history?.revision }.distinctUntilChanged()
 
     val uiState: StateFlow<LibraryUiState> = combine(
-        combine(uri, entries, loading, error) { u, e, l, err -> Quad(u, e, l, err) },
-        settings.flow.map { it.libraryMediaOnly },
-        combine(controller.activeServer, controller.connection) { s, c -> s to c },
-        menuFor,
-        combine(historyEnabled, continueItems, continueMenuFor) { on, items, menu -> HistoryPart(on, items, menu) },
-    ) { (u, e, l, err), mediaOnly, (server, connection), menu, history ->
+        local,
+        settings.settings,
+        controller.activeServer,
+        controller.connection,
+        historyEnabled,
+    ) { l, prefs, server, connection, history ->
         LibraryUiState(
-            uri = u,
-            crumbs = crumbs(u),
-            entries = e,
-            loading = l,
-            error = err,
-            mediaOnly = mediaOnly,
+            uri = l.uri,
+            crumbs = crumbs(l.uri),
+            entries = l.entries,
+            loading = l.loading,
+            error = l.error,
+            mediaOnly = prefs.libraryMediaOnly,
             favorites = server?.favoriteFolders.orEmpty(),
             online = connection.isOnline,
-            menuFor = menu,
-            historyEnabled = history.enabled,
-            continueCards = if (history.enabled) continueCards(history.items) else emptyList(),
-            continueMenuFor = history.menu.takeIf { history.enabled },
+            menuFor = l.menuFor,
+            historyEnabled = history,
+            continueCards = if (history) continueCards(l.continueItems) else emptyList(),
+            continueMenuFor = l.continueMenuFor.takeIf { history },
+            haptics = prefs.haptics,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
@@ -114,14 +120,14 @@ class LibraryViewModel(
                     if (server == null) return@collect
                     if (restoredFor != server.id) {
                         restoredFor = server.id
-                        uri.value = server.lastBrowseUri ?: ROOT_URI
+                        local.update { it.copy(uri = server.lastBrowseUri ?: ROOT_URI) }
                     }
                     if (online) load()
                 }
         }
         // "Continue watching": whenever a companion with a history comes (back) online.
         viewModelScope.launch {
-            historyEnabled.collect { on -> if (on) loadContinue() else continueItems.value = emptyList() }
+            historyEnabled.collect { on -> if (on) loadContinue() else local.update { it.copy(continueItems = emptyList()) } }
         }
     }
 
@@ -147,60 +153,56 @@ class LibraryViewModel(
         continueJob?.cancel()
         continueJob = viewModelScope.launch {
             val result = controller.history(HistoryFilter.CONTINUE, CONTINUE_LIMIT, 0)
-            result.onSuccess { continueItems.value = it.items } // a failure keeps the last row
+            result.onSuccess { page -> local.update { it.copy(continueItems = page.items) } } // a failure keeps the last row
         }
     }
 
-    fun playHistory(item: HistoryItem) {
+    override fun playHistory(item: HistoryItem) {
         controller.send(PlayerCommand.Open(item.uri))
     }
 
-    fun showContinueMenu(item: HistoryItem?) {
-        continueMenuFor.value = item
+    override fun showContinueMenu(item: HistoryItem?) {
+        local.update { it.copy(continueMenuFor = item) }
     }
 
     /** "Mark as watched": the card leaves the row at once; the PC confirms with a new revision. */
-    fun markWatched(item: HistoryItem) {
-        continueItems.update { list -> list.filter { it.uri != item.uri } }
+    override fun markWatched(item: HistoryItem) = changeHistory(item, HistoryChange.SetFinished(true))
+
+    override fun removeFromHistory(item: HistoryItem) = changeHistory(item, HistoryChange.Remove)
+
+    private fun changeHistory(item: HistoryItem, change: HistoryChange) {
+        local.update { l -> l.copy(continueItems = l.continueItems.filter { it.uri != item.uri }) }
         viewModelScope.launch {
-            if (controller.updateHistory(item.uri, HistoryChange.SetFinished(true)).isFailure) loadContinue()
+            if (controller.updateHistory(item.uri, change).isFailure) loadContinue()
             load(silent = true)
         }
     }
 
-    fun removeFromHistory(item: HistoryItem) {
-        continueItems.update { list -> list.filter { it.uri != item.uri } }
-        viewModelScope.launch {
-            if (controller.updateHistory(item.uri, HistoryChange.Remove).isFailure) loadContinue()
-            load(silent = true)
-        }
+    override fun open(entryUri: String) = navigate(normalizeDir(entryUri))
+
+    override fun up() {
+        val current = local.value.uri
+        if (current != ROOT_URI) navigate(parentDirUri(current))
     }
 
-    fun open(entryUri: String) {
-        uri.value = normalizeDir(entryUri)
+    override fun goRoot() = open(ROOT_URI)
+
+    override fun reload() = load()
+
+    private fun navigate(target: String) {
+        local.update { it.copy(uri = target) }
         load()
-        rememberPath()
+        val server = controller.activeServer.value ?: return
+        viewModelScope.launch { servers.update(server.id) { it.copy(lastBrowseUri = target) } }
     }
 
-    fun up() {
-        val current = uri.value
-        if (current == ROOT_URI) return
-        uri.value = parentDirUri(current)
-        load()
-        rememberPath()
-    }
-
-    fun goRoot() = open(ROOT_URI)
-
-    fun reload() = load()
-
-    fun setMediaOnly(value: Boolean) {
+    override fun setMediaOnly(value: Boolean) {
         viewModelScope.launch { settings.update { it.copy(libraryMediaOnly = value) } }
     }
 
-    fun toggleFavorite() {
+    override fun toggleFavorite() {
         val server = controller.activeServer.value ?: return
-        val u = uri.value
+        val u = local.value.uri
         viewModelScope.launch {
             servers.update(server.id) { s ->
                 s.copy(favoriteFolders = if (u in s.favoriteFolders) s.favoriteFolders - u else s.favoriteFolders + u)
@@ -208,46 +210,41 @@ class LibraryViewModel(
         }
     }
 
-    fun play(entry: Entry) {
+    override fun play(entry: Entry) {
         controller.send(PlayerCommand.Open(entry.uri, enqueue = false, subtitle = siblingSubtitle(entry)))
     }
 
-    fun enqueue(entry: Entry) {
+    override fun enqueue(entry: Entry) {
         controller.send(PlayerCommand.Open(entry.uri, enqueue = true))
     }
 
-    fun showMenu(entry: Entry?) {
-        menuFor.value = entry
+    override fun showMenu(entry: Entry?) {
+        local.update { it.copy(menuFor = entry) }
     }
 
     /** [silent]: a background refresh (the history changed); a failure then keeps the current list. */
     private fun load(silent: Boolean = false) {
         if (silent && loadJob?.isActive == true) return
         loadJob?.cancel()
-        val target = uri.value
+        val target = local.value.uri
         loadJob = viewModelScope.launch {
-            loading.value = true
-            if (!silent) error.value = null
+            local.update { if (silent) it.copy(loading = true) else it.copy(loading = true, error = null) }
             val result = controller.browse(target)
-            if (uri.value != target) return@launch
-            result.onSuccess {
-                entries.value = it
-                error.value = null
-            }.onFailure { if (!silent || entries.value.isEmpty()) error.value = it }
-            loading.value = false
+            local.update { l ->
+                when {
+                    l.uri != target -> l
+                    result.isSuccess -> l.copy(entries = result.getOrThrow(), error = null, loading = false)
+                    !silent || l.entries.isEmpty() -> l.copy(error = result.exceptionOrNull(), loading = false)
+                    else -> l.copy(loading = false)
+                }
+            }
         }
-    }
-
-    private fun rememberPath() {
-        val server = controller.activeServer.value ?: return
-        val u = uri.value
-        viewModelScope.launch { servers.update(server.id) { it.copy(lastBrowseUri = u) } }
     }
 
     /** A subtitle file with the same base name next to the video is attached automatically. */
     private fun siblingSubtitle(entry: Entry): String? {
         val base = entry.name.substringBeforeLast('.')
-        return entries.value.firstOrNull { e ->
+        return local.value.entries.firstOrNull { e ->
             !e.isDir && e.extension in Entry.SUBTITLE_EXTENSIONS && e.name.substringBeforeLast('.').startsWith(base)
         }?.uri
     }
@@ -256,8 +253,6 @@ class LibraryViewModel(
 
     private fun crumbs(u: String): List<Crumb> =
         crumbUris(u).map { Crumb(displayNameFromUri(it), it) }
-
-    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
     private companion object {
         const val HISTORY_REFRESH_DEBOUNCE_MS = 1_500L

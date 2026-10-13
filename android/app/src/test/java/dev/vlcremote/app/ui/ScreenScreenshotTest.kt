@@ -14,20 +14,38 @@ import dev.vlcremote.app.ui.connection.ConnectionActions
 import dev.vlcremote.app.ui.connection.ConnectionContent
 import dev.vlcremote.app.ui.connection.ConnectionUiState
 import dev.vlcremote.app.ui.connection.NearbyPc
+import dev.vlcremote.app.ui.history.DateGroup
+import dev.vlcremote.app.ui.history.HistoryActions
+import dev.vlcremote.app.ui.history.HistoryContent
+import dev.vlcremote.app.ui.history.HistoryGroup
+import dev.vlcremote.app.ui.history.HistoryUiState
+import dev.vlcremote.app.ui.history.continueCards
+import dev.vlcremote.app.ui.library.Crumb
+import dev.vlcremote.app.ui.library.LibraryActions
+import dev.vlcremote.app.ui.library.LibraryContent
+import dev.vlcremote.app.ui.library.LibraryUiState
+import dev.vlcremote.app.ui.playlist.PlaylistActions
+import dev.vlcremote.app.ui.playlist.PlaylistContent
+import dev.vlcremote.app.ui.playlist.PlaylistUiState
 import dev.vlcremote.app.ui.remote.RemoteActions
 import dev.vlcremote.app.ui.remote.RemoteContent
 import dev.vlcremote.app.ui.remote.RemoteUiState
+import dev.vlcremote.app.ui.settings.SettingsContent
 import dev.vlcremote.app.ui.theme.VlcRemoteTheme
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.Capability
 import dev.vlcremote.protocol.model.Chapters
 import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.ConnectionState
+import dev.vlcremote.protocol.model.Entry
+import dev.vlcremote.protocol.model.EntryType
+import dev.vlcremote.protocol.model.HistoryItem
 import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.Playback
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlayingItem
+import dev.vlcremote.protocol.model.PlaylistItem
 import dev.vlcremote.protocol.model.Track
 import dev.vlcremote.protocol.model.Tracks
 import dev.vlcremote.protocol.model.VlcInfo
@@ -102,6 +120,26 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
         )
     }
 
+    @Test
+    fun playlist() = snapshot("playlist") {
+        PlaylistContent(playlist, object : PlaylistActions {})
+    }
+
+    @Test
+    fun library() = snapshot("library") {
+        LibraryContent(library, object : LibraryActions {}, onPlayed = {}, onOpenHistory = {})
+    }
+
+    @Test
+    fun history() = snapshot("history") {
+        HistoryContent(history, object : HistoryActions {}, onBack = {}, onPlayed = {})
+    }
+
+    @Test
+    fun settings() = snapshot("settings") {
+        SettingsContent(AppSettings(), update = {}, onBack = {}, versionName = "0.4.0", versionCode = 250)
+    }
+
     private fun snapshot(name: String, content: @Composable () -> Unit) {
         compose.setContent {
             VlcRemoteTheme(AppSettings()) { Surface { content() } }
@@ -127,6 +165,45 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
             hostName = "WIN-BBARDOEIJL4",
             companionMode = true,
+        )
+
+        private val playlist = PlaylistUiState(
+            items = listOf(
+                PlaylistItem(3, "Show.S01E01.1080p.WEB-DL.mkv", "file:///D:/3.mkv", 2701),
+                PlaylistItem(4, "Show.S01E02.1080p.WEB-DL.mkv", "file:///D:/4.mkv", 2655, current = true),
+                PlaylistItem(5, "Show.S01E03.1080p.WEB-DL.mkv", "file:///D:/5.mkv", 2790),
+                PlaylistItem(6, "The Lord of the Rings: The Fellowship of the Ring (Extended).mkv", "file:///D:/6.mkv", 13_680),
+            ),
+            currentPlId = 4,
+            online = true,
+        )
+
+        private val lotr = HistoryItem(
+            "file:///D:/Movies/lotr.mkv", title = "The Lord of the Rings: The Fellowship of the Ring", position = 2246, length = 10705,
+        )
+        private val episode = HistoryItem("file:///D:/Series/Show.S01E02.mkv", name = "Show.S01E02.1080p.WEB-DL.mkv", finished = true)
+
+        private val library = LibraryUiState(
+            uri = "file:///D:/Movies/",
+            crumbs = listOf(Crumb("D:", "file:///D:/"), Crumb("Movies", "file:///D:/Movies/")),
+            entries = listOf(
+                Entry("Extras", "file:///D:/Movies/Extras/", EntryType.DIR),
+                Entry("lotr.mkv", "file:///D:/Movies/lotr.mkv", EntryType.FILE, size = 25_000_000_000, progress = 0.21),
+                Entry("lotr.srt", "file:///D:/Movies/lotr.srt", EntryType.FILE, size = 120_000),
+                Entry("The.Matrix.1999.2160p.UHD.BluRay.x265.mkv", "file:///D:/Movies/matrix.mkv", EntryType.FILE, finished = true),
+            ),
+            favorites = listOf("file:///D:/Movies/"),
+            online = true,
+            historyEnabled = true,
+            continueCards = continueCards(listOf(lotr)),
+        )
+
+        private val history = HistoryUiState(
+            available = true,
+            online = true,
+            items = listOf(lotr, episode),
+            groups = listOf(HistoryGroup(DateGroup.TODAY, listOf(lotr)), HistoryGroup(DateGroup.THIS_WEEK, listOf(episode))),
+            total = 2,
         )
 
         private val savedPc = SavedServer(

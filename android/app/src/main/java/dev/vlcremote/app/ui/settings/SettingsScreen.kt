@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.vlcremote.app.BuildConfig
 import dev.vlcremote.app.R
 import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.ThemeMode
@@ -44,11 +45,38 @@ import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.permissions.PermissionsSettingsSection
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
+    SettingsContent(
+        s,
+        update = viewModel::update,
+        onBack = onBack,
+        versionName = BuildConfig.VERSION_NAME,
+        versionCode = BuildConfig.VERSION_CODE,
+        permissions = {
+            PermissionsSettingsSection(Modifier.padding(vertical = 4.dp)) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                Section(stringResource(R.string.settings_permissions))
+            }
+        },
+    )
+}
 
+/**
+ * [update] changes the stored settings. [permissions] is the "Permissions" section: it reads the live system state,
+ * so previews and screenshot tests leave it out.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SettingsContent(
+    s: AppSettings,
+    update: ((AppSettings) -> AppSettings) -> Unit,
+    onBack: () -> Unit,
+    versionName: String,
+    versionCode: Int,
+    permissions: @Composable () -> Unit = {},
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -71,27 +99,27 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 title = stringResource(R.string.settings_volume_keys),
                 subtitle = stringResource(R.string.settings_volume_keys_hint),
                 checked = s.volumeKeysControlPc,
-            ) { v -> viewModel.update { it.copy(volumeKeysControlPc = v) } }
+            ) { v -> update { it.copy(volumeKeysControlPc = v) } }
             ChoiceRow(
                 title = stringResource(R.string.settings_volume_step),
                 options = AppSettings.VOLUME_STEPS,
                 selected = s.volumeKeyStep,
                 label = { "${it * 100 / 256} %" },
-            ) { v -> viewModel.update { it.copy(volumeKeyStep = v) } }
+            ) { v -> update { it.copy(volumeKeyStep = v) } }
             ChoiceRow(
                 title = stringResource(R.string.settings_seek_short),
                 options = AppSettings.SEEK_SHORT_STEPS,
                 selected = s.seekShortSec,
                 label = { stringResource(R.string.seconds_short, it) },
-            ) { v -> viewModel.update { it.copy(seekShortSec = v) } }
+            ) { v -> update { it.copy(seekShortSec = v) } }
             ChoiceRow(
                 title = stringResource(R.string.settings_seek_long),
                 options = AppSettings.SEEK_LONG_STEPS,
                 selected = s.seekLongSec,
                 label = { stringResource(R.string.seconds_short, it) },
-            ) { v -> viewModel.update { it.copy(seekLongSec = v) } }
+            ) { v -> update { it.copy(seekLongSec = v) } }
             SwitchRow(title = stringResource(R.string.settings_haptics), subtitle = null, checked = s.haptics) { v ->
-                viewModel.update { it.copy(haptics = v) }
+                update { it.copy(haptics = v) }
             }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -100,7 +128,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = s.theme == mode,
-                        onClick = { viewModel.update { it.copy(theme = mode) } },
+                        onClick = { update { it.copy(theme = mode) } },
                         label = {
                             LabelText(
                                 stringResource(
@@ -120,16 +148,16 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 subtitle = stringResource(R.string.settings_true_black_hint),
                 checked = s.trueBlack,
                 enabled = s.theme != ThemeMode.LIGHT,
-            ) { v -> viewModel.update { it.copy(trueBlack = v) } }
+            ) { v -> update { it.copy(trueBlack = v) } }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 SwitchRow(title = stringResource(R.string.settings_dynamic_color), subtitle = null, checked = s.dynamicColor) { v ->
-                    viewModel.update { it.copy(dynamicColor = v) }
+                    update { it.copy(dynamicColor = v) }
                 }
             }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_connection))
-            BluetoothFallbackRow(checked = s.bluetoothFallback) { v -> viewModel.update { it.copy(bluetoothFallback = v) } }
+            BluetoothFallbackRow(checked = s.bluetoothFallback) { v -> update { it.copy(bluetoothFallback = v) } }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_background))
@@ -137,12 +165,9 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 title = stringResource(R.string.settings_keep_connection),
                 subtitle = stringResource(R.string.settings_keep_connection_hint),
                 checked = s.keepConnectionInBackground,
-            ) { v -> viewModel.update { it.copy(keepConnectionInBackground = v) } }
+            ) { v -> update { it.copy(keepConnectionInBackground = v) } }
 
-            PermissionsSettingsSection(Modifier.padding(vertical = 4.dp)) {
-                HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                Section(stringResource(R.string.settings_permissions))
-            }
+            permissions()
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_about))
@@ -154,8 +179,8 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             Text(
                 stringResource(
                     R.string.settings_version,
-                    dev.vlcremote.app.BuildConfig.VERSION_NAME,
-                    dev.vlcremote.app.BuildConfig.VERSION_CODE,
+                    versionName,
+                    versionCode,
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

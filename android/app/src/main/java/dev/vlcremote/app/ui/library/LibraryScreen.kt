@@ -45,7 +45,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
-import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.displayNameFromUri
@@ -70,25 +68,41 @@ import dev.vlcremote.app.ui.history.WatchedMark
 import dev.vlcremote.app.ui.history.displayTitle
 import dev.vlcremote.app.ui.history.historyBadge
 import dev.vlcremote.protocol.model.Entry
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import dev.vlcremote.protocol.model.HistoryItem
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
+
+/** What the library screen can do; no-op defaults for previews and screenshot tests. */
+interface LibraryActions {
+    fun open(entryUri: String) {}
+    fun up() {}
+    fun goRoot() {}
+    fun reload() {}
+    fun setMediaOnly(value: Boolean) {}
+    fun toggleFavorite() {}
+    fun play(entry: Entry) {}
+    fun enqueue(entry: Entry) {}
+    fun showMenu(entry: Entry?) {}
+    fun playHistory(item: HistoryItem) {}
+    fun showContinueMenu(item: HistoryItem?) {}
+    fun markWatched(item: HistoryItem) {}
+    fun removeFromHistory(item: HistoryItem) {}
+}
 
 @Composable
 fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: LibraryViewModel = koinViewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val haptics by viewModel.haptics.collectAsStateWithLifecycle()
-    val tick = rememberTick(haptics)
-
     // The PC reports a changed history: refresh "Continue watching" and the progress marks (only while shown).
-    val controller: PlayerController = koinInject()
-    val revisionFlow = remember(controller) { controller.state.map { it.history?.revision }.distinctUntilChanged() }
-    val revision by revisionFlow.collectAsStateWithLifecycle(initialValue = controller.state.value.history?.revision)
+    val revision by viewModel.historyRevision.collectAsStateWithLifecycle(initialValue = null)
     LaunchedEffect(revision) { viewModel.onHistoryRevision(revision) }
+    LibraryContent(ui, viewModel, onPlayed, onOpenHistory)
+}
 
-    BackHandler(enabled = !ui.isRoot) { viewModel.up() }
+@Composable
+fun LibraryContent(ui: LibraryUiState, actions: LibraryActions, onPlayed: () -> Unit, onOpenHistory: () -> Unit) {
+    val context = LocalContext.current
+    val tick = rememberTick(ui.haptics)
+
+    BackHandler(enabled = !ui.isRoot) { actions.up() }
 
     // With a history the tab starts with "Continue watching" (or, with nothing to continue, a "History" link).
     val showContinue = ui.historyEnabled
@@ -101,7 +115,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
 
     if (!ui.online) {
         Column(Modifier.fillMaxSize()) {
-            FolderToolbar(ui, viewModel)
+            FolderToolbar(ui, actions)
             HorizontalDivider()
             CenterText(stringResource(R.string.library_offline))
         }
@@ -119,12 +133,12 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
                         cards = ui.continueCards,
                         onOpen = { card ->
                             tick()
-                            viewModel.playHistory(card.item)
+                            actions.playHistory(card.item)
                             onPlayed()
                         },
                         onMenu = { card ->
                             tick()
-                            viewModel.showContinueMenu(card.item)
+                            actions.showContinueMenu(card.item)
                         },
                         onHistory = onOpenHistory,
                         modifier = Modifier.padding(bottom = 4.dp),
@@ -133,7 +147,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
             }
             stickyHeader(key = "toolbar") {
                 Column(Modifier.background(MaterialTheme.colorScheme.background)) {
-                    FolderToolbar(ui, viewModel)
+                    FolderToolbar(ui, actions)
                     HorizontalDivider()
                 }
             }
@@ -146,7 +160,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center,
                             )
-                            TextButton(onClick = viewModel::reload) { Text(stringResource(R.string.retry)) }
+                            TextButton(onClick = actions::reload) { Text(stringResource(R.string.retry)) }
                         }
                     }
                 }
@@ -163,14 +177,14 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
                         entry = entry,
                         onClick = {
                             tick()
-                            if (entry.isDir) viewModel.open(entry.uri) else {
-                                viewModel.play(entry)
+                            if (entry.isDir) actions.open(entry.uri) else {
+                                actions.play(entry)
                                 onPlayed()
                             }
                         },
                         onLongClick = {
                             tick()
-                            if (!entry.isDir) viewModel.showMenu(entry) else viewModel.open(entry.uri)
+                            if (!entry.isDir) actions.showMenu(entry) else actions.open(entry.uri)
                         },
                     )
                 }
@@ -182,7 +196,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
     }
 
     ui.menuFor?.let { entry ->
-        ModalBottomSheet(onDismissRequest = { viewModel.showMenu(null) }) {
+        ModalBottomSheet(onDismissRequest = { actions.showMenu(null) }) {
             Text(
                 entry.name.withNameBreaks(),
                 style = MaterialTheme.typography.titleMedium,
@@ -193,19 +207,19 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_play)) },
                 leadingContent = { Icon(Icons.Default.PlayArrow, null) },
-                modifier = Modifier.combinedClickable(onClick = { viewModel.play(entry); viewModel.showMenu(null); onPlayed() }),
+                modifier = Modifier.combinedClickable(onClick = { actions.play(entry); actions.showMenu(null); onPlayed() }),
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_enqueue)) },
                 leadingContent = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },
-                modifier = Modifier.combinedClickable(onClick = { viewModel.enqueue(entry); viewModel.showMenu(null) }),
+                modifier = Modifier.combinedClickable(onClick = { actions.enqueue(entry); actions.showMenu(null) }),
             )
             Spacer(Modifier.padding(16.dp))
         }
     }
 
     ui.continueMenuFor?.let { item ->
-        ModalBottomSheet(onDismissRequest = { viewModel.showContinueMenu(null) }) {
+        ModalBottomSheet(onDismissRequest = { actions.showContinueMenu(null) }) {
             Text(
                 item.displayTitle.withNameBreaks(),
                 style = MaterialTheme.typography.titleMedium,
@@ -217,20 +231,20 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
             HistoryMenuEntries(
                 finished = item.finished,
                 onPlay = {
-                    viewModel.showContinueMenu(null)
-                    viewModel.playHistory(item)
+                    actions.showContinueMenu(null)
+                    actions.playHistory(item)
                     onPlayed()
                 },
                 onSetFinished = { finished ->
                     tick()
-                    viewModel.showContinueMenu(null)
+                    actions.showContinueMenu(null)
                     // A card in the row is never finished, so this is always "mark as watched".
-                    if (finished) viewModel.markWatched(item)
+                    if (finished) actions.markWatched(item)
                 },
                 onRemove = {
                     tick()
-                    viewModel.showContinueMenu(null)
-                    viewModel.removeFromHistory(item)
+                    actions.showContinueMenu(null)
+                    actions.removeFromHistory(item)
                 },
             )
             Spacer(Modifier.height(24.dp))
@@ -240,7 +254,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
 
 /** Up / home / favourite / media filter / refresh, then breadcrumbs and favourites. */
 @Composable
-private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
+private fun FolderToolbar(ui: LibraryUiState, actions: LibraryActions) {
     Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier
@@ -248,18 +262,18 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = viewModel::up, enabled = !ui.isRoot) { Icon(Icons.Default.ArrowUpward, stringResource(R.string.up)) }
-            IconButton(onClick = viewModel::goRoot) { Icon(Icons.Default.Home, stringResource(R.string.drives)) }
-            IconButton(onClick = viewModel::toggleFavorite, enabled = !ui.isRoot) {
+            IconButton(onClick = actions::up, enabled = !ui.isRoot) { Icon(Icons.Default.ArrowUpward, stringResource(R.string.up)) }
+            IconButton(onClick = actions::goRoot) { Icon(Icons.Default.Home, stringResource(R.string.drives)) }
+            IconButton(onClick = actions::toggleFavorite, enabled = !ui.isRoot) {
                 Icon(if (ui.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, stringResource(R.string.favorite))
             }
             Spacer(Modifier.weight(1f))
             FilterChip(
                 selected = ui.mediaOnly,
-                onClick = { viewModel.setMediaOnly(!ui.mediaOnly) },
+                onClick = { actions.setMediaOnly(!ui.mediaOnly) },
                 label = { LabelText(stringResource(R.string.media_only)) },
             )
-            IconButton(onClick = viewModel::reload) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
+            IconButton(onClick = actions::reload) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
         }
 
         // Breadcrumbs
@@ -270,10 +284,10 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = viewModel::goRoot) { LabelText(stringResource(R.string.drives)) }
+            TextButton(onClick = actions::goRoot) { LabelText(stringResource(R.string.drives)) }
             ui.crumbs.forEach { crumb ->
                 Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { viewModel.open(crumb.uri) }) { LabelText(crumb.name) }
+                TextButton(onClick = { actions.open(crumb.uri) }) { LabelText(crumb.name) }
             }
         }
 
@@ -289,7 +303,7 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
                 ui.favorites.forEach { fav ->
                     FilterChip(
                         selected = false,
-                        onClick = { viewModel.open(fav) },
+                        onClick = { actions.open(fav) },
                         label = { LabelText(displayNameFromUri(fav)) },
                         leadingIcon = { Icon(Icons.Default.Star, null) },
                     )

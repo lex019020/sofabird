@@ -58,34 +58,40 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
-import dev.vlcremote.app.data.player.PlayerController
-import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.rememberConfirmHaptic
 import dev.vlcremote.app.ui.common.rememberTick
 import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** Full watch history: grouped by date, swipe to remove, menu to mark watched / unwatched, "Clear history". */
 @Composable
 fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryViewModel = koinViewModel()) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    val controller: PlayerController = koinInject()
-    val settings: SettingsRepository = koinInject()
-    val prefs by settings.settings.collectAsStateWithLifecycle()
-    val server by controller.activeServer.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val tick = rememberTick(prefs.haptics)
-    val confirm = rememberConfirmHaptic(prefs.haptics)
-
     // Refresh when the PC reports a changed history (only while this screen is shown).
-    val revisionFlow = remember(controller) { controller.state.map { it.history?.revision }.distinctUntilChanged() }
-    val revision by revisionFlow.collectAsStateWithLifecycle(initialValue = controller.state.value.history?.revision)
+    val revision by viewModel.historyRevision.collectAsStateWithLifecycle(initialValue = null)
     LaunchedEffect(revision) { viewModel.onRevision(revision) }
+    HistoryContent(ui, viewModel, onBack, onPlayed)
+}
+
+/** What the history screen can do; no-op defaults for previews and screenshot tests. */
+interface HistoryActions {
+    fun reload() {}
+    fun loadMore() {}
+    fun showMenu(item: HistoryItem?) {}
+    fun play(item: HistoryItem) {}
+    fun setFinished(item: HistoryItem, finished: Boolean) {}
+    fun remove(item: HistoryItem) {}
+    fun clearAll() {}
+}
+
+@Composable
+fun HistoryContent(ui: HistoryUiState, actions: HistoryActions, onBack: () -> Unit, onPlayed: () -> Unit) {
+    val context = LocalContext.current
+    val tick = rememberTick(ui.haptics)
+    val confirm = rememberConfirmHaptic(ui.haptics)
 
     var overflow by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
@@ -133,7 +139,7 @@ fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryVi
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(ui.error!!.commandErrorMessage(context), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-                    TextButton(onClick = viewModel::reload) { Text(stringResource(R.string.retry)) }
+                    TextButton(onClick = actions::reload) { Text(stringResource(R.string.retry)) }
                 }
                 ui.loading && ui.items.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 ui.items.isEmpty() -> CenterMessage(stringResource(R.string.history_empty))
@@ -144,19 +150,19 @@ fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryVi
                             SwipeToRemove(
                                 onRemove = {
                                     confirm()
-                                    viewModel.remove(item)
+                                    actions.remove(item)
                                 },
                             ) {
                                 HistoryRow(
                                     item = item,
                                     onClick = {
                                         tick()
-                                        viewModel.play(item)
+                                        actions.play(item)
                                         onPlayed()
                                     },
                                     onMenu = {
                                         tick()
-                                        viewModel.showMenu(item)
+                                        actions.showMenu(item)
                                     },
                                 )
                             }
@@ -186,32 +192,32 @@ fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryVi
             info.totalItemsCount > 0 && last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
         }
             .distinctUntilChanged()
-            .collect { nearEnd -> if (nearEnd && canLoadMore) viewModel.loadMore() }
+            .collect { nearEnd -> if (nearEnd && canLoadMore) actions.loadMore() }
     }
     LaunchedEffect(ui.items.size, ui.total) {
         val info = listState.layoutInfo
         val last = info.visibleItemsInfo.lastOrNull()?.index ?: -1
-        if (ui.canLoadMore && info.totalItemsCount > 0 && last >= info.totalItemsCount - LOAD_MORE_THRESHOLD) viewModel.loadMore()
+        if (ui.canLoadMore && info.totalItemsCount > 0 && last >= info.totalItemsCount - LOAD_MORE_THRESHOLD) actions.loadMore()
     }
 
     ui.menuFor?.let { item ->
         HistoryItemMenu(
             item = item,
-            onDismiss = { viewModel.showMenu(null) },
+            onDismiss = { actions.showMenu(null) },
             onPlay = {
-                viewModel.showMenu(null)
-                viewModel.play(item)
+                actions.showMenu(null)
+                actions.play(item)
                 onPlayed()
             },
             onSetFinished = { finished ->
                 confirm()
-                viewModel.showMenu(null)
-                viewModel.setFinished(item, finished)
+                actions.showMenu(null)
+                actions.setFinished(item, finished)
             },
             onRemove = {
                 confirm()
-                viewModel.showMenu(null)
-                viewModel.remove(item)
+                actions.showMenu(null)
+                actions.remove(item)
             },
         )
     }
@@ -220,12 +226,12 @@ fun HistoryScreen(onBack: () -> Unit, onPlayed: () -> Unit, viewModel: HistoryVi
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text(stringResource(R.string.history_clear)) },
-            text = { Text(stringResource(R.string.history_clear_confirm, server?.displayName.orEmpty())) },
+            text = { Text(stringResource(R.string.history_clear_confirm, ui.serverName)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirm()
                     confirmClear = false
-                    viewModel.clearAll()
+                    actions.clearAll()
                 }) { Text(stringResource(R.string.history_clear_action), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
