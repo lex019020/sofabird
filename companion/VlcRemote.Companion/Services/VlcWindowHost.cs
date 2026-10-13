@@ -28,6 +28,8 @@ public sealed class VlcWindowHost : IVlcWindowHost
     public Task SetFullscreenAsync(bool on, CancellationToken ct) => _vlc.SetFullscreenAsync(on, ct);
 
     public bool MoveWindow(long window, MonitorInfo target) => _display.MoveWindowToMonitor(new IntPtr(window), target);
+
+    public bool PlaybackHeld => _vlc.PlaybackHeld;
 }
 
 /// <summary><see cref="IDisplayPreferenceStore"/> over the companion settings file.</summary>

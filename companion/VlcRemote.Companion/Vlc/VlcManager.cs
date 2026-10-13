@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Interop;
+using VlcRemote.Core.History;
 using VlcRemote.Core.Lua;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
@@ -73,10 +74,13 @@ public sealed class VlcManager : IAsyncDisposable
     private int? _announcedPid;
     private volatile bool _launchInProgress;
     private readonly DateTime _companionStartedAt = Process.GetCurrentProcess().StartTime;
+    private readonly HistoryTracker? _history;
 
-    public VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf)
+    public VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf, HistoryTracker? history = null)
     {
         _settings = settings;
+        _history = history;
+        if (history is not null) history.Store.Changed += Poke;
         Installation = installation;
         _lua = lua;
         _lf = lf;
@@ -110,6 +114,10 @@ public sealed class VlcManager : IAsyncDisposable
     public bool LuaInstallPending => _luaInstallPending;
     /// <summary>Lua-страницы отвечают (уровень 1 внутри VLC).</summary>
     public bool TracksPageAvailable => !_tracksPageMissing && _tracksPage is not null;
+    /// <summary>Watch history (resume prompt, next episode, track choices); <c>null</c> — not recorded.</summary>
+    public HistoryTracker? History => _history;
+    /// <summary>VLC is kept paused until a phone answers the resume question.</summary>
+    public bool PlaybackHeld => _history?.IsHolding == true;
 
     /// <summary>Поставщик блока <c>system</c> для состояния (громкость Windows, экран, keepAwake).</summary>
     public Func<SystemInfo?>? SystemInfoProvider { get; set; }
@@ -253,11 +261,15 @@ public sealed class VlcManager : IAsyncDisposable
                     RaiseEvent(new EventMessage { Name = EventNames.InputChanged, Uri = _playlist?.FirstOrDefault(p => p.PlId == status.CurrentPlId)?.Uri });
             }
 
+            var endReached = false;
             if (prev is not null && !prev.IsStopped && status.IsStopped)
             {
                 var nearEnd = prev.Length > 0 && prev.Time >= prev.Length - 3;
                 if (nearEnd || _endReachedHint)
+                {
+                    endReached = true;
                     RaiseEvent(new EventMessage { Name = EventNames.EndReached });
+                }
             }
             _endReachedHint = false;
 
@@ -305,12 +317,57 @@ public sealed class VlcManager : IAsyncDisposable
                 _rcTracks = null;
             }
 
-            PublishState(BuildState(status));
+            var state = BuildState(status);
+            if (_history is not null)
+            {
+                var actions = _history.Observe(new PlaybackObservation(state.Item?.Uri, state.Item?.Title, state.Playback.State,
+                    state.Playback.Time, state.Playback.Length, state.Tracks, endReached));
+                if (actions.Count > 0) await RunHistoryActionsAsync(actions, ct).ConfigureAwait(false);
+                state.Resume = _history.Resume;
+                state.Next = _history.Next;
+                state.History = new HistoryInfo { Revision = _history.Store.Revision };
+            }
+            PublishState(state);
         }
         finally
         {
             _pollGate.Release();
         }
+    }
+
+    /// <summary>Performs what the history asks for (pause for the resume question, track choices, events).</summary>
+    private async Task RunHistoryActionsAsync(IReadOnlyList<HistoryAction> actions, CancellationToken ct)
+    {
+        foreach (var a in actions)
+        {
+            try
+            {
+                switch (a.Kind)
+                {
+                    case HistoryActionKind.Event when a.Event is not null:
+                        RaiseEvent(a.Event);
+                        break;
+                    case HistoryActionKind.Pause:
+                        _lastStatus = await Cmd("pl_forcepause", ct).ConfigureAwait(false);
+                        break;
+                    case HistoryActionKind.Play:
+                        _lastStatus = await Cmd("pl_forceresume", ct).ConfigureAwait(false);
+                        break;
+                    case HistoryActionKind.Seek:
+                        _lastStatus = await Cmd("seek", ct, ("val", Str((int)Math.Clamp(a.Seconds, 0, int.MaxValue)))).ConfigureAwait(false);
+                        break;
+                    case HistoryActionKind.SelectTrack:
+                        await Cmd(a.TrackKind == "audio" ? "audio_track" : "subtitle_track", ct, ("val", Str(a.TrackId))).ConfigureAwait(false);
+                        _rcTracksDirty = true;
+                        break;
+                }
+            }
+            catch (VlcException ex)
+            {
+                _log.LogWarning("History action {Kind} failed: {Error}", a.Kind, ex.Message);
+            }
+        }
+        Poke();
     }
 
     /// <summary>Raise <see cref="ProcessAppeared"/> once per new VLC process (not while the companion is launching one).</summary>
@@ -347,6 +404,9 @@ public sealed class VlcManager : IAsyncDisposable
             SetRunState(Installation is null ? VlcRunState.NotInstalled : VlcRunState.NotRunning);
             await _rc.DisconnectAsync().ConfigureAwait(false);
             RaiseEvent(new EventMessage { Name = EventNames.VlcExited });
+            if (_history is not null)
+                foreach (var a in _history.OnVlcExited())
+                    if (a.Event is not null) RaiseEvent(a.Event);
             // VLC закрыт и больше не перезапишет vlcrc — прописываем интерфейсы для следующего запуска.
             TryConfigureVlcrc();
         }
@@ -388,6 +448,9 @@ public sealed class VlcManager : IAsyncDisposable
             System = SystemInfoProvider?.Invoke(),
             ArtBaseUrl = ArtBaseUrlProvider?.Invoke(),
             Muted = _muted,
+            Resume = _history?.Resume,
+            Next = _history?.Next,
+            HistoryRevision = _history?.Store.Revision,
         });
     }
 
@@ -938,7 +1001,12 @@ public sealed class VlcManager : IAsyncDisposable
         var browser = new LocalFileBrowser(() => _settings.MediaRoots);
         try
         {
-            return await Task.Run(() => browser.Browse(uri), ct).ConfigureAwait(false);
+            return await Task.Run(() =>
+            {
+                var items = browser.Browse(uri);
+                _history?.Store.Annotate(items);
+                return items;
+            }, ct).ConfigureAwait(false);
         }
         catch (DirectoryNotFoundException)
         {
@@ -981,6 +1049,23 @@ public sealed class VlcManager : IAsyncDisposable
                 if (!IsProcessRunning) return;
                 await QuitAsync(ct).ConfigureAwait(false);
                 return;
+            case "dismissNext":
+                _history?.DismissNext();
+                Poke();
+                return;
+            case "resume":
+            {
+                var choice = args.RequireString("choice");
+                if (_history is null) throw ProtocolException.Unsupported("watch history is off");
+                var actions = _history.Answer(choice);
+                if (actions.Count > 0)
+                {
+                    EnsureRunning();
+                    await RunHistoryActionsAsync(actions, ct).ConfigureAwait(false);
+                }
+                Poke();
+                return;
+            }
         }
 
         EnsureRunning();
@@ -1056,6 +1141,7 @@ public sealed class VlcManager : IAsyncDisposable
                 };
                 result = await Cmd(cmd, ct, ("val", Str(id))).ConfigureAwait(false);
                 _rcTracksDirty = true;
+                if (kind is "audio" or "subtitle") _history?.OnTrackChosen(kind, id, LastState?.Tracks);
                 break;
             }
             case "chapter":
@@ -1162,6 +1248,9 @@ public sealed class VlcManager : IAsyncDisposable
     private async Task OpenAsync(string uri, bool enqueue, string? subtitle, int? audioTrack, int? subtitleTrack, CancellationToken ct)
     {
         var before = _lastStatus?.CurrentPlId ?? -1;
+        // The phone picked tracks for this file: they win over the folder's remembered choices.
+        if (!enqueue && (subtitle is not null || audioTrack is not null || subtitleTrack is not null))
+            _history?.ExpectExplicitTracks(uri);
         var argList = new List<(string, string)> { ("input", uri) };
         await Cmd(enqueue ? "in_enqueue" : "in_play", ct, argList.ToArray()).ConfigureAwait(false);
         _playlistDirty = true;
@@ -1240,6 +1329,11 @@ public sealed class VlcManager : IAsyncDisposable
             try { await _loop.ConfigureAwait(false); } catch { }
         }
         _rc.StatusChanged -= OnRcStatusChanged;
+        if (_history is not null)
+        {
+            _history.Store.Changed -= Poke;
+            _history.OnVlcExited(); // save the position of what is playing now
+        }
         await _rc.DisposeAsync().ConfigureAwait(false);
         _http.Dispose();
         _owned?.Dispose();

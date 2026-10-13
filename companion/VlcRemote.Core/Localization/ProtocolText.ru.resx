@@ -19,4 +19,5 @@
   <data name="VlcNotRunning" xml:space="preserve"><value>VLC не запущен</value></data>
   <data name="FolderNotFound" xml:space="preserve"><value>Папка не найдена: {0}</value></data>
   <data name="FolderUnavailable" xml:space="preserve"><value>Папка недоступна: {0}</value></data>
+  <data name="HistoryNotAFile" xml:space="preserve"><value>В истории просмотра хранятся только файлы на этом компьютере: {0}</value></data>
 </root>

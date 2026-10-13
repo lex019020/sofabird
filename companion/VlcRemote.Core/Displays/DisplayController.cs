@@ -255,6 +255,9 @@ public sealed class DisplayController
         var requested = false;
         for (var i = 0; i < attempts; i++)
         {
+            // While the resume question holds VLC paused, keep waiting (the video output may appear only once playback
+            // goes on); the full timeout starts over after the answer.
+            if (_vlc.PlaybackHeld && _vlc.IsControllable) i = 0;
             // Right after a cold start the manager may not have adopted this process yet (ProcessId is null),
             // so only stop when it follows a different VLC.
             if (_vlc.ProcessId is int followed && followed != pid)

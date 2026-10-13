@@ -51,6 +51,11 @@ public class VlcrcConfiguratorTests : IDisposable
         "\r\n" +
         "# Extra interface modules (string)\r\n" +
         "#extraintf=\r\n" +
+        "\r\n" +
+        "[qt] # Qt interface\r\n" +
+        "\r\n" +
+        "# Continue playback? (integer)\r\n" +
+        "#qt-continue=1\r\n" +
         "\r\n";
 
     private static List<string> Section(string text, string name)
@@ -84,6 +89,10 @@ public class VlcrcConfiguratorTests : IDisposable
         var oldrc = Section(result, "oldrc");
         Assert.Contains("rc-host=127.0.0.1:4212", oldrc);
         Assert.Contains("rc-quiet=1", oldrc);
+
+        // VLC's own "continue playback?" is off: the companion asks on the phone.
+        Assert.Contains("qt-continue=0", Section(result, "qt"));
+        Assert.DoesNotContain("#qt-continue=1", result);
 
         // Ключ заменён на месте, комментарий-описание над ним сохранён, окончания строк — CRLF.
         Assert.Contains("# Extra interface modules (string)\r\nextraintf=http:rc\r\n", result);
@@ -140,7 +149,23 @@ public class VlcrcConfiguratorTests : IDisposable
         // Ключи вставлены до пустой строки перед [qt], а не после неё.
         Assert.Contains("#volume=256\nextraintf=http:rc\nhttp-port=8080\n\n[qt]", result);
         Assert.Contains("#qt-privacy-ask=1", Section(result, "qt"));
+        Assert.Contains("#qt-privacy-ask=1\nqt-continue=0\n\n[lua]", result);
         Assert.EndsWith("[lua]\nhttp-password=Secret123\n\n[oldrc]\nrc-host=127.0.0.1:4212\nrc-quiet=1\n", result);
+    }
+
+    [Theory]
+    [InlineData("[qt]\nqt-continue=2\n", "[qt]\nqt-continue=0\n")]
+    [InlineData("[qt]\n# qt-continue=1\n", "[qt]\nqt-continue=0\n")]
+    [InlineData("[qt]\nqt-continue=0\n", "[qt]\nqt-continue=0\n")]
+    public void Apply_TurnsOffVlcsOwnResumeQuestion(string qt, string expected)
+    {
+        var text = "[core]\nextraintf=http:rc\nhttp-port=8080\n[lua]\nhttp-password=Secret123\n[oldrc]\nrc-host=127.0.0.1:4212\nrc-quiet=1\n" + qt;
+        var result = VlcrcEditor.Apply(text, S, out var changed);
+        Assert.EndsWith(expected, result);
+        Assert.Equal(qt != expected, changed);
+        Assert.Single(Section(result, "qt"), l => l.Contains("qt-continue"));
+        VlcrcEditor.Apply(result, S, out var again);
+        Assert.False(again);
     }
 
     [Fact]
@@ -199,7 +224,7 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, bytes[..3]);
         var text = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
         Assert.Equal(
-            "[core]\r\nextraintf=http:rc\r\nhttp-port=8080\r\n\r\n[lua]\r\nhttp-password=Secret123\r\n\r\n[oldrc]\r\nrc-host=127.0.0.1:4212\r\nrc-quiet=1\r\n",
+            "[core]\r\nextraintf=http:rc\r\nhttp-port=8080\r\n\r\n[lua]\r\nhttp-password=Secret123\r\n\r\n[oldrc]\r\nrc-host=127.0.0.1:4212\r\nrc-quiet=1\r\n\r\n[qt]\r\nqt-continue=0\r\n",
             text);
         Assert.False(File.Exists(cfg.BackupPath));
         Assert.Equal(VlcrcResult.Unchanged, cfg.Ensure(S));

@@ -33,4 +33,11 @@ public interface ISessionHost
     Task<IReadOnlyList<PlaylistEntry>> GetPlaylistAsync(CancellationToken ct);
     Task<TracksInfo> GetTracksAsync(CancellationToken ct);
     Task<IReadOnlyList<AudioDeviceEntry>> GetAudioDevicesAsync(CancellationToken ct);
+
+    /// <summary><c>getHistory</c> with a validated <paramref name="filter"/> (<c>continue</c>|<c>all</c>) and paging.</summary>
+    Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct);
+    /// <summary><c>historyUpdate</c>: mark watched/unwatched (<paramref name="finished"/>) or <paramref name="remove"/>.</summary>
+    Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct);
+    /// <summary><c>historyClear</c>.</summary>
+    Task ClearHistoryAsync(CancellationToken ct);
 }

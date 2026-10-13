@@ -129,6 +129,7 @@ vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password
 | `[lua]` | `http-password` | `vlcHttpPassword` из `settings.json` |
 | `[oldrc]` | `rc-host` | `127.0.0.1:<vlcRcPort>` (4212) |
 | `[oldrc]` | `rc-quiet` | `1` — иначе на Windows RC открывает окно консоли |
+| `[qt]` | `qt-continue` | `0` — VLC's own "continue playback?" is off; the phone asks instead (see "Watch history") |
 
 `http-host` не трогается (по умолчанию VLC слушает все интерфейсы — телефон может ходить к VLC и напрямую).
 
@@ -137,7 +138,7 @@ vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password
 - Закомментированные умолчания (`#extraintf=`) раскомментируются на месте; отсутствующий ключ дописывается в
   конец секции, отсутствующая секция — в конец файла. Кодировка (UTF‑8 с BOM) и окончания строк сохраняются,
   запись атомарная (временный файл + замена). Если файла нет (VLC ни разу не запускался) — создаётся
-  минимальный файл с этими тремя секциями.
+  минимальный файл с этими секциями.
 - Перед **первым** изменением делается копия `%APPDATA%\vlc\vlcrc.vlcremote-backup` (дальше не перезаписывается).
   Вернуть всё как было: закрыть VLC, удалить `vlcrc` и переименовать копию обратно.
 - Если всё уже настроено, файл не трогается; в журнал пишется только факт изменения.
@@ -255,6 +256,52 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
   этим индексом; `moveToDisplay {"display": int}` и `display` в `launch`/`open` по‑прежнему понимаются
   (`display` в `launch` — разовый выбор, не запоминается).
 
+## Watch history
+
+The companion is the source of truth for what was watched (protocol: «Watch history and resume», capability
+`history`). Code: `VlcRemote.Core/History/` — `HistoryStore` (the file), `HistoryTracker` (decisions from VLC polls),
+`HistoryRules` (pure rules), `MediaUri` (URI normalization); `VlcManager` performs the tracker's actions on VLC.
+
+- **What is recorded.** Every *file* VLC plays (opened from a phone, from Explorer, from VLC's playlist; streams and
+  discs are not recorded): title, length, play count, last watched, position. The position is saved every 10 s while
+  playing and on pause, stop, input change, VLC exit and companion shutdown. Less than 5% left → `finished`
+  (position 0); a file played to its end is finished too. A finished file that is watched again becomes "in progress"
+  once it passes 5 minutes; reaching the credits and seeking back in the same playback keeps it finished.
+- **Keys.** The URI is normalized (percent-decoded and re-encoded, drive letter and host in lower case, compared
+  case-insensitively), so VLC's, .NET's and the phone's spellings match. File name + size is a second key: when the
+  same file is opened by another path (`D:\shared\x.mkv` ↔ `\\htpc\shared\x.mkv`) the entry moves to the new URI.
+- **Resume prompt.** A file that starts (time ≤ 30 s, so a companion restart during a movie does not interrupt it) with
+  ≥ 300 s watched and not finished is paused at once (`pl_forcepause`, repeated once per second up to 10 times while
+  VLC is still opening it); `state.resume` + event `resumePrompt` go to the phones. `cmd resume {"choice":"resume"}`
+  seeks and plays, `"restart"` plays from 0; the first answer wins, later ones are ignored (`ok`). Without an answer VLC
+  stays paused indefinitely. Play pressed in VLC (or `cmd play` from a phone) clears the question and playback goes on
+  from the beginning; the old resume point is kept until this playback passes 5 minutes, so a few accidental seconds
+  do not lose it. Another file, stop or VLC exit while waiting also clears it without touching the resume point.
+- **Fullscreen and the question.** A window opened manually is made fullscreen on the preferred monitor once VLC has a
+  video output; while the question keeps VLC paused the wait does not time out (a paused file may have no video output
+  yet), and fullscreen follows the answer. A companion launch uses `--fullscreen` and is not affected.
+- **Next episode.** When a file becomes finished (or ends) and its folder has a next video file in natural order
+  ("E2" before "E10") that is not finished, `state.next` + event `nextEpisode` are sent. Nothing is played; the offer
+  is cleared by `cmd dismissNext` or when another file starts. VLC moving on to the next playlist item by itself does
+  not produce an offer. Video extensions: `HistoryRules.VideoExtensions`.
+- **Track choices per folder.** Audio / subtitle choices are remembered for the file's folder — from `cmd track` and
+  from VLC itself (a change of the current track seen ≥ 3 s after the start; VLC's own initial choice and the echo of
+  the companion's choice are ignored; changes made in VLC's menu are only seen with the Lua pages installed). Every new
+  file of the folder gets the best match (language → name → codec; a track must match the language or the name;
+  "subtitles off" stays off) as soon as its tracks are known, also while the resume question is open. An `open` with
+  explicit `audioTrack`/`subtitleTrack`/`subtitle` wins over the folder's choices.
+- **Requests.** `getHistory` (`continue` | `all`, default `all`; `limit` default 50, max 500; `offset`; `total` before
+  paging), `historyUpdate` (`finished` true/false — marking an unplayed file as watched adds it; `remove`),
+  `historyClear` (entries and track choices). `browse` items get `progress` (1 when finished) and `finished` for files
+  in the history (also matched by name + size). `state.history.revision` changes on every visible change (not on the
+  periodic 10 s saves). `artUrl` is not sent for history items.
+- **File.** `history.json` in the data dir: schema version 1, written atomically (temp file + replace), at most every
+  2 s and on exit. A file that cannot be read is renamed to `history.json.corrupt-<time>` and the history starts empty;
+  a file from a newer companion is read as far as it is understood. Entries not watched for 183 days are deleted at
+  startup and once a day (with the track choices of folders left without entries).
+- **Logs.** INFO: resume prompt, answer, cleared without an answer, next-episode offer, applied/remembered track
+  choices, phone marks/removals.
+
 ## Меню в трее
 
 - строка статуса VLC, число подключённых телефонов и состояние Bluetooth;
@@ -277,6 +324,7 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
 |---|---|
 | `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (предпочтительный монитор; старый `preferredDisplay` переносится сам), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | сопряжённые устройства: SHA‑256 токена, имя, id, дата |
+| `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
 | `logs\companion-YYYYMMDD.log` | Serilog, ротация по дням, 14 файлов |
 
 Пароль HTTP‑интерфейса VLC в журнал не пишется.
@@ -352,6 +400,14 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 - текущие дорожки через RC `atrack/strack` (без Lua‑страниц в VLC) и выбор дорожек после `open`;
 - события `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 раза в секунду при воспроизведении;
 - `LuaPagesInstaller` — только против временной папки (юнит‑тесты), в `%APPDATA%` не ставился.
+- Watch history (2026-10-13, headless VLC 3.0.23 on `127.0.0.1:18099`, companion on `127.0.0.1:47655` with a temp data
+  dir, the 2160p LOTR remux): played from `--start-time 400` for ~11 s with `cmd track audio 2` → `history.json` got
+  position 411 and the folder's audio choice; reopened → `resumePrompt` ~60 ms after the input was seen, VLC paused at
+  0 and stayed paused, `state.resume.pending`, the folder's audio track applied while paused (current audio 2 after the
+  answer); `cmd resume resume` → playing from ~411; a second answer → `ok`, ignored; third open → `pl_forceresume`
+  sent to VLC directly ("Play in VLC") → `state.resume` cleared, the resume point (416) kept after a few seconds;
+  `getHistory continue/all`, `browse` with `progress`/`finished`, `historyUpdate finished`, `historyUpdate` of a
+  non-file URI → `bad_request` in Russian. Next episode and VLC-side track changes — unit tests only.
 - Bluetooth (адаптер MediaTek, без сопряжения и подключения устройств, состояние радио не менялось): служба RFCOMM
   публикуется из обычного процесса без прав администратора (`… advertising on adapter 04:68:74:9A:2B:FC`), поле `bt`
   есть в `/info`, маяке и `welcome`, `caps` содержит `bluetooth`; с `bluetooth: false` поля нет; `--shutdown`
@@ -385,6 +441,11 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 - Автонастройка настоящего `%APPDATA%\vlc\vlcrc` и запуск VLC из Проводника после неё (здесь — только копия
   во временной папке).
 - Окно сопряжения, открывающееся само поверх полноэкранного VLC на экране ТВ.
+- Watch history with the real GUI VLC: VLC's own "continue playback?" bar no longer appears after `qt-continue=0`;
+  a movie double-clicked in Explorer with a resume point → paused, then fullscreen on the TV after the phone's answer
+  (and after Play pressed in VLC); a movie launched from the phone (`--fullscreen`) → paused fullscreen; the time from
+  the start to the pause (a fraction of a second of picture/sound is expected); the next-episode card with a real
+  series folder on the share; a track change made in VLC's menu (needs the Lua pages) remembered for the folder.
 - Bluetooth с телефоном: подключение сопряжённого телефона к службе (Android `createRfcommSocketToServiceRecord`),
   `hello`/окно с кодом/команды по RFCOMM, задержка; телефон, сопряжённый «Just Works»; переход Wi‑Fi ↔ Bluetooth;
   выключение/включение Bluetooth на ноутбуке во время работы и восстановление службы после сна (Modern Standby).

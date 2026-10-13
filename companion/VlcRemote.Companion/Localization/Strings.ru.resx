@@ -87,7 +87,7 @@
   <data name="SetupAutostartText" xml:space="preserve"><value>Компаньон запускается при входе в Windows, и телефоном можно управлять, не подходя к ПК. Используется ваш список автозагрузки, права администратора не нужны.</value></data>
   <data name="SetupAutostartFailed" xml:space="preserve"><value>✗ Не удалось изменить автозапуск: {0}</value></data>
   <data name="SetupVlcTitle" xml:space="preserve"><value>Настроить VLC для управления с телефона</value></data>
-  <data name="SetupVlcText" xml:space="preserve"><value>В VLC включается веб‑интерфейс с паролем, который создал компаньон, — так VLC, открытый как угодно (даже двойным щелчком по фильму), управляется с телефона. Компаньон правит файл настроек VLC (резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров.</value></data>
+  <data name="SetupVlcText" xml:space="preserve"><value>В VLC включается веб‑интерфейс с паролем, который создал компаньон, — так VLC, открытый как угодно (даже двойным щелчком по фильму), управляется с телефона. Компаньон правит файл настроек VLC (резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров. Собственный вопрос VLC «продолжить воспроизведение?» отключается — вместо него спрашивает телефон.</value></data>
   <data name="SetupVlcConfigured" xml:space="preserve"><value>✓ VLC настроен</value></data>
   <data name="SetupVlcNotConfigured" xml:space="preserve"><value>Ещё не настроен</value></data>
   <data name="SetupVlcRunning" xml:space="preserve"><value>VLC запущен — настройки будут записаны после его закрытия</value></data>

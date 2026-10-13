@@ -19,6 +19,12 @@ public sealed class StateInputs
     /// <summary>Базовый URL компаньона для <c>artUrl</c>, например <c>http://192.168.1.20:47555</c>.</summary>
     public string? ArtBaseUrl { get; init; }
     public bool Muted { get; init; }
+    /// <summary>Pending resume question (<c>state.resume</c>).</summary>
+    public ResumeInfo? Resume { get; init; }
+    /// <summary>Offered next episode (<c>state.next</c>).</summary>
+    public NextInfo? Next { get; init; }
+    /// <summary>Watch history revision (<c>state.history.revision</c>); <c>null</c> — no history.</summary>
+    public long? HistoryRevision { get; init; }
     public long NowUnixMs { get; init; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 }
 
@@ -40,6 +46,9 @@ public static partial class StateBuilder
         {
             Vlc = input.Vlc.Clone(),
             System = input.System,
+            Resume = input.Resume,
+            Next = input.Next,
+            History = input.HistoryRevision is long rev ? new HistoryInfo { Revision = rev } : null,
         };
 
         var st = input.Status;

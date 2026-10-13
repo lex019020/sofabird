@@ -222,6 +222,10 @@ public class DisplayControllerTests
         public Dictionary<long, string> WindowMonitor { get; } = new();
         public bool IsControllable { get; set; }
         public bool Fullscreen { get; set; }
+        /// <summary>The resume question keeps VLC paused.</summary>
+        public bool PlaybackHeld { get; set; }
+        /// <summary>No video output yet: VLC ignores fullscreen requests.</summary>
+        public bool NoVideoOutput { get; set; }
         public List<string> Log { get; } = new();
 
         public long FindMainWindow(int pid)
@@ -238,7 +242,7 @@ public class DisplayControllerTests
         public Task SetFullscreenAsync(bool on, CancellationToken ct)
         {
             Log.Add(on ? "fullscreen" : "unfullscreen");
-            Fullscreen = on;
+            if (!NoVideoOutput) Fullscreen = on;
             return Task.CompletedTask;
         }
 
@@ -276,6 +280,37 @@ public class DisplayControllerTests
         Assert.Equal(PlacementDecision.Move, await c.PlaceNewWindowAsync(10, false, null, CancellationToken.None));
         Assert.True(vlc.Fullscreen);
         Assert.Equal("fullscreen", vlc.Log[^1]);
+    }
+
+    [Fact]
+    public async Task Fullscreen_WaitsWhileTheResumeQuestionHoldsVlcPaused()
+    {
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true, PlaybackHeld = true, NoVideoOutput = true };
+        var delays = 0;
+        var c = new DisplayController(new FakeMonitors(), new FakePrefs(), vlc, delay: (_, _) =>
+        {
+            // The phone answers long after the normal timeout (10 polls); the video output appears a moment later.
+            if (++delays == 40) vlc.PlaybackHeld = false;
+            if (delays == 43) vlc.NoVideoOutput = false;
+            return Task.CompletedTask;
+        })
+        {
+            FullscreenWaitTimeout = TimeSpan.FromSeconds(5),
+            FullscreenPollInterval = TimeSpan.FromMilliseconds(500),
+        };
+
+        Assert.True(await c.EnsureFullscreenAsync(10, CancellationToken.None));
+        Assert.True(vlc.Fullscreen);
+        Assert.Equal(44, delays); // the request after the output appeared, then the check
+
+        // Without the question the usual timeout applies.
+        var vlc2 = new FakeVlc { ProcessId = 10, IsControllable = true, NoVideoOutput = true };
+        var c2 = new DisplayController(new FakeMonitors(), new FakePrefs(), vlc2, delay: (_, _) => Task.CompletedTask)
+        {
+            FullscreenWaitTimeout = TimeSpan.FromSeconds(5),
+            FullscreenPollInterval = TimeSpan.FromMilliseconds(500),
+        };
+        Assert.False(await c2.EnsureFullscreenAsync(10, CancellationToken.None));
     }
 
     [Fact]

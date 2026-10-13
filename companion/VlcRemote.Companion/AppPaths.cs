@@ -12,12 +12,15 @@ public sealed class AppPaths
         LogsDir = Path.Combine(dataDir, "logs");
         SettingsFile = Path.Combine(dataDir, "settings.json");
         PairedDevicesFile = Path.Combine(dataDir, "paired.json");
+        HistoryFile = Path.Combine(dataDir, "history.json");
     }
 
     public string DataDir { get; }
     public string LogsDir { get; }
     public string SettingsFile { get; }
     public string PairedDevicesFile { get; }
+    /// <summary>Watch history and per-folder track choices.</summary>
+    public string HistoryFile { get; }
 
     public static AppPaths Resolve(string[] args)
     {
