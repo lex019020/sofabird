@@ -1,16 +1,16 @@
 ﻿<#
 .SYNOPSIS
-  Устанавливает Lua-страницы vlc-remote в пользовательскую папку VLC (уровень 1).
+  Installs the vlc-remote Lua pages into the VLC user folder (level 1).
 
 .DESCRIPTION
-  VLC 3.0.x берёт HTTP-страницы из ПЕРВОЙ существующей папки: %APPDATA%\vlc\lua\http,
-  затем <Program Files>\VideoLAN\VLC\lua\http. Поэтому пользовательская папка должна
-  содержать и штатные страницы. Скрипт копирует штатную папку целиком и добавляет
-  requests\tracks.json и requests\setvar.json. Не требует прав администратора.
-  Если VLC запущен, предлагает закрыть его (страницы читаются при старте интерфейса).
+  VLC 3.0.x takes HTTP pages from the FIRST existing folder: %APPDATA%\vlc\lua\http,
+  then <Program Files>\VideoLAN\VLC\lua\http. So the user folder must also contain
+  the stock pages. The script copies the whole stock folder and adds
+  requests\tracks.json and requests\setvar.json. Does not require admin rights.
+  If VLC is running, suggests closing it (the pages are read when the interface starts).
 
 .PARAMETER Uninstall
-  Удаляет %APPDATA%\vlc\lua\http (возвращает VLC к штатным страницам).
+  Removes %APPDATA%\vlc\lua\http (returns VLC to the stock pages).
 #>
 [CmdletBinding()]
 param([switch]$Uninstall)
@@ -19,8 +19,8 @@ $ErrorActionPreference = 'Stop'
 $userHttp = Join-Path $env:APPDATA 'vlc\lua\http'
 
 if ($Uninstall) {
-  if (Test-Path $userHttp) { Remove-Item -Recurse -Force $userHttp; Write-Host "Удалено: $userHttp" }
-  else { Write-Host "Нечего удалять." }
+  if (Test-Path $userHttp) { Remove-Item -Recurse -Force $userHttp; Write-Host "Removed: $userHttp" }
+  else { Write-Host "Nothing to remove." }
   exit 0
 }
 
@@ -31,22 +31,22 @@ if (-not $vlcDir) {
     if (Test-Path (Join-Path $c 'vlc.exe')) { $vlcDir = $c; break }
   }
 }
-if (-not $vlcDir) { throw "VLC не найден. Установите VLC 3.x." }
+if (-not $vlcDir) { throw "VLC not found. Install VLC 3.x." }
 $stockHttp = Join-Path $vlcDir 'lua\http'
-if (-not (Test-Path $stockHttp)) { throw "Не найдена папка $stockHttp" }
+if (-not (Test-Path $stockHttp)) { throw "Folder not found: $stockHttp" }
 
 $version = (Get-Item (Join-Path $vlcDir 'vlc.exe')).VersionInfo.ProductVersion
-Write-Host "VLC $version в $vlcDir"
+Write-Host "VLC $version in $vlcDir"
 
 New-Item -ItemType Directory -Force -Path $userHttp | Out-Null
 Copy-Item -Path (Join-Path $stockHttp '*') -Destination $userHttp -Recurse -Force
 $src = Join-Path $PSScriptRoot 'requests'
 Copy-Item -Path (Join-Path $src 'tracks.json'), (Join-Path $src 'setvar.json') -Destination (Join-Path $userHttp 'requests') -Force
 Set-Content -Path (Join-Path $userHttp 'vlcremote.version') -Value "vlc=$version`ninstalled=$(Get-Date -Format o)" -Encoding ascii
-Write-Host "Страницы установлены в $userHttp"
+Write-Host "Pages installed in $userHttp"
 
 $running = Get-Process vlc -ErrorAction SilentlyContinue
 if ($running) {
-  Write-Warning "VLC запущен. Новые страницы заработают после его перезапуска."
+  Write-Warning "VLC is running. The new pages will work after it is restarted."
 }
-Write-Host "Проверка: http://localhost:8080/requests/tracks.json (пароль веб-интерфейса VLC)."
+Write-Host "Check: http://localhost:8080/requests/tracks.json (VLC web interface password)."
