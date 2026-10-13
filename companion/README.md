@@ -50,7 +50,7 @@ dotnet build companion\VlcRemote.sln -c Release
 dotnet test  companion\VlcRemote.sln
 ```
 
-Code analysis runs in every build (`Directory.Build.props`: `AnalysisLevel` latest-recommended, warnings are
+Code analysis runs in every build (`Directory.Build.props`: `AnalysisLevel` 9.0-recommended (pinned), warnings are
 errors). Exceptions live in `companion/.editorconfig`, each with its reason.
 
 Running from source:
