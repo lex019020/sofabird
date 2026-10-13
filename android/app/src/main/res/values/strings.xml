@@ -289,4 +289,35 @@
     <string name="perm_nearby_why">Keeps controlling the PC over Bluetooth when Wi‑Fi is unavailable. Only a PC already paired with this phone is used: no scanning, no location.</string>
     <string name="perm_nearby_without">Without it, the remote works only over Wi‑Fi.</string>
     <string name="settings_permissions">Permissions</string>
+
+    <!-- Watch history, resume prompt, next episode (companion `history` capability) -->
+    <string name="resume_title">Continue watching?</string>
+    <string name="resume_continue_from">Continue from %1$s</string>
+    <string name="resume_from_start">From the beginning</string>
+    <string name="resume_stopped_at">Stopped at %1$s of %2$s</string>
+    <string name="resume_stopped_at_no_length">Stopped at %1$s</string>
+    <string name="resume_waiting_hint">VLC stays paused until you choose.</string>
+    <string name="next_episode_label">Next episode</string>
+    <string name="next_episode_play">Play</string>
+    <string name="next_episode_dismiss">Dismiss</string>
+    <string name="continue_watching">Continue watching</string>
+    <string name="history_title">History</string>
+    <string name="history_position_of">%1$s of %2$s</string>
+    <string name="history_next_badge">Next episode</string>
+    <string name="history_watched">Watched</string>
+    <string name="history_mark_watched">Mark as watched</string>
+    <string name="history_mark_unwatched">Mark as unwatched</string>
+    <string name="history_remove">Remove from history</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_clear_confirm">Delete the whole watch history on %1$s? The places where you stopped are lost too.</string>
+    <string name="history_clear_action">Clear</string>
+    <string name="history_empty">Nothing here yet. Everything played on the computer appears here, whether opened from the phone or in VLC itself.</string>
+    <string name="history_unavailable">The watch history is kept by the companion on the PC. Connect to a computer with an up-to-date companion.</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_this_week">This week</string>
+    <string name="history_earlier">Earlier</string>
+    <string name="notif_resume_text">Continue from %1$s?</string>
+    <string name="notif_next_text">Next: %1$s</string>
+    <string name="notif_play_next">Play next</string>
 </resources>

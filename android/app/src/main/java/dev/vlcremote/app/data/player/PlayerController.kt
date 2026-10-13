@@ -24,6 +24,9 @@ import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
+import dev.vlcremote.protocol.model.HistoryChange
+import dev.vlcremote.protocol.model.HistoryFilter
+import dev.vlcremote.protocol.model.HistoryPage
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
 import io.ktor.client.HttpClient
@@ -54,6 +57,9 @@ sealed class PlayerEvent {
     data class SystemCommandFailed(val command: SystemCommand, val error: Throwable) : PlayerEvent()
     data class VolumeChanged(val percent: Int) : PlayerEvent()
     data class Paired(val server: SavedServer) : PlayerEvent()
+
+    /** A data request that changes something on the PC (watch history edits) failed. */
+    data class RequestFailed(val error: Throwable) : PlayerEvent()
 }
 
 /**
@@ -225,6 +231,10 @@ class PlayerController(
         return result
     }
 
+    /** Like [sendAwait] but without the "command failed" event: the caller reports the outcome itself. */
+    suspend fun sendQuiet(command: PlayerCommand): Result<Unit> =
+        _backend.value?.send(command) ?: Result.failure(IllegalStateException("not connected"))
+
     fun sendSystem(command: SystemCommand) {
         scope.launch { sendSystemAwait(command) }
     }
@@ -262,6 +272,25 @@ class PlayerController(
 
     suspend fun playlist(): Result<List<PlaylistItem>> =
         _backend.value?.playlist() ?: Result.failure(IllegalStateException("not connected"))
+
+    // ------------------------------------------------------------------ watch history (`history` capability)
+
+    suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage> =
+        _backend.value?.history(filter, limit, offset) ?: Result.failure(IllegalStateException("not connected"))
+
+    /** Failures are reported through [events]. */
+    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> {
+        val result = _backend.value?.updateHistory(uri, change) ?: Result.failure(IllegalStateException("not connected"))
+        result.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
+        return result
+    }
+
+    /** Failures are reported through [events]. */
+    suspend fun clearHistory(): Result<Unit> {
+        val result = _backend.value?.clearHistory() ?: Result.failure(IllegalStateException("not connected"))
+        result.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
+        return result
+    }
 
     suspend fun refresh() {
         _backend.value?.refresh()

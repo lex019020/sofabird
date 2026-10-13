@@ -5,16 +5,21 @@ import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.Delays
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.Flags
+import dev.vlcremote.protocol.model.HistoryInfo
+import dev.vlcremote.protocol.model.HistoryItem
+import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.Playback
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlayingItem
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.ResumePrompt
 import dev.vlcremote.protocol.model.SystemState
 import dev.vlcremote.protocol.model.Titles
 import dev.vlcremote.protocol.model.Tracks
 import dev.vlcremote.protocol.model.VideoState
 import dev.vlcremote.protocol.model.VlcInfo
 import dev.vlcremote.protocol.model.Volume
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
@@ -83,6 +88,30 @@ sealed class CompanionMessage {
     @SerialName("getAudioDevices")
     data class GetAudioDevices(override val id: String) : CompanionMessage()
 
+    /** `history` capability; [filter] is a [dev.vlcremote.protocol.model.HistoryFilter] wire value. */
+    @Serializable
+    @SerialName("getHistory")
+    data class GetHistory(
+        override val id: String,
+        val filter: String = "all",
+        val limit: Int = 50,
+        val offset: Int = 0,
+    ) : CompanionMessage()
+
+    /** Mark watched / unwatched (`finished`) or delete (`remove: true`) one entry; absent fields are not sent. */
+    @Serializable
+    @SerialName("historyUpdate")
+    data class HistoryUpdate(
+        override val id: String,
+        val uri: String,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val finished: Boolean? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val remove: Boolean? = null,
+    ) : CompanionMessage()
+
+    @Serializable
+    @SerialName("historyClear")
+    data class HistoryClear(override val id: String) : CompanionMessage()
+
     @Serializable
     @SerialName("ping")
     data class Ping(override val id: String? = null) : CompanionMessage()
@@ -134,11 +163,18 @@ sealed class CompanionMessage {
         val delays: Delays = Delays(),
         val flags: Flags = Flags(),
         val system: SystemState? = null,
+        /** `history`: pending resume prompt; absent = none. */
+        val resume: ResumePrompt? = null,
+        /** `history`: next-episode offer; absent = none. */
+        val next: NextEpisode? = null,
+        /** `history`: history revision. */
+        val history: HistoryInfo? = null,
         override val id: String? = null,
     ) : CompanionMessage() {
         fun toPlayerState(): PlayerState = PlayerState(
             vlc = vlc, playback = playback, item = item, tracks = tracks, chapters = chapters,
             titles = titles, volume = volume, video = video, delays = delays, flags = flags, system = system,
+            resume = resume, next = next, history = history,
         )
 
         companion object {
@@ -146,6 +182,7 @@ sealed class CompanionMessage {
                 vlc = state.vlc, playback = state.playback, item = state.item, tracks = state.tracks,
                 chapters = state.chapters, titles = state.titles, volume = state.volume,
                 video = state.video, delays = state.delays, flags = state.flags, system = state.system,
+                resume = state.resume, next = state.next, history = state.history,
             )
         }
     }
@@ -203,6 +240,15 @@ sealed class CompanionMessage {
     ) : CompanionMessage() {
         fun toList() = DisplayList(items, preferredId)
     }
+
+    /** Answer to [GetHistory]. */
+    @Serializable
+    @SerialName("history")
+    data class History(
+        override val id: String? = null,
+        val total: Int = 0,
+        val items: List<HistoryItem> = emptyList(),
+    ) : CompanionMessage()
 
     @Serializable
     @SerialName("pong")

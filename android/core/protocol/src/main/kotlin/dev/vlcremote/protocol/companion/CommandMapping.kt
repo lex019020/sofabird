@@ -54,6 +54,8 @@ object CommandMapping {
                 command.display?.let { put("display", it) }
             }
             PlayerCommand.Quit -> "quit" to EMPTY
+            is PlayerCommand.Resume -> "resume" to args { put("choice", command.choice.wire) }
+            PlayerCommand.DismissNext -> "dismissNext" to EMPTY
         }
         return CompanionMessage.Cmd(id = id, name = name, args = args)
     }

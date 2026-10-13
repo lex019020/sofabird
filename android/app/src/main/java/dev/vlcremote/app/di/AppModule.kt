@@ -10,6 +10,7 @@ import dev.vlcremote.app.data.discovery.SubnetScanner
 import dev.vlcremote.app.data.discovery.UdpBeaconDiscovery
 import dev.vlcremote.app.data.net.ArtAuth
 import dev.vlcremote.app.data.net.HttpClients
+import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.player.AppVisibility
 import dev.vlcremote.app.data.player.CompanionLink
 import dev.vlcremote.app.data.player.CompanionPairingLink
@@ -22,6 +23,7 @@ import dev.vlcremote.app.data.servers.ServerRepository
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.service.ServiceCoordinator
 import dev.vlcremote.app.ui.connection.ConnectionViewModel
+import dev.vlcremote.app.ui.history.HistoryViewModel
 import dev.vlcremote.app.ui.library.LibraryViewModel
 import dev.vlcremote.app.ui.playlist.PlaylistViewModel
 import dev.vlcremote.app.ui.remote.RemoteViewModel
@@ -63,11 +65,13 @@ val appModule = module {
     single { ConnectionTester(get(), get()) }
     single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
     single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
+    single { WatchPrompts(get(), get(named("appScope"))) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
     viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RemoteViewModel(get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { PlaylistViewModel(get()) }
+    viewModel { HistoryViewModel(get()) }
     viewModel { SettingsViewModel(get()) }
 }

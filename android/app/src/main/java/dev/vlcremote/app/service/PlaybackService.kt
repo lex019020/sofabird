@@ -21,12 +21,18 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
 import dev.vlcremote.app.R
+import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.ui.MainActivity
+import dev.vlcremote.app.ui.common.displayNameFromUri
+import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.PlaybackStatus
+import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.PlayerState
+import dev.vlcremote.protocol.model.ResumeChoice
+import dev.vlcremote.protocol.model.ResumePrompt
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -45,6 +51,7 @@ class PlaybackService : LifecycleService() {
 
     private val controller: PlayerController by inject()
     private val settings: SettingsRepository by inject()
+    private val prompts: WatchPrompts by inject()
     private val imageLoader: ImageLoader by lazy { coil3.SingletonImageLoader.get(this) }
 
     private var player: RemotePlayer? = null
@@ -63,15 +70,19 @@ class PlaybackService : LifecycleService() {
             .setSessionActivity(contentIntent())
             .build()
 
-        startForegroundWith(buildNotification(controller.state.value))
+        startForegroundWith(buildNotification(controller.state.value, prompts.resume.value, prompts.next.value))
         controller.serviceRunning.value = true
 
         lifecycleScope.launch {
-            combine(controller.state, controller.activeServer) { state, server -> state to (server?.displayName ?: "") }
-                .collectLatest { (state, host) ->
-                    player.update(state, host)
-                    loadArt(state)
-                    notify(buildNotification(state))
+            combine(
+                combine(controller.state, controller.activeServer) { state, server -> state to (server?.displayName ?: "") },
+                prompts.resume,
+                prompts.next,
+            ) { (state, host), resume, next -> Snapshot(state, host, resume, next) }
+                .collectLatest { snap ->
+                    player.update(snap.state, snap.host)
+                    loadArt(snap.state)
+                    notify(buildNotification(snap.state, snap.resume, snap.next))
                 }
         }
     }
@@ -84,6 +95,10 @@ class PlaybackService : LifecycleService() {
             ACTION_SEEK_FORWARD -> controller.send(PlayerCommand.SeekBy(settings.settings.value.seekLongSec.toLong()))
             ACTION_PREV -> controller.send(PlayerCommand.Prev)
             ACTION_NEXT -> controller.send(PlayerCommand.Next)
+            ACTION_RESUME -> prompts.answer(ResumeChoice.RESUME)
+            ACTION_RESTART -> prompts.answer(ResumeChoice.RESTART)
+            ACTION_PLAY_NEXT_EPISODE -> prompts.playNext()
+            ACTION_DISMISS_NEXT_EPISODE -> prompts.dismissNext()
             ACTION_STOP_SERVICE -> {
                 stopSelf()
                 return START_NOT_STICKY
@@ -126,7 +141,13 @@ class PlaybackService : LifecycleService() {
         NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
     }
 
-    private fun buildNotification(state: PlayerState): Notification {
+    private data class Snapshot(val state: PlayerState, val host: String, val resume: ResumePrompt?, val next: NextEpisode?)
+
+    private fun buildNotification(state: PlayerState, resume: ResumePrompt?, next: NextEpisode?): Notification {
+        // Questions from the PC replace the media controls while they stand: on Android 13+ a media-style
+        // notification shows only the session's own buttons, so custom actions would not be visible there.
+        if (resume != null) return buildResumeNotification(resume)
+        if (next != null) return buildNextNotification(state, next)
         val host = controller.activeServer.value?.displayName ?: getString(R.string.app_name)
         val playing = state.playback.state == PlaybackStatus.PLAYING
         val title = state.item.title ?: getString(R.string.notif_nothing_playing)
@@ -161,6 +182,50 @@ class PlaybackService : LifecycleService() {
         }
         return builder.build()
     }
+
+    /** "Continue from 1:23:45?" with the two answers; VLC waits paused on the PC. */
+    private fun buildResumeNotification(resume: ResumePrompt): Notification {
+        val title = resume.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(resume.uri)
+        val at = formatTime(resume.position)
+        return baseBuilder()
+            .setContentTitle(title)
+            .setContentText(getString(R.string.notif_resume_text, at))
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .addAction(android.R.drawable.ic_media_play, getString(R.string.resume_continue_from, at), actionIntent(ACTION_RESUME))
+            .addAction(android.R.drawable.ic_menu_revert, getString(R.string.resume_from_start), actionIntent(ACTION_RESTART))
+            .apply { artBitmap?.let { setLargeIcon(it) } }
+            .build()
+    }
+
+    /** "Next: <title>" with "Play next" (never automatic) next to play/pause and "Dismiss". */
+    private fun buildNextNotification(state: PlayerState, next: NextEpisode): Notification {
+        val host = controller.activeServer.value?.displayName ?: getString(R.string.app_name)
+        val nextTitle = next.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(next.uri)
+        val playing = state.playback.state == PlaybackStatus.PLAYING
+        return baseBuilder()
+            .setContentTitle(getString(R.string.notif_next_text, nextTitle))
+            .setContentText(state.item.title ?: getString(R.string.notif_connected_to, host))
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .addAction(android.R.drawable.ic_media_next, getString(R.string.notif_play_next), actionIntent(ACTION_PLAY_NEXT_EPISODE))
+            .addAction(
+                if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                getString(if (playing) R.string.action_pause else R.string.action_play),
+                actionIntent(ACTION_PLAY_PAUSE),
+            )
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.next_episode_dismiss), actionIntent(ACTION_DISMISS_NEXT_EPISODE))
+            .apply { artBitmap?.let { setLargeIcon(it) } }
+            .build()
+    }
+
+    private fun baseBuilder(): NotificationCompat.Builder =
+        NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(contentIntent())
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setDeleteIntent(actionIntent(ACTION_STOP_SERVICE))
 
     private suspend fun loadArt(state: PlayerState) {
         val url = state.item.artUrl
@@ -209,6 +274,10 @@ class PlaybackService : LifecycleService() {
         const val ACTION_PREV = "dev.vlcremote.app.PREV"
         const val ACTION_NEXT = "dev.vlcremote.app.NEXT"
         const val ACTION_STOP_SERVICE = "dev.vlcremote.app.STOP_SERVICE"
+        const val ACTION_RESUME = "dev.vlcremote.app.RESUME"
+        const val ACTION_RESTART = "dev.vlcremote.app.RESTART"
+        const val ACTION_PLAY_NEXT_EPISODE = "dev.vlcremote.app.PLAY_NEXT_EPISODE"
+        const val ACTION_DISMISS_NEXT_EPISODE = "dev.vlcremote.app.DISMISS_NEXT_EPISODE"
 
         fun start(context: Context) {
             val intent = Intent(context, PlaybackService::class.java)

@@ -14,6 +14,9 @@ import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
+import dev.vlcremote.protocol.model.HistoryChange
+import dev.vlcremote.protocol.model.HistoryFilter
+import dev.vlcremote.protocol.model.HistoryPage
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
 import dev.vlcremote.protocol.model.TransportKind
@@ -481,6 +484,27 @@ class CompanionBackend(
     override suspend fun playlist(): Result<List<PlaylistItem>> = runCatching {
         val reply = request { id -> CompanionMessage.GetPlaylist(id) }
         (reply as? CompanionMessage.Playlist)?.items ?: error("unexpected reply ${reply::class.simpleName}")
+    }
+
+    override suspend fun history(filter: HistoryFilter, limit: Int, offset: Int): Result<HistoryPage> = runCatching {
+        val reply = request { id -> CompanionMessage.GetHistory(id, filter.wire, limit, offset) }
+        val history = reply as? CompanionMessage.History ?: error("unexpected reply ${reply::class.simpleName}")
+        HistoryPage(history.items, history.total)
+    }
+
+    override suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> = runCatching {
+        request { id ->
+            when (change) {
+                is HistoryChange.SetFinished -> CompanionMessage.HistoryUpdate(id, uri, finished = change.finished)
+                HistoryChange.Remove -> CompanionMessage.HistoryUpdate(id, uri, remove = true)
+            }
+        }
+        Unit
+    }
+
+    override suspend fun clearHistory(): Result<Unit> = runCatching {
+        request { id -> CompanionMessage.HistoryClear(id) }
+        Unit
     }
 
     /** Bearer header for the companion's `/art` proxy. */

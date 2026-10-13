@@ -238,6 +238,12 @@ data class PlayerState(
     val delays: Delays = Delays(),
     val flags: Flags = Flags(),
     val system: SystemState? = null,
+    /** Companion `history`: VLC waits paused for "continue / from the beginning". */
+    val resume: ResumePrompt? = null,
+    /** Companion `history`: the next episode offered after the current one ended. */
+    val next: NextEpisode? = null,
+    /** Companion `history`: revision counter of the watch history. */
+    val history: HistoryInfo? = null,
 ) {
     val isPlaying: Boolean get() = playback.state == PlaybackStatus.PLAYING
     val isStopped: Boolean get() = playback.state == PlaybackStatus.STOPPED

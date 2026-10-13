@@ -62,6 +62,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.companion.BluetoothStatus
+import dev.vlcremote.app.data.history.WatchPrompts
+import dev.vlcremote.app.ui.history.NextEpisodeCard
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.RemoteButton
@@ -73,6 +75,7 @@ import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.TrackKind
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun RemoteScreen(
@@ -80,6 +83,8 @@ fun RemoteScreen(
     viewModel: RemoteViewModel = koinViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    val prompts: WatchPrompts = koinInject()
+    val next by prompts.next.collectAsStateWithLifecycle()
     var tracksSheet by remember { mutableStateOf<TrackKind?>(null) }
     var moreSheet by remember { mutableStateOf(false) }
     var displaySheet by remember { mutableStateOf(false) }
@@ -99,6 +104,7 @@ fun RemoteScreen(
                     Artwork(ui, Modifier.fillMaxWidth(0.8f))
                     Spacer(Modifier.height(8.dp))
                     if (ui.vlcBlock == null) TitleBlock(ui)
+                    next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = prompts::playNext, onDismiss = prompts::dismissNext) }
                     OfflineCard(ui, onOpenConnection)
                     BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
                 }
@@ -134,6 +140,7 @@ fun RemoteScreen(
                 Spacer(Modifier.height(12.dp))
                 val block = ui.vlcBlock
                 if (block == null) TitleBlock(ui)
+                next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = prompts::playNext, onDismiss = prompts::dismissNext) }
                 OfflineCard(ui, onOpenConnection)
                 BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
                 if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)

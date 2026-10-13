@@ -19,6 +19,10 @@ data class Entry(
     val size: Long? = null,
     /** Unix seconds. */
     val modified: Long? = null,
+    /** Companion with `history`: watched fraction 0..1 of a file that is in the history. */
+    val progress: Double? = null,
+    /** Companion with `history`: the file was watched to the end (or marked watched). */
+    val finished: Boolean? = null,
 ) {
     val isDir: Boolean get() = type == EntryType.DIR
 

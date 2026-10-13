@@ -228,8 +228,8 @@ class VlcHttpBackend(
     // ------------------------------------------------------------------ commands
 
     override suspend fun send(command: PlayerCommand): Result<Unit> {
-        if (command is PlayerCommand.Launch) {
-            return Result.failure(UnsupportedOperationException("launch needs the companion"))
+        if (command is PlayerCommand.Launch || command is PlayerCommand.Resume || command == PlayerCommand.DismissNext) {
+            return Result.failure(UnsupportedOperationException("${command::class.simpleName} needs the companion"))
         }
         if (!awaitOnline()) return Result.failure(VlcHttpException(ConnectionError.Timeout))
         return try {
