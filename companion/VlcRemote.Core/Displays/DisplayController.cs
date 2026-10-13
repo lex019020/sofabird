@@ -37,6 +37,15 @@ public sealed class DisplayController
     public TimeSpan WindowWaitTimeout { get; init; } = TimeSpan.FromSeconds(10);
     public TimeSpan WindowPollInterval { get; init; } = TimeSpan.FromMilliseconds(150);
 
+    /// <summary>
+    /// After placing a manually opened VLC window (e.g. a double-clicked movie) on the preferred monitor, switch the
+    /// video to fullscreen there (setting <c>launchFullscreen</c>). Null means never.
+    /// </summary>
+    public Func<bool>? FullscreenAfterManualPlacement { get; init; }
+    /// <summary>How long to wait for VLC to become controllable and show video before giving up on fullscreen.</summary>
+    public TimeSpan FullscreenWaitTimeout { get; init; } = TimeSpan.FromSeconds(20);
+    public TimeSpan FullscreenPollInterval { get; init; } = TimeSpan.FromMilliseconds(500);
+
     /// <summary>The preferred monitor or the VLC window's monitor changed — the state should be pushed.</summary>
     public event Action? Changed;
 
@@ -222,12 +231,52 @@ public sealed class DisplayController
             {
                 _log.LogInformation("VLC {Pid}: new window {Window:X} on {Monitor} not moved ({Decision})", pid, window, windowMonitor ?? "?", decision);
             }
+            // A manually opened movie on the chosen monitor should play fullscreen, like a launch from the phone.
+            if (targetId is null && decision is PlacementDecision.Move or PlacementDecision.AlreadyThere
+                && FullscreenAfterManualPlacement?.Invoke() == true)
+            {
+                await EnsureFullscreenAsync(pid, ct).ConfigureAwait(false);
+            }
             return decision;
         }
         finally
         {
             lock (_gate) _pendingPids.Remove(pid);
         }
+    }
+
+    /// <summary>
+    /// Waits until VLC <paramref name="pid"/> is controllable and has a video output, then makes it fullscreen once.
+    /// Returns whether fullscreen was reached; gives up after <see cref="FullscreenWaitTimeout"/> or if VLC exits.
+    /// </summary>
+    internal async Task<bool> EnsureFullscreenAsync(int pid, CancellationToken ct)
+    {
+        var attempts = Math.Max(1, (int)Math.Ceiling(FullscreenWaitTimeout / FullscreenPollInterval));
+        var requested = false;
+        for (var i = 0; i < attempts; i++)
+        {
+            if (_vlc.ProcessId != pid) return false;
+            if (_vlc.IsControllable)
+            {
+                bool? fs = null;
+                try { fs = await _vlc.GetFullscreenAsync(ct).ConfigureAwait(false); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogDebug("Fullscreen state: {Error}", ex.Message); }
+                if (fs == true)
+                {
+                    if (requested) _log.LogInformation("VLC {Pid}: switched to fullscreen on the chosen monitor", pid);
+                    return true;
+                }
+                if (fs == false)
+                {
+                    // Without a video output yet (the file is still opening) VLC ignores the request, so retry.
+                    try { await _vlc.SetFullscreenAsync(true, ct).ConfigureAwait(false); requested = true; }
+                    catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogDebug("Fullscreen request: {Error}", ex.Message); }
+                }
+            }
+            await _delay(FullscreenPollInterval, ct).ConfigureAwait(false);
+        }
+        _log.LogInformation("VLC {Pid}: did not become controllable/fullscreen within {Seconds} s", pid, FullscreenWaitTimeout.TotalSeconds);
+        return false;
     }
 
     /// <summary>Unfullscreen (if VLC is controllable and fullscreen) → move → fullscreen again.</summary>

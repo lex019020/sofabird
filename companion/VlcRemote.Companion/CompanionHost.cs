@@ -54,7 +54,10 @@ public sealed class CompanionHost : ISessionHost
             settingsStore.Save(settings);
             _log.LogInformation("Migrated the preferred display index to id {Id}", settings.PreferredDisplayId ?? "(none)");
         }
-        Displays = new DisplayController(display, new SettingsDisplayPreference(settings, settingsStore), new VlcWindowHost(vlc, display), log);
+        Displays = new DisplayController(display, new SettingsDisplayPreference(settings, settingsStore), new VlcWindowHost(vlc, display), log)
+        {
+            FullscreenAfterManualPlacement = () => _settings.LaunchFullscreen,
+        };
         Displays.Changed += _vlc.Poke;
         display.TopologyChanged += _vlc.Poke;
         _vlc.ProcessAppeared += OnVlcProcessAppeared;

@@ -250,6 +250,61 @@ public class DisplayControllerTests
         }
     }
 
+    [Fact]
+    public async Task NewWindow_ManualOpen_GoesFullscreenOnceVlcIsControllable()
+    {
+        var monitors = new FakeMonitors();
+        var prefs = new FakePrefs { PreferredId = TvPath };
+        var vlc = new FakeVlc { ProcessId = 10 };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY1";
+        var delays = 0;
+        var c = new DisplayController(monitors, prefs, vlc, delay: (_, _) =>
+        {
+            if (++delays == 3) vlc.IsControllable = true; // HTTP comes up a moment after the window
+            return Task.CompletedTask;
+        })
+        {
+            WindowWaitTimeout = TimeSpan.FromSeconds(1),
+            WindowPollInterval = TimeSpan.FromMilliseconds(100),
+            FullscreenWaitTimeout = TimeSpan.FromSeconds(5),
+            FullscreenPollInterval = TimeSpan.FromMilliseconds(500),
+            FullscreenAfterManualPlacement = () => true,
+        };
+
+        Assert.Equal(PlacementDecision.Move, await c.PlaceNewWindowAsync(10, false, null, CancellationToken.None));
+        Assert.True(vlc.Fullscreen);
+        Assert.Equal("fullscreen", vlc.Log[^1]);
+    }
+
+    [Fact]
+    public async Task NewWindow_FullscreenOnlyForManualOpensWhenEnabled()
+    {
+        // Setting off: moved, not fullscreened.
+        var (c1, _, prefs1, vlc1) = Create();
+        prefs1.PreferredId = TvPath;
+        vlc1.ProcessId = 10;
+        vlc1.IsControllable = true;
+        vlc1.Windows[10] = 42;
+        vlc1.WindowMonitor[42] = @"\\.\DISPLAY1";
+        await c1.PlaceNewWindowAsync(10, false, null, CancellationToken.None);
+        Assert.False(vlc1.Fullscreen);
+
+        // Companion launch (explicit target): the launch handles fullscreen itself.
+        var monitors = new FakeMonitors();
+        var prefs = new FakePrefs { PreferredId = TvPath };
+        var vlc = new FakeVlc { ProcessId = 11, IsControllable = true };
+        vlc.Windows[11] = 43;
+        vlc.WindowMonitor[43] = @"\\.\DISPLAY1";
+        var c2 = new DisplayController(monitors, prefs, vlc, delay: (_, _) => Task.CompletedTask)
+        {
+            WindowPollInterval = TimeSpan.FromMilliseconds(100),
+            FullscreenAfterManualPlacement = () => true,
+        };
+        await c2.PlaceNewWindowAsync(11, false, TvPath, CancellationToken.None);
+        Assert.False(vlc.Fullscreen);
+    }
+
     private static (DisplayController c, FakeMonitors monitors, FakePrefs prefs, FakeVlc vlc) Create()
     {
         var monitors = new FakeMonitors();
