@@ -123,7 +123,7 @@ administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` 
 `scripts\deploy-android.ps1` (or `deploy-android.cmd`) installs the APK via adb **only on allowed devices**
 from `%USERPROFILE%\.vlc-remote\devices.json` (outside git, by the serial number `ro.serialno`). Other connected
 devices — for example, the Karoo bike computer from a neighbouring project — are skipped with a message; an empty list =
-refusal. Currently allowed: Samsung Galaxy S24 (`RFCWC0SSKZK`).
+refusal. The list is kept per developer PC, so it is not in the repository.
 
 | Command | What it does |
 |---|---|
@@ -161,7 +161,7 @@ The companion is tested on a separate laptop connected to the TV. From the devel
 | Command (on the developer PC) | What it does |
 |---|---|
 | `scripts\dev-laptop.ps1 -Init` | the key `~\.ssh\id_ed25519_vlcremote` + setup files in `D:\shared\vlc-remote-setup` |
-| on the laptop: `\DESKTOP-9SO2EON\shared\vlc-remote-setup\laptop-setup.cmd` | one-time sshd setup (asks for administrator rights), prints the IP and user |
+| on the laptop: `\\<dev PC>\shared\vlc-remote-setup\laptop-setup.cmd` | one-time sshd setup (asks for administrator rights), prints the IP and user |
 | `dev-laptop.ps1 -Connect <IP> -User <name>` | writes `Host vlcremote-laptop` into `~\.ssh\config` and checks the connection |
 | `dev-laptop.ps1` (`-Status`) | companion, `/info`, VLC processes with their command lines, `vlcrc` keys, network profiles |
 | `dev-laptop.ps1 -Deploy -Local` / `-Deploy [-Tag …]` | build here (or take from a release) and install on the laptop |

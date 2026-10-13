@@ -52,12 +52,12 @@ From .NET everything is available without NuGet with `TargetFramework` `net9.0-w
 
 **Does it work from an ordinary desktop application without a manifest and without administrator rights — verified
 locally: yes.** The documentation requires the `bluetooth` capability (that is about packaged/UWP), but a console
-`net9.0-windows10.0.19041.0` exe, run as `DESKTOP-9SO2EON\Alexey` without elevation
+`net9.0-windows10.0.19041.0` exe, run as `<PC>\<user>` without elevation
 (`packaged=False`), successfully performed `CreateAsync` → `BindServiceNameAsync` → `SdpRawAttributes.Add`
 → `StartAdvertising(listener, false)` → `StopAdvertising`. Probe output:
 
 ```
-User: DESKTOP-9SO2EON\Alexey, elevated(admin)=False
+User: <PC>\<user>, elevated(admin)=False
 OS: Microsoft Windows NT 10.0.26200.0, packaged=False
 BluetoothAdapter: addr=0468749A2BFC classic=True le=True central=True peripheral=True advOffload=True extAdv=True
 RFCOMM: advertising OK, serviceId={C0F1B7A2-5C0E-4B3E-9A0E-1F2D3C4B5A69}
@@ -409,7 +409,7 @@ In addition: Windows 10 1703+ answers to `<PC-name>.local` with the built-in res
 ([technote](https://slightfuture.com/technote/windows-mdns-dnssd/), **not verified** locally), and
 the Android resolver since November 2021 (the DnsResolver module) transparently resolves `*.local` via
 `getaddrinfo()` (except over VPN and mobile data) ([AOSP DNS Resolver](https://source.android.com/docs/core/ota/modular-system/dns-resolver)).
-That is, the user can enter `DESKTOP-9SO2EON.local` instead of an IP — a handy fallback even without
+That is, the user can enter `<pc-name>.local` instead of an IP — a handy fallback even without
 the companion.
 
 ### 2b. UDP beacon

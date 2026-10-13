@@ -1,4 +1,4 @@
-status change: ( new input: file:///D:/shared/The.Lord.of.the.Rings.The.Fellowship.of.the.Ring.2001.US.Warner.Bros.UHD.BDRemux.2160p-rutracker.mkv )
+status change: ( new input: file:///D:/shared/The.Lord.of.the.Rings.The.Fellowship.of.the.Ring.2001.US.Warner.Bros.UHD.BDRemux.2160p.mkv )
 status change: ( play state: 3 )
 +----[ Remote control commands ]
 | 
