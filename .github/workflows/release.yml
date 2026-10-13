@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: 'stable — релиз v<VERSION>; beta — ещё одна тестовая сборка'
+        description: 'stable - release v<VERSION>; beta - one more test build'
         type: choice
         options: [stable, beta]
         default: stable
@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   meta:
-    name: Версия
+    name: Version
     runs-on: ubuntu-latest
     outputs:
       channel: ${{ steps.v.outputs.channel }}
@@ -45,7 +45,7 @@ jobs:
           if [ "$channel" = "stable" ]; then
             suffix=""; version="$base"
             if gh release view "v$version" >/dev/null 2>&1; then
-              echo "::error::Релиз v$version уже есть. Поднимите VERSION в PR (см. CLAUDE.md) и повторите."
+              echo "::error::Release v$version already exists. Bump VERSION in a PR (see CLAUDE.md) and retry."
               exit 1
             fi
           else
@@ -59,7 +59,7 @@ jobs:
           echo "### $channel: v$version (versionCode $code)" >> "$GITHUB_STEP_SUMMARY"
 
   companion:
-    name: Компаньон
+    name: Companion
     needs: meta
     runs-on: windows-latest
     steps:
@@ -106,7 +106,7 @@ jobs:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            echo "::error::Нет секрета ANDROID_KEYSTORE_BASE64 (см. CLAUDE.md, «Подпись APK»)"
+            echo "::error::The ANDROID_KEYSTORE_BASE64 secret is missing (see CLAUDE.md, "APK signing")"
             exit 1
           fi
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/vlcremote.jks"
@@ -131,7 +131,7 @@ jobs:
           path: VlcRemote-*.apk
 
   publish:
-    name: Публикация
+    name: Publish
     needs: [meta, companion, android]
     runs-on: ubuntu-latest
     steps:
