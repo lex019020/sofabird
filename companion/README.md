@@ -1,264 +1,267 @@
 # VLC Remote Companion (Windows)
 
-Компаньон для Android‑пульта `vlc-remote`: трей‑приложение на .NET 9, которое владеет жизненным
-циклом VLC 3.0.x на ПК у телевизора и отдаёт телефону уровень 2 протокола
-([protocol/README.md](../protocol/README.md)): текущие дорожки, названия глав, аудиоустройства,
-push‑события, запуск VLC, перенос окна на ТВ, питание, системная громкость.
+The companion for the `vlc-remote` Android remote: a .NET 9 tray app that owns the lifecycle of
+VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
+([protocol/README.md](../protocol/README.md)): current tracks, chapter names, audio devices,
+push events, starting VLC, moving the window to the TV, power, system volume.
 
-Этапы **M2** (LAN) и **M3** (Bluetooth RFCOMM). Установщик Velopack и TMDB‑библиотека — позже (см. ниже).
+Milestones **M2** (LAN) and **M3** (Bluetooth RFCOMM). The Velopack installer and the TMDB library come later (see below).
 
-## Состав
+## Contents
 
 ```
 companion/
 ├── VlcRemote.sln
-├── VlcRemote.Core/            библиотека net9.0 без Windows‑API (тестируется на любой ОС)
-│   ├── Protocol/              сообщения протокола (System.Text.Json, source‑generated, полиморфизм по "t")
+├── VlcRemote.Core/            net9.0 library without Windows APIs (tested on any OS)
+│   ├── Protocol/              protocol messages (System.Text.Json, source-generated, polymorphism by "t")
 │   ├── Vlc/                   VlcHttpClient, VlcJsonParser, VlcRcClient, RcParser
-│   ├── State/                 StateBuilder (status.json + tracks.json + RC → state), StateCoalescer (≤ 4/с)
-│   ├── Pairing/               PairingService (код на 5 мин, токен 32 байта base64url, хранится SHA‑256)
-│   ├── Session/               Session (NDJSON‑сессия поверх ILineTransport), StreamLineTransport (NDJSON поверх потока байт), ISessionHost, CommandArgs
-│   ├── Bluetooth/             BluetoothFormat (адрес AA:BB:…, кодирование атрибута SDP)
-│   ├── Displays/              MonitorTopology (имена/id/тип мониторов), DisplayController (sys‑команды экранов,
-│   │                          предпочтительный монитор, разовый перенос нового окна VLC), AutoPlacement
-│   ├── Lua/                   LuaPagesInstaller (копия штатных страниц VLC + наши в %APPDATA%)
+│   ├── State/                 StateBuilder (status.json + tracks.json + RC → state), StateCoalescer (≤ 4/s)
+│   ├── Pairing/               PairingService (code for 5 min, 32-byte base64url token, SHA-256 stored)
+│   ├── Session/               Session (NDJSON session over ILineTransport), StreamLineTransport (NDJSON over a byte stream), ISessionHost, CommandArgs
+│   ├── Bluetooth/             BluetoothFormat (address AA:BB:…, SDP attribute encoding)
+│   ├── Displays/              MonitorTopology (monitor names/ids/kinds), DisplayController (display sys commands,
+│   │                          preferred monitor, one-time move of a new VLC window), AutoPlacement
+│   ├── Lua/                   LuaPagesInstaller (copy of VLC's stock pages + ours in %APPDATA%)
 │   └── Setup/                 FirewallPlanner (which firewall rules allow/block, what to remove/add), SetupPolicy
 │                              (when the setup window and the startup notice appear)
-├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: трей, Kestrel, VlcManager, Win32
+├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
-│   │                          BluetoothRfcommServer + RfcommLineTransport (служба RFCOMM, M3)
-│   ├── Vlc/                   VlcLocator, VlcManager (процесс, опрос, RC, команды), EmbeddedLuaPages
-│   ├── Services/              DisplayService (мониторы через CCD API, окно VLC), VlcWindowHost, PowerService,
+│   │                          BluetoothRfcommServer + RfcommLineTransport (RFCOMM service, M3)
+│   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), EmbeddedLuaPages
+│   ├── Services/              DisplayService (monitors via the CCD API, the VLC window), VlcWindowHost, PowerService,
 │   │                          AudioService, AutostartService
 │   ├── Setup/                 SetupForm (setup and permissions window), SetupBackend, ComFirewallRuleSource (COM
 │   │                          HNetCfg.FwPolicy2), FirewallElevation (elevated --apply-firewall helper), NetworkCategories
-│   └── Tray/                  TrayContext (меню), PairingForm (код на экране ТВ), TrayIconFactory
-├── VlcRemote.Core.Tests/      xunit: парсеры на реальных ответах VLC 3.0.23 (docs/research/samples), сессия, сопряжение
-└── lua/                       Lua‑страницы уровня 1 и install.ps1 (работают и без компаньона)
+│   └── Tray/                  TrayContext (menu), PairingForm (code on the TV screen), TrayIconFactory
+├── VlcRemote.Core.Tests/      xunit: parsers on real VLC 3.0.23 responses (docs/research/samples), session, pairing
+└── lua/                       level 1 Lua pages and install.ps1 (they work without the companion too)
 ```
 
-Принцип разделения: `Core` не знает про WinForms и ASP.NET — сессия работает поверх абстракции
-«строка туда / строка сюда» (`ILineTransport`): WebSocket и RFCOMM — два транспорта одной и той же сессии
-(кадрирование потока RFCOMM — `StreamLineTransport` в `Core`, тестируется без WinRT).
+Separation principle: `Core` knows nothing about WinForms and ASP.NET — the session runs over the
+"line in / line out" abstraction (`ILineTransport`): WebSocket and RFCOMM are two transports of one and the same
+session (framing of the RFCOMM stream is `StreamLineTransport` in `Core`, tested without WinRT).
 
-## Сборка и тесты
+## Build and tests
 
-Нужен .NET SDK 9.0 (проверено на 9.0.310) и Windows для проекта компаньона.
+Requires the .NET SDK 9.0 (verified with 9.0.310) and Windows for the companion project.
 
 ```powershell
 dotnet build companion\VlcRemote.sln -c Release
 dotnet test  companion\VlcRemote.sln
 ```
 
-Запуск из исходников:
+Running from source:
 
 ```powershell
 dotnet run --project companion\VlcRemote.Companion -c Release
 ```
 
-Для отладки с отдельной папкой данных: `VlcRemote.Companion.exe --data-dir D:\tmp\vlcremote`
-(или переменная окружения `VLCREMOTE_DATA_DIR`).
+For debugging with a separate data folder: `VlcRemote.Companion.exe --data-dir D:\tmp\vlcremote`
+(or the `VLCREMOTE_DATA_DIR` environment variable).
 
-## Установка через скрипт
+## Installing with the script
 
-Обычно компаньон ставится не вручную, а скриптом `scripts\deploy-windows.ps1` (из GitHub Releases или `-Local` из
-исходников) в `%LOCALAPPDATA%\VlcRemote\app`; обновление закрывает запущенный экземпляр командой
-`VlcRemote.Companion.exe --shutdown` и сохраняет предыдущую версию для `-Rollback`. Подробности — CLAUDE.md.
-Версия берётся из файла `VERSION` в корне (`-p:VersionSuffix=beta.N` для тестовых сборок) и видна в подсказке
-иконки в трее и в `/info`.
+Usually the companion is not installed by hand but by the `scripts\deploy-windows.ps1` script (from GitHub Releases or
+`-Local` from source) into `%LOCALAPPDATA%\VlcRemote\app`; an update closes the running instance with
+`VlcRemote.Companion.exe --shutdown` and keeps the previous version for `-Rollback`. Details are in CLAUDE.md.
+The version comes from the `VERSION` file in the root (`-p:VersionSuffix=beta.N` for test builds) and is shown in the
+tray icon tooltip and in `/info`.
 
-## Публикация
+## Publishing
 
 ```powershell
 dotnet publish companion\VlcRemote.Companion -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ```
 
-Результат — `publish\VlcRemote.Companion.exe` (framework‑dependent, ~26 МБ, из них 24 МБ —
-проекция Windows SDK `Microsoft.Windows.SDK.NET.dll`, которую тянет TFM `net9.0-windows10.0.19041.0`
-под WinRT‑Bluetooth этапа M3). На целевом ПК нужны **.NET Desktop Runtime 9** и
-**ASP.NET Core Runtime 9** (Kestrel). Вариант без зависимостей:
-`--self-contained true -p:EnableCompressionInSingleFile=true` (~60 МБ).
+The result is `publish\VlcRemote.Companion.exe` (framework-dependent, ~26 MB, 24 MB of which is the
+Windows SDK projection `Microsoft.Windows.SDK.NET.dll`, pulled in by the `net9.0-windows10.0.19041.0` TFM
+for the WinRT Bluetooth of milestone M3). The target PC needs the **.NET Desktop Runtime 9** and the
+**ASP.NET Core Runtime 9** (Kestrel). A variant without dependencies:
+`--self-contained true -p:EnableCompressionInSingleFile=true` (~60 MB).
 
-В `companion/global.json` SDK закреплён на 9.0.3xx: у SDK 10 `--self-contained false`
-разбирается иначе и получается self‑contained сборка на 150 МБ (в csproj на всякий случай стоит
-`<SelfContained>false</SelfContained>`).
+`companion/global.json` pins the SDK to 9.0.3xx: SDK 10 parses `--self-contained false`
+differently and produces a 150 MB self-contained build (the csproj also sets
+`<SelfContained>false</SelfContained>` just in case).
 
-## Что делает при запуске
+## What it does on startup
 
 0. **Setup and permissions window** on the first start (and once more after an update that adds an item) — see
    "Setup and permissions" below. If the firewall has no rules for the companion/VLC yet, the window is shown
    *before* the network listeners start, so Windows never shows its own "allow access" prompt. Otherwise it opens
    next to the running companion. On every later start the companion checks the firewall and offers a fix in a tray
    notification (see below).
-1. Поднимает Kestrel на `0.0.0.0:47555`: `ws://…/ws` (NDJSON‑сессия), `GET /info` (без
-   авторизации), `GET /art?plId=N` (заголовок `Authorization: Bearer <token>`, проксирует `/art` VLC).
-2. Отвечает на UDP‑маяк `VLCREMOTE_DISCOVER 1` на порту 47556 unicast‑JSON `{"t":"beacon",…}`.
-3. Объявляет `_vlcremote._tcp` через встроенный DNS‑SD‑responder Windows (`DnsServiceRegister`);
-   при ошибке пишет в журнал и продолжает работать (остаются маяк и ручной ввод адреса).
-4. Находит VLC (`HKLM\SOFTWARE\VideoLAN\VLC`, затем Program Files). Если VLC не запущен — прописывает
-   в `vlcrc` веб‑интерфейс и RC (см. «Автонастройка VLC»). Если VLC запущен и отвечает по HTTP с нашим
-   паролем — берёт его под контроль; если запущен без управления — `vlc.status = noControl`, уведомление в
-   трее и пункт меню «Перезапустить VLC с веб‑интерфейсом» (см. «VLC открыт без управления»).
-5. Опрашивает `status.json` каждые 500 мс при воспроизведении и каждые 2 с иначе, держит один
-   RC‑сокет `127.0.0.1:4212` (события `status change:`, `adev`, текущая дорожка при отсутствии
-   `tracks.json`, `quit`), собирает полный объект `state` и рассылает его всем телефонам при
-   изменениях, не чаще 4 раз в секунду.
-6. Устанавливает Lua‑страницы уровня 1 в `%APPDATA%\vlc\lua\http` (копия штатной папки VLC +
-   `requests/tracks.json`, `requests/setvar.json`, файл `vlcremote.version`). Переустанавливает при
-   смене версии VLC или самих страниц. Делает это только когда VLC не запущен; иначе откладывает
-   до его закрытия (пункт меню показывает «после закрытия VLC»).
-7. Публикует Bluetooth‑службу RFCOMM «VLC Remote» для телефона без Wi‑Fi (см. «Bluetooth»). Нет адаптера или
-   Bluetooth выключен — пишет в журнал и работает без него.
+1. Starts Kestrel on `0.0.0.0:47555`: `ws://…/ws` (NDJSON session), `GET /info` (no
+   authorization), `GET /art?plId=N` (header `Authorization: Bearer <token>`, proxies VLC's `/art`).
+2. Answers the UDP beacon `VLCREMOTE_DISCOVER 1` on port 47556 with unicast JSON `{"t":"beacon",…}`.
+3. Advertises `_vlcremote._tcp` through the built-in Windows DNS-SD responder (`DnsServiceRegister`);
+   on error it writes to the log and keeps working (the beacon and manual address entry remain).
+4. Finds VLC (`HKLM\SOFTWARE\VideoLAN\VLC`, then Program Files). If VLC is not running, it writes
+   the web interface and RC into `vlcrc` (see "VLC auto-configuration"). If VLC is running and answers over HTTP with our
+   password, it takes control of it; if it is running without control — `vlc.status = noControl`, a tray
+   notification and the menu item "Restart VLC with phone control" (see "VLC open without control").
+5. Polls `status.json` every 500 ms during playback and every 2 s otherwise, keeps one
+   RC socket `127.0.0.1:4212` (`status change:` events, `adev`, the current track when
+   `tracks.json` is missing, `quit`), builds the full `state` object and sends it to all phones on
+   changes, at most 4 times per second.
+6. Installs the level 1 Lua pages into `%APPDATA%\vlc\lua\http` (a copy of VLC's stock folder +
+   `requests/tracks.json`, `requests/setvar.json`, the `vlcremote.version` file). Reinstalls them when the
+   VLC version or the pages themselves change. Does this only when VLC is not running; otherwise postpones it
+   until VLC closes (the menu item shows "after VLC closes").
+7. Publishes the "VLC Remote" Bluetooth RFCOMM service for a phone without Wi‑Fi (see "Bluetooth"). No adapter or
+   Bluetooth off — it writes to the log and works without it.
 
-Запуск VLC компаньоном:
+VLC launched by the companion:
 
 ```
-vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password <из settings.json>
+vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password <from settings.json>
         --rc-host 127.0.0.1:4212 --rc-quiet [--qt-fullscreen-screennumber=N] [--fullscreen] [uri]
 ```
 
-## Автонастройка VLC (vlcrc)
+## VLC auto-configuration (vlcrc)
 
-Чтобы VLC, открытый как угодно (двойной клик по фильму в Проводнике, меню «Пуск»), сразу управлялся с
-телефона, компаньон прописывает в `%APPDATA%\vlc\vlcrc` (в «родные» секции файла):
+So that VLC opened in any way (double-clicking a movie in Explorer, the Start menu) can be controlled from the
+phone right away, the companion writes into `%APPDATA%\vlc\vlcrc` (into the file's "native" sections):
 
-| Секция | Ключ | Значение |
+| Section | Key | Value |
 |---|---|---|
-| `[core]` | `extraintf` | добавляются `http` и `rc` к уже указанным интерфейсам (например, `qt` → `qt:http:rc`) |
-| `[core]` | `http-port` | `vlcHttpPort` из `settings.json` (8080) |
-| `[lua]` | `http-password` | `vlcHttpPassword` из `settings.json` |
+| `[core]` | `extraintf` | `http` and `rc` are added to the interfaces already listed (e.g. `qt` → `qt:http:rc`) |
+| `[core]` | `http-port` | `vlcHttpPort` from `settings.json` (8080) |
+| `[lua]` | `http-password` | `vlcHttpPassword` from `settings.json` |
 | `[oldrc]` | `rc-host` | `127.0.0.1:<vlcRcPort>` (4212) |
-| `[oldrc]` | `rc-quiet` | `1` — иначе на Windows RC открывает окно консоли |
+| `[oldrc]` | `rc-quiet` | `1` — otherwise RC opens a console window on Windows |
 | `[qt]` | `qt-continue` | `0` — VLC's own "continue playback?" is off; the phone asks instead (see "Watch history") |
 
-`http-host` не трогается (по умолчанию VLC слушает все интерфейсы — телефон может ходить к VLC и напрямую).
+`http-host` is not touched (by default VLC listens on all interfaces — the phone can also talk to VLC directly).
 
-- Файл правится **только когда ни один `vlc.exe` не запущен** (VLC перезаписывает vlcrc из памяти): при старте
-  компаньона и каждый раз, когда VLC закрывается.
-- Закомментированные умолчания (`#extraintf=`) раскомментируются на месте; отсутствующий ключ дописывается в
-  конец секции, отсутствующая секция — в конец файла. Кодировка (UTF‑8 с BOM) и окончания строк сохраняются,
-  запись атомарная (временный файл + замена). Если файла нет (VLC ни разу не запускался) — создаётся
-  минимальный файл с этими секциями.
-- Перед **первым** изменением делается копия `%APPDATA%\vlc\vlcrc.vlcremote-backup` (дальше не перезаписывается).
-  Вернуть всё как было: закрыть VLC, удалить `vlcrc` и переименовать копию обратно.
-- Если всё уже настроено, файл не трогается; в журнал пишется только факт изменения.
-- Отключить: `"configureVlc": false` в `settings.json` (перезапустить компаньон). `"vlcrcPath"` — другой путь
-  к файлу (для тестов).
+- The file is edited **only when no `vlc.exe` is running** (VLC overwrites vlcrc from memory): when the
+  companion starts and every time VLC closes.
+- Commented-out defaults (`#extraintf=`) are uncommented in place; a missing key is appended to the
+  end of its section, a missing section — to the end of the file. The encoding (UTF-8 with BOM) and line endings are
+  preserved, the write is atomic (temp file + replace). If there is no file (VLC has never been started), a
+  minimal file with these sections is created.
+- Before the **first** change a copy `%APPDATA%\vlc\vlcrc.vlcremote-backup` is made (it is never overwritten afterwards).
+  To restore everything: close VLC, delete `vlcrc` and rename the copy back.
+- If everything is already configured, the file is not touched; only the fact of a change is logged.
+- To disable: `"configureVlc": false` in `settings.json` (restart the companion). `"vlcrcPath"` — a different path
+  to the file (for tests).
 
-## VLC открыт без управления
+## VLC open without control
 
-Если VLC был открыт до того, как компаньон настроил vlcrc (или настройку отключили), процесс есть, а
-веб‑интерфейс с паролем компаньона не отвечает — это `vlc.status = noControl` (`running = false`). Компаньон:
+If VLC was opened before the companion configured vlcrc (or the setting was turned off), the process exists but
+the web interface does not answer with the companion's password — this is `vlc.status = noControl` (`running = false`). The companion:
 
-- один раз на процесс VLC показывает уведомление «VLC открыт без управления с телефона. Перезапустите его —
-  дальше VLC будет запускаться с управлением сам.»; щелчок по уведомлению перезапускает VLC;
-- по `cmd launch` с телефона (кнопка «Перезапустить с управлением») и по пункту меню «Перезапустить VLC с
-  веб‑интерфейсом» перезапускает VLC: берёт файл/URI из командной строки процесса (последний аргумент,
-  похожий на путь или URI; `--started-from-file` и значения опций пропускаются), закрывает VLC штатно
-  (закрытие главного окна, до 5 с, затем принудительно), прописывает vlcrc и запускает VLC с тем же файлом.
-  Позиция воспроизведения теряется.
+- once per VLC process shows the notification "VLC is open without phone control. Restart it, and from then on VLC
+  will always start with phone control."; clicking the notification restarts VLC;
+- on `cmd launch` from the phone (the "Restart with control" button) and on the menu item "Restart VLC with phone
+  control" restarts VLC: takes the file/URI from the process command line (the last argument that
+  looks like a path or URI; `--started-from-file` and option values are skipped), closes VLC gracefully
+  (closing the main window, up to 5 s, then forcibly), writes vlcrc and starts VLC with the same file.
+  The playback position is lost.
 
-Первые 20 с после запуска процесса VLC считается «запускающимся» (`starting`), чтобы не путать поднимающийся
-веб‑интерфейс с отсутствием управления; три подряд неудачных запроса к управляемому VLC — тоже не повод сразу
-объявлять `noControl`.
+For the first 20 s after the process starts VLC is considered "starting" (`starting`), so that a web interface still
+coming up is not mistaken for lack of control; three failed requests in a row to a controlled VLC are not a reason to
+declare `noControl` right away either.
 
-## Сопряжение
+## Pairing
 
-Телефон без токена (или с забытым токеном) присылает `hello` без кода — компаньон отвечает
-`err pairing_required` и **сам открывает окно с кодом** поверх всех окон: на экране, где сейчас окно VLC, иначе на
-предпочитаемом (ТВ), иначе на основном. В заголовке — «Телефон «<имя>» хочет подключиться», ниже код, адрес и
-обратный отсчёт. Телефон показывает поле «Введите код с экрана ПК» и переподключается с `pairCode`.
+A phone without a token (or with a forgotten token) sends `hello` without a code — the companion answers
+`err pairing_required` and **opens the code window by itself** on top of all windows: on the screen where the VLC window
+is now, otherwise on the preferred one (the TV), otherwise on the primary one. The header reads "Phone “<name>” wants to
+connect", below it the code, the address and a countdown. The phone shows the "Enter the code from the computer screen"
+field and reconnects with `pairCode`.
 
-- Пока код активен, повторные запросы (в том числе от другого телефона) новый код не создают — окно только
-  поднимается поверх.
-- Неверный код → `err unauthorized`, окно остаётся. Если код истёк или попытки (5) исчерпаны, следующая попытка
-  телефона открывает окно с новым кодом.
-- Не чаще одного окна в 10 с на телефон и не чаще одного нового кода в 10 с вообще — телефон, переподключающийся
-  в цикле, не заваливает экран окнами, а перебор кода не ускоряется.
-- При успехе окно показывает «✓» и закрывается через 3 с, в трее — «Телефон «<имя>» сопряжён».
-- Закрыть окно (щелчок, Esc) = отменить код. Вручную окно открывается пунктом меню «Сопряжение телефона…» или
-  двойным щелчком по иконке.
+- While the code is active, repeated requests (including from another phone) do not create a new code — the window is
+  only raised to the top.
+- A wrong code → `err unauthorized`, the window stays. If the code has expired or the attempts (5) are used up, the
+  phone's next attempt opens a window with a new code.
+- At most one window per 10 s per phone and at most one new code per 10 s overall — a phone reconnecting
+  in a loop does not flood the screen with windows, and brute-forcing the code does not speed up.
+- On success the window shows "✓" and closes after 3 s, the tray shows "Phone “<name>” paired".
+- Closing the window (click, Esc) = cancelling the code. The window can be opened by hand with the menu item "Pair a
+  phone…" or by double-clicking the icon.
 
 ## Bluetooth
 
-Запасной канал, когда у телефона нет общей сети с ПК (протокол — `protocol/README.md`, «Транспорт» и
-«Обнаружение → Bluetooth»).
+A fallback channel when the phone has no network in common with the PC (protocol — `protocol/README.md`, "Transport" and
+"Discovery → Bluetooth").
 
-**Как работает.** Компаньон публикует в SDP службу RFCOMM с UUID `47fe5bd6-98ad-4d9f-9812-174b3394037d` и именем
-`VLC Remote` (WinRT `RfcommServiceProvider` + `StreamSocketListener`, без прав администратора). ПК при этом **не**
-становится видимым для поиска: подключается только телефон, уже сопряжённый с ним. По каналу идёт тот же NDJSON,
-что по WebSocket (UTF‑8, строка на сообщение, разделитель `\n`, не больше 1 МиБ на строку), то же `hello` с
-токеном и то же окно с кодом для нового телефона; в журнале сессия выглядит как `bt <имя телефона> (<адрес>)`. Одновременно — до
-4 Bluetooth‑подключений.
+**How it works.** The companion publishes an RFCOMM service in SDP with UUID `47fe5bd6-98ad-4d9f-9812-174b3394037d` and
+the name `VLC Remote` (WinRT `RfcommServiceProvider` + `StreamSocketListener`, no administrator rights). The PC does
+**not** become discoverable: only a phone already paired with it can connect. The channel carries the same NDJSON as
+the WebSocket (UTF-8, one line per message, separator `\n`, at most 1 MiB per line), the same `hello` with the
+token and the same code window for a new phone; in the log the session looks like `bt <phone name> (<address>)`. Up to
+4 Bluetooth connections at a time.
 
-Адрес адаптера (`AA:BB:CC:DD:EE:FF`) компаньон сообщает в поле `bt` ответа `/info`, UDP‑маяка и `welcome`, пока
-радио включено; пока служба опубликована, в `caps` есть `bluetooth`. Телефон запоминает адрес при подключении по
-Wi‑Fi и сам переходит на Bluetooth, если ПК в сети не отвечает.
+The companion reports the adapter address (`AA:BB:CC:DD:EE:FF`) in the `bt` field of the `/info` response, the UDP beacon
+and `welcome` while the radio is on; while the service is published, `caps` contains `bluetooth`. The phone remembers the
+address when it connects over Wi‑Fi and switches to Bluetooth by itself if the PC does not answer on the network.
 
-**Что нужно.**
+**Requirements.**
 
-- Адаптер Bluetooth Classic (BR/EDR) и включённый Bluetooth в Windows.
-- Телефон **сопряжён с ПК** средствами Windows («Параметры → Bluetooth и устройства → Добавить устройство») или
-  Android. Компаньон сопряжение Bluetooth не инициирует. Токен приложения всё равно нужен: первое подключение —
-  обычное окно с кодом на экране ПК.
-- Настройка `bluetooth` в `settings.json` (по умолчанию `true`; `false` — служба не публикуется, поля `bt` нет).
-- Уровень защиты канала — `BluetoothEncryptionAllowNullAuthentication`: шифрование обязательно, подходит любое
-  сопряжение, включая «Just Works» без сравнения кода (так в образце Microsoft и в проверке на этом ПК). Телефон
-  аутентифицирует токен протокола. `bluetoothRequireAuthentication: true` требует ключ с защитой от MITM
-  (`BluetoothEncryptionWithAuthentication`) — тогда телефон, сопряжённый без сравнения кода, не подключится.
+- A Bluetooth Classic (BR/EDR) adapter and Bluetooth turned on in Windows.
+- The phone is **paired with the PC** using Windows ("Settings → Bluetooth & devices → Add device") or
+  Android. The companion does not initiate Bluetooth pairing. The app token is still needed: the first connection is
+  the usual code window on the PC screen.
+- The `bluetooth` setting in `settings.json` (`true` by default; `false` — the service is not published, there is no
+  `bt` field).
+- The channel protection level is `BluetoothEncryptionAllowNullAuthentication`: encryption is mandatory, any pairing
+  will do, including "Just Works" without code comparison (as in the Microsoft sample and in the check on this PC). The
+  phone is authenticated by the protocol token. `bluetoothRequireAuthentication: true` requires a MITM-protected key
+  (`BluetoothEncryptionWithAuthentication`) — then a phone paired without code comparison will not connect.
 
-**Устойчивость.** Нет адаптера или радио выключено — компаньон работает без Bluetooth и перепроверяет раз в
-минуту. Службу и слушатель он пересоздаёт после выхода из сна (`PowerModeChanged → Resume`, через 5 с) и при
-включении радио (`Radio.StateChanged`); ошибки WinRT повторяет с паузами 2 с … 5 мин. Состояние видно в меню в трее:
-«Bluetooth: включён / запускается… / выключен на этом ПК / недоступен / выключен в настройках».
+**Resilience.** No adapter or the radio is off — the companion works without Bluetooth and re-checks once a
+minute. It recreates the service and the listener after waking from sleep (`PowerModeChanged → Resume`, after 5 s) and
+when the radio is turned on (`Radio.StateChanged`); WinRT errors are retried with pauses from 2 s to 5 min. The state is
+shown in the tray menu: "Bluetooth: on / starting… / turned off on this PC / unavailable / disabled in settings".
 
-**Если телефон не подключается по Bluetooth.**
+**If the phone does not connect over Bluetooth.**
 
-- В трее «Bluetooth: недоступен» — в журнале строка `Bluetooth RFCOMM service failed to start … (0x…)`; проверьте,
-  что служба Windows «Служба поддержки Bluetooth» (`bthserv`) запущена, и перезапустите компаньон.
-- «Bluetooth: выключен на этом ПК» — включите Bluetooth в Windows (режим «в самолёте» тоже выключает радио).
-- В трее «включён», а телефон не находит службу — Android кэширует список служб ПК: удалите ПК из сопряжённых на
-  телефоне и сопрягите заново (или выключите и включите Bluetooth на телефоне).
-- Связь рвётся после простоя — снимите в диспетчере устройств у адаптера Bluetooth галочку «Разрешить отключение
-  этого устройства для экономии энергии» (если она есть); телефон переподключается сам.
-- Телефон сопряжён «Just Works» и включено `bluetoothRequireAuthentication` — выключите настройку или пересопрягите
-  телефон со сравнением кода.
+- The tray shows "Bluetooth: unavailable" — the log has the line `Bluetooth RFCOMM service failed to start … (0x…)`;
+  check that the Windows service "Bluetooth Support Service" (`bthserv`) is running, and restart the companion.
+- "Bluetooth: turned off on this PC" — turn Bluetooth on in Windows (airplane mode also turns the radio off).
+- The tray shows "on" but the phone cannot find the service — Android caches the PC's service list: remove the PC from
+  the paired devices on the phone and pair again (or turn Bluetooth off and on on the phone).
+- The link drops after idling — in Device Manager, clear the Bluetooth adapter's checkbox "Allow the computer to turn
+  off this device to save power" (if there is one); the phone reconnects by itself.
+- The phone is paired with "Just Works" and `bluetoothRequireAuthentication` is on — turn the setting off or re-pair
+  the phone with code comparison.
 
-## Экран для VLC (ТВ)
+## Display for VLC (TV)
 
-Компаньон помнит **предпочтительный монитор** и открывает VLC на нём — и запущенный с телефона, и открытый вручную
-(двойной клик по фильму в Проводнике).
+The companion remembers the **preferred monitor** and opens VLC on it — both when it is launched from the phone and when
+it is opened by hand (double-clicking a movie in Explorer).
 
-- **Мониторы.** Список строится из `Screen.AllScreens` (границы, основной) и CCD API Windows (`QueryDisplayConfig` +
-  `DisplayConfigGetDeviceInfo`): понятное имя из EDID («SAMSUNG», «L27q-35»), тип подключения (`internal` —
-  встроенная панель ноутбука: eDP/LVDS/«internal»; `external` — HDMI/DP/…) и **устойчивый id** — путь устройства
-  монитора (`\\?\DISPLAY#SAM0F99#…`). Id не меняется, когда ТВ выключают и включают (в отличие от номера
-  `\\.\DISPLAYn` и индекса в списке). Нет имени в EDID — «Экран N» (на языке телефона / Windows), у встроенной
-  панели — «Встроенный экран»; нет пути устройства — id = имя GDI. В режиме дублирования — одна строка на
-  источник (имена через « + », id — ТВ). При запуске и при каждом изменении конфигурации экранов в журнал
-  пишется по строке на монитор: имя, тип, основной, `gdi`, границы, id — так список проверяется удалённо
-  (`dev-laptop.ps1 -Logs`). По SSH `Screen.AllScreens` видит только фиктивный экран — проверять через компаньон.
-- **Выбор.** На телефоне (`sys moveToDisplay`) или в трее («Перенести VLC на экран ▸»): окно VLC переносится
-  (снять полный экран → переместить → вернуть полный экран, если был) **и монитор запоминается**
-  (`preferredDisplayId` в `settings.json`). VLC не запущен — только запоминается. «Не управлять экраном» в трее
-  (`sys preferredDisplay {"displayId": null}`) — компаньон больше не трогает окно VLC.
-- **Новое окно VLC** переносится на предпочтительный монитор **один раз**, если он подключён и окно не там
-  (главное окно ждём до 10 с). Потом окно не трогается — если перетащить его обратно, компаньон не спорит.
-  Не трогаются и окна VLC, запущенного до старта компаньона. ТВ выключен — окно остаётся, где открылось.
-- **Запуск компаньоном** (с телефона или из трея; предпочтительный монитор подключён и мониторов 2+):
-  VLC стартует без файла и с `--qt-fullscreen-screennumber=-1` (полный экран — на мониторе главного окна; номера
-  экранов у Qt не совпадают с нашими), окно переносится, и только потом файл открывается по HTTP — с
-  `launchFullscreen` фильм сразу разворачивается на нужном экране.
-- **Перенос окна.** Обычное окно сохраняет размер (не больше рабочей области) и встаёт по центру, развёрнутое —
-  разворачивается там же. Полноэкранный VLC под управлением — через HTTP `fullscreen`; без управления (открыт
-  до настройки vlcrc) окно без рамки на весь монитор просто растягивается на новый монитор.
-- **Старый формат.** `preferredDisplay` (индекс) из прежних версий при первом запуске заменяется на id монитора с
-  этим индексом; `moveToDisplay {"display": int}` и `display` в `launch`/`open` по‑прежнему понимаются
-  (`display` в `launch` — разовый выбор, не запоминается).
+- **Monitors.** The list is built from `Screen.AllScreens` (bounds, primary) and the Windows CCD API (`QueryDisplayConfig` +
+  `DisplayConfigGetDeviceInfo`): a friendly name from EDID ("SAMSUNG", "L27q-35"), the connection type (`internal` — the
+  laptop's built-in panel: eDP/LVDS/"internal"; `external` — HDMI/DP/…) and a **stable id** — the monitor's device
+  path (`\\?\DISPLAY#SAM0F99#…`). The id does not change when the TV is turned off and on (unlike the
+  `\\.\DISPLAYn` number and the index in the list). No name in EDID — "Display N" (in the phone's / Windows language),
+  for the built-in panel — "Built-in display"; no device path — id = the GDI name. In duplicate mode — one row per
+  source (names joined with " + ", the id is the TV's). At startup and on every change of the display configuration a
+  line per monitor is written to the log: name, kind, primary, `gdi`, bounds, id — so the list can be checked remotely
+  (`dev-laptop.ps1 -Logs`). Over SSH `Screen.AllScreens` sees only a dummy screen — check through the companion.
+- **Choice.** On the phone (`sys moveToDisplay`) or in the tray ("Move VLC to display ▸"): the VLC window is moved
+  (leave fullscreen → move → back to fullscreen if it was) **and the monitor is remembered**
+  (`preferredDisplayId` in `settings.json`). VLC not running — it is only remembered. "Don't manage the display" in the
+  tray (`sys preferredDisplay {"displayId": null}`) — the companion no longer touches the VLC window.
+- **A new VLC window** is moved to the preferred monitor **once**, if it is connected and the window is not there
+  (we wait up to 10 s for the main window). After that the window is left alone — if you drag it back, the companion
+  does not argue. Windows of a VLC started before the companion are not touched either. TV off — the window stays where
+  it opened.
+- **Launch by the companion** (from the phone or the tray; the preferred monitor is connected and there are 2+ monitors):
+  VLC starts without a file and with `--qt-fullscreen-screennumber=-1` (fullscreen goes to the main window's monitor;
+  Qt's screen numbers do not match ours), the window is moved, and only then the file is opened over HTTP — with
+  `launchFullscreen` the movie goes fullscreen on the right display at once.
+- **Moving the window.** A normal window keeps its size (no larger than the work area) and is centred, a maximized one
+  is maximized there as well. A controlled fullscreen VLC is handled via HTTP `fullscreen`; without control (opened
+  before vlcrc was configured) a borderless monitor-sized window is simply stretched over the new monitor.
+- **Old format.** `preferredDisplay` (an index) from earlier versions is replaced at the first start with the id of the
+  monitor with that index; `moveToDisplay {"display": int}` and `display` in `launch`/`open` are still understood
+  (`display` in `launch` is a one-time choice, not remembered).
 
 ## Watch history
 
-The companion is the source of truth for what was watched (protocol: «Watch history and resume», capability
+The companion is the source of truth for what was watched (protocol: "Watch history and resume", capability
 `history`). Code: `VlcRemote.Core/History/` — `HistoryStore` (the file), `HistoryTracker` (decisions from VLC polls),
 `HistoryRules` (pure rules), `MediaUri` (URI normalization); `VlcManager` performs the tracker's actions on VLC.
 
@@ -302,32 +305,32 @@ The companion is the source of truth for what was watched (protocol: «Watch his
 - **Logs.** INFO: resume prompt, answer, cleared without an answer, next-episode offer, applied/remembered track
   choices, phone marks/removals.
 
-## Меню в трее
+## Tray menu
 
-- строка статуса VLC, число подключённых телефонов и состояние Bluetooth;
-- **Сопряжение телефона…** — окно без рамки поверх всех окон на экране VLC / предпочитаемом экране (ТВ) с
-  6‑значным кодом и адресом `host:port`; код действует 5 минут, не более 5 попыток (открывается и само,
-  когда несопряжённый телефон пытается подключиться — см. «Сопряжение»);
-- **Запустить VLC**, **Перезапустить VLC с веб‑интерфейсом**, **Закрыть VLC**;
-- **Перенести VLC на экран ▸** — мониторы с понятными именами, галочка — предпочтительный (на нём открывается
-  VLC); щелчок = перенести окно и запомнить, как с телефона; **Не управлять экраном** — забыть
-  (см. «Экран для VLC»);
+- the VLC status line, the number of connected phones and the Bluetooth state;
+- **Pair a phone…** — a borderless window on top of all windows on the VLC screen / the preferred screen (the TV) with
+  a 6-digit code and the `host:port` address; the code is valid for 5 minutes, at most 5 attempts (it also opens by
+  itself when an unpaired phone tries to connect — see "Pairing");
+- **Start VLC**, **Restart VLC with phone control**, **Close VLC**;
+- **Move VLC to display ▸** — monitors with friendly names, the check mark is the preferred one (VLC opens on it);
+  a click = move the window and remember it, as from the phone; **Don't manage the display** — forget it
+  (see "Display for VLC");
 - **Setup and permissions…** — the setup window (state re-read on every open);
-- **Установить Lua‑страницы**, **Автозапуск** (`HKCU\…\Run`), **Не давать ПК уснуть во время фильма**;
-- **Открыть журнал**, **Открыть папку настроек**, **Выход**.
+- **Install Lua pages**, **Start with Windows** (`HKCU\…\Run`), **Keep the PC awake during a movie**;
+- **Open log**, **Open settings folder**, **Exit**.
 
-## Где лежат настройки и журналы
+## Where settings and logs are stored
 
 `%LocalAppData%\VlcRemote\`:
 
-| Файл | Что |
+| File | What |
 |---|---|
-| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (предпочтительный монитор; старый `preferredDisplay` переносится сам), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
-| `paired.json` | сопряжённые устройства: SHA‑256 токена, имя, id, дата |
+| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
+| `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
-| `logs\companion-YYYYMMDD.log` | Serilog, ротация по дням, 14 файлов |
+| `logs\companion-YYYYMMDD.log` | Serilog, daily rotation, 14 files |
 
-Пароль HTTP‑интерфейса VLC в журнал не пишется.
+The VLC HTTP interface password is never written to the log.
 
 ## Setup and permissions
 
@@ -384,22 +387,22 @@ netsh advfirewall firewall add rule name="VLC Remote Companion" dir=in action=al
 netsh advfirewall firewall add rule name="VLC (VLC Remote)" dir=in action=allow profile=private program="C:\Program Files\VideoLAN\VLC\vlc.exe" enable=yes
 ```
 
-## Что проверено на этом ПК (один монитор, VLC 3.0.23)
+## What has been verified on this PC (one monitor, VLC 3.0.23)
 
-Живая проверка с безголовым VLC (`-I dummy --vout dummy --aout dummy`, HTTP `127.0.0.1:8099`,
-RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельной папкой данных:
+A live check with a headless VLC (`-I dummy --vout dummy --aout dummy`, HTTP `127.0.0.1:8099`,
+RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 
-- `/info`, UDP‑маяк, `/art` (401 без токена, 200 `image/jpeg` с Bearer), DNS‑SD регистрация;
-- `hello` с неверным токеном → `err unauthorized` и закрытие; с токеном → `welcome` + первый `state`;
+- `/info`, the UDP beacon, `/art` (401 without a token, 200 `image/jpeg` with Bearer), DNS-SD registration;
+- `hello` with a wrong token → `err unauthorized` and close; with a token → `welcome` + the first `state`;
 - `pause/play/seek/track/volume/mute/chapter/rate/random/playlistRemove/open/launch/quit`,
   `getState/getPlaylist/getTracks/getAudioDevices/browse`, `sys listDisplays/keepAwake/moveToDisplay`;
-- мониторы: CCD API видит «L27q-35» (`external`, id `\\?\DISPLAY#LEN66D5#…`); `listDisplays` с `current`/
-  `preferred`/`preferredId`, `moveToDisplay` по id и по старому индексу без VLC (только запоминание, без ошибки),
-  неподключённый id, `preferredDisplay null`, `state.system.preferredDisplayId`, перенос старого `preferredDisplay`
-  в settings.json; безголовый VLC, открытый «вручную», — автоперенос ждёт окно 10 с и ничего не двигает;
-- текущие дорожки через RC `atrack/strack` (без Lua‑страниц в VLC) и выбор дорожек после `open`;
-- события `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 раза в секунду при воспроизведении;
-- `LuaPagesInstaller` — только против временной папки (юнит‑тесты), в `%APPDATA%` не ставился.
+- monitors: the CCD API sees "L27q-35" (`external`, id `\\?\DISPLAY#LEN66D5#…`); `listDisplays` with `current`/
+  `preferred`/`preferredId`, `moveToDisplay` by id and by the old index without VLC (only remembered, no error),
+  an unconnected id, `preferredDisplay null`, `state.system.preferredDisplayId`, migration of the old `preferredDisplay`
+  in settings.json; a headless VLC opened "by hand" — auto-move waits 10 s for a window and moves nothing;
+- current tracks via RC `atrack/strack` (without Lua pages in VLC) and track selection after `open`;
+- events `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 times per second during playback;
+- `LuaPagesInstaller` — only against a temp folder (unit tests), not installed into `%APPDATA%`.
 - Watch history (2026-10-13, headless VLC 3.0.23 on `127.0.0.1:18099`, companion on `127.0.0.1:47655` with a temp data
   dir, the 2160p LOTR remux): played from `--start-time 400` for ~11 s with `cmd track audio 2` → `history.json` got
   position 411 and the folder's audio choice; reopened → `resumePrompt` ~60 ms after the input was seen, VLC paused at
@@ -408,12 +411,12 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
   sent to VLC directly ("Play in VLC") → `state.resume` cleared, the resume point (416) kept after a few seconds;
   `getHistory continue/all`, `browse` with `progress`/`finished`, `historyUpdate finished`, `historyUpdate` of a
   non-file URI → `bad_request` in Russian. Next episode and VLC-side track changes — unit tests only.
-- Bluetooth (адаптер MediaTek, без сопряжения и подключения устройств, состояние радио не менялось): служба RFCOMM
-  публикуется из обычного процесса без прав администратора (`… advertising on adapter 04:68:74:9A:2B:FC`), поле `bt`
-  есть в `/info`, маяке и `welcome`, `caps` содержит `bluetooth`; с `bluetooth: false` поля нет; `--shutdown`
-  снимает службу. Кадрирование RFCOMM (`StreamLineTransport`) — юнит‑тесты.
+- Bluetooth (MediaTek adapter, no devices paired or connected, the radio state was not changed): the RFCOMM service
+  is published from a regular process without administrator rights (`… advertising on adapter 04:68:74:9A:2B:FC`), the
+  `bt` field is present in `/info`, the beacon and `welcome`, `caps` contains `bluetooth`; with `bluetooth: false` the
+  field is absent; `--shutdown` removes the service. RFCOMM framing (`StreamLineTransport`) — unit tests.
 
-### Проверить на ноутбуке у ТВ
+### To check on the TV laptop
 
 - Setup window: first start with a fresh data dir (`--data-dir`) — the window appears before the listeners when rules
   are missing; Apply → exactly one UAC prompt, rules `VLC Remote Companion` / `VLC (VLC Remote)` (private profile,
@@ -424,34 +427,34 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
   tray notification at the next start, Apply removes it. Text must not be cut at the laptop's and the TV's DPI
   (window moved between them), in English and Russian Windows.
 
-- Мониторы (встроенная панель + ТВ по HDMI): имена и `kind` в `listDisplays`/журнале, id ТВ после выключения и
-  включения ТВ; перенос окна VLC (обычного, развёрнутого, полноэкранного под управлением и без него) и обратно;
-  автоперенос нового окна — запуск с телефона с `launchFullscreen` (фильм сразу на ТВ) и двойной клик по фильму;
-  ТВ выключен — окно не трогается; режим дублирования; разный масштаб (DPI) панели и ТВ.
-- `adev` с реальным `mmdevice` (с `--aout dummy` список пуст) и выбор устройства; «по умолчанию»
-  (`id=""`) RC не умеет — компаньон делает это через `setvar.json?obj=aout&name=device&val=`,
-  т.е. только при установленных Lua‑страницах.
-- Громкость VLC при `--aout dummy` всегда читается как 0 — проверить `volume`/`mute` с настоящим выводом.
-- `displayPower` (`SC_MONITORPOWER`) под Modern Standby, `sleep` (`SetSuspendState`), `shutdown.exe`
-  и keep‑awake во время фильма — на этом ПК намеренно не вызывались.
-- Системная громкость через NAudio: чтение проверено (`system.volume`), запись — нет.
-- Обнаружение `_vlcremote._tcp` с телефона (`NsdManager`) и приём broadcast‑маяка через Wi‑Fi‑роутер.
-- Запуск GUI‑VLC компаньоном (`--fullscreen`) и перезапуск VLC, запущенного из Проводника без API
-  (закрытие главного окна Qt, восстановление файла из командной строки, уведомление и щелчок по нему).
-- Автонастройка настоящего `%APPDATA%\vlc\vlcrc` и запуск VLC из Проводника после неё (здесь — только копия
-  во временной папке).
-- Окно сопряжения, открывающееся само поверх полноэкранного VLC на экране ТВ.
+- Monitors (built-in panel + TV over HDMI): names and `kind` in `listDisplays`/the log, the TV's id after turning the TV
+  off and on; moving the VLC window (normal, maximized, fullscreen with and without control) and back;
+  auto-move of a new window — launch from the phone with `launchFullscreen` (the movie goes straight to the TV) and
+  double-clicking a movie; TV off — the window is not touched; duplicate mode; different scaling (DPI) of the panel and the TV.
+- `adev` with a real `mmdevice` (with `--aout dummy` the list is empty) and device selection; "default"
+  (`id=""`) is not supported by RC — the companion does it via `setvar.json?obj=aout&name=device&val=`,
+  i.e. only with the Lua pages installed.
+- VLC volume with `--aout dummy` always reads as 0 — check `volume`/`mute` with a real output.
+- `displayPower` (`SC_MONITORPOWER`) under Modern Standby, `sleep` (`SetSuspendState`), `shutdown.exe`
+  and keep-awake during a movie — deliberately not invoked on this PC.
+- System volume via NAudio: reading verified (`system.volume`), writing — not.
+- Discovery of `_vlcremote._tcp` from the phone (`NsdManager`) and receiving the broadcast beacon through the Wi‑Fi router.
+- Launching the GUI VLC from the companion (`--fullscreen`) and restarting a VLC started from Explorer without the API
+  (closing the Qt main window, restoring the file from the command line, the notification and clicking it).
+- Auto-configuration of the real `%APPDATA%\vlc\vlcrc` and starting VLC from Explorer afterwards (here — only a copy
+  in a temp folder).
+- The pairing window opening by itself on top of a fullscreen VLC on the TV screen.
 - Watch history with the real GUI VLC: VLC's own "continue playback?" bar no longer appears after `qt-continue=0`;
   a movie double-clicked in Explorer with a resume point → paused, then fullscreen on the TV after the phone's answer
   (and after Play pressed in VLC); a movie launched from the phone (`--fullscreen`) → paused fullscreen; the time from
   the start to the pause (a fraction of a second of picture/sound is expected); the next-episode card with a real
   series folder on the share; a track change made in VLC's menu (needs the Lua pages) remembered for the folder.
-- Bluetooth с телефоном: подключение сопряжённого телефона к службе (Android `createRfcommSocketToServiceRecord`),
-  `hello`/окно с кодом/команды по RFCOMM, задержка; телефон, сопряжённый «Just Works»; переход Wi‑Fi ↔ Bluetooth;
-  выключение/включение Bluetooth на ноутбуке во время работы и восстановление службы после сна (Modern Standby).
+- Bluetooth with a phone: a paired phone connecting to the service (Android `createRfcommSocketToServiceRecord`),
+  `hello`/code window/commands over RFCOMM, latency; a phone paired with "Just Works"; switching Wi‑Fi ↔ Bluetooth;
+  turning Bluetooth off/on on the laptop while running and restoring the service after sleep (Modern Standby).
 
-## Отложено
+## Deferred
 
-- **Velopack** — установщик и обновления; сейчас exe запускается откуда угодно, автозапуск через `HKCU\Run`.
-- **TMDB / библиотека** (M4) — разбор имён файлов, постеры.
-- TLS с пиннингом, HDMI‑CEC.
+- **Velopack** — installer and updates; for now the exe runs from anywhere, autostart via `HKCU\Run`.
+- **TMDB / library** (M4) — file name parsing, posters.
+- TLS with pinning, HDMI-CEC.
