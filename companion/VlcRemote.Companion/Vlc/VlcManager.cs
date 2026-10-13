@@ -105,6 +105,8 @@ public sealed partial class VlcManager : IAsyncDisposable
     public Func<SystemInfo?>? SystemInfoProvider { get; set; }
     /// <summary>Base URL of the companion for <c>artUrl</c>.</summary>
     public Func<string?>? ArtBaseUrlProvider { get; set; }
+    /// <summary>Provider of the <c>library</c> block of the state (revision, scanning).</summary>
+    public Func<LibraryInfo?>? LibraryInfoProvider { get; set; }
 
     public event Action<StateMessage>? StateChanged;
     public event Action<EventMessage>? Event;
@@ -429,6 +431,7 @@ public sealed partial class VlcManager : IAsyncDisposable
             Resume = _history?.Resume,
             Next = _history?.Next,
             HistoryRevision = _history?.Store.Revision,
+            Library = LibraryInfoProvider?.Invoke(),
         });
     }
 

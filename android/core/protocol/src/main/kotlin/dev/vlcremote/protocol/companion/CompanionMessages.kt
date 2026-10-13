@@ -7,12 +7,17 @@ import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.Flags
 import dev.vlcremote.protocol.model.HistoryInfo
 import dev.vlcremote.protocol.model.HistoryItem
+import dev.vlcremote.protocol.model.LibraryEpisode
+import dev.vlcremote.protocol.model.LibraryInfo
+import dev.vlcremote.protocol.model.LibraryMovie
+import dev.vlcremote.protocol.model.LibraryShow
 import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.Playback
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlayingItem
 import dev.vlcremote.protocol.model.PlaylistItem
 import dev.vlcremote.protocol.model.ResumePrompt
+import dev.vlcremote.protocol.model.ShowDetails
 import dev.vlcremote.protocol.model.SystemState
 import dev.vlcremote.protocol.model.Titles
 import dev.vlcremote.protocol.model.Tracks
@@ -112,6 +117,16 @@ sealed class CompanionMessage {
     @SerialName("historyClear")
     data class HistoryClear(override val id: String) : CompanionMessage()
 
+    /** `library` capability: the movies and series. */
+    @Serializable
+    @SerialName("getLibrary")
+    data class GetLibrary(override val id: String) : CompanionMessage()
+
+    /** `library` capability: one series with its episodes ([LibraryShow.key]). */
+    @Serializable
+    @SerialName("getShow")
+    data class GetShow(override val id: String, val key: String) : CompanionMessage()
+
     @Serializable
     @SerialName("ping")
     data class Ping(override val id: String? = null) : CompanionMessage()
@@ -169,12 +184,14 @@ sealed class CompanionMessage {
         val next: NextEpisode? = null,
         /** `history`: history revision. */
         val history: HistoryInfo? = null,
+        /** `library`: library revision. */
+        val library: LibraryInfo? = null,
         override val id: String? = null,
     ) : CompanionMessage() {
         fun toPlayerState(): PlayerState = PlayerState(
             vlc = vlc, playback = playback, item = item, tracks = tracks, chapters = chapters,
             titles = titles, volume = volume, video = video, delays = delays, flags = flags, system = system,
-            resume = resume, next = next, history = history,
+            resume = resume, next = next, history = history, library = library,
         )
 
         companion object {
@@ -182,7 +199,7 @@ sealed class CompanionMessage {
                 vlc = state.vlc, playback = state.playback, item = state.item, tracks = state.tracks,
                 chapters = state.chapters, titles = state.titles, volume = state.volume,
                 video = state.video, delays = state.delays, flags = state.flags, system = state.system,
-                resume = state.resume, next = state.next, history = state.history,
+                resume = state.resume, next = state.next, history = state.history, library = state.library,
             )
         }
     }
@@ -249,6 +266,30 @@ sealed class CompanionMessage {
         val total: Int = 0,
         val items: List<HistoryItem> = emptyList(),
     ) : CompanionMessage()
+
+    /** Answer to [GetLibrary]. */
+    @Serializable
+    @SerialName("library")
+    data class Library(
+        override val id: String? = null,
+        val revision: Long = 0,
+        val scanning: Boolean = false,
+        val movies: List<LibraryMovie> = emptyList(),
+        val shows: List<LibraryShow> = emptyList(),
+    ) : CompanionMessage() {
+        fun toLibrary() = dev.vlcremote.protocol.model.Library(revision, scanning, movies, shows)
+    }
+
+    /** Answer to [GetShow]. */
+    @Serializable
+    @SerialName("show")
+    data class Show(
+        override val id: String? = null,
+        val show: LibraryShow,
+        val episodes: List<LibraryEpisode> = emptyList(),
+    ) : CompanionMessage() {
+        fun toDetails() = ShowDetails(show, episodes)
+    }
 
     @Serializable
     @SerialName("pong")

@@ -60,6 +60,12 @@ public class SessionTests
 
         public List<string> HistoryCalls { get; } = new();
 
+        public Task<LibraryMessage> GetLibraryAsync(CancellationToken ct) =>
+            Task.FromResult(new LibraryMessage { Revision = 7, Movies = [new MovieItem { Key = "the matrix|1999", Title = "The Matrix" }] });
+
+        public Task<ShowMessage?> GetShowAsync(string key, CancellationToken ct) =>
+            Task.FromResult(key == "severance" ? new ShowMessage { Show = new ShowItem { Key = key, Title = "Severance" } } : null);
+
         public Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct)
         {
             HistoryCalls.Add($"get {filter} {limit} {offset}");
@@ -288,6 +294,29 @@ public class SessionTests
         t.PhoneDisconnect();
         await run.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(t.Closed);
+    }
+
+    [Fact]
+    public async Task LibraryRequests_AreAnswered()
+    {
+        var (t, _, _, _, run) = Start("tok");
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"token":"tok"}""");
+        Assert.Equal("welcome", Recv(t).GetProperty("t").GetString());
+
+        await t.PhoneSendAsync("""{"t":"getLibrary","id":"3"}""");
+        var lib = Recv(t);
+        Assert.Equal(("library", "3", 7L), (lib.GetProperty("t").GetString(), lib.GetProperty("id").GetString(), lib.GetProperty("revision").GetInt64()));
+        Assert.Equal("The Matrix", lib.GetProperty("movies")[0].GetProperty("title").GetString());
+
+        await t.PhoneSendAsync("""{"t":"getShow","id":"4","key":"severance"}""");
+        var show = Recv(t);
+        Assert.Equal(("show", "4", "Severance"), (show.GetProperty("t").GetString(), show.GetProperty("id").GetString(),
+            show.GetProperty("show").GetProperty("title").GetString()));
+
+        await t.PhoneSendAsync("""{"t":"getShow","id":"5","key":"nope"}""");
+        Assert.Equal("bad_request", Recv(t).GetProperty("code").GetString());
+        t.PhoneDisconnect();
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]

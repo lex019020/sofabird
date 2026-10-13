@@ -254,6 +254,8 @@ data class PlayerState(
     val next: NextEpisode? = null,
     /** Companion `history`: revision counter of the watch history. */
     val history: HistoryInfo? = null,
+    /** Companion `library`: revision counter of the library, and whether it is being scanned. */
+    val library: LibraryInfo? = null,
 ) {
     val isPlaying: Boolean get() = playback.state == PlaybackStatus.PLAYING
     val isStopped: Boolean get() = playback.state == PlaybackStatus.STOPPED

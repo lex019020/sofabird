@@ -65,7 +65,7 @@ Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vl
 Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
 
 `caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
-`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`.
+`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`, `library`.
 
 ## Player commands: `cmd`
 
@@ -239,6 +239,28 @@ sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title
 - `{"t":"historyClear","id":"11"}` → `ok`.
 - `entries` items of `browse` get optional `progress` (0..1) and `finished` for files that are in the history.
 - `state.history = {"revision": n}` changes whenever the history changes, so phones can refresh lists.
+
+## Library (capability `library`)
+
+The movies and series of the **media folders** chosen in the companion's setup window (local disks or network
+shares). The companion walks them (at the start, every 30 minutes and when the folders change), recognizes titles
+from the file names (release-style names: `The.Matrix.1999.2160p….mkv`, `Show.S01E02….mkv`, `Show/Season 2/E05.mkv`)
+and groups them: a series is every episode with the same title, wherever its files are; two files of the same movie
+are its versions. Metadata comes from **TMDB** in the PC's Windows language (title, year, overview, poster, backdrop,
+rating; episode names and stills), kept by the companion for at most 6 months (TMDB terms), so the phones only show
+it. Images are full `https://image.tmdb.org/…` URLs: the phone loads them itself (they are not sent over Bluetooth).
+Without a TMDB token or a match the item keeps the title parsed from its file name and has no images.
+
+- `{"t":"getLibrary","id":"5"}` → `{"t":"library","id":"5","revision":12,"scanning":false,"movies":[…],"shows":[…]}`.
+  A movie: `{"key","title","year"?,"overview"?,"poster"?,"backdrop"?,"rating"?,"files":[file…]}` (several files =
+  versions, the biggest first). A series: the same fields without `files`, plus `"episodes": n, "unwatched": n`.
+  A file: `{"uri","name","size","progress"?,"finished"?}` (`progress`/`finished` from the watch history).
+- `{"t":"getShow","id":"6","key":"<series key>"}` → `{"t":"show","id":"6","show":{series},"episodes":[{"season",
+  "episode","title"?,"overview"?,"still"?,"file":{file}}…]}` by season and episode; an unknown key → `bad_request`.
+  The episodes are a separate request so that `library` stays small enough for one Bluetooth line (≤ 1 MiB).
+- `state.library = {"revision": n, "scanning": bool}`: the revision changes when files appear or disappear and when
+  metadata arrives (at most every 3 s while posters are being fetched); phones re-read the library when it changes.
+- Playing goes through the usual commands: `cmd open {"uri"}` (a movie's first file, an episode).
 
 ## Events: `event`
 

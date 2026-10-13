@@ -90,6 +90,18 @@
     },
     {
       "$ref": "#/$defs/historyClear"
+    },
+    {
+      "$ref": "#/$defs/getLibrary"
+    },
+    {
+      "$ref": "#/$defs/library"
+    },
+    {
+      "$ref": "#/$defs/getShow"
+    },
+    {
+      "$ref": "#/$defs/show"
     }
   ],
   "$defs": {
@@ -201,7 +213,8 @@
         "systemVolume",
         "metadata",
         "bluetooth",
-        "history"
+        "history",
+        "library"
       ]
     },
     "vlcInfo": {
@@ -1018,6 +1031,20 @@
               "type": "integer"
             }
           }
+        },
+        "library": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer"
+            },
+            "scanning": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
@@ -1243,6 +1270,227 @@
         },
         "id": {
           "type": "string"
+        }
+      }
+    },
+    "mediaFile": {
+      "type": "object",
+      "required": [
+        "uri",
+        "name"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "progress": {
+          "type": "number"
+        },
+        "finished": {
+          "type": "boolean"
+        }
+      }
+    },
+    "libraryShow": {
+      "type": "object",
+      "required": [
+        "key",
+        "title",
+        "episodes"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "year": {
+          "type": "integer"
+        },
+        "overview": {
+          "type": "string"
+        },
+        "poster": {
+          "type": "string",
+          "description": "full TMDB image URL (w342)"
+        },
+        "backdrop": {
+          "type": "string",
+          "description": "full TMDB image URL (w1280)"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "episodes": {
+          "type": "integer"
+        },
+        "unwatched": {
+          "type": "integer"
+        }
+      }
+    },
+    "getLibrary": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "getLibrary"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "library": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "revision",
+        "movies",
+        "shows"
+      ],
+      "properties": {
+        "t": {
+          "const": "library"
+        },
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "scanning": {
+          "type": "boolean"
+        },
+        "movies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "title",
+              "files"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "year": {
+                "type": "integer"
+              },
+              "overview": {
+                "type": "string"
+              },
+              "poster": {
+                "type": "string",
+                "description": "full TMDB image URL (w342)"
+              },
+              "backdrop": {
+                "type": "string",
+                "description": "full TMDB image URL (w1280)"
+              },
+              "rating": {
+                "type": "number"
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/mediaFile"
+                }
+              }
+            }
+          }
+        },
+        "shows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/libraryShow"
+          }
+        }
+      }
+    },
+    "getShow": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "key"
+      ],
+      "properties": {
+        "t": {
+          "const": "getShow"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      }
+    },
+    "show": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "show",
+        "episodes"
+      ],
+      "properties": {
+        "t": {
+          "const": "show"
+        },
+        "id": {
+          "type": "string"
+        },
+        "show": {
+          "$ref": "#/$defs/libraryShow"
+        },
+        "episodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "season",
+              "episode",
+              "file"
+            ],
+            "properties": {
+              "season": {
+                "type": "integer"
+              },
+              "episode": {
+                "type": "integer"
+              },
+              "title": {
+                "type": "string"
+              },
+              "overview": {
+                "type": "string"
+              },
+              "still": {
+                "type": "string",
+                "description": "full TMDB image URL (w300)"
+              },
+              "file": {
+                "$ref": "#/$defs/mediaFile"
+              }
+            }
+          }
         }
       }
     }

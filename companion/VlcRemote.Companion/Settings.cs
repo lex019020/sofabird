@@ -38,8 +38,12 @@ public sealed class Settings
     /// <summary>Extra VLC command-line arguments.</summary>
     public string? VlcExtraArgs { get; set; }
 
-    /// <summary>Media library roots (informational; browsing goes through VLC <c>browse.json</c>).</summary>
+    /// <summary>
+    /// The media folders (setup window): scanned for the library of movies and series, and listed first when browsing.
+    /// </summary>
     public List<string> MediaRoots { get; set; } = new();
+    /// <summary>The user's own TMDB API read access token; empty — the one built into the companion.</summary>
+    public string? TmdbToken { get; set; }
 
     /// <summary>
     /// Stable id of the preferred monitor (the TV): every new VLC window is moved there once.

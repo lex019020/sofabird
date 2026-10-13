@@ -32,10 +32,12 @@ public sealed record SetupSnapshot(
     bool ConfigureVlc,
     bool? MediaStation = null,
     IReadOnlyList<PowerDeviation>? PowerDeviations = null,
-    bool EverCompleted = false);
+    bool EverCompleted = false,
+    IReadOnlyList<string>? MediaFolders = null);
 
 /// <summary>What the user ticked.</summary>
-public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false);
+public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
+    IReadOnlyList<string>? MediaFolders = null);
 
 public enum StepOutcome
 {
@@ -84,11 +86,12 @@ public sealed class SetupBackend : ISetupBackend
     private readonly SettingsStore _store;
     private readonly VlcManager _vlc;
     private readonly CompanionHost _host;
+    private readonly LibraryService _library;
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly PowerPlanService _powerPlan;
     private readonly ILogger _log;
 
-    public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host,
+    public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host, LibraryService library,
         BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, ILogger<SetupBackend> log)
     {
         _powerPlan = powerPlan;
@@ -97,6 +100,7 @@ public sealed class SetupBackend : ISetupBackend
         _store = store;
         _vlc = vlc;
         _host = host;
+        _library = library;
         _bluetooth = bluetooth;
         _log = log;
     }
@@ -124,7 +128,7 @@ public sealed class SetupBackend : ISetupBackend
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { autostart = false; }
         return new SetupSnapshot(fw, fwError, publicNets, autostart, InspectVlc(), _settings.KeepAwake, _bluetooth.Status,
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
-            _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted);
+            _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList());
     }
 
     private VlcSetupState InspectVlc()
@@ -155,7 +159,9 @@ public sealed class SetupBackend : ISetupBackend
             s.ManageFirewall = choices.Firewall;
             s.SetupCompleted = true;
             s.SetupVersion = SetupPolicy.CurrentVersion;
+            if (choices.MediaFolders is not null) s.MediaRoots = choices.MediaFolders.ToList();
         });
+        if (choices.MediaFolders is not null) _library.Rescan();
         var autostart = ApplyAutostart(choices.Autostart);
         var vlc = ApplyVlc(choices.ConfigureVlc);
         _host.SetKeepAwake(choices.KeepAwake);

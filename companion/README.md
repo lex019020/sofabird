@@ -325,6 +325,28 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
 - **Logs.** INFO: resume prompt, answer, cleared without an answer, next-episode offer, applied/remembered track
   choices, phone marks/removals.
 
+## Library
+
+The **media folders** (setup window → "Media folders", `mediaRoots` in `settings.json`; local disks or network
+shares) are the phone's library of movies and series (`Services/LibraryService.cs`, `VlcRemote.Core/Library/`):
+
+- **Scan** at the start, every 30 minutes and right after the folders change: every video file under them (hidden,
+  system and unreadable entries, `sample` files and `Extras`/`Featurettes`/`Trailers` folders are skipped).
+- **Names** (`ReleaseNameParser`, the PTN / guessit approach): the title is what comes before the first anchor — the
+  year, `SxxEyy` / `1x02`, a quality tag (`2160p`, `BDRemux`, `x265`, …). "1917.2019…" is "1917" from 2019; an
+  episode without a season (`E05.mkv`) takes it from a season folder ("Season 2", "S02", "Сезон 2"), the series name
+  from the folder above; a movie file without a year in a folder with one ("Inception (2010)/movie.mkv") takes the
+  folder's name. A series is every episode with the same title, wherever it is; two files of the same movie are its
+  versions.
+- **TMDB** (`TmdbClient`): the movie / series by title and year (and again without the year), and the seasons'
+  episode names and stills, in Windows' UI language. Answers are kept in `library-metadata.json` for at most 6 months
+  (TMDB terms); a title TMDB did not know is asked again after a week. The token of the release builds comes from the
+  `TMDB_API_TOKEN` secret at build time (never in the repository); `tmdbToken` in `settings.json` overrides it.
+  Without a token the library has the parsed titles only. Attribution is in the setup window (and the phone's
+  library).
+- **Phones**: `state.library.revision` changes when files appear/disappear or metadata arrives (at most every 3 s);
+  `getLibrary` / `getShow` (protocol/README.md "Library").
+
 ## Tray menu
 
 - the VLC status line, the number of connected phones and the Bluetooth state;

@@ -143,6 +143,20 @@ UI = [
                            "When playback stops, your usual power settings apply again.",
      "Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. "
      "После остановки снова действуют обычные настройки электропитания."),
+    ("SetupMediaTitle", "Media folders", "Медиапапки"),
+    ("SetupMediaText", "Folders with your movies and series, on this PC's disks or network shares. The companion recognizes "
+                       "the titles by the file names and fetches posters and descriptions, and the phone shows them as a "
+                       "library. Other folders can still be opened from the drives.",
+     "Папки с вашими фильмами и сериалами — на дисках этого ПК или в сетевых папках. Компаньон узнаёт названия по "
+     "именам файлов и загружает постеры и описания, а телефон показывает их как медиатеку. Остальные папки по-прежнему "
+     "открываются через диски."),
+    ("SetupMediaAdd", "Add a folder…", "Добавить папку…"),
+    ("SetupMediaRemove", "Remove", "Убрать"),
+    ("SetupMediaPick", "Choose a folder with movies or series", "Выберите папку с фильмами или сериалами"),
+    ("SetupMediaNone", "No folders yet: the phone browses the drives only", "Папок пока нет: телефон показывает только диски"),
+    ("SetupMediaCount", "Folders: {0}", "Папок: {0}"),
+    ("SetupMediaTmdb", "Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.",
+     "Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB."),
     ("SetupMediaStationTitle", "This PC is a media station", "Этот ПК — медиастанция"),
     ("SetupMediaStationText", "For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep "
                               "or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. "

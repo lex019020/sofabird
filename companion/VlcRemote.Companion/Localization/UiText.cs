@@ -194,6 +194,22 @@ internal static class UiText
     public static string SetupKeepAwakeTitle => S("SetupKeepAwakeTitle");
     /// <summary>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</summary>
     public static string SetupKeepAwakeText => S("SetupKeepAwakeText");
+    /// <summary>Media folders</summary>
+    public static string SetupMediaTitle => S("SetupMediaTitle");
+    /// <summary>Folders with your movies and series, on this PC's disks or network shares. The companion recognizes the titles by the file names and fetches posters and descriptions, and the phone shows them as a library. Other folders can still be opened from the drives.</summary>
+    public static string SetupMediaText => S("SetupMediaText");
+    /// <summary>Add a folder…</summary>
+    public static string SetupMediaAdd => S("SetupMediaAdd");
+    /// <summary>Remove</summary>
+    public static string SetupMediaRemove => S("SetupMediaRemove");
+    /// <summary>Choose a folder with movies or series</summary>
+    public static string SetupMediaPick => S("SetupMediaPick");
+    /// <summary>No folders yet: the phone browses the drives only</summary>
+    public static string SetupMediaNone => S("SetupMediaNone");
+    /// <summary>Folders: {0}</summary>
+    public static string SetupMediaCount(object a0) => F("SetupMediaCount", a0);
+    /// <summary>Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</summary>
+    public static string SetupMediaTmdb => S("SetupMediaTmdb");
     /// <summary>This PC is a media station</summary>
     public static string SetupMediaStationTitle => S("SetupMediaStationTitle");
     /// <summary>For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. The companion changes these settings of the current Windows power plan; unticking this later does not change them back. The screen may still turn off, and the TV may go to standby.</summary>

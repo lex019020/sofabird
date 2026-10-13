@@ -191,6 +191,8 @@ public sealed class Session : IAsyncDisposable
                 GetHistoryMessage gh => await GetHistoryAsync(gh, ct).ConfigureAwait(false),
                 HistoryUpdateMessage hu => await UpdateHistoryAsync(hu, ct).ConfigureAwait(false),
                 HistoryClearMessage hc => await ClearHistoryAsync(hc, ct).ConfigureAwait(false),
+                GetLibraryMessage gl => WithId(await _host.GetLibraryAsync(ct).ConfigureAwait(false), gl.Id),
+                GetShowMessage gs => await GetShowAsync(gs, ct).ConfigureAwait(false),
                 HelloMessage h => new ErrMessage { Id = h.Id, Code = ErrorCodes.BadRequest, Msg = "already authenticated" },
                 _ => new ErrMessage { Id = msg.Id, Code = ErrorCodes.BadRequest, Msg = $"unexpected message type for this direction" },
             };
@@ -251,6 +253,20 @@ public sealed class Session : IAsyncDisposable
         if (!remove && m.Finished is null) throw ProtocolException.BadRequest("historyUpdate requires 'finished' or 'remove'");
         await _host.UpdateHistoryAsync(m.Uri, m.Finished, remove, ct).ConfigureAwait(false);
         return new OkMessage { Id = m.Id };
+    }
+
+    private async Task<Message> GetShowAsync(GetShowMessage m, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(m.Key)) throw ProtocolException.BadRequest("getShow.key is required");
+        var reply = await _host.GetShowAsync(m.Key, ct).ConfigureAwait(false)
+            ?? throw ProtocolException.BadRequest($"no series {m.Key} in the library");
+        return WithId(reply, m.Id);
+    }
+
+    private static Message WithId(Message reply, string? id)
+    {
+        reply.Id = id;
+        return reply;
     }
 
     private async Task<Message> ClearHistoryAsync(HistoryClearMessage m, CancellationToken ct)

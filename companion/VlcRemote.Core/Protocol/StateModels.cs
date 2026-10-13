@@ -163,6 +163,8 @@ public sealed class StateMessage : Message
     public NextInfo? Next { get; set; }
     /// <summary>Watch history revision (capability <c>history</c>).</summary>
     public HistoryInfo? History { get; set; }
+    /// <summary>The library (<c>library</c> capability): phones re-read it when the revision changes.</summary>
+    public LibraryInfo? Library { get; set; }
 }
 
 public sealed class ResumeInfo
@@ -185,4 +187,12 @@ public sealed class HistoryInfo
 {
     /// <summary>Changes whenever the history changes, so phones can refresh their lists.</summary>
     public long Revision { get; set; }
+}
+
+public sealed class LibraryInfo
+{
+    /// <summary>Changes whenever the movies, series or their metadata change.</summary>
+    public long Revision { get; set; }
+    /// <summary>A scan or a metadata lookup is in progress.</summary>
+    public bool Scanning { get; set; }
 }

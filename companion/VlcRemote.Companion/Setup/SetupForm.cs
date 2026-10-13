@@ -21,6 +21,9 @@ public sealed class SetupForm : Form
     private readonly Item _vlc;
     private readonly Item _keepAwake;
     private readonly Item _mediaStation;
+    private readonly Item _media;
+    private readonly ListBox _mediaList;
+    private readonly Button _mediaRemove;
     private readonly Item _bluetooth;
     private readonly Label _networkHint;
     private readonly LinkLabel _networkLink;
@@ -78,6 +81,30 @@ public sealed class SetupForm : Form
 
         _autostart = AddItem(UiText.SetupAutostartTitle, UiText.SetupAutostartText, toggle: true);
         _vlc = AddItem(UiText.SetupVlcTitle, UiText.SetupVlcText, toggle: true);
+        _media = AddItem(UiText.SetupMediaTitle, UiText.SetupMediaText, toggle: false);
+        _mediaList = new ListBox
+        {
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Height = 84,
+            IntegralHeight = false,
+            HorizontalScrollbar = true,
+            Margin = new Padding(0, 6, 0, 0),
+            AccessibleName = UiText.SetupMediaTitle,
+        };
+        _mediaList.SelectedIndexChanged += (_, _) => _mediaRemove!.Enabled = _mediaList.SelectedIndex >= 0 && !_busy;
+        _media.Content.Controls.Add(_mediaList);
+        var mediaButtons = new FlowLayoutPanel { AutoSize = true, WrapContents = true, Margin = new Padding(0, 6, 0, 0), Anchor = AnchorStyles.Left };
+        var mediaAdd = DialogButton(UiText.SetupMediaAdd);
+        mediaAdd.Margin = new Padding(0, 0, 8, 0);
+        mediaAdd.Click += (_, _) => AddMediaFolder();
+        _mediaRemove = DialogButton(UiText.SetupMediaRemove);
+        _mediaRemove.Margin = Padding.Empty;
+        _mediaRemove.Enabled = false;
+        _mediaRemove.Click += (_, _) => RemoveMediaFolder();
+        mediaButtons.Controls.Add(mediaAdd);
+        mediaButtons.Controls.Add(_mediaRemove);
+        _media.Content.Controls.Add(mediaButtons);
+        _media.Content.Controls.Add(TextLabel(UiText.SetupMediaTmdb, new Font(Font.FontFamily, 8.25F), SecondaryText, new Padding(0, 6, 0, 0)));
         _keepAwake = AddItem(UiText.SetupKeepAwakeTitle, UiText.SetupKeepAwakeText, toggle: true);
         _mediaStation = AddItem(UiText.SetupMediaStationTitle, UiText.SetupMediaStationText, toggle: true);
         _bluetooth = AddItem(UiText.SetupBluetoothTitle, UiText.SetupBluetoothText, toggle: false, last: true);
@@ -133,7 +160,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems) item.Status.Text = UiText.SetupChecking;
     }
 
-    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _keepAwake, _mediaStation, _bluetooth];
+    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _bluetooth];
 
     private static bool HighContrast => SystemInformation.HighContrast;
     private static Color SecondaryText => HighContrast ? SystemColors.WindowText : Color.FromArgb(0x5A, 0x5A, 0x5A);
@@ -319,6 +346,31 @@ public sealed class SetupForm : Form
         _vlc.Toggle!.Checked = s.Vlc != VlcSetupState.NotInstalled && (!s.EverCompleted || s.ConfigureVlc);
         _keepAwake.Toggle!.Checked = s.KeepAwake;
         _mediaStation.Toggle!.Checked = s.MediaStation ?? true;
+        _mediaList.Items.Clear();
+        foreach (var folder in s.MediaFolders ?? []) _mediaList.Items.Add(folder);
+    }
+
+    private IReadOnlyList<string> MediaFolders => _mediaList.Items.Cast<string>().ToList();
+
+    private void AddMediaFolder()
+    {
+        using var dialog = new FolderBrowserDialog { Description = UiText.SetupMediaPick, UseDescriptionForTitle = true, ShowNewFolderButton = false };
+        if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.SelectedPath)) return;
+        var path = dialog.SelectedPath;
+        if (!MediaFolders.Contains(path, StringComparer.OrdinalIgnoreCase)) _mediaList.Items.Add(path);
+        RenderMedia();
+    }
+
+    private void RemoveMediaFolder()
+    {
+        if (_mediaList.SelectedIndex >= 0) _mediaList.Items.RemoveAt(_mediaList.SelectedIndex);
+        RenderMedia();
+    }
+
+    private void RenderMedia()
+    {
+        var count = _mediaList.Items.Count;
+        SetStatus(_media, count == 0 ? UiText.SetupMediaNone : UiText.SetupMediaCount(count), count == 0 ? Tone.Neutral : Tone.Ok);
     }
 
     private void Render(SetupSnapshot s)
@@ -343,6 +395,7 @@ public sealed class SetupForm : Form
                     break;
             }
 
+        RenderMedia();
         SetStatus(_keepAwake, s.KeepAwake ? UiText.SetupOn : UiText.SetupOff, s.KeepAwake ? Tone.Ok : Tone.Neutral);
         RenderMediaStation(s);
 
@@ -433,6 +486,8 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems)
             if (item.Toggle is not null)
                 item.Toggle.Enabled = enabled && (item != _vlc || _snapshot?.Vlc != VlcSetupState.NotInstalled);
+        _mediaList.Enabled = enabled;
+        foreach (Control c in _mediaRemove.Parent!.Controls) c.Enabled = enabled && (c != _mediaRemove || _mediaList.SelectedIndex >= 0);
         _apply.Enabled = enabled;
         _close.Enabled = enabled;
     }
@@ -444,7 +499,7 @@ public sealed class SetupForm : Form
         SetEnabled(false);
         _result = null;
         var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked,
-            _mediaStation.Toggle!.Checked);
+            _mediaStation.Toggle!.Checked, MediaFolders);
         if (choices.Firewall && _snapshot.Firewall is not { Ok: true })
             SetStatus(_firewall, UiText.SetupFirewallWaiting, Tone.Neutral);
         try
