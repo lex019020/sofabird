@@ -23,6 +23,7 @@ import sys
 
 TYPES = ("feat", "fix", "perf", "refactor", "docs", "test", "build", "ci", "chore", "revert")
 SCOPES = ("android", "companion", "protocol", "lua", "deploy", "docs", "ci", "deps")
+MAX_TITLE = 72
 TITLE_RE = re.compile(
     r"^(?P<type>" + "|".join(TYPES) + r")"
     r"(?:\((?P<scope>[a-z0-9-]+(?:,[a-z0-9-]+)*)\))?"
@@ -90,6 +91,8 @@ def cmd_check() -> int:
             errors.append(f"Unknown scope: {', '.join(bad)}. Allowed: {', '.join(SCOPES)}.")
     if CYRILLIC_RE.search(title):
         errors.append("The PR title must be in English.")
+    if len(title.strip()) > MAX_TITLE:
+        errors.append(f"The PR title is {len(title.strip())} characters long; at most {MAX_TITLE} (it becomes the commit title).")
     notes = extract_notes(body)
     if notes is None:
         errors.append("The description has no `## Release notes` section (user-facing bullets, or `none`).")
