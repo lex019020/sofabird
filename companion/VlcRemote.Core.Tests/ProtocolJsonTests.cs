@@ -47,7 +47,7 @@ public class ProtocolJsonTests
             Name = "HTPC",
             Caps = [Caps.CurrentTrack, Caps.Power],
             Token = "tok",
-            Vlc = new VlcInfo { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 },
+            Vlc = new VlcInfo { Running = true, Status = VlcStatusNames.Running, Version = "3.0.23", ApiVersion = 3, Level = 2 },
         });
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -56,6 +56,25 @@ public class ProtocolJsonTests
         Assert.Equal(1, root.GetProperty("v").GetInt32());
         Assert.Equal("currentTrack", root.GetProperty("caps")[0].GetString());
         Assert.Equal(2, root.GetProperty("vlc").GetProperty("level").GetInt32());
+        Assert.Equal("running", root.GetProperty("vlc").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void VlcStatus_NoControl_InStateAndInfo()
+    {
+        var vlc = new VlcInfo { Running = false, Status = VlcStatusNames.NoControl, Version = "3.0.23" };
+        var state = ProtocolJson.Serialize(new StateMessage { Vlc = vlc });
+        Assert.Contains("\"vlc\":{\"running\":false,\"status\":\"noControl\",\"version\":\"3.0.23\"", state);
+
+        using var info = JsonDocument.Parse(ProtocolJson.SerializeInfo(new InfoResponse { Name = "HTPC", Vlc = vlc }));
+        Assert.Equal("noControl", info.RootElement.GetProperty("vlc").GetProperty("status").GetString());
+
+        // Старый компаньон без status — поле просто отсутствует.
+        var old = ProtocolJson.Serialize(new StateMessage { Vlc = new VlcInfo { Running = true } });
+        Assert.DoesNotContain("status", old);
+        Assert.Equal(
+            new[] { "notInstalled", "notRunning", "starting", "noControl", "running" },
+            new[] { VlcStatusNames.NotInstalled, VlcStatusNames.NotRunning, VlcStatusNames.Starting, VlcStatusNames.NoControl, VlcStatusNames.Running });
     }
 
     [Fact]
@@ -63,6 +82,8 @@ public class ProtocolJsonTests
     {
         Assert.Equal("""{"t":"err","id":"3","code":"unauthorized","msg":"pairing required"}""",
             ProtocolJson.Serialize(new ErrMessage { Id = "3", Code = ErrorCodes.Unauthorized, Msg = "pairing required" }));
+        Assert.Equal("""{"t":"err","code":"pairing_required","msg":"pairing required"}""",
+            ProtocolJson.Serialize(new ErrMessage { Code = ErrorCodes.PairingRequired, Msg = "pairing required" }));
         Assert.Equal("""{"t":"ok","id":"4"}""", ProtocolJson.Serialize(new OkMessage { Id = "4" }));
         Assert.Equal("""{"t":"pong"}""", ProtocolJson.Serialize(new PongMessage()));
         Assert.IsType<PingMessage>(ProtocolJson.Deserialize("""{"t":"ping"}"""));

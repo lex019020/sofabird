@@ -128,7 +128,10 @@ class CompanionBackend(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CompanionHandshakeException) {
-                if (e.error is ConnectionError.PairingRequired || e.error is ConnectionError.ProtocolMismatch) {
+                if (e.error is ConnectionError.PairingRequired ||
+                    e.error is ConnectionError.InvalidPairCode ||
+                    e.error is ConnectionError.ProtocolMismatch
+                ) {
                     _connection.value = ConnectionState.Failed(e.error)
                     return // nothing to retry until the user acts
                 }
@@ -203,7 +206,7 @@ class CompanionBackend(
                 is CompanionMessage.Event -> {
                     _events.tryEmit(msg)
                     if (msg.name == "vlcExited") {
-                        _state.value = _state.value.copy(vlc = _state.value.vlc.copy(running = false))
+                        _state.value = _state.value.copy(vlc = _state.value.vlc.exited())
                     }
                 }
                 else -> {

@@ -38,6 +38,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly Icon _iconIdle;
     private readonly Control _ui;
     private PairingForm? _pairingForm;
+    private Action? _balloonClick;
     private bool _exiting;
 
     public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, SettingsStore settingsStore, VlcManager vlc,
@@ -64,7 +65,7 @@ public sealed class TrayContext : ApplicationContext
         _phonesItem = new ToolStripMenuItem("Телефонов подключено: 0") { Enabled = false };
         _pairItem = new ToolStripMenuItem("Сопряжение телефона…", null, (_, _) => BeginPairing());
         _launchItem = new ToolStripMenuItem("Запустить VLC", null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, _settings.PreferredDisplay, ct)));
-        _restartItem = new ToolStripMenuItem("Перезапустить VLC с веб-интерфейсом", null, (_, _) => RunAsync(ct => _vlc.RestartAsync(null, ct)));
+        _restartItem = new ToolStripMenuItem("Перезапустить VLC с веб-интерфейсом", null, (_, _) => RestartVlc());
         _quitVlcItem = new ToolStripMenuItem("Закрыть VLC", null, (_, _) => RunAsync(_vlc.QuitAsync));
         _displaysItem = new ToolStripMenuItem("Перенести VLC на экран");
         _luaItem = new ToolStripMenuItem("Установить Lua-страницы", null, (_, _) => InstallLuaPages());
@@ -94,12 +95,20 @@ public sealed class TrayContext : ApplicationContext
             Visible = true,
         };
         _icon.DoubleClick += (_, _) => BeginPairing();
+        _icon.BalloonTipClicked += (_, _) =>
+        {
+            var action = _balloonClick;
+            _balloonClick = null;
+            action?.Invoke();
+        };
 
         _vlc.RunStateChanged += () => Invoke(RefreshStatus);
         _vlc.StateChanged += s => Invoke(() => OnState(s));
         _sessions.CountChanged += () => Invoke(RefreshStatus);
         _pairing.Paired += d => Invoke(() => OnPaired(d));
         _pairing.PairingEnded += () => Invoke(OnPairingEnded);
+        _vlc.NoControlDetected += _ => Invoke(OnNoControl);
+        _host.PairingPromptRequested += p => Invoke(() => OnPairingPrompt(p));
 
         RefreshStatus();
     }
@@ -129,7 +138,7 @@ public sealed class TrayContext : ApplicationContext
             VlcRunState.NotInstalled => "VLC не найден",
             VlcRunState.NotRunning => "VLC не запущен",
             VlcRunState.Starting => "VLC запускается…",
-            VlcRunState.RunningNoApi => "VLC запущен без веб-интерфейса",
+            VlcRunState.RunningNoApi => "VLC открыт без управления с телефона",
             VlcRunState.Running => $"VLC {_vlc.Info.Version ?? ""} — {PlaybackText()}".TrimEnd(),
             _ => "VLC: ?",
         };
@@ -176,30 +185,99 @@ public sealed class TrayContext : ApplicationContext
 
     private void BeginPairing()
     {
-        if (_pairingForm is not null && !_pairingForm.IsDisposed)
+        if (_pairingForm is { IsDisposed: false } form)
         {
-            _pairingForm.Activate();
+            if (_pairing.ActiveCode is not null)
+            {
+                form.BringToFrontTopMost();
+                return;
+            }
+            form.Close(); // код в окне уже недействителен (исчерпаны попытки)
+        }
+        ShowPairingForm(_pairing.BeginPairing(), requestingDevice: null);
+    }
+
+    /// <summary>Телефон без токена постучался без кода (<see cref="CompanionHost.RequestPairing"/>).</summary>
+    private void OnPairingPrompt(PairingPrompt prompt)
+    {
+        if (_pairingForm is { IsDisposed: false } stale && prompt.Action == PairingPromptAction.ShowNew)
+        {
+            // В окне устаревший код (попытки исчерпаны) — заменяем окно новым.
+            stale.Close();
+        }
+        if (_pairingForm is { IsDisposed: false } form)
+        {
+            form.SetRequester(prompt.DeviceName);
+            form.BringToFrontTopMost();
+            _log.LogInformation("Pairing window brought to front for {Device}", prompt.DeviceName ?? "?");
             return;
         }
-        var code = _pairing.BeginPairing();
+        // Окна нет: показываем действующий код (или созданный для этого запроса).
+        var code = _pairing.ActiveCode ?? prompt.Code;
+        if (code is null) return; // код успел истечь — телефон постучится снова
+        ShowPairingForm(code, prompt.DeviceName);
+    }
+
+    private void ShowPairingForm(string code, string? requestingDevice)
+    {
         var address = $"{NetworkUtil.GetPrimaryLanAddress() ?? Environment.MachineName}:{_settings.WsPort}";
-        var screen = (_settings.PreferredDisplay is int idx ? _display.GetScreen(idx) : null) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
-        _pairingForm = new PairingForm(code, address, _pairing.ExpiresAt ?? DateTimeOffset.UtcNow.AddMinutes(5), screen);
-        _pairingForm.FormClosed += (_, _) =>
+        var screen = PickPairingScreen();
+        _pairingForm = new PairingForm(code, address, _pairing.ExpiresAt ?? DateTimeOffset.UtcNow.AddMinutes(5), screen, requestingDevice);
+        var form = _pairingForm;
+        form.FormClosed += (_, _) =>
         {
-            _pairingForm = null;
-            if (_pairing.IsPairingActive) _pairing.CancelPairing();
+            if (ReferenceEquals(_pairingForm, form)) _pairingForm = null;
+            // Отменяем только свой код: окно могли закрыть, заменяя его окном с новым кодом.
+            if (_pairing.ActiveCode == code) _pairing.CancelPairing();
         };
-        _pairingForm.Show();
-        _pairingForm.Activate();
-        _log.LogInformation("Pairing window shown at {Address}", address);
+        form.Show();
+        form.BringToFrontTopMost();
+        _log.LogInformation("Pairing window shown at {Address} on {Screen} (requested by {Device})",
+            address, screen.DeviceName, requestingDevice ?? "tray");
+    }
+
+    /// <summary>Экран для окна с кодом: где сейчас окно VLC, иначе предпочитаемый (ТВ), иначе основной.</summary>
+    private Screen PickPairingScreen()
+    {
+        Screen? screen = null;
+        if (_vlc.ProcessId is int pid && _vlc.IsProcessRunning)
+        {
+            try
+            {
+                if (_display.FindDisplayOfProcess(pid) is int vlcDisplay) screen = _display.GetScreen(vlcDisplay);
+            }
+            catch (Exception ex)
+            {
+                _log.LogDebug(ex, "Display of VLC window not found");
+            }
+        }
+        screen ??= _settings.PreferredDisplay is int idx ? _display.GetScreen(idx) : null;
+        return screen ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
+    }
+
+    private void OnNoControl()
+    {
+        ShowBalloon(6000, "VLC открыт без управления с телефона. Перезапустите его — дальше VLC будет запускаться с управлением сам.",
+            ToolTipIcon.Warning, () =>
+            {
+                // Уведомление могло пролежать в центре уведомлений — перезапускаем, только если VLC всё ещё без управления.
+                if (_vlc.RunState == VlcRunState.RunningNoApi) RestartVlc();
+            });
+    }
+
+    private void RestartVlc() => RunAsync(ct => _vlc.RestartAsync(null, null, ct));
+
+    private void ShowBalloon(int timeoutMs, string text, ToolTipIcon icon, Action? onClick = null)
+    {
+        _balloonClick = onClick;
+        _icon.ShowBalloonTip(timeoutMs, "VLC Remote", text, icon);
     }
 
     private void OnPaired(PairedDevice device)
     {
         _sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = device.DeviceName });
         if (_pairingForm is { IsDisposed: false }) _pairingForm.ShowPaired(device.DeviceName);
-        _icon.ShowBalloonTip(3000, "VLC Remote", $"Телефон «{device.DeviceName ?? "?"}» сопряжён", ToolTipIcon.Info);
+        ShowBalloon(3000, $"Телефон «{device.DeviceName ?? "?"}» сопряжён", ToolTipIcon.Info);
     }
 
     private void OnPairingEnded()
@@ -211,11 +289,11 @@ public sealed class TrayContext : ApplicationContext
     {
         var installed = _vlc.TryInstallLuaPages(initial: false, force: true);
         if (installed)
-            _icon.ShowBalloonTip(3000, "VLC Remote", "Lua-страницы установлены в %APPDATA%\\vlc\\lua\\http. Они заработают при следующем запуске VLC.", ToolTipIcon.Info);
+            ShowBalloon(3000, "Lua-страницы установлены в %APPDATA%\\vlc\\lua\\http. Они заработают при следующем запуске VLC.", ToolTipIcon.Info);
         else if (_vlc.LuaInstallPending)
-            _icon.ShowBalloonTip(4000, "VLC Remote", "VLC запущен — страницы будут установлены автоматически после его закрытия.", ToolTipIcon.Warning);
+            ShowBalloon(4000, "VLC запущен — страницы будут установлены автоматически после его закрытия.", ToolTipIcon.Warning);
         else
-            _icon.ShowBalloonTip(4000, "VLC Remote", "Не удалось установить Lua-страницы (см. журнал).", ToolTipIcon.Error);
+            ShowBalloon(4000, "Не удалось установить Lua-страницы (см. журнал).", ToolTipIcon.Error);
     }
 
     private void ToggleAutostart()
@@ -227,7 +305,7 @@ public sealed class TrayContext : ApplicationContext
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Autostart toggle failed");
-            _icon.ShowBalloonTip(3000, "VLC Remote", "Не удалось изменить автозапуск: " + ex.Message, ToolTipIcon.Error);
+            ShowBalloon(3000, "Не удалось изменить автозапуск: " + ex.Message, ToolTipIcon.Error);
         }
     }
 
@@ -267,7 +345,7 @@ public sealed class TrayContext : ApplicationContext
             catch (Exception ex)
             {
                 _log.LogWarning(ex, "Tray action failed");
-                Invoke(() => _icon.ShowBalloonTip(4000, "VLC Remote", ex.Message, ToolTipIcon.Warning));
+                Invoke(() => ShowBalloon(4000, ex.Message, ToolTipIcon.Warning));
             }
             Invoke(RefreshStatus);
         });

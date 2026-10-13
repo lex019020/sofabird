@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using VlcRemote.Companion.Interop;
 using VlcRemote.Core.Lua;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
@@ -60,6 +61,8 @@ public sealed class VlcManager : IAsyncDisposable
     private int _consecutiveHttpFailures;
     private CancellationTokenSource? _postOpenCts;
     private string? _lastAudioDevice;
+    private readonly VlcrcConfigurator? _vlcrc;
+    private int? _noControlNotifiedPid;
 
     public VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf)
     {
@@ -71,9 +74,22 @@ public sealed class VlcManager : IAsyncDisposable
         _http = new VlcHttpClient("127.0.0.1", settings.VlcHttpPort, settings.VlcHttpPassword ?? "", logger: lf.CreateLogger<VlcHttpClient>());
         _rc = new VlcRcClient("127.0.0.1", settings.VlcRcPort, lf.CreateLogger<VlcRcClient>());
         _rc.StatusChanged += OnRcStatusChanged;
-        Info = new VlcInfo { Running = false, Version = installation?.Version, Level = 2 };
         RunState = installation is null ? VlcRunState.NotInstalled : VlcRunState.NotRunning;
+        Info = new VlcInfo { Running = false, Status = ToStatus(RunState), Version = installation?.Version, Level = 2 };
+        if (settings.ConfigureVlc)
+            _vlcrc = new VlcrcConfigurator(settings.VlcrcPath ?? VlcrcConfigurator.DefaultPath, lf.CreateLogger<VlcrcConfigurator>());
     }
+
+    /// <summary><see cref="VlcRunState"/> → <c>vlc.status</c> протокола.</summary>
+    public static string ToStatus(VlcRunState state) => state switch
+    {
+        VlcRunState.NotInstalled => VlcStatusNames.NotInstalled,
+        VlcRunState.NotRunning => VlcStatusNames.NotRunning,
+        VlcRunState.Starting => VlcStatusNames.Starting,
+        VlcRunState.RunningNoApi => VlcStatusNames.NoControl,
+        VlcRunState.Running => VlcStatusNames.Running,
+        _ => VlcStatusNames.NotRunning,
+    };
 
     public VlcInstallation? Installation { get; private set; }
     public VlcRunState RunState { get; private set; }
@@ -93,11 +109,14 @@ public sealed class VlcManager : IAsyncDisposable
     public event Action<StateMessage>? StateChanged;
     public event Action<EventMessage>? Event;
     public event Action? RunStateChanged;
+    /// <summary>VLC открыт без управления (не отвечает HTTP с нашим паролем); раз на процесс, аргумент — PID.</summary>
+    public event Action<int>? NoControlDetected;
 
     public void Start()
     {
         if (_loop is not null) return;
         if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: true);
+        TryConfigureVlcrc();
         _loop = Task.Run(() => PollLoopAsync(_cts.Token));
     }
 
@@ -159,17 +178,31 @@ public sealed class VlcManager : IAsyncDisposable
             catch (VlcException ex)
             {
                 _consecutiveHttpFailures++;
-                var starting = _owned is not null && !_owned.HasExited && DateTimeOffset.UtcNow - _ownedStartedAt < TimeSpan.FromSeconds(20);
+                // Разовый сбой (VLC занят открытием файла) не считаем потерей управления.
+                if (RunState == VlcRunState.Running && _consecutiveHttpFailures < 3)
+                {
+                    _log.LogDebug("VLC HTTP request failed ({Count} in a row): {Error}", _consecutiveHttpFailures, ex.Message);
+                    return;
+                }
+                var starting = (_owned is not null && !_owned.HasExited && DateTimeOffset.UtcNow - _ownedStartedAt < TimeSpan.FromSeconds(20))
+                    || StartedRecently(process, TimeSpan.FromSeconds(20)); // открыт вручную, HTTP ещё поднимается (первый запуск со «stale plugins cache» — ~12 с)
                 var newState = starting ? VlcRunState.Starting : VlcRunState.RunningNoApi;
                 if (RunState != newState)
                 {
                     _log.LogInformation("VLC process {Pid} is running but HTTP is not available: {Error}", process.Id, ex.Message);
+                    if (RunState == VlcRunState.Running)
+                    {
+                        _lastStatus = null;
+                        await _rc.DisconnectAsync().ConfigureAwait(false);
+                    }
                     SetRunState(newState);
                 }
-                if (RunState == VlcRunState.RunningNoApi && Info.Running)
+                if (newState == VlcRunState.RunningNoApi && _noControlNotifiedPid != process.Id)
                 {
-                    Info.Running = false;
-                    PublishState(BuildState(null));
+                    _noControlNotifiedPid = process.Id;
+                    _log.LogWarning("VLC {Pid} was opened without phone control (HTTP interface with the companion password is not available)", process.Id);
+                    try { NoControlDetected?.Invoke(process.Id); }
+                    catch (Exception hex) { _log.LogWarning(hex, "NoControlDetected handler failed"); }
                 }
                 return;
             }
@@ -177,7 +210,6 @@ public sealed class VlcManager : IAsyncDisposable
             if (RunState != VlcRunState.Running)
             {
                 _log.LogInformation("VLC HTTP interface is up (version {Version}, api {Api})", status.Version, status.ApiVersion);
-                Info.Running = true;
                 Info.Version = NormalizeVersion(status.Version) ?? Info.Version;
                 Info.ApiVersion = status.ApiVersion;
                 SetRunState(VlcRunState.Running);
@@ -272,7 +304,6 @@ public sealed class VlcManager : IAsyncDisposable
         if (wasRunning)
         {
             _log.LogInformation("VLC exited");
-            Info.Running = false;
             _lastStatus = null;
             _playlist = null;
             _tracksPage = null;
@@ -281,6 +312,8 @@ public sealed class VlcManager : IAsyncDisposable
             SetRunState(Installation is null ? VlcRunState.NotInstalled : VlcRunState.NotRunning);
             await _rc.DisconnectAsync().ConfigureAwait(false);
             RaiseEvent(new EventMessage { Name = EventNames.VlcExited });
+            // VLC закрыт и больше не перезапишет vlcrc — прописываем интерфейсы для следующего запуска.
+            TryConfigureVlcrc();
         }
         if (_luaInstallPending) TryInstallLuaPages(initial: false);
         if (_lastStateJson is null || wasRunning)
@@ -343,10 +376,20 @@ public sealed class VlcManager : IAsyncDisposable
         catch (Exception ex) { _log.LogWarning(ex, "Event handler failed"); }
     }
 
+    private static bool StartedRecently(Process process, TimeSpan window)
+    {
+        try { return DateTime.Now - process.StartTime < window; }
+        catch { return false; }
+    }
+
     private void SetRunState(VlcRunState s)
     {
         if (RunState == s) return;
         RunState = s;
+        Info.Status = ToStatus(s);
+        Info.Running = s == VlcRunState.Running;
+        // Для Running состояние опубликует опрос (с данными status.json).
+        if (s != VlcRunState.Running) PublishState(BuildState(null));
         try { RunStateChanged?.Invoke(); }
         catch (Exception ex) { _log.LogWarning(ex, "RunStateChanged handler failed"); }
     }
@@ -454,7 +497,8 @@ public sealed class VlcManager : IAsyncDisposable
 
     /// <summary>
     /// Запустить <c>vlc.exe</c> с HTTP+RC интерфейсами. Если VLC уже под контролем — открыть
-    /// <paramref name="uri"/> через HTTP. Если запущен без API — исключение (нужен перезапуск).
+    /// <paramref name="uri"/> через HTTP. Если VLC открыт без управления (<see cref="VlcRunState.RunningNoApi"/>) —
+    /// перезапустить его с тем же файлом (позиция теряется). Если запускается — дождаться.
     /// </summary>
     public async Task LaunchAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
@@ -462,23 +506,45 @@ public sealed class VlcManager : IAsyncDisposable
         if (Installation is null)
             throw ProtocolException.VlcNotRunning("VLC не найден. Установите VLC 3.x или укажите путь в настройках.");
 
-        if (RunState == VlcRunState.Running)
+        if (RunState == VlcRunState.Starting)
         {
-            if (!string.IsNullOrEmpty(uri))
-                await OpenAsync(uri, enqueue: false, subtitle: null, audioTrack: null, subtitleTrack: null, ct).ConfigureAwait(false);
-            return;
+            var wait = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(20);
+            while (RunState == VlcRunState.Starting && DateTimeOffset.UtcNow < wait)
+            {
+                Poke();
+                await Task.Delay(300, ct).ConfigureAwait(false);
+            }
         }
-        if (RunState is VlcRunState.RunningNoApi or VlcRunState.Starting)
-            throw ProtocolException.VlcError("VLC запущен без веб-интерфейса — перезапустите его из меню компаньона");
 
+        switch (RunState)
+        {
+            case VlcRunState.Running:
+                if (!string.IsNullOrEmpty(uri))
+                    await OpenAsync(uri, enqueue: false, subtitle: null, audioTrack: null, subtitleTrack: null, ct).ConfigureAwait(false);
+                return;
+            case VlcRunState.RunningNoApi:
+                await RestartAsync(uri, displayIndex, ct).ConfigureAwait(false);
+                return;
+            case VlcRunState.Starting:
+                _log.LogWarning("launch: VLC is still starting after 20 s");
+                return;
+        }
+
+        await StartProcessAsync(uri, displayIndex, ct).ConfigureAwait(false);
+    }
+
+    private async Task StartProcessAsync(string? uri, int? displayIndex, CancellationToken ct)
+    {
+        var installation = Installation ?? throw ProtocolException.VlcNotRunning("VLC не найден");
         if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: false);
+        TryConfigureVlcrc();
 
         var psi = new ProcessStartInfo
         {
-            FileName = Installation.ExePath,
+            FileName = installation.ExePath,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = Installation.InstallDir,
+            WorkingDirectory = installation.InstallDir,
         };
         foreach (var a in BuildLaunchArgs(uri, displayIndex ?? _settings.PreferredDisplay))
             psi.ArgumentList.Add(a);
@@ -561,28 +627,80 @@ public sealed class VlcManager : IAsyncDisposable
         if (sb.Length > 0) yield return sb.ToString();
     }
 
-    /// <summary>Закрыть все экземпляры VLC (включая запущенные без API) и запустить заново.</summary>
-    public async Task RestartAsync(string? uri, CancellationToken ct)
+    /// <summary>
+    /// Закрыть все экземпляры VLC (включая открытые без управления) и запустить заново с управлением.
+    /// Без <paramref name="uri"/> VLC открывается с тем же файлом: текущий элемент (если VLC под контролем)
+    /// или файл из командной строки процесса. Позиция воспроизведения теряется.
+    /// </summary>
+    public async Task RestartAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
-        await QuitAsync(ct).ConfigureAwait(false);
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(10);
-        while (DateTimeOffset.UtcNow < deadline)
+        if (string.IsNullOrEmpty(uri))
         {
-            var procs = VlcLocator.RunningProcesses();
-            if (procs.Length == 0) break;
-            foreach (var p in procs) p.Dispose();
-            await Task.Delay(300, ct).ConfigureAwait(false);
+            uri = RunState == VlcRunState.Running ? LastState?.Item?.Uri : null;
+            uri ??= ReadMediaFromRunningProcess();
+        }
+        _log.LogInformation("Restarting VLC with phone control; media: {Media}", string.IsNullOrEmpty(uri) ? "(none)" : uri);
+
+        if (RunState == VlcRunState.Running)
+        {
+            try
+            {
+                await _rc.QuitAsync(ct).ConfigureAwait(false);
+                await WaitForExitAsync(TimeSpan.FromSeconds(3), ct).ConfigureAwait(false);
+            }
+            catch (VlcException ex)
+            {
+                _log.LogDebug("RC quit failed: {Error}", ex.Message);
+            }
         }
         foreach (var p in VlcLocator.RunningProcesses())
         {
-            _log.LogWarning("VLC {Pid} did not exit gracefully; killing", p.Id);
-            try { p.Kill(); } catch { }
+            try { p.CloseMainWindow(); } catch { }
             p.Dispose();
         }
-        await Task.Delay(500, ct).ConfigureAwait(false);
-        Poke();
-        await Task.Delay(200, ct).ConfigureAwait(false);
-        await LaunchAsync(uri, null, ct).ConfigureAwait(false);
+        if (!await WaitForExitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false))
+        {
+            foreach (var p in VlcLocator.RunningProcesses())
+            {
+                _log.LogWarning("VLC {Pid} did not exit gracefully; killing", p.Id);
+                try { p.Kill(); } catch { }
+                p.Dispose();
+            }
+            if (!await WaitForExitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false))
+                throw ProtocolException.VlcError("Не удалось закрыть VLC");
+        }
+
+        // Опрос увидит, что процесса нет (NotRunning), и пропишет vlcrc; затем обычный запуск.
+        await PollOnceAsync(ct).ConfigureAwait(false);
+        TryConfigureVlcrc();
+        Installation ??= VlcLocator.Find(_settings.VlcPath);
+        await StartProcessAsync(uri, displayIndex, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Файл/URI из командной строки запущенного vlc.exe (например, открытого двойным кликом по файлу).</summary>
+    private string? ReadMediaFromRunningProcess()
+    {
+        var procs = VlcLocator.RunningProcesses();
+        try
+        {
+            foreach (var p in procs)
+            {
+                var cmd = ProcessCommandLine.TryGet(p.Id);
+                if (cmd is null) continue;
+                var media = VlcCommandLine.ExtractMedia(ProcessCommandLine.Split(cmd));
+                _log.LogDebug("VLC {Pid} command line media: {Media}", p.Id, media ?? "(none)");
+                if (media is not null) return media;
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Reading VLC command line failed");
+        }
+        finally
+        {
+            foreach (var p in procs) p.Dispose();
+        }
+        return null;
     }
 
     /// <summary>Закрыть VLC: RC <c>quit</c>, затем <c>vlc://quit</c> по HTTP, затем закрытие окна.</summary>
@@ -632,6 +750,30 @@ public sealed class VlcManager : IAsyncDisposable
         return false;
     }
 
+    // ------------------------------------------------------------------ vlcrc
+
+    /// <summary>
+    /// Прописать в vlcrc веб-интерфейс и RC с паролем компаньона (если включено <c>ConfigureVlc</c>).
+    /// Только когда ни один vlc.exe не запущен — иначе VLC перезапишет файл из памяти.
+    /// </summary>
+    public VlcrcResult? TryConfigureVlcrc()
+    {
+        if (_vlcrc is null || Installation is null) return null;
+        try
+        {
+            var procs = VlcLocator.RunningProcesses();
+            var running = procs.Length > 0;
+            foreach (var p in procs) p.Dispose();
+            if (running) return null;
+            return _vlcrc.Ensure(new VlcrcSettings(_settings.VlcHttpPort, _settings.VlcHttpPassword ?? "", _settings.VlcRcPort));
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Configuring {Path} failed", _vlcrc.Path);
+            return null;
+        }
+    }
+
     // ------------------------------------------------------------------ Lua pages
 
     /// <summary>Установить Lua-страницы, если VLC не запущен; иначе отложить до его закрытия.</summary>
@@ -676,7 +818,7 @@ public sealed class VlcManager : IAsyncDisposable
             throw ProtocolException.VlcNotRunning(RunState switch
             {
                 VlcRunState.NotInstalled => "VLC не установлен",
-                VlcRunState.RunningNoApi => "VLC запущен без веб-интерфейса",
+                VlcRunState.RunningNoApi => "VLC открыт без управления с телефона — перезапустите его",
                 VlcRunState.Starting => "VLC запускается",
                 _ => "VLC не запущен",
             });
@@ -700,18 +842,25 @@ public sealed class VlcManager : IAsyncDisposable
         }).ToList();
     }
 
+    /// <summary>
+    /// Обзор файлов делает сам компаньон (без VLC): библиотека доступна, даже когда VLC закрыт или открыт
+    /// без управления — фильм выбирается на телефоне, а <c>open</c> запускает VLC.
+    /// </summary>
     public async Task<IReadOnlyList<BrowseEntry>> BrowseAsync(string uri, CancellationToken ct)
     {
-        EnsureRunning();
-        var entries = await _http.BrowseAsync(uri, ct).ConfigureAwait(false);
-        return entries.Select(e => new BrowseEntry
+        var browser = new LocalFileBrowser(() => _settings.MediaRoots);
+        try
         {
-            Name = e.Name,
-            Uri = e.Uri,
-            Type = e.Type == "dir" ? "dir" : "file",
-            Size = e.Type == "dir" ? null : e.Size,
-            Modified = e.ModificationTime,
-        }).ToList();
+            return await Task.Run(() => browser.Browse(uri), ct).ConfigureAwait(false);
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            throw ProtocolException.BadRequest(ex.Message);
+        }
+        catch (IOException ex)
+        {
+            throw ProtocolException.BadRequest("Папка недоступна: " + ex.Message);
+        }
     }
 
     public async Task<TracksInfo> GetTracksAsync(CancellationToken ct)
@@ -734,6 +883,10 @@ public sealed class VlcManager : IAsyncDisposable
     {
         switch (name)
         {
+            case "open" when RunState != VlcRunState.Running && !(args.GetBool("enqueue") ?? false):
+                // VLC закрыт / запускается / без управления: запускаем (или перезапускаем) его сразу с этим файлом.
+                await LaunchAsync(args.RequireString("uri"), args.GetInt("display"), ct).ConfigureAwait(false);
+                return;
             case "launch":
                 await LaunchAsync(args.GetString("uri"), args.GetInt("display"), ct).ConfigureAwait(false);
                 return;

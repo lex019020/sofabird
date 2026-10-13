@@ -37,7 +37,7 @@
     <string name="err_empty_body">Пустой ответ: VLC ещё запускается, повторите через пару секунд</string>
     <string name="err_lua">Ошибка Lua‑страницы в VLC %1$s</string>
     <string name="err_unknown_host">Не удалось определить адрес ПК</string>
-    <string name="err_pairing_required">Нужно сопряжение: введите код с экрана ПК</string>
+    <string name="err_pairing_required">Телефон не сопряжён с этим компьютером</string>
     <string name="err_vlc_not_running">VLC не запущен на ПК</string>
     <string name="err_protocol_mismatch">Компаньон использует другую версию протокола (%1$s) — обновите приложение или компаньон</string>
     <string name="err_other">Ошибка: %1$s</string>
@@ -51,7 +51,7 @@
     <string name="hint_refused">Проверьте, что в VLC включён «Веб» в основных интерфейсах и что порт совпадает (по умолчанию 8080).</string>
     <string name="hint_timeout">Телефон и ПК должны быть в одной Wi‑Fi‑сети. Брандмауэр Windows должен разрешать vlc.exe в частной сети.</string>
     <string name="hint_empty_body">Подождите, пока VLC полностью запустится, и нажмите «Проверить» ещё раз.</string>
-    <string name="hint_pairing_required">В трее на ПК: VLC Remote → «Сопряжение телефона». Код действует 5 минут.</string>
+    <string name="hint_pairing_required">Нажмите на компьютер в списке — на его экране появится код. Если окна нет: значок VLC Remote в трее → «Сопряжение телефона…».</string>
 
     <!-- Пульт -->
     <string name="not_connected_title">Нет подключения</string>
@@ -124,9 +124,8 @@
     <!-- Подключение -->
     <string name="connection_title">Подключение</string>
     <string name="saved_pcs">Сохранённые ПК</string>
-    <string name="found_pcs">Найдено в сети</string>
-    <string name="searching">Ищу компаньон в сети…</string>
-    <string name="nothing_found">Пока ничего не найдено. Компаньон объявляет себя сам; VLC без компаньона можно найти сканированием сети.</string>
+    <string name="found_pcs">VLC в сети без компаньона</string>
+    <string name="searching">Ищу компьютер с компаньоном…</string>
     <string name="sweep_subnet">Найти VLC сканированием сети</string>
     <string name="sweeping">Сканирую сеть…</string>
     <string name="sweep_hint">Проверяет порт 8080 на всех адресах вашей подсети (около 10 секунд).</string>
@@ -137,20 +136,14 @@
     <string name="field_port">Порт</string>
     <string name="field_name_optional">Название (необязательно)</string>
     <string name="field_password">Пароль веб‑интерфейса VLC</string>
-    <string name="field_pair_code">Код сопряжения (6 цифр)</string>
-    <string name="field_pair_code_again">Новый код сопряжения (если нужно пересопрячь)</string>
-    <string name="pair_code_hint">Трей на ПК → VLC Remote → «Сопряжение телефона»</string>
     <string name="already_paired">Телефон уже сопряжён с этим ПК</string>
     <string name="testing">Проверяю…</string>
     <string name="test_ok_direct">Работает: %1$s, %2$s</string>
-    <string name="test_ok_companion">Работает: %1$s · %2$s</string>
     <string name="action_test">Проверить</string>
     <string name="action_save_connect">Сохранить и подключить</string>
     <string name="badge_pc_found">ПК найден</string>
-    <string name="badge_companion">компаньон</string>
     <string name="badge_vlc_running">VLC запущен</string>
     <string name="badge_vlc_not_running">VLC не запущен</string>
-    <string name="badge_needs_pairing">нужно сопряжение</string>
 
     <string name="instructions_show">Как включить веб‑интерфейс VLC</string>
     <string name="instructions_hide">Скрыть инструкцию</string>
@@ -208,4 +201,41 @@
     <string name="section_power">Питание</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
+
+    <!-- Сопряжение и состояние VLC -->
+    <string name="close">Закрыть</string>
+    <string name="expand">Развернуть</string>
+    <string name="collapse">Свернуть</string>
+    <string name="more_actions">Ещё действия</string>
+    <string name="nearby_pcs">Компьютеры рядом</string>
+    <string name="nearby_not_found">Компьютер не найден. Проверьте, что на ПК запущен компаньон VLC Remote (значок в трее) и телефон в той же Wi‑Fi‑сети. Ниже — другие способы подключения.</string>
+    <string name="nearby_tap_to_pair">Нажмите — на экране компьютера появится код</string>
+    <string name="badge_paired">сопряжён</string>
+    <string name="badge_connected">подключён</string>
+    <string name="badge_vlc_no_control">VLC без управления</string>
+    <string name="badge_vlc_starting">VLC запускается…</string>
+    <string name="badge_vlc_not_installed">VLC не установлен</string>
+    <string name="forget_pc">Забыть этот компьютер</string>
+    <string name="other_ways">Другие способы подключения</string>
+    <string name="other_ways_hint">VLC без компаньона, ввод адреса вручную, поиск по сети</string>
+    <string name="manual_companion_hint">После нажатия «Подключить» на экране компьютера появится код — введите его на телефоне.</string>
+    <string name="pairing_connecting">Подключаюсь к %1$s…</string>
+    <string name="pairing_auto_found">Найден компьютер %1$s — подключаюсь…</string>
+    <string name="pairing_failed_title">Не удалось подключиться к %1$s</string>
+    <string name="pair_dialog_title">Введите код с экрана компьютера</string>
+    <string name="pair_dialog_hint">Код показан на экране ПК %1$s.</string>
+    <string name="pair_dialog_fallback">Окна с кодом нет? На ПК: значок VLC Remote в трее → «Сопряжение телефона…».</string>
+    <string name="pair_dialog_checking">Проверяю код…</string>
+    <string name="err_invalid_pair_code">Неверный или устаревший код</string>
+    <string name="hint_invalid_pair_code">Введите код, который сейчас на экране ПК. Код действует 5 минут.</string>
+    <string name="action_enter_code">Ввести код</string>
+    <string name="vlc_state_starting">VLC запускается…</string>
+    <string name="vlc_state_not_running_manual">Запустите VLC на компьютере — пульт подхватит его сам.</string>
+    <string name="vlc_state_no_control_title">VLC открыт без управления с телефона</string>
+    <string name="vlc_state_no_control_body">Компаньон перезапустит VLC с тем же фильмом; дальше VLC будет запускаться с управлением сам</string>
+    <string name="vlc_state_no_control_note">Позиция в фильме при перезапуске не сохранится.</string>
+    <string name="vlc_state_no_control_manual">Закройте VLC на компьютере и откройте его снова — после этого пульт сможет им управлять.</string>
+    <string name="action_restart_with_control">Перезапустить с управлением</string>
+    <string name="vlc_state_not_installed_title">На компьютере не найден VLC</string>
+    <string name="vlc_state_not_installed_body">Установите VLC 3.0 с сайта videolan.org — компаньон найдёт его сам.</string>
 </resources>

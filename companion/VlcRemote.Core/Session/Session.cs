@@ -117,6 +117,8 @@ public sealed class Session : IAsyncDisposable
             if (!result.Success)
             {
                 _log.LogWarning("Pairing failed for {Device}: {Reason}", hello.Device?.Name, result.Reason);
+                // Код истёк или попытки исчерпаны — показать окно с новым кодом (ограничено по частоте).
+                if (!pairing.IsPairingActive) RequestPairing(hello.Device);
                 await SendAsync(new ErrMessage { Id = hello.Id, Code = ErrorCodes.Unauthorized, Msg = result.Reason ?? "pairing failed" }, ct).ConfigureAwait(false);
                 return false;
             }
@@ -125,7 +127,10 @@ public sealed class Session : IAsyncDisposable
         }
         else if (!pairing.ValidateToken(hello.Token))
         {
-            await SendAsync(new ErrMessage { Id = hello.Id, Code = ErrorCodes.Unauthorized, Msg = "pairing required" }, ct).ConfigureAwait(false);
+            _log.LogInformation("Device {Device} is not paired (token {TokenState}); asking the host to show the pairing code",
+                hello.Device?.Name ?? "?", string.IsNullOrEmpty(hello.Token) ? "missing" : "unknown");
+            RequestPairing(hello.Device);
+            await SendAsync(new ErrMessage { Id = hello.Id, Code = ErrorCodes.PairingRequired, Msg = "pairing required" }, ct).ConfigureAwait(false);
             return false;
         }
 
@@ -142,6 +147,12 @@ public sealed class Session : IAsyncDisposable
         try { Authenticated?.Invoke(this); }
         catch (Exception ex) { _log.LogWarning(ex, "Authenticated handler failed"); }
         return true;
+    }
+
+    private void RequestPairing(DeviceInfo? device)
+    {
+        try { _host.RequestPairing(device); }
+        catch (Exception ex) { _log.LogWarning(ex, "RequestPairing failed"); }
     }
 
     private async Task HandleLineAsync(string line, CancellationToken ct)

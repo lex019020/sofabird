@@ -27,6 +27,7 @@ public sealed class CompanionHost : ISessionHost
         _settingsStore = settingsStore;
         _vlc = vlc;
         Pairing = pairing;
+        PairingPrompter = new PairingPrompter(pairing);
         _display = display;
         _power = power;
         _audio = audio;
@@ -53,6 +54,21 @@ public sealed class CompanionHost : ISessionHost
     public IReadOnlyList<string> Caps { get; }
     public VlcInfo VlcInfo => _vlc.Info;
     public PairingService Pairing { get; }
+
+    /// <summary>Решения об автоматическом окне сопряжения (ограничение частоты, «не создавать второй код»).</summary>
+    public PairingPrompter PairingPrompter { get; }
+
+    /// <summary>Нужно показать/поднять окно с кодом. Вызывается из потока сессии — подписчик сам маршалит в UI.</summary>
+    public event Action<PairingPrompt>? PairingPromptRequested;
+
+    public void RequestPairing(DeviceInfo? device)
+    {
+        var prompt = PairingPrompter.Request(device?.Name, device?.Id);
+        _log.LogInformation("Pairing requested by {Device} ({Id}): {Action}", device?.Name ?? "?", device?.Id ?? "?", prompt.Action);
+        if (prompt.Action == PairingPromptAction.Throttled) return;
+        try { PairingPromptRequested?.Invoke(prompt); }
+        catch (Exception ex) { _log.LogWarning(ex, "PairingPromptRequested handler failed"); }
+    }
 
     public InfoResponse BuildInfo() => new()
     {

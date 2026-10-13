@@ -101,9 +101,7 @@ class LibraryViewModel(
     fun up() {
         val current = uri.value
         if (current == ROOT_URI) return
-        val trimmed = current.trimEnd('/')
-        val parent = trimmed.substringBeforeLast('/', "")
-        uri.value = if (parent.isEmpty() || parent == "file://" || parent.length < "file:///".length) ROOT_URI else "$parent/"
+        uri.value = parentDirUri(current)
         load()
         rememberPath()
     }
@@ -168,18 +166,42 @@ class LibraryViewModel(
 
     private fun normalizeDir(u: String): String = if (u.endsWith("/")) u else "$u/"
 
-    private fun crumbs(u: String): List<Crumb> {
-        if (u == ROOT_URI) return emptyList()
-        val path = u.removePrefix(ROOT_URI).trimEnd('/')
-        val parts = path.split('/').filter { it.isNotEmpty() }
-        val result = mutableListOf<Crumb>()
-        var acc = ROOT_URI
-        for (part in parts) {
-            acc += "$part/"
-            result += Crumb(displayNameFromUri(acc), acc)
-        }
-        return result
-    }
+    private fun crumbs(u: String): List<Crumb> =
+        crumbUris(u).map { Crumb(displayNameFromUri(it), it) }
 
     private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+}
+
+/**
+ * Parent folder of a directory URI. Local paths (`file:///D:/a/`) go up to the drive and then to [ROOT_URI];
+ * network paths (`file://host/share/a/`) go up to the share root `file://host/share/` and then to [ROOT_URI]
+ * (a bare `file://host/` is not a folder).
+ */
+internal fun parentDirUri(current: String): String {
+    if (current == ROOT_URI) return ROOT_URI
+    val crumbs = crumbUris(current)
+    return if (crumbs.size <= 1) ROOT_URI else crumbs[crumbs.size - 2]
+}
+
+/** Folder chain from the top for a directory URI, e.g. `file:///D:/`, `file:///D:/a/`; UNC starts at `file://host/share/`. */
+internal fun crumbUris(u: String): List<String> {
+    if (u == ROOT_URI || !u.startsWith("file://")) return emptyList()
+    val result = mutableListOf<String>()
+    if (u.startsWith(ROOT_URI)) {
+        var acc = ROOT_URI
+        for (part in u.removePrefix(ROOT_URI).split('/').filter { it.isNotEmpty() }) {
+            acc += "$part/"
+            result += acc
+        }
+    } else {
+        val parts = u.removePrefix("file://").split('/').filter { it.isNotEmpty() }
+        if (parts.size < 2) return emptyList()
+        var acc = "file://${parts[0]}/${parts[1]}/"
+        result += acc
+        for (part in parts.drop(2)) {
+            acc += "$part/"
+            result += acc
+        }
+    }
+    return result
 }

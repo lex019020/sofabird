@@ -49,11 +49,20 @@ function Invoke-Remote([string]$Script, [switch]$Interactive) {
     $ErrorActionPreference = 'Continue'
     $sshArgs = @('-o', 'ConnectTimeout=8')
     if (-not $Interactive) { $sshArgs += @('-o', 'BatchMode=yes') }
-    & ssh @sshArgs $HostAlias "powershell -NoProfile -NonInteractive -EncodedCommand $b64"
+    # Вывод сразу на экран: функция возвращает только код завершения.
+    & ssh @sshArgs $HostAlias "powershell -NoProfile -NonInteractive -EncodedCommand $b64" | Out-Host
     $code = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     if ($code -eq 255) { throw "Нет SSH-связи с ноутбуком ($HostAlias). Проверьте, что он включён и в той же сети: .\dev-laptop.ps1 -Status" }
     return $code
+}
+
+function Protect-SshFile([string]$Path) {
+    # OpenSSH отказывается читать config/ключ, если к ним есть доступ у других пользователей (наследование прав).
+    if (-not (Test-Path $Path)) { return }
+    $ErrorActionPreference = 'Continue'
+    & icacls.exe $Path /inheritance:r /grant:r "${env:USERNAME}:F" /grant:r '*S-1-5-18:F' /grant:r '*S-1-5-32-544:F' | Out-Null
+    $ErrorActionPreference = 'Stop'
 }
 
 function Assert-Configured {
@@ -72,6 +81,7 @@ switch ($PSCmdlet.ParameterSetName) {
             $ErrorActionPreference = 'Stop'
             if (-not (Test-Path "$KeyFile.pub")) { throw 'ssh-keygen не создал ключ' }
         }
+        Protect-SshFile $KeyFile
         if (-not $SetupDir) {
             $share = Get-SmbShare -Name shared -ErrorAction SilentlyContinue
             $SetupDir = if ($share) { Join-Path $share.Path 'vlc-remote-setup' } else { Join-Path $env:USERPROFILE 'Desktop\vlc-remote-setup' }
@@ -95,6 +105,8 @@ switch ($PSCmdlet.ParameterSetName) {
         $pattern = "(?ms)^Host $HostAlias\b.*?(?=^Host |\z)"
         $text = if ($text -match $pattern) { [regex]::Replace($text, $pattern, $block) } else { ($text.TrimEnd() + "`r`n`r`n" + $block).TrimStart() }
         [IO.File]::WriteAllText($SshConfig, $text, (New-Object Text.UTF8Encoding($false)))
+        Protect-SshFile $SshConfig
+        Protect-SshFile $KeyFile
         Write-Ok "Записано в $SshConfig (Host $HostAlias)"
         $null = Invoke-Remote 'Write-Output ("Связь есть: " + $env:COMPUTERNAME + " / " + $env:USERNAME)'
     }

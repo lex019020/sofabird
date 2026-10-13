@@ -16,6 +16,13 @@ public interface ISessionHost
     VlcInfo VlcInfo { get; }
     PairingService Pairing { get; }
 
+    /// <summary>
+    /// Несопряжённый телефон прислал <c>hello</c> без кода: показать на экране ПК окно с кодом
+    /// (или поднять уже открытое). Не должен блокировать и бросать — сессия всё равно ответит
+    /// <c>pairing_required</c> и закроется.
+    /// </summary>
+    void RequestPairing(DeviceInfo? device);
+
     Task<StateMessage> GetStateAsync(CancellationToken ct);
     Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct);
     /// <summary>Системная команда; возвращает ответное сообщение (например, <c>displays</c>) или <c>null</c> → <c>ok</c>.</summary>

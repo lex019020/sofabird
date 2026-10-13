@@ -41,6 +41,13 @@ public sealed class Settings
     public bool AutoInstallLuaPages { get; set; } = true;
     /// <summary>Автоматически запускать VLC при старте компаньона.</summary>
     public bool AutoLaunchVlc { get; set; }
+    /// <summary>
+    /// Прописывать в <c>vlcrc</c> (пока VLC не запущен) веб-интерфейс и RC с паролем компаньона, чтобы VLC,
+    /// открытый из Проводника или меню «Пуск», сразу был управляем с телефона.
+    /// </summary>
+    public bool ConfigureVlc { get; set; } = true;
+    /// <summary>Путь к <c>vlcrc</c>; <c>null</c> — <c>%APPDATA%\vlc\vlcrc</c> (другой путь — для тестов).</summary>
+    public string? VlcrcPath { get; set; }
 
     public void EnsureDefaults()
     {

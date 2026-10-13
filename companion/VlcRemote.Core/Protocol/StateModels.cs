@@ -2,13 +2,31 @@ namespace VlcRemote.Core.Protocol;
 
 public sealed class VlcInfo
 {
+    /// <summary>Можно управлять (полный контроль). Подробности — <see cref="Status"/>.</summary>
     public bool Running { get; set; }
+    /// <summary>Состояние VLC на ПК: одно из <see cref="VlcStatusNames"/>.</summary>
+    public string? Status { get; set; }
     public string? Version { get; set; }
     public int? ApiVersion { get; set; }
     /// <summary>Уровень возможностей: 2 = компаньон.</summary>
     public int Level { get; set; } = 2;
 
     public VlcInfo Clone() => (VlcInfo)MemberwiseClone();
+}
+
+/// <summary>Значения <c>vlc.status</c> (protocol/README.md, «Состояние: state»).</summary>
+public static class VlcStatusNames
+{
+    /// <summary>VLC не найден на ПК.</summary>
+    public const string NotInstalled = "notInstalled";
+    /// <summary>Процесса нет.</summary>
+    public const string NotRunning = "notRunning";
+    /// <summary>Запускается компаньоном.</summary>
+    public const string Starting = "starting";
+    /// <summary>Процесс есть, но веб-интерфейс не отвечает с паролем компаньона.</summary>
+    public const string NoControl = "noControl";
+    /// <summary>Полный контроль.</summary>
+    public const string Running = "running";
 }
 
 public sealed class PlaybackInfo

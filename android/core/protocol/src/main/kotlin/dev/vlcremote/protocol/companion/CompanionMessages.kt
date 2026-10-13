@@ -1,6 +1,7 @@
 package dev.vlcremote.protocol.companion
 
 import dev.vlcremote.protocol.model.Chapters
+import dev.vlcremote.protocol.model.ConnectionError
 import dev.vlcremote.protocol.model.Delays
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.Flags
@@ -244,6 +245,10 @@ data class CompanionInfo(
 )
 
 enum class ErrorCode(val wire: String) {
+    /** Handshake: the phone is not paired and sent no code; the companion shows a code on the PC. */
+    PAIRING_REQUIRED("pairing_required"),
+
+    /** Handshake: wrong/expired code or too many attempts (old companions: also "not paired"). */
     UNAUTHORIZED("unauthorized"),
     BAD_REQUEST("bad_request"),
     VLC_NOT_RUNNING("vlc_not_running"),
@@ -253,8 +258,19 @@ enum class ErrorCode(val wire: String) {
     UNKNOWN("");
 
     companion object {
-        fun fromWire(code: String): ErrorCode = entries.firstOrNull { it.wire == code } ?: UNKNOWN
+        fun fromWire(code: String): ErrorCode = entries.firstOrNull { it != UNKNOWN && it.wire == code } ?: UNKNOWN
     }
+}
+
+/**
+ * Maps an `err` answer to `hello` to a connection error. [sentPairCode] tells whether the `hello`
+ * carried a pairing code: then `unauthorized` means "wrong or expired code"; without a code it is
+ * an old companion's way of saying "pairing required" (protocol/README.md, compatibility note).
+ */
+fun CompanionMessage.Err.toHandshakeError(sentPairCode: Boolean): ConnectionError = when (errorCode) {
+    ErrorCode.PAIRING_REQUIRED -> ConnectionError.PairingRequired
+    ErrorCode.UNAUTHORIZED -> if (sentPairCode) ConnectionError.InvalidPairCode else ConnectionError.PairingRequired
+    else -> ConnectionError.Other(msg ?: code)
 }
 
 /** Companion returned `err`. */
