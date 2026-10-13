@@ -310,18 +310,23 @@ private fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Uni
     val server = ui.activeServer ?: return
     val (color, text) = connectionSummary(ui.connection, server.displayName)
     Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            StatusDot(color)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(server.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(text, style = MaterialTheme.typography.bodySmall)
+        // The action sits under the name, not beside it: a PC name is one long word and must keep the full width.
+        Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
+                StatusDot(color)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(server.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(text, style = MaterialTheme.typography.bodySmall)
+                }
             }
             val c = ui.connection
-            if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
-                TextButton(onClick = onEnterCode) { LabelText(stringResource(R.string.action_enter_code)) }
-            } else {
-                TextButton(onClick = onDisconnect) { LabelText(stringResource(R.string.action_disconnect)) }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
+                    TextButton(onClick = onEnterCode) { LabelText(stringResource(R.string.action_enter_code)) }
+                } else {
+                    TextButton(onClick = onDisconnect) { LabelText(stringResource(R.string.action_disconnect)) }
+                }
             }
         }
     }
