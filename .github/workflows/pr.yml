@@ -9,11 +9,11 @@ permissions:
 
 jobs:
   conventions:
-    name: Заголовок и release notes
+    name: Title and release notes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Проверка оформления PR (см. CLAUDE.md)
+      - name: Check the PR conventions (see CLAUDE.md)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}

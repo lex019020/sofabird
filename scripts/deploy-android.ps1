@@ -15,13 +15,13 @@
 
 .EXAMPLE
   .\deploy-android.ps1                              # latest test build to the allowed phones
-  .\deploy-android.ps1 -Connect 192.168.0.16:36457  # give the address explicitly (usually not needed: the phone is found automatically)
+  .\deploy-android.ps1 -Connect 192.168.1.50:37123  # give the address explicitly (usually not needed: the phone is found automatically)
   .\deploy-android.ps1 -Channel stable              # latest release
   .\deploy-android.ps1 -Local                       # build from source and install
   .\deploy-android.ps1 -CheckOnly                   # which versions are installed on the phones
   .\deploy-android.ps1 -ListDevices                 # connected and allowed devices
-  .\deploy-android.ps1 -AllowDevice RFCWC0SSKZK     # allow a device (serial number)
-  .\deploy-android.ps1 -DisallowDevice RFCWC0SSKZK  # disallow it
+  .\deploy-android.ps1 -AllowDevice R5CX1234567     # allow a device (serial number)
+  .\deploy-android.ps1 -DisallowDevice R5CX1234567  # disallow it
 #>
 [CmdletBinding()]
 param(

@@ -7,7 +7,7 @@ Related documents: [live-probe.md](live-probe.md) (a live check of the VLC 3.0.2
 ## 0. Method and sources
 
 The repositories were cloned with `git clone --depth 1` into a scratch directory
-`...\scratchpad\prior-art\<repo>` (because of the Windows path length limit, cloning went through a short staging directory followed by `mv`; they are convenient to read via the junction `C:\Users\Alexey\AppData\Local\Temp\pa\<repo>`). The code was only read (`cat`/`grep`/`sed`/`find`); nothing from the clones was run. "Last commit" dates come from `git log -1` of the clone; stars/license come from the GitHub API as of the document date.
+`...\scratchpad\prior-art\<repo>` (because of the Windows path length limit, cloning went through a short staging directory followed by `mv`; they are convenient to read via the junction `%TEMP%\pa\<repo>`). The code was only read (`cat`/`grep`/`sed`/`find`); nothing from the clones was run. "Last commit" dates come from `git log -1` of the clone; stars/license come from the GitHub API as of the document date.
 
 | Clone (subdirectory) | Repository | Last commit |
 |---|---|---|

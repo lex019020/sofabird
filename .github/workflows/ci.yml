@@ -1,6 +1,6 @@
 name: CI
 
-# Сборка и тесты на каждый PR. Сборки из main собирает и публикует release.yml.
+# Build and tests on every PR. Builds from main are made and published by release.yml.
 on:
   pull_request:
   workflow_dispatch:
