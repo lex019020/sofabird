@@ -217,7 +217,12 @@ sealed class CompanionMessage {
 }
 
 @Serializable
-data class DeviceInfo(val name: String, val id: String)
+data class DeviceInfo(
+    val name: String,
+    val id: String,
+    /** Phone UI language (BCP 47, e.g. "ru-RU"); the companion renders err.msg in it. Optional. */
+    val locale: String? = null,
+)
 
 @Serializable
 data class AudioDevice(val id: String, val name: String, val current: Boolean = false)

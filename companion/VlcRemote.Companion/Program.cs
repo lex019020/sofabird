@@ -8,6 +8,7 @@ using VlcRemote.Companion.Tray;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Lua;
 using VlcRemote.Core.Pairing;
+using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion;
 
@@ -35,7 +36,7 @@ internal static class Program
         using var mutex = new Mutex(initiallyOwned: true, "Local\\VlcRemoteCompanion_" + Hash(paths.DataDir), out var createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("VLC Remote Companion уже запущен (иконка в трее).", "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(UiText.AlreadyRunning, "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 1;
         }
 
@@ -56,7 +57,7 @@ internal static class Program
         catch (Exception ex)
         {
             log.LogCritical(ex, "Fatal error");
-            MessageBox.Show("VLC Remote Companion: критическая ошибка.\n" + ex.Message, "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(UiText.FatalError(ex.Message), "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 2;
         }
         finally
@@ -123,7 +124,7 @@ internal static class Program
         catch (Exception ex)
         {
             log.LogCritical(ex, "Kestrel failed to start on {Addr}:{Port}", settings.ListenAddress, settings.WsPort);
-            MessageBox.Show($"Не удалось открыть порт {settings.WsPort}: {ex.Message}\nИзмените wsPort в {paths.SettingsFile}.",
+            MessageBox.Show(UiText.PortFailed(settings.WsPort, ex.Message, paths.SettingsFile),
                 "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 3;
         }

@@ -95,7 +95,7 @@ fun TracksSheet(kind: TrackKind, ui: RemoteUiState, viewModel: RemoteViewModel, 
                         stringResource(if (kind == TrackKind.AUDIO) R.string.delay_audio else R.string.delay_subtitles),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    Text(formatDelay(delay), style = MaterialTheme.typography.titleSmall)
+                    Text(formatDelay(delay, androidx.compose.ui.res.stringResource(dev.vlcremote.app.R.string.unit_ms)), style = MaterialTheme.typography.titleSmall)
                 }
                 Row(
                     Modifier

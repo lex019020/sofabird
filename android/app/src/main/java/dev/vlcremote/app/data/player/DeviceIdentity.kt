@@ -14,7 +14,8 @@ import dev.vlcremote.protocol.companion.DeviceInfo
 class DeviceIdentity(context: Context, private val secrets: SecretStore) {
     private val appContext = context.applicationContext
 
-    fun deviceInfo(): DeviceInfo = DeviceInfo(name = name(), id = secrets.deviceId())
+    fun deviceInfo(): DeviceInfo =
+        DeviceInfo(name = name(), id = secrets.deviceId(), locale = java.util.Locale.getDefault().toLanguageTag())
 
     fun name(): String {
         val userName = runCatching {

@@ -63,7 +63,7 @@ public sealed class LuaPagesInstaller
     public void Install(string? vlcVersion)
     {
         if (!Directory.Exists(StockHttpDir))
-            throw new DirectoryNotFoundException($"Не найдена штатная папка Lua-страниц VLC: {StockHttpDir}");
+            throw new DirectoryNotFoundException($"VLC stock Lua HTTP folder not found: {StockHttpDir}");
 
         _log.LogInformation("Installing Lua pages from {Stock} to {Target} (VLC {Version})", StockHttpDir, TargetHttpDir, vlcVersion);
         Directory.CreateDirectory(TargetHttpDir);

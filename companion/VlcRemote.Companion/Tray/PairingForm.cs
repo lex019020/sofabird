@@ -1,3 +1,5 @@
+using VlcRemote.Companion.Localization;
+
 namespace VlcRemote.Companion.Tray;
 
 /// <summary>
@@ -22,7 +24,7 @@ public sealed class PairingForm : Form
         ShowInTaskbar = false;
         BackColor = Color.FromArgb(18, 18, 18);
         ForeColor = Color.White;
-        Text = "Сопряжение телефона";
+        Text = UiText.PairingTitle;
         KeyPreview = true;
         Cursor = Cursors.Hand;
 
@@ -52,7 +54,7 @@ public sealed class PairingForm : Form
         };
         _addressLabel = new Label
         {
-            Text = $"Введите код в приложении на телефоне. Адрес ПК: {address}",
+            Text = UiText.PairingAddress(address),
             Font = new Font("Segoe UI", 18),
             Dock = DockStyle.Top,
             Height = 60,
@@ -81,7 +83,7 @@ public sealed class PairingForm : Form
     }
 
     private static string TitleFor(string? device) =>
-        string.IsNullOrWhiteSpace(device) ? "Код сопряжения VLC Remote" : $"Телефон «{device}» хочет подключиться";
+        string.IsNullOrWhiteSpace(device) ? UiText.PairingHeaderGeneric : UiText.PairingHeaderDevice(device);
 
     /// <summary>Повторный запрос (возможно, от другого телефона) — обновить заголовок, код прежний.</summary>
     public void SetRequester(string? device)
@@ -108,15 +110,15 @@ public sealed class PairingForm : Form
             Close();
             return;
         }
-        _timerLabel.Text = $"Код действует ещё {left:m\\:ss}. Нажмите, чтобы закрыть окно.";
+        _timerLabel.Text = UiText.PairingTimer(left.ToString(@"m\:ss"));
     }
 
     public void ShowPaired(string? deviceName)
     {
         _codeLabel.Text = "✓";
         _codeLabel.ForeColor = Color.LightGreen;
-        _addressLabel.Text = $"Телефон «{deviceName ?? "?"}» подключён";
-        _timerLabel.Text = "Окно закроется через несколько секунд";
+        _addressLabel.Text = UiText.PairingDone(deviceName ?? "?");
+        _timerLabel.Text = UiText.PairingClosing;
         _timer.Stop();
         var close = new System.Windows.Forms.Timer { Interval = 3000 };
         close.Tick += (_, _) => { close.Stop(); close.Dispose(); Close(); };

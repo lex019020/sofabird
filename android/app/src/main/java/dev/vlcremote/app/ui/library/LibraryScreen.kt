@@ -183,7 +183,7 @@ private fun EntryRow(entry: Entry, onClick: () -> Unit, onLongClick: () -> Unit)
     ListItem(
         headlineContent = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = if (!entry.isDir && entry.size != null) {
-            { Text(formatSize(entry.size)) }
+            { Text(formatSize(androidx.compose.ui.platform.LocalContext.current, entry.size)) }
         } else {
             null
         },

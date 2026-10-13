@@ -5,6 +5,7 @@ using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
+using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion.Tray;
 
@@ -62,18 +63,18 @@ public sealed class TrayContext : ApplicationContext
         _iconIdle = TrayIconFactory.Create(active: false);
 
         _statusItem = new ToolStripMenuItem("VLC: …") { Enabled = false };
-        _phonesItem = new ToolStripMenuItem("Телефонов подключено: 0") { Enabled = false };
-        _pairItem = new ToolStripMenuItem("Сопряжение телефона…", null, (_, _) => BeginPairing());
-        _launchItem = new ToolStripMenuItem("Запустить VLC", null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, _settings.PreferredDisplay, ct)));
-        _restartItem = new ToolStripMenuItem("Перезапустить VLC с веб-интерфейсом", null, (_, _) => RestartVlc());
-        _quitVlcItem = new ToolStripMenuItem("Закрыть VLC", null, (_, _) => RunAsync(_vlc.QuitAsync));
-        _displaysItem = new ToolStripMenuItem("Перенести VLC на экран");
-        _luaItem = new ToolStripMenuItem("Установить Lua-страницы", null, (_, _) => InstallLuaPages());
-        _autostartItem = new ToolStripMenuItem("Автозапуск", null, (_, _) => ToggleAutostart()) { CheckOnClick = false };
-        _keepAwakeItem = new ToolStripMenuItem("Не давать ПК уснуть во время фильма", null, (_, _) => ToggleKeepAwake());
-        var logItem = new ToolStripMenuItem("Открыть журнал", null, (_, _) => OpenLogs());
-        var settingsItem = new ToolStripMenuItem("Открыть папку настроек", null, (_, _) => OpenFolder(_paths.DataDir));
-        var exitItem = new ToolStripMenuItem("Выход", null, (_, _) => Exit());
+        _phonesItem = new ToolStripMenuItem(UiText.TrayPhonesConnected(0)) { Enabled = false };
+        _pairItem = new ToolStripMenuItem(UiText.TrayPair, null, (_, _) => BeginPairing());
+        _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, _settings.PreferredDisplay, ct)));
+        _restartItem = new ToolStripMenuItem(UiText.TrayRestartVlc, null, (_, _) => RestartVlc());
+        _quitVlcItem = new ToolStripMenuItem(UiText.TrayQuitVlc, null, (_, _) => RunAsync(_vlc.QuitAsync));
+        _displaysItem = new ToolStripMenuItem(UiText.TrayMoveToDisplay);
+        _luaItem = new ToolStripMenuItem(UiText.TrayInstallLua, null, (_, _) => InstallLuaPages());
+        _autostartItem = new ToolStripMenuItem(UiText.TrayAutostart, null, (_, _) => ToggleAutostart()) { CheckOnClick = false };
+        _keepAwakeItem = new ToolStripMenuItem(UiText.TrayKeepAwake, null, (_, _) => ToggleKeepAwake());
+        var logItem = new ToolStripMenuItem(UiText.TrayOpenLog, null, (_, _) => OpenLogs());
+        var settingsItem = new ToolStripMenuItem(UiText.TrayOpenSettings, null, (_, _) => OpenFolder(_paths.DataDir));
+        var exitItem = new ToolStripMenuItem(UiText.TrayExit, null, (_, _) => Exit());
 
         _menu = new ContextMenuStrip();
         _menu.Items.AddRange(
@@ -135,25 +136,25 @@ public sealed class TrayContext : ApplicationContext
     {
         var vlc = _vlc.RunState switch
         {
-            VlcRunState.NotInstalled => "VLC не найден",
-            VlcRunState.NotRunning => "VLC не запущен",
-            VlcRunState.Starting => "VLC запускается…",
-            VlcRunState.RunningNoApi => "VLC открыт без управления с телефона",
+            VlcRunState.NotInstalled => UiText.VlcNotFound,
+            VlcRunState.NotRunning => UiText.VlcNotRunning,
+            VlcRunState.Starting => UiText.VlcStarting,
+            VlcRunState.RunningNoApi => UiText.VlcNoControl,
             VlcRunState.Running => $"VLC {_vlc.Info.Version ?? ""} — {PlaybackText()}".TrimEnd(),
             _ => "VLC: ?",
         };
         _statusItem.Text = vlc;
-        _phonesItem.Text = $"Телефонов подключено: {_sessions.Count}";
+        _phonesItem.Text = UiText.TrayPhonesConnected(_sessions.Count);
         _icon.Icon = _vlc.RunState == VlcRunState.Running ? _iconActive : _iconIdle;
-        var tip = $"VLC Remote {AppVersion.Informational}\n{vlc}\nТелефонов: {_sessions.Count}";
+        var tip = $"VLC Remote {AppVersion.Informational}\n{vlc}\n{UiText.TrayTipPhones(_sessions.Count)}";
         _icon.Text = tip.Length > 127 ? tip[..127] : tip;
     }
 
     private string PlaybackText()
     {
         var s = _vlc.LastState;
-        if (s is null) return "подключён";
-        var state = s.Playback.State switch { "playing" => "воспроизведение", "paused" => "пауза", _ => "остановлен" };
+        if (s is null) return UiText.PlaybackConnected;
+        var state = s.Playback.State switch { "playing" => UiText.PlaybackPlaying, "paused" => UiText.PlaybackPaused, _ => UiText.PlaybackStopped };
         var title = s.Item?.Title;
         return string.IsNullOrEmpty(title) ? state : $"{state}: {Truncate(title, 40)}";
     }
@@ -176,7 +177,7 @@ public sealed class TrayContext : ApplicationContext
             item.Click += (_, _) => RunAsync(ct => _host.MoveToDisplayAsync(index, ct));
             _displaysItem.DropDownItems.Add(item);
         }
-        _luaItem.Text = _vlc.LuaInstallPending ? "Установить Lua-страницы (после закрытия VLC)" : "Установить Lua-страницы";
+        _luaItem.Text = _vlc.LuaInstallPending ? UiText.TrayInstallLuaPending : UiText.TrayInstallLua;
         _luaItem.Enabled = _vlc.Installation is not null;
         _autostartItem.Checked = AutostartService.IsEnabled();
         _keepAwakeItem.Checked = _settings.KeepAwake;
@@ -257,7 +258,7 @@ public sealed class TrayContext : ApplicationContext
 
     private void OnNoControl()
     {
-        ShowBalloon(6000, "VLC открыт без управления с телефона. Перезапустите его — дальше VLC будет запускаться с управлением сам.",
+        ShowBalloon(6000, UiText.BalloonNoControl,
             ToolTipIcon.Warning, () =>
             {
                 // Уведомление могло пролежать в центре уведомлений — перезапускаем, только если VLC всё ещё без управления.
@@ -277,7 +278,7 @@ public sealed class TrayContext : ApplicationContext
     {
         _sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = device.DeviceName });
         if (_pairingForm is { IsDisposed: false }) _pairingForm.ShowPaired(device.DeviceName);
-        ShowBalloon(3000, $"Телефон «{device.DeviceName ?? "?"}» сопряжён", ToolTipIcon.Info);
+        ShowBalloon(3000, UiText.BalloonPaired(device.DeviceName ?? "?"), ToolTipIcon.Info);
     }
 
     private void OnPairingEnded()
@@ -289,11 +290,11 @@ public sealed class TrayContext : ApplicationContext
     {
         var installed = _vlc.TryInstallLuaPages(initial: false, force: true);
         if (installed)
-            ShowBalloon(3000, "Lua-страницы установлены в %APPDATA%\\vlc\\lua\\http. Они заработают при следующем запуске VLC.", ToolTipIcon.Info);
+            ShowBalloon(3000, UiText.BalloonLuaInstalled, ToolTipIcon.Info);
         else if (_vlc.LuaInstallPending)
-            ShowBalloon(4000, "VLC запущен — страницы будут установлены автоматически после его закрытия.", ToolTipIcon.Warning);
+            ShowBalloon(4000, UiText.BalloonLuaDeferred, ToolTipIcon.Warning);
         else
-            ShowBalloon(4000, "Не удалось установить Lua-страницы (см. журнал).", ToolTipIcon.Error);
+            ShowBalloon(4000, UiText.BalloonLuaFailed, ToolTipIcon.Error);
     }
 
     private void ToggleAutostart()
@@ -305,7 +306,7 @@ public sealed class TrayContext : ApplicationContext
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Autostart toggle failed");
-            ShowBalloon(3000, "Не удалось изменить автозапуск: " + ex.Message, ToolTipIcon.Error);
+            ShowBalloon(3000, UiText.BalloonAutostartFailed(ex.Message), ToolTipIcon.Error);
         }
     }
 

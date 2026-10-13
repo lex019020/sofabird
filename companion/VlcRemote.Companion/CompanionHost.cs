@@ -6,6 +6,7 @@ using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
 using Message = VlcRemote.Core.Protocol.Message;
+using VlcRemote.Core.Localization;
 
 namespace VlcRemote.Companion;
 
@@ -187,7 +188,7 @@ public sealed class CompanionHost : ISessionHost
             await Task.Delay(400, ct).ConfigureAwait(false);
         }
         var moved = _display.MoveWindowToDisplay(pid, index);
-        if (!moved) throw ProtocolException.VlcError("окно VLC не найдено");
+        if (!moved) throw ProtocolException.VlcError(ProtocolText.VlcWindowNotFound);
         await Task.Delay(300, ct).ConfigureAwait(false);
         await _vlc.ExecuteCommandAsync("fullscreen", new CommandArgs(ParseArgs("""{"on":true}""")), ct).ConfigureAwait(false);
     }

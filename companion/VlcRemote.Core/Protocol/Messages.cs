@@ -41,6 +41,8 @@ public sealed class DeviceInfo
 {
     public string? Name { get; set; }
     public string? Id { get; set; }
+    /// <summary>Phone UI language as a BCP 47 tag (e.g. <c>ru-RU</c>); optional, used for <c>err.msg</c>.</summary>
+    public string? Locale { get; set; }
 }
 
 public sealed class HelloMessage : Message

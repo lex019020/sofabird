@@ -16,26 +16,19 @@ fun formatTime(seconds: Double): String = formatTime(seconds.toLong())
 fun formatRemaining(position: Double, length: Long): String =
     if (length <= 0) "" else "-" + formatTime((length - position).coerceAtLeast(0.0))
 
-fun formatSize(bytes: Long?): String {
-    if (bytes == null || bytes < 0) return ""
-    val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
-    var v = bytes.toDouble()
-    var i = 0
-    while (v >= 1024 && i < units.lastIndex) {
-        v /= 1024
-        i++
-    }
-    return if (i == 0) "${bytes} ${units[0]}" else String.format(Locale.ROOT, "%.1f %s", v, units[i])
-}
+/** File size in the phone's language (system formatter: "1.5 GB" / "1,5 ГБ"). */
+fun formatSize(context: android.content.Context, bytes: Long?): String =
+    if (bytes == null || bytes < 0) "" else android.text.format.Formatter.formatShortFileSize(context, bytes)
 
 fun formatRate(rate: Double): String {
     val r = Math.round(rate * 100) / 100.0
     return if (r == Math.floor(r)) "${r.toInt()}×" else String.format(Locale.ROOT, "%.2f×", r).trimEnd('0').trimEnd('.') + ""
 }
 
-fun formatDelay(seconds: Double): String {
+/** Delay in milliseconds with a sign; [msUnit] is the localized unit (R.string.unit_ms). */
+fun formatDelay(seconds: Double, msUnit: String): String {
     val ms = Math.round(seconds * 1000)
-    return if (ms == 0L) "0 мс" else String.format(Locale.ROOT, "%+d мс", ms)
+    return if (ms == 0L) "0 $msUnit" else String.format(Locale.ROOT, "%+d %s", ms, msUnit)
 }
 
 /** Percent-decoded last path segment of a file URI for display. */
