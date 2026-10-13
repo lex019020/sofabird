@@ -37,6 +37,7 @@
   <data name="TrayInstallLuaPending" xml:space="preserve"><value>Установить Lua-страницы (после закрытия VLC)</value></data>
   <data name="TrayAutostart" xml:space="preserve"><value>Автозапуск</value></data>
   <data name="TrayKeepAwake" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>
+  <data name="TrayTestBuilds" xml:space="preserve"><value>Получать тестовые сборки</value></data>
   <data name="TrayOpenLog" xml:space="preserve"><value>Открыть журнал</value></data>
   <data name="TrayOpenSettings" xml:space="preserve"><value>Открыть папку настроек</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Выход</value></data>
@@ -50,6 +51,7 @@
   <data name="PlaybackStopped" xml:space="preserve"><value>остановлен</value></data>
   <data name="BalloonNoControl" xml:space="preserve"><value>VLC открыт без управления с телефона. Перезапустите его — дальше VLC будет запускаться с управлением сам.</value></data>
   <data name="BalloonPaired" xml:space="preserve"><value>Телефон «{0}» сопряжён</value></data>
+  <data name="BalloonUpdated" xml:space="preserve"><value>Компаньон обновлён до версии {0}</value></data>
   <data name="BalloonLuaInstalled" xml:space="preserve"><value>Lua-страницы установлены в %APPDATA%\vlc\lua\http. Они заработают при следующем запуске VLC.</value></data>
   <data name="BalloonLuaDeferred" xml:space="preserve"><value>VLC запущен — страницы будут установлены автоматически после его закрытия.</value></data>
   <data name="BalloonLuaFailed" xml:space="preserve"><value>Не удалось установить Lua-страницы (см. журнал).</value></data>

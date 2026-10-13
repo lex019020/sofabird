@@ -96,18 +96,35 @@ function Get-ReleaseAsset([string]$Repo, [string]$ReleaseTag, [string]$Pattern, 
 
 # ---------------------------------------------------------------- companion (Windows)
 
-function Invoke-LocalCompanionBuild([string]$Dest) {
+# Publishes the companion and packs it with Velopack into $ReleasesDir (Setup.exe, the full and, when the previous
+# package is already there, a delta update). The release workflow and -Local both use it, so the package is the same.
+function New-CompanionPackage([string]$Root, [string]$Version, [string]$Suffix, [string]$ReleasesDir) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
+    $out = Join-Path ([IO.Path]::GetTempPath()) ('vlcremote-publish-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+    try {
+        & dotnet publish (Join-Path $Root 'companion\VlcRemote.Companion\VlcRemote.Companion.csproj') `
+            -c Release -r win-x64 --self-contained false "-p:VersionSuffix=$Suffix" -o $out --nologo -v quiet | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
+        Push-Location $Root
+        try {
+            & dotnet tool restore | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'dotnet tool restore failed (vpk)' }
+            & dotnet vpk pack --runtime win-x64 --packId VlcRemoteCompanion --packVersion $Version --packDir $out `
+                --mainExe VlcRemote.Companion.exe --packTitle 'VLC Remote Companion' --packAuthors 'VLC Remote' `
+                --shortcuts StartMenuRoot --framework 'net9-x64-desktop,net9-x64-aspnetcore' -o $ReleasesDir | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
+        } finally { Pop-Location }
+    } finally {
+        Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    return Join-Path $ReleasesDir 'VlcRemoteCompanion-win-Setup.exe'
+}
+
+function Invoke-LocalCompanionBuild([string]$Dest) {
     $v = New-LocalVersion
     Write-Step "Building the companion $($v.Version)"
-    $out = Join-Path $Dest 'companion'
-    & dotnet publish (Join-Path $v.Root 'companion\VlcRemote.Companion\VlcRemote.Companion.csproj') `
-        -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true `
-        "-p:VersionSuffix=$($v.Suffix)" -o $out --nologo -v quiet
-    if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
-    $zip = Join-Path $Dest "VlcRemote.Companion-$($v.Version)-win-x64.zip"
-    Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -Force
-    return [pscustomobject]@{ Version = $v.Version; File = $zip }
+    $setup = New-CompanionPackage $v.Root $v.Version $v.Suffix (Join-Path $Dest 'releases')
+    return [pscustomobject]@{ Version = $v.Version; File = $setup }
 }
 
 # ---------------------------------------------------------------- Android

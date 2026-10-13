@@ -67,6 +67,13 @@ public sealed class Settings
     public string? VlcAudioDevice { get; set; }
     /// <summary>Update the Lua pages in <c>%APPDATA%\vlc\lua\http</c> automatically.</summary>
     public bool AutoInstallLuaPages { get; set; } = true;
+    /// <summary>
+    /// Automatic updates: <c>"beta"</c> — test builds too, <c>"stable"</c> — releases only, <c>null</c> — the kind of build
+    /// that is installed (tray: "Get test builds").
+    /// </summary>
+    public string? UpdateChannel { get; set; }
+    /// <summary>The version that ran last time: a different one at start means "updated" (a tray notice).</summary>
+    public string? LastRunVersion { get; set; }
     /// <summary>Start VLC automatically when the companion starts.</summary>
     public bool AutoLaunchVlc { get; set; }
     /// <summary>

@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
+using Velopack;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Setup;
@@ -21,6 +22,11 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // First: Velopack's install/update/uninstall hooks run here and exit; a normal start falls through.
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => AutostartService.SetEnabled(false))
+            .Run();
+
         var paths = AppPaths.Resolve(args);
         var quitEventName = @"Local\VlcRemoteCompanion_Quit_" + Hash(paths.DataDir);
         if (args.Contains("--shutdown", StringComparer.OrdinalIgnoreCase))
@@ -223,9 +229,22 @@ internal static class Program
             sessions.Dispose();
         }
 
+        var updates = new UpdateService(settings, settingsStore, () => vlc.LastState?.Playback.State == "playing",
+            () => Volatile.Read(ref tray)?.RequestExit(), background, lf.CreateLogger<UpdateService>());
+        var previousVersion = settings.LastRunVersion;
+        var updated = previousVersion is not null && previousVersion != AppVersion.Informational;
+        if (previousVersion != AppVersion.Informational) settingsStore.Update(s => s.LastRunVersion = AppVersion.Informational);
+        try { AutostartService.RepairPath(); }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            log.LogWarning(ex, "Repairing the autostart path failed");
+        }
+
         using var trayContext = new TrayContext(ui, paths, settings, vlc, pairing, display, sessions, host,
-            bluetooth, setup, powerPlan, ShutdownAsync, lf.CreateLogger<TrayContext>());
+            bluetooth, setup, powerPlan, updates, ShutdownAsync, lf.CreateLogger<TrayContext>());
         Volatile.Write(ref tray, trayContext);
+        if (updated) trayContext.ShowUpdated();
+        updates.Start();
         if (Volatile.Read(ref quitRequested)) trayContext.RequestExit();
         else if (showSetup) trayContext.ShowSetupOnStart();
         else if (!earlyShown) trayContext.CheckFirewallOnStart();
