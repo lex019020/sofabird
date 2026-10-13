@@ -3,17 +3,20 @@ package dev.vlcremote.app.ui.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vlcremote.app.data.player.PlayerController
+import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.model.HistoryChange
 import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +37,10 @@ data class HistoryUiState(
     val error: Throwable? = null,
     /** Row whose menu is open (long press / "⋮"). */
     val menuFor: HistoryItem? = null,
+    /** Name of the PC, for "Clear the history on …?". */
+    val serverName: String = "",
+    /** The "button vibration" setting. */
+    val haptics: Boolean = true,
 ) {
     val canLoadMore: Boolean get() = items.size < total && !loading && !loadingMore && error == null
 }
@@ -41,8 +48,9 @@ data class HistoryUiState(
 /** History screen: the whole watch history, paged with `getHistory all`, refreshed on `state.history.revision`. */
 class HistoryViewModel(
     private val controller: PlayerController,
+    private val settings: SettingsRepository,
     private val clock: Clock = Clock.systemDefaultZone(),
-) : ViewModel() {
+) : ViewModel(), HistoryActions {
 
     private data class Data(
         val items: List<HistoryItem> = emptyList(),
@@ -50,22 +58,26 @@ class HistoryViewModel(
         val loading: Boolean = false,
         val loadingMore: Boolean = false,
         val error: Throwable? = null,
+        val menuFor: HistoryItem? = null,
     )
 
     private val data = MutableStateFlow(Data())
-    private val menuFor = MutableStateFlow<HistoryItem?>(null)
     private var loadJob: Job? = null
     private var refreshJob: Job? = null
     private var lastRevision: Long? = null
 
     private val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
 
+    /** `state.history.revision`: the screen passes it to [onRevision] while it is shown. */
+    val historyRevision: Flow<Long?> = controller.state.map { it.history?.revision }.distinctUntilChanged()
+
     val uiState: StateFlow<HistoryUiState> = combine(
         data,
-        menuFor,
         controller.capabilities,
         controller.connection,
-    ) { d, menu, caps, connection ->
+        controller.activeServer,
+        settings.settings,
+    ) { d, caps, connection, server, prefs ->
         HistoryUiState(
             available = caps.history,
             online = connection.isOnline,
@@ -75,7 +87,9 @@ class HistoryViewModel(
             loading = d.loading,
             loadingMore = d.loadingMore,
             error = d.error,
-            menuFor = menu,
+            menuFor = d.menuFor,
+            serverName = server?.displayName.orEmpty(),
+            haptics = prefs.haptics,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
 
@@ -88,7 +102,7 @@ class HistoryViewModel(
     }
 
     /** First page again (pull to refresh, retry, history changed). Keeps as many rows as are loaded. */
-    fun reload() {
+    override fun reload() {
         val keep = data.value.items.size.coerceIn(PAGE, MAX_RELOAD)
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
@@ -104,7 +118,7 @@ class HistoryViewModel(
         }
     }
 
-    fun loadMore() {
+    override fun loadMore() {
         val d = data.value
         val busy = d.loading || d.loadingMore || loadJob?.isActive == true
         if (d.items.size >= d.total || busy) return
@@ -135,13 +149,13 @@ class HistoryViewModel(
         }
     }
 
-    fun showMenu(item: HistoryItem?) {
-        menuFor.value = item
+    override fun showMenu(item: HistoryItem?) {
+        data.update { it.copy(menuFor = item) }
     }
 
-    fun play(item: HistoryItem) = controller.send(PlayerCommand.Open(item.uri))
+    override fun play(item: HistoryItem) = controller.send(PlayerCommand.Open(item.uri))
 
-    fun setFinished(item: HistoryItem, finished: Boolean) {
+    override fun setFinished(item: HistoryItem, finished: Boolean) {
         data.update { d ->
             d.copy(
                 items = d.items.map {
@@ -155,14 +169,14 @@ class HistoryViewModel(
         }
     }
 
-    fun remove(item: HistoryItem) {
+    override fun remove(item: HistoryItem) {
         data.update { d -> d.copy(items = d.items.filter { it.uri != item.uri }, total = (d.total - 1).coerceAtLeast(0)) }
         viewModelScope.launch {
             if (controller.updateHistory(item.uri, HistoryChange.Remove).isFailure) reload()
         }
     }
 
-    fun clearAll() {
+    override fun clearAll() {
         data.value = Data()
         viewModelScope.launch {
             if (controller.clearHistory().isFailure) reload()

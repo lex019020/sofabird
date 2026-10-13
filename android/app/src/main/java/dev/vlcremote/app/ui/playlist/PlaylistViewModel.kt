@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class PlaylistUiState(
@@ -23,9 +24,12 @@ data class PlaylistUiState(
     val loading: Boolean = false,
     val error: Throwable? = null,
     val online: Boolean = false,
+    /** The "button vibration" setting. */
+    val haptics: Boolean = true,
 )
 
-class PlaylistViewModel(private val controller: PlayerController, private val settings: SettingsRepository) : ViewModel() {
+class PlaylistViewModel(private val controller: PlayerController, private val settings: SettingsRepository) :
+    ViewModel(), PlaylistActions {
 
     private companion object {
         /** VLC applies pl_delete asynchronously: read the playlist again after a moment. */
@@ -33,28 +37,29 @@ class PlaylistViewModel(private val controller: PlayerController, private val se
         const val RELOAD_AFTER_CHANGE_MS = 600L
     }
 
-    private val items = MutableStateFlow<List<PlaylistItem>>(emptyList())
-    private val loading = MutableStateFlow(false)
-    private val error = MutableStateFlow<Throwable?>(null)
+    /** The playlist as last read from VLC; one flow, changed with [update]. */
+    private data class Local(
+        val items: List<PlaylistItem> = emptyList(),
+        val loading: Boolean = false,
+        val error: Throwable? = null,
+    )
+
+    private val local = MutableStateFlow(Local())
     private var loadJob: Job? = null
 
-    /** The "button vibration" setting. */
-    val haptics: StateFlow<Boolean> = settings.settings.map { it.haptics }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), settings.settings.value.haptics)
-
     val uiState: StateFlow<PlaylistUiState> = combine(
-        items,
+        local,
         controller.state.map { it.item.plId }.distinctUntilChanged(),
-        loading,
-        error,
         controller.connection.map { it.isOnline }.distinctUntilChanged(),
-    ) { list, current, l, err, online ->
+        settings.settings.map { it.haptics }.distinctUntilChanged(),
+    ) { l, current, online, haptics ->
         PlaylistUiState(
-            items = list.map { it.copy(current = it.plId == current || (current == null && it.current)) },
+            items = l.items.map { it.copy(current = it.plId == current || (current == null && it.current)) },
             currentPlId = current,
-            loading = l,
-            error = err,
+            loading = l.loading,
+            error = l.error,
             online = online,
+            haptics = haptics,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistUiState())
 
@@ -65,19 +70,19 @@ class PlaylistViewModel(private val controller: PlayerController, private val se
                 controller.state.map { it.item.plId }.distinctUntilChanged(),
                 controller.connection.map { it.isOnline }.distinctUntilChanged(),
             ) { _, online -> online }
-                .collect { online -> if (online) load() else items.value = emptyList() }
+                .collect { online -> if (online) load() else local.update { it.copy(items = emptyList()) } }
         }
     }
 
-    fun refresh() = load()
+    override fun refresh() = load()
 
-    fun play(item: PlaylistItem) {
+    override fun play(item: PlaylistItem) {
         controller.send(PlayerCommand.Play(item.plId))
         scheduleReload()
     }
 
-    fun remove(item: PlaylistItem) {
-        items.value = items.value.filterNot { it.plId == item.plId } // optimistic
+    override fun remove(item: PlaylistItem) {
+        local.update { l -> l.copy(items = l.items.filterNot { it.plId == item.plId }) } // optimistic
         viewModelScope.launch {
             controller.sendAwait(PlayerCommand.PlaylistRemove(item.plId))
             delay(RELOAD_AFTER_REMOVE_MS)
@@ -85,7 +90,7 @@ class PlaylistViewModel(private val controller: PlayerController, private val se
         }
     }
 
-    fun clear() {
+    override fun clear() {
         viewModelScope.launch {
             controller.sendAwait(PlayerCommand.PlaylistClear)
             load()
@@ -102,11 +107,14 @@ class PlaylistViewModel(private val controller: PlayerController, private val se
     private fun load() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            loading.value = true
-            controller.playlist()
-                .onSuccess { items.value = it; error.value = null }
-                .onFailure { error.value = it }
-            loading.value = false
+            local.update { it.copy(loading = true) }
+            val result = controller.playlist()
+            local.update { l ->
+                result.fold(
+                    onSuccess = { Local(items = it) },
+                    onFailure = { l.copy(loading = false, error = it) },
+                )
+            }
         }
     }
 }

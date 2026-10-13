@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.companion.BluetoothSupport
 import dev.vlcremote.app.data.settings.SettingsRepository
-import org.koin.compose.koinInject
+import org.koin.mp.KoinPlatform
 
 /**
  * System dialogs the Bluetooth features need; results come back through the callbacks given to [rememberBluetoothRequests].
@@ -42,7 +42,6 @@ fun rememberBluetoothRequests(
     onEnableResult: (Boolean) -> Unit,
 ): BluetoothRequests {
     val context = LocalContext.current
-    val settings: SettingsRepository = koinInject()
     val permissionCallback = rememberUpdatedState(onPermissionResult)
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionCallback.value(granted)
@@ -50,14 +49,16 @@ fun rememberBluetoothRequests(
     val enableLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         onEnableResult(result.resultCode == Activity.RESULT_OK)
     }
-    return remember(context, settings, permissionLauncher, enableLauncher) {
+    return remember(context, permissionLauncher, enableLauncher) {
         BluetoothRequests(
             requestPermission = {
                 val permission = BluetoothSupport.CONNECT_PERMISSION
                 if (permission == null || BluetoothSupport.hasConnectPermission(context)) {
                     permissionCallback.value(true)
                 } else {
-                    settings.noteRequested(listOf(permission)) // lets Settings → Permissions tell "refused for good"
+                    // Lets Settings → Permissions tell "refused for good". Resolved on the tap, not in composition,
+                    // so screens using this render without Koin (previews, screenshot tests).
+                    KoinPlatform.getKoin().get<SettingsRepository>().noteRequested(listOf(permission))
                     permissionLauncher.launch(permission)
                 }
             },
