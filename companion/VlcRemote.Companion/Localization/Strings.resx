@@ -38,6 +38,13 @@ Change wsPort in {2}.</value></data>
   <data name="TrayAutostart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="TrayKeepAwake" xml:space="preserve"><value>Keep the PC awake during a movie</value></data>
   <data name="TrayTestBuilds" xml:space="preserve"><value>Get test builds</value></data>
+  <data name="TrayAbout" xml:space="preserve"><value>About VLC Remote…</value></data>
+  <data name="AboutText" xml:space="preserve"><value>VLC Remote Companion {0}
+
+Free software under the GNU General Public License v3 or later, without any warranty.
+Source code: https://github.com/lex019020/vlc-remote
+
+Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</value></data>
   <data name="TrayOpenLog" xml:space="preserve"><value>Open log</value></data>
   <data name="TrayOpenSettings" xml:space="preserve"><value>Open settings folder</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>

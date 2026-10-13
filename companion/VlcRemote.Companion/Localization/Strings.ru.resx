@@ -38,6 +38,13 @@
   <data name="TrayAutostart" xml:space="preserve"><value>Автозапуск</value></data>
   <data name="TrayKeepAwake" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>
   <data name="TrayTestBuilds" xml:space="preserve"><value>Получать тестовые сборки</value></data>
+  <data name="TrayAbout" xml:space="preserve"><value>О программе…</value></data>
+  <data name="AboutText" xml:space="preserve"><value>VLC Remote Companion {0}
+
+Свободная программа под лицензией GNU General Public License v3 или более поздней версии, без каких-либо гарантий.
+Исходный код: https://github.com/lex019020/vlc-remote
+
+Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.</value></data>
   <data name="TrayOpenLog" xml:space="preserve"><value>Открыть журнал</value></data>
   <data name="TrayOpenSettings" xml:space="preserve"><value>Открыть папку настроек</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Выход</value></data>

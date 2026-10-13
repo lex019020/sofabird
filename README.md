@@ -101,3 +101,16 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 Next: a media library with posters — a setup step for the media folders on the PC, file name parsing, artwork and
 descriptions from TMDB, a poster grid on the phone next to the folder view. Later: a Quick Settings tile, widgets,
 Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+
+## License
+
+Copyright (C) 2026 lex019020
+
+VLC Remote is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Third-party libraries keep their own licenses (MIT / Apache-2.0). Movie and series metadata and images come from
+[TMDB](https://www.themoviedb.org/): this product uses the TMDB API but is not endorsed or certified by TMDB.
+VLC is a trademark of VideoLAN; this project is not affiliated with VideoLAN.

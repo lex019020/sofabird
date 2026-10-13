@@ -46,6 +46,13 @@ UI = [
     ("TrayAutostart", "Start with Windows", "Автозапуск"),
     ("TrayKeepAwake", "Keep the PC awake during a movie", "Не давать ПК уснуть во время фильма"),
     ("TrayTestBuilds", "Get test builds", "Получать тестовые сборки"),
+    ("TrayAbout", "About VLC Remote…", "О программе…"),
+    ("AboutText", "VLC Remote Companion {0}\n\nFree software under the GNU General Public License v3 or later, without any "
+                  "warranty.\nSource code: https://github.com/lex019020/vlc-remote\n\nPosters and descriptions: TMDB. This "
+                  "product uses the TMDB API but is not endorsed or certified by TMDB.",
+     "VLC Remote Companion {0}\n\nСвободная программа под лицензией GNU General Public License v3 или более поздней "
+     "версии, без каких-либо гарантий.\nИсходный код: https://github.com/lex019020/vlc-remote\n\nПостеры и описания: "
+     "TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB."),
     ("TrayOpenLog", "Open log", "Открыть журнал"),
     ("TrayOpenSettings", "Open settings folder", "Открыть папку настроек"),
     ("TrayExit", "Exit", "Выход"),
