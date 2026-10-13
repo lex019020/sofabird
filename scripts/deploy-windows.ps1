@@ -16,6 +16,7 @@
   .\deploy-windows.ps1 -Channel stable       # последний релиз
   .\deploy-windows.ps1 -Tag v0.2.0-beta.12   # конкретная сборка
   .\deploy-windows.ps1 -Local                # собрать из исходников и поставить
+  .\deploy-windows.ps1 -Package <zip>        # поставить из готового архива (так ставит dev-laptop.ps1 по SSH)
   .\deploy-windows.ps1 -CheckOnly            # только сравнить версии
   .\deploy-windows.ps1 -Firewall -Autostart  # + правила брандмауэра (один запрос UAC) и автозапуск
   .\deploy-windows.ps1 -Rollback             # вернуть предыдущую версию
@@ -27,6 +28,7 @@ param(
     [string]$Channel = 'beta',
     [string]$Tag,
     [switch]$Local,
+    [string]$Package,
     [switch]$CheckOnly,
     [switch]$Autostart,
     [switch]$Firewall,
@@ -55,6 +57,29 @@ if ([IO.Path]::GetFullPath($InstallRoot).TrimEnd('\') -ne [IO.Path]::GetFullPath
 }
 $DataArgString = ($DataArgs | ForEach-Object { '"' + $_ + '"' }) -join ' '
 
+# По SSH процессы запускаются вне рабочего стола пользователя: трей-иконки не будет, окно сопряжения не
+# появится. Поэтому компаньон запускаем/останавливаем через задачу планировщика в интерактивном сеансе.
+$InSsh = [bool]($env:SSH_CLIENT -or $env:SSH_CONNECTION)
+
+function Invoke-InUserSession([string]$Exe, [string]$Arguments, [string]$Purpose, [switch]$Wait) {
+    $name = "VlcRemote-$Purpose"
+    $action = if ($Arguments) { New-ScheduledTaskAction -Execute $Exe -Argument $Arguments -WorkingDirectory (Split-Path $Exe) }
+              else { New-ScheduledTaskAction -Execute $Exe -WorkingDirectory (Split-Path $Exe) }
+    $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
+    Register-ScheduledTask -TaskName $name -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $name
+    if ($Wait) {
+        $deadline = (Get-Date).AddSeconds(20)
+        do { Start-Sleep -Milliseconds 400 } while ((Get-ScheduledTask -TaskName $name).State -eq 'Running' -and (Get-Date) -lt $deadline)
+    } else { Start-Sleep -Seconds 1 }
+    $info = Get-ScheduledTaskInfo -TaskName $name
+    Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+    if ($info.LastTaskResult -eq 0x41303 -or $info.LastTaskResult -eq 0x8004130F) {
+        Write-Note 'Пользователь не вошёл в Windows на этом компьютере — компаньон запустится при входе (если включён автозапуск).'
+    }
+}
+
 function Get-InstalledVersion {
     if (Test-Path $VersionFile) { return (Get-Content $VersionFile -TotalCount 1).Trim() }
     return $null
@@ -79,7 +104,10 @@ function Test-Runtimes {
 
 function Stop-Companion {
     $exe = Join-Path $AppDir $ExeName
-    if (Test-Path $exe) { & $exe --shutdown @DataArgs | Out-Null }
+    if (Test-Path $exe) {
+        if ($InSsh) { Invoke-InUserSession $exe ((@('--shutdown') + $DataArgs | ForEach-Object { '"' + $_ + '"' }) -join ' ') 'Shutdown' -Wait }
+        else { & $exe --shutdown @DataArgs | Out-Null }
+    }
     $deadline = (Get-Date).AddSeconds(10)
     do {
         $procs = Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue |
@@ -135,7 +163,8 @@ function Get-CompanionPort {
 }
 
 function Start-Companion([string]$Exe) {
-    if ($DataArgs.Count -gt 0) { Start-Process -FilePath $Exe -ArgumentList $DataArgString -WorkingDirectory (Split-Path $Exe) }
+    if ($InSsh) { Invoke-InUserSession $Exe $DataArgString 'Start' }
+    elseif ($DataArgs.Count -gt 0) { Start-Process -FilePath $Exe -ArgumentList $DataArgString -WorkingDirectory (Split-Path $Exe) }
     else { Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) }
     $port = Get-CompanionPort
     $deadline = (Get-Date).AddSeconds(15)
@@ -207,7 +236,11 @@ if ($Rollback) {
 $installed = Get-InstalledVersion
 $work = New-WorkDir
 try {
-    if ($Local) {
+    if ($Package) {
+        if (-not (Test-Path $Package)) { throw "Нет файла $Package" }
+        if ((Split-Path $Package -Leaf) -notmatch '^VlcRemote\.Companion-(.+)-win-x64\.zip$') { throw 'Ожидается архив VlcRemote.Companion-<версия>-win-x64.zip' }
+        $target = $Matches[1]
+    } elseif ($Local) {
         $build = Build-LocalCompanion $work
         $target = $build.Version
     } else {
@@ -220,12 +253,12 @@ try {
         if ($installed -eq $target) { Write-Ok 'Установлена последняя версия' } else { Write-Note 'Есть обновление' }
         return
     }
-    if ($installed -eq $target) {
+    if ($installed -eq $target -and -not $Local -and -not $Package) {
         Write-Ok "Компаньон $target уже установлен"
         if ($Firewall) { Add-FirewallRules (Join-Path $AppDir $ExeName) }
         return
     }
-    $zip = if ($Local) { $build.File } else { Get-ReleaseAsset $tagName 'VlcRemote.Companion-*-win-x64.zip' $work }
+    $zip = if ($Package) { (Resolve-Path $Package).Path } elseif ($Local) { $build.File } else { Get-ReleaseAsset $tagName 'VlcRemote.Companion-*-win-x64.zip' $work }
     Install-Companion $zip $target
 } finally {
     Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

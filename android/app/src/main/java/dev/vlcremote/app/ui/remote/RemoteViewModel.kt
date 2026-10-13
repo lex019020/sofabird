@@ -14,16 +14,20 @@ import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.TrackKind
+import dev.vlcremote.protocol.model.VlcInfo
+import dev.vlcremote.protocol.model.VlcProcessStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class RemoteUiState(
     val state: PlayerState = PlayerState.EMPTY,
@@ -39,9 +43,26 @@ data class RemoteUiState(
     val audioDevices: List<AudioDevice> = emptyList(),
     val displays: List<Display> = emptyList(),
     val pcInfoLoading: Boolean = false,
+    /** The active server is a companion (known before the first `welcome`). */
+    val companionMode: Boolean = false,
+    /** "Запустить VLC" / "Перезапустить" was pressed and VLC has not changed state yet. */
+    val launching: Boolean = false,
 ) {
     val displayedPosition: Double get() = scrubTarget ?: position
-    val isCompanion: Boolean get() = state.vlc.level >= 2
+    val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
+
+    /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
+    val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
+}
+
+/**
+ * Companion mode only: when VLC is not controllable ([VlcInfo.effectiveStatus] other than running)
+ * the remote shows a state card instead of transport controls. Direct VLC mode never blocks — there
+ * a dead VLC simply means no connection.
+ */
+fun vlcBlockingStatus(companion: Boolean, connection: ConnectionState, vlc: VlcInfo): VlcProcessStatus? {
+    if (!companion || !connection.isOnline) return null
+    return vlc.effectiveStatus.takeIf { it != VlcProcessStatus.RUNNING }
 }
 
 class RemoteViewModel(
@@ -53,6 +74,8 @@ class RemoteViewModel(
     private val scrubTarget = MutableStateFlow<Double?>(null)
     private val pcInfo = MutableStateFlow(PcInfo())
     private var pcInfoJob: Job? = null
+    private val launching = MutableStateFlow(false)
+    private var launchJob: Job? = null
 
     private data class PcInfo(
         val audioDevices: List<AudioDevice> = emptyList(),
@@ -60,14 +83,20 @@ class RemoteViewModel(
         val loading: Boolean = false,
     )
 
-    private data class Extras(val position: Double, val scrubTarget: Double?, val server: SavedServer?, val pcInfo: PcInfo)
+    private data class Extras(
+        val position: Double,
+        val scrubTarget: Double?,
+        val server: SavedServer?,
+        val pcInfo: PcInfo,
+        val launching: Boolean,
+    )
 
     val uiState: StateFlow<RemoteUiState> = combine(
         controller.state,
         controller.connection,
         controller.capabilities,
         settings.flow,
-        combine(position, scrubTarget, controller.activeServer, pcInfo) { p, t, s, i -> Extras(p, t, s, i) },
+        combine(position, scrubTarget, controller.activeServer, pcInfo, launching) { p, t, s, i, l -> Extras(p, t, s, i, l) },
     ) { state, connection, caps, prefs, extras ->
         RemoteUiState(
             state = state,
@@ -80,6 +109,8 @@ class RemoteViewModel(
             audioDevices = extras.pcInfo.audioDevices,
             displays = extras.pcInfo.displays,
             pcInfoLoading = extras.pcInfo.loading,
+            companionMode = extras.server?.isCompanion == true,
+            launching = extras.launching,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
@@ -140,7 +171,25 @@ class RemoteViewModel(
     fun rate(value: Double) = send(PlayerCommand.Rate(value))
     fun aspect(value: String) = send(PlayerCommand.Aspect(value))
     fun toggleFullscreen() = send(PlayerCommand.Fullscreen(null))
-    fun launchVlc() = send(PlayerCommand.Launch())
+    /**
+     * `cmd launch`: starts VLC, or (status `noControl`) restarts it with control. Shows progress until
+     * the companion reports a new VLC state (at most [LAUNCH_WAIT_MS]).
+     */
+    fun launchVlc() {
+        launchJob?.cancel()
+        launchJob = viewModelScope.launch {
+            launching.value = true
+            try {
+                val before = controller.state.value.vlc.effectiveStatus
+                if (controller.sendAwait(PlayerCommand.Launch()).isFailure) return@launch
+                withTimeoutOrNull(LAUNCH_WAIT_MS) {
+                    controller.state.first { it.vlc.effectiveStatus != before }
+                }
+            } finally {
+                launching.value = false
+            }
+        }
+    }
     fun quitVlc() = send(PlayerCommand.Quit)
 
     // ---------------------------------------------------------------- companion system controls
@@ -181,4 +230,8 @@ class RemoteViewModel(
     fun sleepPc() = sendSystem(SystemCommand.Sleep)
     fun setSystemVolume(value: Int) = sendSystem(SystemCommand.SystemVolume(value = value.coerceIn(0, 100)))
     fun toggleSystemMute() = sendSystem(SystemCommand.SystemVolume(mute = controller.state.value.system?.muted != true))
+
+    private companion object {
+        const val LAUNCH_WAIT_MS = 20_000L
+    }
 }

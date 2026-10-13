@@ -6,13 +6,14 @@ namespace VlcRemote.Companion.Tray;
 /// </summary>
 public sealed class PairingForm : Form
 {
+    private readonly Label _titleLabel;
     private readonly Label _codeLabel;
     private readonly Label _addressLabel;
     private readonly Label _timerLabel;
     private readonly System.Windows.Forms.Timer _timer;
     private readonly DateTimeOffset _expiresAt;
 
-    public PairingForm(string code, string address, DateTimeOffset expiresAt, Screen target)
+    public PairingForm(string code, string address, DateTimeOffset expiresAt, Screen target, string? requestingDevice = null)
     {
         _expiresAt = expiresAt;
         FormBorderStyle = FormBorderStyle.None;
@@ -31,10 +32,11 @@ public sealed class PairingForm : Form
         Location = new Point(target.WorkingArea.X + (target.WorkingArea.Width - width) / 2,
             target.WorkingArea.Y + (target.WorkingArea.Height - height) / 2);
 
-        var title = new Label
+        var title = _titleLabel = new Label
         {
-            Text = "Код сопряжения VLC Remote",
-            Font = new Font("Segoe UI", 26, FontStyle.Regular),
+            Text = TitleFor(requestingDevice),
+            Font = new Font("Segoe UI", 22, FontStyle.Regular),
+            AutoEllipsis = true,
             Dock = DockStyle.Top,
             Height = 90,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -76,6 +78,26 @@ public sealed class PairingForm : Form
         _timer.Tick += (_, _) => UpdateTimer();
         _timer.Start();
         UpdateTimer();
+    }
+
+    private static string TitleFor(string? device) =>
+        string.IsNullOrWhiteSpace(device) ? "Код сопряжения VLC Remote" : $"Телефон «{device}» хочет подключиться";
+
+    /// <summary>Повторный запрос (возможно, от другого телефона) — обновить заголовок, код прежний.</summary>
+    public void SetRequester(string? device)
+    {
+        if (!string.IsNullOrWhiteSpace(device)) _titleLabel.Text = TitleFor(device);
+    }
+
+    /// <summary>Показать поверх всех окон (окно уже открыто или только создано).</summary>
+    public void BringToFrontTopMost()
+    {
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        if (!Visible) Show();
+        TopMost = false;
+        TopMost = true;
+        BringToFront();
+        Activate();
     }
 
     private void UpdateTimer()

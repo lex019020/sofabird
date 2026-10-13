@@ -1,6 +1,5 @@
 package dev.vlcremote.app.data.player
 
-import android.os.Build
 import android.util.Log
 import dev.vlcremote.app.data.companion.CompanionBackend
 import dev.vlcremote.app.data.companion.CompanionCredentials
@@ -15,7 +14,6 @@ import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.companion.AudioDevice
-import dev.vlcremote.protocol.companion.DeviceInfo
 import dev.vlcremote.protocol.companion.Display
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
@@ -62,6 +60,7 @@ class PlayerController(
     private val secrets: SecretStore,
     private val artAuth: ArtAuth,
     private val appVisibility: AppVisibility,
+    private val identity: DeviceIdentity,
     private val scope: CoroutineScope,
 ) {
     private val _activeServer = MutableStateFlow<SavedServer?>(null)
@@ -154,8 +153,8 @@ class PlayerController(
                 host = server.host,
                 port = server.wsPort,
                 initialName = server.displayName,
-                device = DeviceInfo(name = deviceName(), id = secrets.deviceId()),
-                credentials = CompanionCredentials(token = token, pairCode = pendingPairCode.remove(server.id)),
+                device = identity.deviceInfo(),
+                credentials = CompanionCredentials(token = token),
                 onToken = { newToken ->
                     secrets.setCompanionToken(server.id, newToken)
                     artAuth.set(server.host, server.wsPort, "Bearer $newToken")
@@ -168,11 +167,9 @@ class PlayerController(
         }
     }
 
-    private val pendingPairCode = HashMap<String, String>()
-
-    /** Use [code] for the next `hello` to this server (first pairing). */
-    fun setPairCode(serverId: String, code: String) {
-        pendingPairCode[serverId] = code
+    /** The pairing flow got a token itself (before [connect]); show the usual "paired" notice. */
+    fun announcePaired(server: SavedServer) {
+        _events.tryEmit(PlayerEvent.Paired(server))
     }
 
     // ------------------------------------------------------------------ commands
@@ -235,11 +232,6 @@ class PlayerController(
     }
 
     fun companionBackend(): CompanionBackend? = _backend.value as? CompanionBackend
-
-    private fun deviceName(): String = listOfNotNull(Build.MANUFACTURER, Build.MODEL)
-        .joinToString(" ")
-        .ifBlank { "Android" }
-        .replaceFirstChar { it.uppercase() }
 
     private companion object {
         const val TAG = "PlayerController"

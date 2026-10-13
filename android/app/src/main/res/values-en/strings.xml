@@ -34,7 +34,7 @@
     <string name="err_empty_body">Empty reply: VLC is still starting, try again in a few seconds</string>
     <string name="err_lua">VLC Lua page error %1$s</string>
     <string name="err_unknown_host">Could not resolve the PC address</string>
-    <string name="err_pairing_required">Pairing required: enter the code shown on the PC</string>
+    <string name="err_pairing_required">This phone is not paired with the computer</string>
     <string name="err_vlc_not_running">VLC is not running on the PC</string>
     <string name="err_protocol_mismatch">The companion speaks another protocol version (%1$s) — update the app or the companion</string>
     <string name="err_other">Error: %1$s</string>
@@ -48,7 +48,7 @@
     <string name="hint_refused">Check that "Web" is enabled under Main interfaces in VLC and the port matches (8080 by default).</string>
     <string name="hint_timeout">Phone and PC must be on the same Wi-Fi. Windows Firewall must allow vlc.exe on private networks.</string>
     <string name="hint_empty_body">Wait for VLC to finish starting and press "Test" again.</string>
-    <string name="hint_pairing_required">On the PC tray: VLC Remote → "Pair phone". The code is valid for 5 minutes.</string>
+    <string name="hint_pairing_required">Tap the computer in the list — a code appears on its screen. No window? VLC Remote tray icon → “Pair phone…”.</string>
 
     <string name="not_connected_title">Not connected</string>
     <string name="vlc_not_running_title">VLC is not running</string>
@@ -115,9 +115,8 @@
 
     <string name="connection_title">Connection</string>
     <string name="saved_pcs">Saved PCs</string>
-    <string name="found_pcs">Found on the network</string>
-    <string name="searching">Looking for a companion on the network…</string>
-    <string name="nothing_found">Nothing found yet. The companion announces itself; VLC without a companion can be found by scanning the network.</string>
+    <string name="found_pcs">VLC on the network without the companion</string>
+    <string name="searching">Looking for a computer with the companion…</string>
     <string name="sweep_subnet">Find VLC by scanning the network</string>
     <string name="sweeping">Scanning the network…</string>
     <string name="sweep_hint">Probes port 8080 on every address of your subnet (about 10 seconds).</string>
@@ -128,20 +127,14 @@
     <string name="field_port">Port</string>
     <string name="field_name_optional">Name (optional)</string>
     <string name="field_password">VLC web-interface password</string>
-    <string name="field_pair_code">Pairing code (6 digits)</string>
-    <string name="field_pair_code_again">New pairing code (to pair again)</string>
-    <string name="pair_code_hint">PC tray → VLC Remote → "Pair phone"</string>
     <string name="already_paired">This phone is already paired with this PC</string>
     <string name="testing">Testing…</string>
     <string name="test_ok_direct">Works: %1$s, %2$s</string>
-    <string name="test_ok_companion">Works: %1$s · %2$s</string>
     <string name="action_test">Test</string>
     <string name="action_save_connect">Save and connect</string>
     <string name="badge_pc_found">PC found</string>
-    <string name="badge_companion">companion</string>
     <string name="badge_vlc_running">VLC running</string>
     <string name="badge_vlc_not_running">VLC not running</string>
-    <string name="badge_needs_pairing">needs pairing</string>
 
     <string name="instructions_show">How to enable the VLC web interface</string>
     <string name="instructions_hide">Hide instructions</string>
@@ -196,4 +189,40 @@
     <string name="section_power">Power</string>
     <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
     <string name="settings_version">Version %1$s (build %2$d)</string>
+
+    <string name="close">Close</string>
+    <string name="expand">Expand</string>
+    <string name="collapse">Collapse</string>
+    <string name="more_actions">More actions</string>
+    <string name="nearby_pcs">Computers nearby</string>
+    <string name="nearby_not_found">No computer found. Make sure the VLC Remote companion is running on the PC (tray icon) and the phone is on the same Wi-Fi. Other ways to connect are below.</string>
+    <string name="nearby_tap_to_pair">Tap — a code appears on the computer screen</string>
+    <string name="badge_paired">paired</string>
+    <string name="badge_connected">connected</string>
+    <string name="badge_vlc_no_control">VLC without control</string>
+    <string name="badge_vlc_starting">VLC is starting…</string>
+    <string name="badge_vlc_not_installed">VLC not installed</string>
+    <string name="forget_pc">Forget this computer</string>
+    <string name="other_ways">Other ways to connect</string>
+    <string name="other_ways_hint">VLC without the companion, manual address, network scan</string>
+    <string name="manual_companion_hint">After you tap “Connect”, a code appears on the computer screen — type it on the phone.</string>
+    <string name="pairing_connecting">Connecting to %1$s…</string>
+    <string name="pairing_auto_found">Found computer %1$s — connecting…</string>
+    <string name="pairing_failed_title">Could not connect to %1$s</string>
+    <string name="pair_dialog_title">Enter the code from the computer screen</string>
+    <string name="pair_dialog_hint">The code is shown on the screen of %1$s.</string>
+    <string name="pair_dialog_fallback">No code window? On the PC: VLC Remote tray icon → “Pair phone…”.</string>
+    <string name="pair_dialog_checking">Checking the code…</string>
+    <string name="err_invalid_pair_code">Wrong or expired code</string>
+    <string name="hint_invalid_pair_code">Enter the code currently shown on the PC. A code is valid for 5 minutes.</string>
+    <string name="action_enter_code">Enter code</string>
+    <string name="vlc_state_starting">VLC is starting…</string>
+    <string name="vlc_state_not_running_manual">Start VLC on the computer — the remote will pick it up.</string>
+    <string name="vlc_state_no_control_title">VLC is open without phone control</string>
+    <string name="vlc_state_no_control_body">The companion will restart VLC with the same movie; from then on VLC starts with control by itself</string>
+    <string name="vlc_state_no_control_note">The playback position is not kept on restart.</string>
+    <string name="vlc_state_no_control_manual">Close VLC on the computer and open it again — then the remote can control it.</string>
+    <string name="action_restart_with_control">Restart with control</string>
+    <string name="vlc_state_not_installed_title">VLC was not found on the computer</string>
+    <string name="vlc_state_not_installed_body">Install VLC 3.0 from videolan.org — the companion will find it.</string>
 </resources>

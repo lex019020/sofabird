@@ -30,3 +30,21 @@ data class SavedServer(
         const val DEFAULT_HTTP_PORT = 8080
     }
 }
+
+/**
+ * The saved companion server that a discovered/typed companion corresponds to: by saved id, then by
+ * the companion's installation GUID, then by address (unless the GUIDs say it is another PC).
+ */
+fun List<SavedServer>.findCompanion(
+    host: String,
+    wsPort: Int,
+    pcId: String?,
+    serverId: String? = null,
+): SavedServer? {
+    val companions = filter { it.isCompanion }
+    serverId?.let { id -> companions.firstOrNull { it.id == id }?.let { return it } }
+    pcId?.let { pc -> companions.firstOrNull { it.pcId == pc }?.let { return it } }
+    return companions.firstOrNull {
+        it.host.equals(host, ignoreCase = true) && it.wsPort == wsPort && (it.pcId == null || pcId == null || it.pcId == pcId)
+    }
+}

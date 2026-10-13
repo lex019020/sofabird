@@ -29,15 +29,24 @@
 ```
 
 Ответы на запросы несут тот же `id`. Ошибки: `{"t":"err","id":"...","code":"<код>","msg":"..."}`.
-Коды: `unauthorized`, `bad_request`, `vlc_not_running`, `vlc_error`, `unsupported`, `internal`.
+Коды: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vlc_error`, `unsupported`, `internal`.
 
 ## Рукопожатие и сопряжение
 
 1. Телефон → `{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"<uuid>"},"token":"<токен или null>","pairCode":"<6 цифр или null>"}`
-2. ПК → `{"t":"welcome","v":1,"name":"<имя ПК>","id":"<GUID>","caps":[...],"token":"<новый токен, только при успешном pairCode>","vlc":{"running":true,"version":"3.0.23","apiVersion":3,"level":2}}`
-   либо `{"t":"err","code":"unauthorized","msg":"pairing required"}` и закрытие соединения.
-3. Код сопряжения компаньон показывает в окне на экране ТВ/ноутбука по нажатию в трее
-   («Сопряжение телефона») и принимает его 5 минут. Токен — 32 байта base64url, ПК хранит SHA‑256.
+2. ПК → `{"t":"welcome","v":1,"name":"<имя ПК>","id":"<GUID>","caps":[...],"token":"<новый токен, только при успешном pairCode>","vlc":{...как в state.vlc}}`
+   либо ошибка и закрытие соединения:
+   - `{"t":"err","code":"pairing_required","msg":"..."}` — телефон не сопряжён (нет токена или токен неизвестен) и кода
+     в `hello` нет. **Компаньон сам открывает окно с кодом** на экране ТВ/ноутбука (поверх всех окон, с именем
+     телефона из `device.name`), если активного кода ещё нет; телефон показывает поле «Введите код с экрана ПК»
+     и переподключается с `pairCode`.
+   - `{"t":"err","code":"unauthorized","msg":"..."}` — код неверный или истёк (окно с кодом остаётся/обновляется),
+     либо исчерпаны попытки.
+3. Код живёт 5 минут и 5 попыток; при успешном сопряжении окно закрывается. Окно можно открыть и вручную из меню
+   в трее («Сопряжение телефона…»). Токен — 32 байта base64url, ПК хранит SHA‑256. Повторное `pairing_required`
+   от того же телефона, пока код активен, окно заново не создаёт (только поднимает поверх).
+
+Совместимость: старые клиенты, получив `pairing_required`, ведут себя как при `unauthorized`.
 
 `caps` — строки: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
 `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`.
@@ -100,7 +109,7 @@
 ```json
 {
   "t": "state",
-  "vlc": {"running": true, "version": "3.0.23", "apiVersion": 3, "level": 2},
+  "vlc": {"running": true, "status": "running", "version": "3.0.23", "apiVersion": 3, "level": 2},
   "playback": {"state": "playing|paused|stopped", "time": 904, "length": 10705, "position": 0.084, "rate": 1.0, "updatedAt": 1760280000123},
   "item": {"plId": 3, "uri": "file:///D:/shared/x.mkv", "title": "The Lord of the Rings", "artUrl": "http://<host>:47555/art?plId=3"},
   "tracks": {
@@ -118,6 +127,20 @@
   "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "keepAwake": true}
 }
 ```
+
+`vlc.status` — состояние VLC на ПК (появилось в протоколе 1, необязательное; старые компаньоны его не шлют):
+
+| status | Значение | `running` | Что показывает телефон |
+|---|---|---|---|
+| `notInstalled` | VLC не найден на ПК | false | «VLC не установлен на ПК» |
+| `notRunning` | процесса нет | false | «VLC не запущен» + кнопка «Запустить» (`cmd launch`) |
+| `starting` | запускается компаньоном | false | индикатор «VLC запускается…» |
+| `noControl` | процесс есть, но веб‑интерфейс не отвечает с паролем компаньона (VLC открыт вручную до того, как компаньон его настроил) | false | «VLC открыт без управления» + кнопка «Перезапустить с управлением» (`cmd launch`) |
+| `running` | полный контроль | true | пульт |
+
+`running` по‑прежнему означает «можно управлять». Компаньон старается, чтобы `noControl` не возникал: пока VLC не
+запущен, он прописывает в `%APPDATA%\vlc\vlcrc` веб‑интерфейс и RC со своим паролем, так что VLC, открытый
+как угодно, сразу управляем. `cmd launch` при `noControl` перезапускает VLC с тем же файлом (позиция теряется).
 
 Поля `tracks.current*`, `chapters.names`, `system` могут отсутствовать, если уровень/`caps` их не дают.
 `artUrl` отдаёт компаньон (проксирует `/art` VLC), авторизация — заголовок `Authorization: Bearer <token>`.

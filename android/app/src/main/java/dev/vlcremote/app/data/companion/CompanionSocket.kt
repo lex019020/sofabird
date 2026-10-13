@@ -4,8 +4,8 @@ import dev.vlcremote.protocol.companion.CompanionCodec
 import dev.vlcremote.protocol.companion.CompanionErrorException
 import dev.vlcremote.protocol.companion.CompanionMessage
 import dev.vlcremote.protocol.companion.DecodedMessage
-import dev.vlcremote.protocol.companion.ErrorCode
 import dev.vlcremote.protocol.companion.PROTOCOL_VERSION
+import dev.vlcremote.protocol.companion.toHandshakeError
 import dev.vlcremote.protocol.model.ConnectionError
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
@@ -72,7 +72,7 @@ object CompanionSocket {
                             return@withTimeout msg
                         }
                         is CompanionMessage.Err -> throw CompanionHandshakeException(
-                            if (msg.errorCode == ErrorCode.UNAUTHORIZED) ConnectionError.PairingRequired else ConnectionError.Other(msg.msg),
+                            msg.toHandshakeError(sentPairCode = hello.pairCode != null),
                             msg.msg,
                         )
                         else -> continue // e.g. an early `state`

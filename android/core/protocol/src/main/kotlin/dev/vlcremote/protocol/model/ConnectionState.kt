@@ -23,8 +23,14 @@ sealed class ConnectionError {
     /** Host name could not be resolved. */
     data object UnknownHost : ConnectionError()
 
-    /** Companion: token rejected / pairing required. */
+    /**
+     * Companion: this phone is not paired (no token or the token was revoked). A current companion
+     * already shows a code on the PC screen; the app asks for it.
+     */
     data object PairingRequired : ConnectionError()
+
+    /** Companion: the pairing code is wrong or expired (or too many attempts). */
+    data object InvalidPairCode : ConnectionError()
 
     /** Companion reports VLC is not running (level 2 only; UI offers "launch"). */
     data object VlcNotRunning : ConnectionError()

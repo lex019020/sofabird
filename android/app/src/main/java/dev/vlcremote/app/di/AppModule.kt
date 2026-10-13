@@ -8,7 +8,10 @@ import dev.vlcremote.app.data.discovery.UdpBeaconDiscovery
 import dev.vlcremote.app.data.net.ArtAuth
 import dev.vlcremote.app.data.net.HttpClients
 import dev.vlcremote.app.data.player.AppVisibility
+import dev.vlcremote.app.data.player.CompanionLink
+import dev.vlcremote.app.data.player.CompanionPairingLink
 import dev.vlcremote.app.data.player.ConnectionTester
+import dev.vlcremote.app.data.player.DeviceIdentity
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.secrets.SecretStore
 import dev.vlcremote.app.data.servers.ServerRepository
@@ -48,8 +51,10 @@ val appModule = module {
     single { SubnetScanner(get(), get()) }
     single { DiscoveryRepository(get(), get(), get(), get(), get(named("appScope"))) }
 
+    single { DeviceIdentity(androidContext(), get()) }
     single { ConnectionTester(get()) }
-    single { PlayerController(get(), get(), get(), get(), get(), get(named("appScope"))) }
+    single { PlayerController(get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
+    single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get()) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
     viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get()) }

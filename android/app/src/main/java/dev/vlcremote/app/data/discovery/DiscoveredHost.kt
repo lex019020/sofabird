@@ -2,6 +2,7 @@ package dev.vlcremote.app.data.discovery
 
 import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.protocol.companion.COMPANION_WS_PORT
+import dev.vlcremote.protocol.model.VlcProcessStatus
 
 enum class DiscoverySource { NSD, UDP_BEACON, SUBNET_SWEEP }
 
@@ -18,6 +19,10 @@ data class DiscoveredHost(
     /** VLC running (companion `/info`) or VLC answered on 8080 (sweep). `null` = unknown. */
     val vlcRunning: Boolean? = null,
     val vlcVersion: String? = null,
+    /** Companion `/info` → `vlc.status` (derived from `running` for old companions); `null` = unknown. */
+    val vlcStatus: VlcProcessStatus? = null,
+    /** When `/info` was last read (0 = never). */
+    val infoAt: Long = 0L,
     val pcId: String? = null,
     val sources: Set<DiscoverySource> = emptySet(),
     val lastSeen: Long = System.currentTimeMillis(),
@@ -32,6 +37,8 @@ data class DiscoveredHost(
         needsPairing = other.needsPairing ?: needsPairing,
         vlcRunning = other.vlcRunning ?: vlcRunning,
         vlcVersion = other.vlcVersion ?: vlcVersion,
+        vlcStatus = other.vlcStatus ?: vlcStatus,
+        infoAt = maxOf(infoAt, other.infoAt),
         pcId = other.pcId ?: pcId,
         sources = sources + other.sources,
         lastSeen = maxOf(lastSeen, other.lastSeen),

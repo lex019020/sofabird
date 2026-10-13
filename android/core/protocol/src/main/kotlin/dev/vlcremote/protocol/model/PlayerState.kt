@@ -1,7 +1,13 @@
 package dev.vlcremote.protocol.model
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 /** Playback state as reported by VLC (`state` in status.json / `playback.state` in the protocol). */
 @Serializable
@@ -23,12 +29,64 @@ enum class PlaybackStatus {
 
 @Serializable
 data class VlcInfo(
+    /** "Can be controlled right now" — kept for old companions; see [status] for the details. */
     val running: Boolean = false,
     val version: String? = null,
     val apiVersion: Int? = null,
     /** 0 — plain HTTP, 1 — HTTP + Lua pages, 2 — companion. */
     val level: Int = 0,
-)
+    /** Companion only, optional: old companions don't send it. Use [effectiveStatus]. */
+    val status: VlcProcessStatus? = null,
+) {
+    /**
+     * [status] when the companion reported a known value, otherwise derived from [running]
+     * (`running` → [VlcProcessStatus.RUNNING], else [VlcProcessStatus.NOT_RUNNING]).
+     */
+    val effectiveStatus: VlcProcessStatus
+        get() = status?.takeIf { it != VlcProcessStatus.UNKNOWN }
+            ?: if (running) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING
+
+    /** Same info after VLC exited: not controllable, process gone. */
+    fun exited(): VlcInfo = copy(running = false, status = status?.let { VlcProcessStatus.NOT_RUNNING })
+}
+
+/**
+ * `vlc.status` (protocol/README.md, "Состояние: state"). Values a newer companion may add decode as
+ * [UNKNOWN] instead of failing the whole message.
+ */
+@Serializable(with = VlcProcessStatusSerializer::class)
+enum class VlcProcessStatus(val wire: String) {
+    /** VLC is not installed on the PC. */
+    NOT_INSTALLED("notInstalled"),
+
+    /** No VLC process. */
+    NOT_RUNNING("notRunning"),
+
+    /** The companion is starting VLC. */
+    STARTING("starting"),
+
+    /** VLC runs, but its web interface does not accept the companion (opened by hand). */
+    NO_CONTROL("noControl"),
+
+    /** Full control. */
+    RUNNING("running"),
+
+    /** A value this app version does not know. */
+    UNKNOWN("");
+
+    companion object {
+        fun fromWire(value: String?): VlcProcessStatus = entries.firstOrNull { it != UNKNOWN && it.wire == value } ?: UNKNOWN
+    }
+}
+
+internal object VlcProcessStatusSerializer : KSerializer<VlcProcessStatus> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("dev.vlcremote.protocol.model.VlcProcessStatus", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: VlcProcessStatus) = encoder.encodeString(value.wire)
+
+    override fun deserialize(decoder: Decoder): VlcProcessStatus = VlcProcessStatus.fromWire(decoder.decodeString())
+}
 
 @Serializable
 data class Playback(

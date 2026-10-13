@@ -103,6 +103,12 @@ public sealed class PairingService
         get { lock (_lock) return _code is not null && _time.GetUtcNow() < _expiresAt; }
     }
 
+    /// <summary>Действующий код или <c>null</c> (нет, истёк).</summary>
+    public string? ActiveCode
+    {
+        get { lock (_lock) return _code is not null && _time.GetUtcNow() < _expiresAt ? _code : null; }
+    }
+
     public DateTimeOffset? ExpiresAt
     {
         get { lock (_lock) return _code is null ? null : _expiresAt; }

@@ -20,6 +20,9 @@ public class SessionTests
         public PairingService Pairing { get; }
         public List<(string Name, CommandArgs Args)> Commands { get; } = new();
         public bool VlcDown { get; set; }
+        public List<DeviceInfo?> PairingRequests { get; } = new();
+
+        public void RequestPairing(DeviceInfo? device) => PairingRequests.Add(device);
 
         public Task<StateMessage> GetStateAsync(CancellationToken ct) =>
             Task.FromResult(new StateMessage { Vlc = VlcInfo, Playback = new PlaybackInfo { State = "paused", Time = 10 } });
@@ -71,16 +74,39 @@ public class SessionTests
     private static JsonElement Recv(InMemoryLineTransport t) => JsonDocument.Parse(t.PhoneReceiveAsync().GetAwaiter().GetResult()).RootElement;
 
     [Fact]
-    public async Task Hello_WithoutToken_IsRejectedAndClosed()
+    public async Task Hello_WithoutToken_RequestsPairingAndCloses()
     {
-        var (t, _, _, _, run) = Start();
-        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"token":null,"pairCode":null}""");
+        var (t, _, host, _, run) = Start();
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"d"},"token":null,"pairCode":null}""");
         var err = Recv(t);
         Assert.Equal("err", err.GetProperty("t").GetString());
-        Assert.Equal("unauthorized", err.GetProperty("code").GetString());
+        Assert.Equal("pairing_required", err.GetProperty("code").GetString());
         Assert.Equal("pairing required", err.GetProperty("msg").GetString());
         await run.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(t.Closed);
+        var request = Assert.Single(host.PairingRequests);
+        Assert.Equal("Pixel 8", request!.Name);
+        Assert.Equal("d", request.Id);
+    }
+
+    [Fact]
+    public async Task Hello_WithUnknownToken_RequestsPairing()
+    {
+        var (t, _, host, _, run) = Start("tok");
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"token":"forgotten"}""");
+        Assert.Equal("pairing_required", Recv(t).GetProperty("code").GetString());
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(host.PairingRequests);
+    }
+
+    [Fact]
+    public async Task Hello_PairCodeWithoutActivePairing_UnauthorizedAndRequestsNewCode()
+    {
+        var (t, _, host, _, run) = Start();
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"pairCode":"123456"}""");
+        Assert.Equal("unauthorized", Recv(t).GetProperty("code").GetString());
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(host.PairingRequests); // код истёк/не было — окно с новым кодом
     }
 
     [Fact]
@@ -120,13 +146,15 @@ public class SessionTests
     [Fact]
     public async Task Hello_WrongPairCode_Unauthorized()
     {
-        var (t, _, _, pairing, run) = Start();
+        var (t, _, host, pairing, run) = Start();
         var code = pairing.BeginPairing();
         var wrong = code == "111111" ? "222222" : "111111";
         await t.PhoneSendAsync($$"""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"pairCode":"{{wrong}}"}""");
         var err = Recv(t);
         Assert.Equal("unauthorized", err.GetProperty("code").GetString());
         await run.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(pairing.IsPairingActive); // неверный код не закрывает окно
+        Assert.Empty(host.PairingRequests);
     }
 
     [Fact]

@@ -1,9 +1,12 @@
 package dev.vlcremote.app.ui.connection
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,12 +25,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,12 +51,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,12 +69,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.discovery.DiscoveredHost
+import dev.vlcremote.app.data.player.PairingState
 import dev.vlcremote.app.data.player.TestResult
 import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.app.domain.model.ServerMode
+import dev.vlcremote.app.ui.common.StatusDot
 import dev.vlcremote.app.ui.common.hint
 import dev.vlcremote.app.ui.common.message
 import dev.vlcremote.app.ui.connectionSummary
+import dev.vlcremote.protocol.model.ConnectionError
+import dev.vlcremote.protocol.model.ConnectionState
+import dev.vlcremote.protocol.model.VlcProcessStatus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -75,6 +93,14 @@ fun ConnectionScreen(
     DisposableEffect(Unit) {
         viewModel.startDiscovery()
         onDispose { viewModel.stopDiscovery() }
+    }
+
+    // Connected (and paired) through the flow → straight to the remote.
+    LaunchedEffect(ui.pairing) {
+        if (ui.pairing is PairingState.Done) {
+            viewModel.pairingDoneHandled()
+            onConnected()
+        }
     }
 
     Scaffold(
@@ -91,15 +117,57 @@ fun ConnectionScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (ui.activeServerId != null) {
-                item { CurrentConnectionCard(ui, onDisconnect = viewModel::disconnect) }
+            when (val p = ui.pairing) {
+                is PairingState.Connecting -> item(key = "pairing") { PairingProgressCard(p, onCancel = viewModel::cancelPairing) }
+                is PairingState.Failed -> item(key = "pairing") {
+                    PairingFailedCard(p, onRetry = viewModel::retryPairing, onClose = viewModel::cancelPairing)
+                }
+                else -> Unit
             }
 
+            if (ui.activeServer != null) {
+                item(key = "current") {
+                    CurrentConnectionCard(
+                        ui,
+                        onDisconnect = viewModel::disconnect,
+                        onEnterCode = { ui.activeServer?.let { viewModel.connectSaved(it, onConnected) } },
+                    )
+                }
+            }
+
+            // ---------------------------------------------------------------- nearby companions
+            item(key = "nearby-header") {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    SectionHeader(stringResource(R.string.nearby_pcs), Modifier.weight(1f))
+                    if (ui.scanning) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            }
+            if (ui.nearby.isEmpty()) {
+                item(key = "nearby-empty") {
+                    Text(
+                        stringResource(if (ui.searchTimedOut) R.string.nearby_not_found else R.string.searching),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            items(ui.nearby, key = { "nearby-" + it.host.host }) { pc ->
+                val busy = (ui.pairing as? PairingState.Connecting)?.target?.host == pc.host.host
+                NearbyPcCard(
+                    pc = pc,
+                    active = pc.saved != null && pc.saved.id == ui.activeServerId && ui.connection.isOnline,
+                    busy = busy,
+                    onClick = { viewModel.connectNearby(pc) },
+                    onForget = pc.saved?.let { saved -> { viewModel.forget(saved) } },
+                )
+            }
+
+            // ---------------------------------------------------------------- saved, not around
             if (ui.saved.isNotEmpty()) {
-                item { SectionHeader(stringResource(R.string.saved_pcs)) }
+                item(key = "saved-header") { SectionHeader(stringResource(R.string.saved_pcs)) }
                 items(ui.saved, key = { "saved-" + it.id }) { server ->
                     SavedServerRow(
                         server = server,
@@ -111,43 +179,48 @@ fun ConnectionScreen(
                 }
             }
 
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    SectionHeader(stringResource(R.string.found_pcs), Modifier.weight(1f))
-                    if (ui.scanning || ui.sweeping) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            // ---------------------------------------------------------------- other ways
+            item(key = "other-header") {
+                OtherWaysHeader(ui.otherOptionsExpanded) { viewModel.setOtherOptionsExpanded(!ui.otherOptionsExpanded) }
+            }
+            if (ui.otherOptionsExpanded) {
+                item(key = "other-found-header") {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        SectionHeader(stringResource(R.string.found_pcs), Modifier.weight(1f))
+                        if (ui.sweeping) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
                 }
-            }
-            if (ui.discovered.isEmpty()) {
-                item {
-                    Text(
-                        stringResource(if (ui.scanning) R.string.searching else R.string.nothing_found),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                items(ui.otherHosts, key = { "found-" + it.host }) { host ->
+                    DiscoveredRow(host, onClick = { viewModel.pick(host) })
                 }
-            }
-            items(ui.discovered, key = { "found-" + it.host }) { host ->
-                DiscoveredRow(host, onClick = { viewModel.pick(host) })
-            }
-            item {
-                OutlinedButton(onClick = viewModel::sweepSubnet, enabled = !ui.sweeping) {
-                    Text(stringResource(if (ui.sweeping) R.string.sweeping else R.string.sweep_subnet))
+                item(key = "sweep") {
+                    Column {
+                        OutlinedButton(onClick = viewModel::sweepSubnet, enabled = !ui.sweeping) {
+                            Text(stringResource(if (ui.sweeping) R.string.sweeping else R.string.sweep_subnet))
+                        }
+                        Text(
+                            stringResource(R.string.sweep_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                Text(
-                    stringResource(R.string.sweep_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                item(key = "manual-divider") { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+                item(key = "manual-header") { SectionHeader(stringResource(R.string.manual_entry)) }
+                item(key = "manual") { ManualForm(ui, viewModel, onConnected) }
+                item(key = "instr-divider") { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+                item(key = "instructions") { Instructions(ui.showInstructions, viewModel::toggleInstructions) }
             }
-
-            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-            item { SectionHeader(stringResource(R.string.manual_entry)) }
-            item { ManualForm(ui, viewModel, onConnected) }
-
-            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-            item { Instructions(ui.showInstructions, viewModel::toggleInstructions) }
-            item { Spacer(Modifier.height(24.dp)) }
+            item(key = "bottom") { Spacer(Modifier.height(24.dp)) }
         }
+    }
+
+    (ui.pairing as? PairingState.EnterCode)?.let { state ->
+        PairCodeDialog(
+            state = state,
+            onSubmit = viewModel::submitPairCode,
+            onCancel = viewModel::cancelPairing,
+        )
     }
 }
 
@@ -157,20 +230,165 @@ private fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Unit) {
-    val server = ui.saved.firstOrNull { it.id == ui.activeServerId }
-    val (color, text) = connectionSummary(ui.connection, server?.displayName)
-    Card(Modifier.fillMaxWidth()) {
+private fun PairingProgressCard(state: PairingState.Connecting, onCancel: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            dev.vlcremote.app.ui.common.StatusDot(color)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(server?.displayName ?: "", style = MaterialTheme.typography.titleMedium)
-                Text(text, style = MaterialTheme.typography.bodySmall)
-            }
-            TextButton(onClick = onDisconnect) { Text(stringResource(R.string.action_disconnect)) }
+            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                stringResource(
+                    if (state.auto) R.string.pairing_auto_found else R.string.pairing_connecting,
+                    state.target.name,
+                ),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
         }
     }
+}
+
+@Composable
+private fun PairingFailedCard(state: PairingState.Failed, onRetry: () -> Unit, onClose: () -> Unit) {
+    val context = LocalContext.current
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.pairing_failed_title, state.target.name), style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(state.error.message(context), style = MaterialTheme.typography.bodyMedium)
+            state.error.hint(context)?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onClose) { Text(stringResource(R.string.close)) }
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Unit, onEnterCode: () -> Unit) {
+    val server = ui.activeServer ?: return
+    val (color, text) = connectionSummary(ui.connection, server.displayName)
+    Card(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(color)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(server.displayName, style = MaterialTheme.typography.titleMedium)
+                Text(text, style = MaterialTheme.typography.bodySmall)
+            }
+            val c = ui.connection
+            if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
+                TextButton(onClick = onEnterCode) { Text(stringResource(R.string.action_enter_code)) }
+            } else {
+                TextButton(onClick = onDisconnect) { Text(stringResource(R.string.action_disconnect)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NearbyPcCard(
+    pc: NearbyPc,
+    active: Boolean,
+    busy: Boolean,
+    onClick: () -> Unit,
+    onForget: (() -> Unit)?,
+) {
+    val host = pc.host
+    var menu by remember { mutableStateOf(false) }
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(start = 20.dp, top = 20.dp, bottom = 20.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Computer, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    host.displayName,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val status = host.vlcStatus ?: host.vlcRunning?.let { if (it) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING }
+                vlcStatusLabel(status)?.let { label ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                        StatusDot(vlcStatusColor(status))
+                        Spacer(Modifier.width(6.dp))
+                        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+                    if (active) Badge(stringResource(R.string.badge_connected), highlight = true)
+                    if (pc.paired) Badge(stringResource(R.string.badge_paired), highlight = !active)
+                }
+                if (!pc.paired) {
+                    Text(
+                        stringResource(R.string.nearby_tap_to_pair),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+            if (busy) {
+                CircularProgressIndicator(Modifier.padding(horizontal = 12.dp).size(24.dp), strokeWidth = 3.dp)
+            } else if (onForget != null) {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_actions)) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.forget_pc)) },
+                            leadingIcon = { Icon(Icons.Default.Delete, null) },
+                            onClick = {
+                                menu = false
+                                onForget()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun vlcStatusLabel(status: VlcProcessStatus?): String? = when (status) {
+    VlcProcessStatus.RUNNING -> stringResource(R.string.badge_vlc_running)
+    VlcProcessStatus.NOT_RUNNING -> stringResource(R.string.badge_vlc_not_running)
+    VlcProcessStatus.NO_CONTROL -> stringResource(R.string.badge_vlc_no_control)
+    VlcProcessStatus.STARTING -> stringResource(R.string.badge_vlc_starting)
+    VlcProcessStatus.NOT_INSTALLED -> stringResource(R.string.badge_vlc_not_installed)
+    VlcProcessStatus.UNKNOWN, null -> null
+}
+
+@Composable
+private fun vlcStatusColor(status: VlcProcessStatus?): Color = when (status) {
+    VlcProcessStatus.RUNNING -> Color(0xFF4CAF50)
+    VlcProcessStatus.STARTING -> MaterialTheme.colorScheme.tertiary
+    VlcProcessStatus.NO_CONTROL -> Color(0xFFFFC107)
+    VlcProcessStatus.NOT_INSTALLED -> MaterialTheme.colorScheme.error
+    else -> Color.Gray
 }
 
 @Composable
@@ -200,6 +418,31 @@ private fun SavedServerRow(server: SavedServer, active: Boolean, onConnect: () -
 }
 
 @Composable
+private fun OtherWaysHeader(expanded: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clickable(onClick = onToggle)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.other_ways), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.other_ways_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = stringResource(if (expanded) R.string.collapse else R.string.expand),
+        )
+    }
+}
+
+@Composable
 private fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -215,13 +458,9 @@ private fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
                 Text(host.host, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
                     Badge(stringResource(R.string.badge_pc_found))
-                    if (host.hasCompanion) Badge(stringResource(R.string.badge_companion))
-                    when (host.vlcRunning) {
-                        true -> Badge(stringResource(R.string.badge_vlc_running) + (host.vlcVersion?.let { " $it" } ?: ""))
-                        false -> Badge(stringResource(R.string.badge_vlc_not_running))
-                        null -> Unit
+                    if (host.vlcRunning == true) {
+                        Badge(stringResource(R.string.badge_vlc_running) + (host.vlcVersion?.let { " $it" } ?: ""))
                     }
-                    if (host.needsPairing == true) Badge(stringResource(R.string.badge_needs_pairing), highlight = true)
                 }
             }
         }
@@ -233,7 +472,7 @@ private fun Badge(text: String, highlight: Boolean = false) {
     Text(
         text,
         style = MaterialTheme.typography.labelSmall,
-        color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
+        color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
         modifier = Modifier
             .background(
                 if (highlight) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
@@ -302,23 +541,14 @@ private fun ManualForm(ui: ConnectionUiState, viewModel: ConnectionViewModel, on
                     }
                 },
             )
-            ServerMode.COMPANION -> {
-                if (f.hasToken) {
-                    Text(stringResource(R.string.already_paired), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                }
-                OutlinedTextField(
-                    value = f.pairCode,
-                    onValueChange = { v -> viewModel.updateForm { it.copy(pairCode = v.filter(Char::isDigit).take(6)) } },
-                    label = { Text(stringResource(if (f.hasToken) R.string.field_pair_code_again else R.string.field_pair_code)) },
-                    supportingText = { Text(stringResource(R.string.pair_code_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                )
-            }
+            ServerMode.COMPANION -> Text(
+                stringResource(if (f.hasToken) R.string.already_paired else R.string.manual_companion_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (f.hasToken) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        // Test result
+        // Test result (direct mode)
         when (val t = ui.test) {
             TestState.Idle -> Unit
             TestState.Running -> Row(verticalAlignment = Alignment.CenterVertically) {
@@ -326,22 +556,16 @@ private fun ManualForm(ui: ConnectionUiState, viewModel: ConnectionViewModel, on
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.testing))
             }
-            is TestState.Ok -> {
-                val r = t.result
-                val text = when (r) {
-                    is TestResult.DirectOk -> stringResource(
+            is TestState.Ok -> (t.result as? TestResult.DirectOk)?.let { r ->
+                Text(
+                    stringResource(
                         R.string.test_ok_direct,
                         r.version ?: "VLC",
                         stringResource(if (r.level >= 1) R.string.level_lua else R.string.level_http),
-                    )
-                    is TestResult.CompanionOk -> stringResource(
-                        R.string.test_ok_companion,
-                        r.name,
-                        stringResource(if (r.vlc.running) R.string.badge_vlc_running else R.string.badge_vlc_not_running),
-                    )
-                    is TestResult.Failed -> ""
-                }
-                Text(text, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
             is TestState.Failed -> Column {
                 Text(t.error.message(context), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -352,14 +576,16 @@ private fun ManualForm(ui: ConnectionUiState, viewModel: ConnectionViewModel, on
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = viewModel::testConnection,
-                enabled = f.host.isNotBlank() && ui.test != TestState.Running,
-                modifier = Modifier.weight(1f),
-            ) { Text(stringResource(R.string.action_test)) }
+            if (f.mode == ServerMode.DIRECT) {
+                OutlinedButton(
+                    onClick = viewModel::testConnection,
+                    enabled = f.host.isNotBlank() && ui.test != TestState.Running,
+                    modifier = Modifier.weight(1f),
+                ) { Text(stringResource(R.string.action_test)) }
+            }
             Button(
                 onClick = { viewModel.saveAndConnect(onConnected) },
-                enabled = f.host.isNotBlank(),
+                enabled = f.host.isNotBlank() && ui.pairing !is PairingState.Connecting,
                 modifier = Modifier.weight(1f),
             ) { Text(stringResource(if (f.serverId != null) R.string.action_save_connect else R.string.action_connect)) }
         }
@@ -370,27 +596,39 @@ private fun ManualForm(ui: ConnectionUiState, viewModel: ConnectionViewModel, on
 private fun Instructions(expanded: Boolean, onToggle: () -> Unit) {
     Column {
         AssistChip(onClick = onToggle, label = { Text(stringResource(if (expanded) R.string.instructions_hide else R.string.instructions_show)) })
-        if (expanded) {
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.instructions_title), style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(4.dp))
-            listOf(
-                R.string.instructions_step1,
-                R.string.instructions_step2,
-                R.string.instructions_step3,
-                R.string.instructions_step4,
-                R.string.instructions_step5,
-                R.string.instructions_step6,
-            ).forEachIndexed { i, res ->
-                Row(Modifier.padding(vertical = 3.dp)) {
-                    Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(24.dp))
-                    Text(stringResource(res), style = MaterialTheme.typography.bodyMedium)
+        AnimatedVisibility(expanded) {
+            Column {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.instructions_title), style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                listOf(
+                    R.string.instructions_step1,
+                    R.string.instructions_step2,
+                    R.string.instructions_step3,
+                    R.string.instructions_step4,
+                    R.string.instructions_step5,
+                    R.string.instructions_step6,
+                ).forEachIndexed { i, res ->
+                    Row(Modifier.padding(vertical = 3.dp)) {
+                        Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(24.dp))
+                        Text(stringResource(res), style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.instructions_lua), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.instructions_companion), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.instructions_lua), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.instructions_companion), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+    }
+}
+
+/** Error text for the code dialog (shorter than the connection-screen messages). */
+@Composable
+internal fun pairCodeErrorText(error: ConnectionError): String {
+    val context = LocalContext.current
+    return when (error) {
+        ConnectionError.InvalidPairCode -> stringResource(R.string.err_invalid_pair_code)
+        else -> error.message(context)
     }
 }

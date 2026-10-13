@@ -214,6 +214,8 @@ public static class ProtocolConstants
 
 public static class ErrorCodes
 {
+    /// <summary>Телефон не сопряжён и кода в <c>hello</c> нет; компаньон показывает окно с кодом.</summary>
+    public const string PairingRequired = "pairing_required";
     public const string Unauthorized = "unauthorized";
     public const string BadRequest = "bad_request";
     public const string VlcNotRunning = "vlc_not_running";

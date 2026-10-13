@@ -45,6 +45,7 @@ class DiscoveryRepository(
     private var sweepJob: Job? = null
     private val pendingLost = HashMap<String, Job>()
     private val nsdNames = HashMap<String, String>() // serviceName -> host
+    private val infoInFlight = HashSet<String>()
 
     fun start() {
         if (_scanning.value) return
@@ -111,8 +112,17 @@ class DiscoveryRepository(
             val merged = map[host.host]?.merge(host) ?: host
             map + (host.host to merged)
         }
-        if (host.hasCompanion && (host.vlcRunning == null || host.needsPairing == null)) {
-            scope.launch { enrichFromInfo(host) }
+        // `/info` once, then again every few beacon rounds so "VLC running / no control" stays fresh.
+        val known = _hosts.value[host.host] ?: host
+        val now = System.currentTimeMillis()
+        if (known.hasCompanion && now - known.infoAt > INFO_REFRESH_MS && infoInFlight.add(host.host)) {
+            scope.launch {
+                try {
+                    enrichFromInfo(known)
+                } finally {
+                    infoInFlight.remove(host.host)
+                }
+            }
         }
     }
 
@@ -139,6 +149,8 @@ class DiscoveryRepository(
                     needsPairing = info.needsPairing,
                     vlcRunning = info.vlc?.running,
                     vlcVersion = info.vlc?.version ?: existing.vlcVersion,
+                    vlcStatus = info.vlc?.effectiveStatus,
+                    infoAt = System.currentTimeMillis(),
                     wsPort = info.wsPort,
                 )
                 )
@@ -149,5 +161,6 @@ class DiscoveryRepository(
         const val TAG = "Discovery"
         const val LOST_DEBOUNCE_MS = 3_000L
         const val BEACON_PERIOD_MS = 10_000L
+        const val INFO_REFRESH_MS = 8_000L
     }
 }

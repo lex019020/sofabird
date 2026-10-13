@@ -90,7 +90,7 @@ fun RemoteScreen(
                     Spacer(Modifier.height(8.dp))
                     Artwork(ui, Modifier.fillMaxWidth(0.8f))
                     Spacer(Modifier.height(8.dp))
-                    TitleBlock(ui)
+                    if (ui.vlcBlock == null) TitleBlock(ui)
                     OfflineCard(ui, onOpenConnection)
                 }
                 Spacer(Modifier.width(16.dp))
@@ -101,9 +101,14 @@ fun RemoteScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    ScrubBar(ui, viewModel)
-                    TransportRow(ui, viewModel)
-                    VolumeRow(ui, viewModel)
+                    val block = ui.vlcBlock
+                    if (block != null) {
+                        VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
+                    } else {
+                        ScrubBar(ui, viewModel)
+                        TransportRow(ui, viewModel)
+                        VolumeRow(ui, viewModel)
+                    }
                     QuickChips(ui, onTracks = { tracksSheet = it }, onMore = { moreSheet = true })
                 }
             }
@@ -118,15 +123,19 @@ fun RemoteScreen(
                 Spacer(Modifier.height(8.dp))
                 Artwork(ui, Modifier.fillMaxWidth().widthIn(max = 360.dp))
                 Spacer(Modifier.height(12.dp))
-                TitleBlock(ui)
+                val block = ui.vlcBlock
+                if (block == null) TitleBlock(ui)
                 OfflineCard(ui, onOpenConnection)
+                if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
                 QuickChips(ui, onTracks = { tracksSheet = it }, onMore = { moreSheet = true })
                 Spacer(Modifier.weight(1f))
-                ScrubBar(ui, viewModel)
-                Spacer(Modifier.height(8.dp))
-                VolumeRow(ui, viewModel)
-                Spacer(Modifier.height(8.dp))
-                TransportRow(ui, viewModel)
+                if (block == null) {
+                    ScrubBar(ui, viewModel)
+                    Spacer(Modifier.height(8.dp))
+                    VolumeRow(ui, viewModel)
+                    Spacer(Modifier.height(8.dp))
+                    TransportRow(ui, viewModel)
+                }
                 Spacer(Modifier.height(16.dp))
             }
         }
@@ -390,14 +399,14 @@ private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onMore:
             onClick = { onTracks(TrackKind.AUDIO) },
             label = { Text(stringResource(R.string.chip_audio, audioLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Default.Audiotrack, null) },
-            enabled = ui.connection.isOnline,
+            enabled = ui.connection.isOnline && ui.vlcBlock == null,
             modifier = Modifier.weight(1f, fill = false),
         )
         AssistChip(
             onClick = { onTracks(TrackKind.SUBTITLE) },
             label = { Text(stringResource(R.string.chip_subtitles, subLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Default.Subtitles, null) },
-            enabled = ui.connection.isOnline,
+            enabled = ui.connection.isOnline && ui.vlcBlock == null,
             modifier = Modifier.weight(1f, fill = false),
         )
         AssistChip(
