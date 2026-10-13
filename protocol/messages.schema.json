@@ -78,6 +78,18 @@
     },
     {
       "$ref": "#/$defs/beacon"
+    },
+    {
+      "$ref": "#/$defs/getHistory"
+    },
+    {
+      "$ref": "#/$defs/history"
+    },
+    {
+      "$ref": "#/$defs/historyUpdate"
+    },
+    {
+      "$ref": "#/$defs/historyClear"
     }
   ],
   "$defs": {
@@ -188,7 +200,8 @@
         "power",
         "systemVolume",
         "metadata",
-        "bluetooth"
+        "bluetooth",
+        "history"
       ]
     },
     "vlcInfo": {
@@ -267,7 +280,9 @@
             "loop",
             "repeat",
             "launch",
-            "quit"
+            "quit",
+            "resume",
+            "dismissNext"
           ]
         },
         "args": {
@@ -420,6 +435,18 @@
               "modified": {
                 "type": [
                   "integer",
+                  "null"
+                ]
+              },
+              "progress": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "finished": {
+                "type": [
+                  "boolean",
                   "null"
                 ]
               }
@@ -943,6 +970,54 @@
               ]
             }
           }
+        },
+        "resume": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "position": {
+              "type": "integer"
+            },
+            "length": {
+              "type": "integer"
+            },
+            "pending": {
+              "type": "boolean"
+            }
+          }
+        },
+        "next": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          }
+        },
+        "history": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer"
+            }
+          }
         }
       }
     },
@@ -962,7 +1037,9 @@
             "vlcExited",
             "inputChanged",
             "endReached",
-            "paired"
+            "paired",
+            "resumePrompt",
+            "nextEpisode"
           ]
         }
       }
@@ -1024,6 +1101,148 @@
           ],
           "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
           "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
+        }
+      }
+    },
+    "getHistory": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "getHistory"
+        },
+        "id": {
+          "type": "string"
+        },
+        "filter": {
+          "enum": [
+            "continue",
+            "all"
+          ]
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "integer"
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "items",
+        "total"
+      ],
+      "properties": {
+        "t": {
+          "const": "history"
+        },
+        "id": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "uri",
+              "title",
+              "position",
+              "length",
+              "finished",
+              "lastWatched"
+            ],
+            "properties": {
+              "uri": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "folderUri": {
+                "type": "string"
+              },
+              "position": {
+                "type": "integer"
+              },
+              "length": {
+                "type": "integer"
+              },
+              "progress": {
+                "type": "number"
+              },
+              "finished": {
+                "type": "boolean"
+              },
+              "lastWatched": {
+                "type": "integer"
+              },
+              "playCount": {
+                "type": "integer"
+              },
+              "artUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "next": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "historyUpdate": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "uri"
+      ],
+      "properties": {
+        "t": {
+          "const": "historyUpdate"
+        },
+        "id": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "finished": {
+          "type": "boolean"
+        },
+        "remove": {
+          "type": "boolean"
+        }
+      }
+    },
+    "historyClear": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "historyClear"
+        },
+        "id": {
+          "type": "string"
         }
       }
     }
