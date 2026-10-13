@@ -3,7 +3,7 @@
   Installs and updates the VLC Remote companion on Windows.
 
 .DESCRIPTION
-  The companion is installed by its Velopack installer (VlcRemoteCompanion-win-Setup.exe from GitHub Releases, or one
+  The companion is installed by its Velopack installer (VlcRemote-Companion-Setup.exe from GitHub Releases, or one
   built from the working copy with -Local) into %LOCALAPPDATA%\VlcRemoteCompanion, for the current user, and then
   updates itself. This script runs that installer quietly and adds what it does not do: VLC when it is missing, the
   firewall rules and autostart. An install made by the earlier versions of this script (%LOCALAPPDATA%\VlcRemote\app)
@@ -253,7 +253,7 @@ try {
         if ($Firewall) { Add-FirewallRules }
         return
     }
-    $setup = if ($Package) { (Resolve-Path $Package).Path } elseif ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName 'VlcRemoteCompanion-win-Setup.exe' $work }
+    $setup = if ($Package) { (Resolve-Path $Package).Path } elseif ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName '*-Setup.exe' $work }
     Install-Companion $setup $target
 } finally {
     Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

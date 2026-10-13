@@ -137,7 +137,7 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
                 $setup = $build.File
             } else {
                 $tagName = Resolve-ReleaseTag -Repo $Repo -Channel $Channel -Tag $Tag
-                $setup = Get-ReleaseAsset $Repo $tagName 'VlcRemoteCompanion-win-Setup.exe' $work
+                $setup = Get-ReleaseAsset $Repo $tagName '*-Setup.exe' $work
             }
             Write-Step "Copying to the laptop: $(Split-Path $setup -Leaf)"
             $null = Invoke-Remote 'New-Item -ItemType Directory -Force -Path (Join-Path $HOME "vlcremote-deploy") | Out-Null'

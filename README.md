@@ -35,7 +35,7 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 Everything is on the [Releases](https://github.com/lex019020/vlc-remote/releases) page. Every merge to `main`
 publishes a test build; releases are published from time to time.
 
-1. **PC:** download and run `VlcRemoteCompanion-win-Setup.exe`. It installs for the current user (the .NET 9
+1. **PC:** download and run `VlcRemote-Companion-Setup.exe`. It installs for the current user (the .NET 9
    runtime is added when missing, with one administrator prompt), opens the setup window — allow the firewall rules
    there — and then keeps itself up to date. VLC media player must be installed (3.0.x).
 2. **Phone (Android 8+):** install `VlcRemote-<version>.apk` from the same release.

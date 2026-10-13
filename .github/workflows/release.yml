@@ -78,16 +78,18 @@ jobs:
         run: |
           dotnet tool restore
           # The previous package of the same kind lets vpk build a small delta update next to the full one.
-          $pre = if ($env:CHANNEL -eq 'stable') { @() } else { @('--pre') }
-          dotnet vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN @pre -o releases
+          $download = @('vpk', 'download', 'github', '--repoUrl', "https://github.com/$env:GITHUB_REPOSITORY", '--token', $env:GH_TOKEN, '-o', 'releases')
+          if ($env:CHANNEL -ne 'stable') { $download += '--pre' }
+          dotnet @download
           if ($LASTEXITCODE -ne 0) { Write-Host 'No previous Velopack release: full package only'; $global:LASTEXITCODE = 0 }
           . ./scripts/deploy-lib.ps1
           $null = New-CompanionPackage (Get-Location).Path $env:VERSION '${{ needs.meta.outputs.suffix }}' (Join-Path (Get-Location) 'releases')
-          # This release's files only (the downloaded previous package is already on its own release).
+          # This release's files only (the downloaded previous package is already on its own release); the update feed
+          # needs releases.win.json and the packages. The installer gets a name that sorts next to the APK.
           New-Item -ItemType Directory dist | Out-Null
-          Get-ChildItem releases | Where-Object {
-            $_.Name -like "*-$env:VERSION-*.nupkg" -or $_.Name -in 'VlcRemoteCompanion-win-Setup.exe', 'releases.win.json', 'assets.win.json', 'RELEASES'
-          } | Copy-Item -Destination dist
+          Get-ChildItem releases | Where-Object { $_.Name -like "*-$env:VERSION-*.nupkg" -or $_.Name -eq 'releases.win.json' } |
+            Copy-Item -Destination dist
+          Copy-Item releases/VlcRemoteCompanion-win-Setup.exe dist/VlcRemote-Companion-Setup.exe
           Get-ChildItem dist | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
@@ -162,6 +164,7 @@ jobs:
           PYTHONIOENCODING: utf-8
           CHANNEL: ${{ needs.meta.outputs.channel }}
           TAG: ${{ needs.meta.outputs.tag }}
+          VERSION: ${{ needs.meta.outputs.version }}
         run: |
           if [ "$CHANNEL" = "stable" ]; then
             prev=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
@@ -171,11 +174,14 @@ jobs:
           fi
           python3 - <<'PY' >> notes.md
           import os
-          tag, repo = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"]
+          tag, repo, version = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"], os.environ["VERSION"]
+          base = f"https://github.com/{repo}/releases/download/{tag}"
           print(rf"""
           ---
-          **Companion (Windows PC):** download and run `VlcRemoteCompanion-win-Setup.exe` from this release. It installs for
-          the current user and then updates itself (a PC without the .NET 9 runtime gets it, with one administrator prompt).
+          ### Download
+          - **PC (Windows 10/11):** [VlcRemote-Companion-Setup.exe]({base}/VlcRemote-Companion-Setup.exe) — run it; it installs
+            for the current user and then updates itself (a PC without the .NET 9 runtime gets it, with one administrator prompt).
+          - **Phone (Android 8+):** [VlcRemote-{version}.apk]({base}/VlcRemote-{version}.apk)
 
           **Scripts** (no GitHub account needed; the phone needs adb):
           ```powershell
@@ -185,7 +191,7 @@ jobs:
           & $d\deploy-windows.ps1 -Tag {tag}    # companion on the Windows PC
           & $d\deploy-android.ps1 -Tag {tag}    # app on allowed phones via adb
           ```
-          Or download the `deploy-*` files from this release and double-click `deploy-windows.cmd` / `deploy-android.cmd`. The APK can also be installed manually.""".replace("\n          ", "\n"))
+          Or download the `deploy-*` files from this release and double-click `deploy-windows.cmd` / `deploy-android.cmd`.""".replace("\n          ", "\n"))
           PY
           cat notes.md >> "$GITHUB_STEP_SUMMARY"
       - name: Create release
