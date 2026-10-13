@@ -19,12 +19,15 @@
 [CmdletBinding()]
 param(
     [string]$PublicKey,
-    [string]$PublicKeyFile = (Join-Path $PSScriptRoot 'vlcremote_dev.pub'),
+    [string]$PublicKeyFile,
     [string]$UserName = $env:USERNAME,
     [switch]$Remove
 )
 
 $ErrorActionPreference = 'Stop'
+# $PSScriptRoot бывает пустым в значениях параметров по умолчанию (PS 5.1, запуск с сетевого/подключённого диска).
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $PublicKeyFile) { $PublicKeyFile = Join-Path $scriptDir 'vlcremote_dev.pub' }
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 function Write-Ok([string]$Text)   { Write-Host "    $Text" -ForegroundColor Green }
 function Write-Note([string]$Text) { Write-Host "    $Text" -ForegroundColor Yellow }
