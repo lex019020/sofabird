@@ -5,7 +5,8 @@ VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
 ([protocol/README.md](../protocol/README.md)): current tracks, chapter names, audio devices,
 push events, starting VLC, moving the window to the TV, power, system volume.
 
-Milestones **M2** (LAN) and **M3** (Bluetooth RFCOMM). The Velopack installer and the TMDB library come later (see below).
+Milestones **M2** (LAN) and **M3** (Bluetooth RFCOMM) are done; it is installed by a Velopack installer and updates
+itself (see "Installing and updates"). Next: the media library with posters (TMDB).
 
 ## Contents
 
@@ -479,5 +480,5 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 
 ## Deferred
 
-- **TMDB / library** (M4) — file name parsing, posters.
+- **Library with posters** (next): media folders in the setup window, file name parsing, TMDB metadata and artwork.
 - TLS with pinning, HDMI-CEC.
