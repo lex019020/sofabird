@@ -22,6 +22,14 @@ public class UpdatePolicyTests
     public void TestBuilds_FollowTheSettingOrTheInstalledBuild(string? channel, string version, bool expected) =>
         Assert.Equal(expected, UpdatePolicy.IncludesTestBuilds(channel, version));
 
+    [Theory]
+    [InlineData(null, "0.2.0-beta0037", "beta")]
+    [InlineData(null, "0.2.0", "stable")]
+    [InlineData("stable", "0.2.0-beta0037", null)]
+    [InlineData(null, "0.2.0-local.202610131950", null)]
+    public void FirstStart_RemembersTheChannelOfTheInstalledBuild(string? channel, string version, string? expected) =>
+        Assert.Equal(expected, UpdatePolicy.ChannelToRemember(channel, version));
+
     [Fact]
     public void Update_WaitsWhileVlcPlays()
     {
