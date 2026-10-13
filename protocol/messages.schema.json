@@ -166,6 +166,14 @@
         },
         "vlc": {
           "$ref": "#/$defs/vlcInfo"
+        },
+        "bt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
+          "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
         }
       }
     },
@@ -972,6 +980,14 @@
         },
         "needsPairing": {
           "type": "boolean"
+        },
+        "bt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
+          "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
         }
       }
     }
