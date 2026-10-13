@@ -282,10 +282,10 @@ Criterion: a movie from `D:\shared` starts and is fully controlled from the phon
 - [x] Window on the TV, keep-awake, PC sleep, monitor power-off.
 - [x] Choosing the monitor for the VLC window from the phone and the tray (friendly EDID names, stable ids,
       automatic placement of any new VLC window including double-click opens, fullscreen on the chosen monitor).
-- [x] Autostart (HKCU\Run), installing the Lua pages from the companion, single-file publishing.
+- [x] Autostart (HKCU\Run), installing the Lua pages from the companion.
 - [x] Localization: system language, English by default, Russian translation; `err.msg` in the phone's language.
-- [ ] First-run setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
-      VLC configuration, keep-awake (in progress).
+- [x] First-run setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
+      VLC configuration, keep-awake, media station.
 - [x] Velopack installer and quiet auto-update (see the companion README).
 
 Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the audio device.
@@ -295,7 +295,7 @@ Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the 
       `CompanionDeviceManager`).
 - [x] Automatic LAN ↔ BT switching without losing state, including the switch back to Wi-Fi
       (verified on Galaxy S24 ↔ TV laptop).
-- [ ] First-run permissions on the phone: notifications + Bluetooth with an explanation screen (in progress).
+- [x] First-run permissions on the phone: notifications + Bluetooth with an explanation screen.
 
 Criterion: with Wi-Fi off on the phone, the remote keeps working.
 
@@ -332,8 +332,11 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       item in the setup window, tray warning when Windows changes it back); after a monitor change the VLC window
       returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
       when it comes back.
-- [ ] Sleep timer, landscape/tablet, settings, true black.
-- [ ] Tests: Compose + Roborazzi screenshots, fake-VLC scenarios, a checklist on real devices.
+- [x] Settings, true black.
+- [ ] Sleep timer.
+- [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
+- [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
+- [ ] Fake-VLC scenario tests.
 
 ### M5 — Later
 Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x, TLS pinning,
@@ -397,9 +400,8 @@ vlc-remote/
 
 ## 10. Next steps
 
-1. **UI in landscape and on tablets**: the remaining part of the layout polish.
-2. **Library**: a setup step for the media folders, file name parsing, posters/backdrops (TMDB) via the companion,
+1. **Library**: a setup step for the media folders, file name parsing, posters/backdrops (TMDB) via the companion,
    cache; on the phone a poster grid next to the folders.
-3. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+2. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.

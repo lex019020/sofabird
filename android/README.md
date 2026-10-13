@@ -14,8 +14,15 @@ cd android
 $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # any JDK 17/21
 # local.properties (not committed): sdk.dir=D\:\\Android\\android-sdk
 .\gradlew.bat :app:assembleDebug      # APK: app\build\outputs\apk\debug\app-debug.apk
-.\gradlew.bat test                    # unit tests of both modules
+.\gradlew.bat test                    # unit tests of both modules (and the screenshot tests)
+.\gradlew.bat detekt                  # static analysis + formatting (--auto-correct fixes the formatting)
+.\gradlew.bat :app:verifyRoborazziDebug   # compare the screenshots; recordRoborazziDebug updates them
 ```
+
+**Screenshot tests** (Roborazzi + Robolectric, `app/src/test/.../ui/*ScreenshotTest.kt`, images in
+`app/src/test/screenshots`): every screen and the shared controls in English and Russian at font scale 1.0 and 2.0
+on a phone-sized screen. Screens are written as a thin stateful `XxxScreen(viewModel)` and a stateless
+`XxxContent(ui, actions)` (an `XxxActions` interface with no-op defaults), so the tests render them with fake state.
 
 Stack: Gradle 8.6 (wrapper), AGP 8.4.2, Kotlin 2.0.21, Compose BOM 2024.10.01 (Material 3),
 Ktor 3.0.1 (OkHttp 4.12 engine), kotlinx.serialization 1.7.3, Koin 4.0.0, Media3 1.4.1,
@@ -51,14 +58,16 @@ android/
                         AndroidCompanionTransports (WS / RFCOMM / LAN probe), CompanionBackend (level 2,
                         channel choice, return to Wi‑Fi)
     data/discovery/     NsdDiscovery, UdpBeaconDiscovery, SubnetScanner, LocalNetwork, DiscoveryRepository
+    data/history/       resume / next-episode prompts shared by the screens and the notification
     data/player/        PlayerController (the single owner of the active backend), ConnectionTester, AppVisibility,
                         PairingFlow (connecting/pairing with the companion) + CompanionPairingLink, DeviceIdentity
     data/servers/       ServerRepository, CompanionServerSync (LAN/Bluetooth addresses from discovery → saved PCs)
     data/settings|secrets|net
     service/            PlaybackService (FGS + MediaSession), RemotePlayer (SimpleBasePlayer), ServiceCoordinator
     domain/permissions/ PermissionRegistry: the single list of runtime permissions (see "Runtime permissions")
-    ui/                 AppRoot (navigation, status bar), remote/, connection/, library/, playlist/, settings/,
-                        permissions/ (first-run screen, Settings → Permissions, shared card and state)
+    ui/                 AppRoot (navigation, status bar), remote/, connection/, library/, history/, playlist/,
+                        settings/, permissions/ (first-run screen, Settings → Permissions, shared card and state),
+                        common/ (shared controls: LabelText, RemoteButton, formatters, Bluetooth requests)
     di/AppModule.kt     Koin
 ```
 
@@ -312,13 +321,15 @@ The companion is the source of truth: the phone keeps no history of its own.
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- **M4 — posters/metadata** (TMDB via the companion, Room for "continue watching", a Quick Settings tile, a Glance widget).
+- Posters and metadata (next): a poster grid fed by the companion's library (TMDB); a Quick Settings tile, a Glance widget.
+- Landscape and tablet layouts (postponed).
 - Sleep timer.
 
 ## To check on a device
 
-There is no emulator on this machine; the app has been built and verified only by unit tests (parsers, commands,
-companion messages, `VlcHttpBackend` polling/commands on the Ktor `MockEngine`). It needs checking on a phone:
+Automated: unit tests (parsers, commands, companion messages, `VlcHttpBackend` on the Ktor `MockEngine`) and the
+screenshot tests. Everything below has been checked on a Galaxy S24 with the TV laptop; repeat the relevant items
+after changing that area:
 
 1. NSD: whether `NsdManager` finds the companion service (`_vlcremote._tcp`) and resolve works on the target firmware; the UDP beacon as the fallback.
 2. The `connectedDevice` foreground service on Android 14/15: start from `ServiceCoordinator`, the notification with buttons, stopping after 10 minutes; the `POST_NOTIFICATIONS` request on Android 13+.
@@ -326,7 +337,7 @@ companion messages, `VlcHttpBackend` polling/commands on the Ktor `MockEngine`).
 4. Volume keys in the foreground (`dispatchKeyEvent`), haptics on buttons.
 5. Coil and `/art` with Basic auth (the `ArtAuth` interceptor), artwork in the notification.
 6. `EncryptedSharedPreferences` on the target device (the fallback must not kick in).
-7. The landscape layout of the remote (two columns), predictive back in sheets.
+7. Predictive back in sheets.
 8. Pairing: first launch with one companion on the network → auto-start, the code appears on the TV, the code dialog
    on the phone (autofocus, Samsung numeric keyboard, sending on the 6th digit); a wrong code → an error and
    the field cleared; "Cancel"; the token is saved, after an app restart — connecting without a code;
