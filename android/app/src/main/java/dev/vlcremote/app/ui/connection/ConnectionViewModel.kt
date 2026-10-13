@@ -2,6 +2,10 @@ package dev.vlcremote.app.ui.connection
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.vlcremote.app.data.companion.BluetoothStatus
+import dev.vlcremote.app.data.companion.BluetoothSupport
+import dev.vlcremote.app.data.companion.BondedDevice
+import dev.vlcremote.app.data.companion.sortedForPicker
 import dev.vlcremote.app.data.discovery.DiscoveredHost
 import dev.vlcremote.app.data.discovery.DiscoveryRepository
 import dev.vlcremote.app.data.player.CompanionLink
@@ -51,6 +55,24 @@ sealed class TestState {
     data class Failed(val error: ConnectionError) : TestState()
 }
 
+/** «Подключиться по Bluetooth»: what the picker shows. */
+sealed interface BtPickerState {
+    data object Hidden : BtPickerState
+
+    /** Android 12+: ask for "Nearby devices" (rationale dialog first). */
+    data object NeedsPermission : BtPickerState
+
+    /** The user refused; only the app settings can grant it now. */
+    data object PermissionDenied : BtPickerState
+
+    data object Off : BtPickerState
+
+    data object Unsupported : BtPickerState
+
+    /** Bonded devices, computers first. */
+    data class Devices(val devices: List<BondedDevice>) : BtPickerState
+}
+
 /** A companion found on the network, with what we know about it locally. */
 data class NearbyPc(
     val host: DiscoveredHost,
@@ -80,6 +102,7 @@ data class ConnectionUiState(
     /** Discovery ran for a while without finding a companion. */
     val searchTimedOut: Boolean = false,
     val pairing: PairingState = PairingState.Idle,
+    val btPicker: BtPickerState = BtPickerState.Hidden,
 )
 
 class ConnectionViewModel(
@@ -89,6 +112,7 @@ class ConnectionViewModel(
     private val servers: ServerRepository,
     private val secrets: SecretStore,
     link: CompanionLink,
+    private val bluetooth: BluetoothSupport,
 ) : ViewModel() {
 
     private val pairingFlow = PairingFlow(viewModelScope, link)
@@ -100,6 +124,7 @@ class ConnectionViewModel(
     /** `null` until the user opens/closes "other ways" themselves; then their choice wins. */
     private val otherOptionsChoice = MutableStateFlow<Boolean?>(null)
     private val searchTimedOut = MutableStateFlow(false)
+    private val btPicker = MutableStateFlow<BtPickerState>(BtPickerState.Hidden)
     private var testJob: Job? = null
     private var searchTimerJob: Job? = null
 
@@ -113,6 +138,7 @@ class ConnectionViewModel(
         val instructions: Boolean,
         val otherChoice: Boolean?,
         val timedOut: Boolean,
+        val btPicker: BtPickerState,
     )
 
     val uiState: StateFlow<ConnectionUiState> = combine(
@@ -121,7 +147,13 @@ class ConnectionViewModel(
         },
         servers.serversState,
         combine(controller.activeServer, controller.connection) { a, c -> a to c },
-        combine(form, test, showInstructions, otherOptionsChoice, searchTimedOut) { f, t, i, o, s -> Local(f, t, i, o, s) },
+        combine(
+            combine(form, test) { f, t -> f to t },
+            showInstructions,
+            otherOptionsChoice,
+            searchTimedOut,
+            btPicker,
+        ) { (f, t), i, o, s, b -> Local(f, t, i, o, s, b) },
         pairingFlow.state,
     ) { d, saved, (active, connection), local, pairing ->
         val nearby = d.hosts.filter { it.hasCompanion }.map { host ->
@@ -144,6 +176,7 @@ class ConnectionViewModel(
             otherOptionsExpanded = local.otherChoice ?: (local.timedOut && nearby.isEmpty()),
             searchTimedOut = local.timedOut && nearby.isEmpty(),
             pairing = pairing,
+            btPicker = local.btPicker,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConnectionUiState())
 
@@ -225,6 +258,52 @@ class ConnectionViewModel(
             secrets.removeAll(server.id)
             servers.remove(server.id)
         }
+    }
+
+    // ---------------------------------------------------------------- Bluetooth
+
+    /** «Подключиться по Bluetooth»: permission → radio on → list of bonded devices. */
+    fun openBluetoothPicker() {
+        userActed = true
+        btPicker.value = when (bluetooth.radioStatus()) {
+            BluetoothStatus.UNSUPPORTED -> BtPickerState.Unsupported
+            BluetoothStatus.NO_PERMISSION -> BtPickerState.NeedsPermission
+            BluetoothStatus.OFF -> BtPickerState.Off
+            else -> BtPickerState.Devices(bluetooth.bondedDevices().sortedForPicker())
+        }
+    }
+
+    fun onBluetoothPermissionResult(granted: Boolean) {
+        if (granted) openBluetoothPicker() else btPicker.value = BtPickerState.PermissionDenied
+    }
+
+    fun onBluetoothEnableResult(enabled: Boolean) {
+        if (enabled) openBluetoothPicker()
+    }
+
+    /** Back from the system Bluetooth settings: the bonded list may have changed. */
+    fun refreshBluetoothPicker() {
+        if (btPicker.value is BtPickerState.Devices || btPicker.value is BtPickerState.Off) openBluetoothPicker()
+    }
+
+    fun closeBluetoothPicker() {
+        btPicker.value = BtPickerState.Hidden
+    }
+
+    /** Same connect-or-pair flow as over the LAN, the `hello` goes over RFCOMM. */
+    fun connectBluetooth(device: BondedDevice) {
+        userActed = true
+        btPicker.value = BtPickerState.Hidden
+        val saved = servers.serversState.value.findCompanion(host = "", wsPort = COMPANION_WS_PORT, pcId = null, btAddress = device.address)
+        pairingFlow.start(
+            PairingTarget(
+                host = "",
+                name = saved?.displayName ?: device.displayName,
+                pcId = saved?.pcId,
+                serverId = saved?.id,
+                btAddress = device.address,
+            ),
+        )
     }
 
     // ---------------------------------------------------------------- manual form
@@ -383,4 +462,5 @@ private fun SavedServer.toTarget() = PairingTarget(
     name = displayName,
     pcId = pcId,
     serverId = id,
+    btAddress = btAddress,
 )

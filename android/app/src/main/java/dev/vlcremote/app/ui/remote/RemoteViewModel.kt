@@ -2,6 +2,7 @@ package dev.vlcremote.app.ui.remote
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.vlcremote.app.data.companion.BluetoothStatus
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.domain.model.AppSettings
@@ -47,6 +48,8 @@ data class RemoteUiState(
     val companionMode: Boolean = false,
     /** "Запустить VLC" / "Перезапустить" was pressed and VLC has not changed state yet. */
     val launching: Boolean = false,
+    /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
+    val bluetoothNeed: BluetoothStatus? = null,
 ) {
     val displayedPosition: Double get() = scrubTarget ?: position
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
@@ -77,6 +80,9 @@ class RemoteViewModel(
     private val launching = MutableStateFlow(false)
     private var launchJob: Job? = null
 
+    /** "Не сейчас" on the Bluetooth card: hidden while this screen lives. */
+    private val bluetoothDismissed = MutableStateFlow(false)
+
     private data class PcInfo(
         val audioDevices: List<AudioDevice> = emptyList(),
         val displays: List<Display> = emptyList(),
@@ -89,6 +95,7 @@ class RemoteViewModel(
         val server: SavedServer?,
         val pcInfo: PcInfo,
         val launching: Boolean,
+        val bluetoothNeed: BluetoothStatus?,
     )
 
     val uiState: StateFlow<RemoteUiState> = combine(
@@ -96,7 +103,12 @@ class RemoteViewModel(
         controller.connection,
         controller.capabilities,
         settings.flow,
-        combine(position, scrubTarget, controller.activeServer, pcInfo, launching) { p, t, s, i, l -> Extras(p, t, s, i, l) },
+        combine(
+            combine(position, scrubTarget, controller.activeServer) { p, t, s -> Triple(p, t, s) },
+            pcInfo,
+            launching,
+            combine(controller.bluetoothNeed, bluetoothDismissed) { need, dismissed -> need.takeUnless { dismissed } },
+        ) { (p, t, s), i, l, bt -> Extras(p, t, s, i, l, bt) },
     ) { state, connection, caps, prefs, extras ->
         RemoteUiState(
             state = state,
@@ -111,6 +123,7 @@ class RemoteViewModel(
             pcInfoLoading = extras.pcInfo.loading,
             companionMode = extras.server?.isCompanion == true,
             launching = extras.launching,
+            bluetoothNeed = extras.bluetoothNeed,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
@@ -191,6 +204,15 @@ class RemoteViewModel(
         }
     }
     fun quitVlc() = send(PlayerCommand.Quit)
+
+    // ---------------------------------------------------------------- Bluetooth fallback
+
+    /** Permission granted / Bluetooth turned on: reconnect now (over RFCOMM if the LAN is still down). */
+    fun bluetoothReady() = controller.retryNow()
+
+    fun dismissBluetooth() {
+        bluetoothDismissed.value = true
+    }
 
     // ---------------------------------------------------------------- companion system controls
 

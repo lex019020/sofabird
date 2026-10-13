@@ -21,6 +21,11 @@ Change wsPort in {2}.</value></data>
   <data name="PairingClosing" xml:space="preserve"><value>This window will close in a few seconds</value></data>
   <data name="TrayPhonesConnected" xml:space="preserve"><value>Phones connected: {0}</value></data>
   <data name="TrayTipPhones" xml:space="preserve"><value>Phones: {0}</value></data>
+  <data name="TrayBluetoothOn" xml:space="preserve"><value>Bluetooth: on</value></data>
+  <data name="TrayBluetoothStarting" xml:space="preserve"><value>Bluetooth: starting…</value></data>
+  <data name="TrayBluetoothRadioOff" xml:space="preserve"><value>Bluetooth: turned off on this PC</value></data>
+  <data name="TrayBluetoothUnavailable" xml:space="preserve"><value>Bluetooth: unavailable</value></data>
+  <data name="TrayBluetoothDisabled" xml:space="preserve"><value>Bluetooth: disabled in settings</value></data>
   <data name="TrayPair" xml:space="preserve"><value>Pair a phone…</value></data>
   <data name="TrayStartVlc" xml:space="preserve"><value>Start VLC</value></data>
   <data name="TrayRestartVlc" xml:space="preserve"><value>Restart VLC with phone control</value></data>

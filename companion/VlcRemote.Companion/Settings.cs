@@ -16,6 +16,14 @@ public sealed class Settings
     public int WsPort { get; set; } = ProtocolConstants.DefaultWsPort;
     public int BeaconPort { get; set; } = ProtocolConstants.DefaultBeaconPort;
     public bool AdvertiseDnsSd { get; set; } = true;
+    /// <summary>Bluetooth RFCOMM server (phone without Wi-Fi). <c>false</c> — do not advertise the service.</summary>
+    public bool Bluetooth { get; set; } = true;
+    /// <summary>
+    /// Require an authenticated (MITM-protected) Bluetooth link key (<c>BluetoothEncryptionWithAuthentication</c>)
+    /// instead of encryption with any bond (<c>BluetoothEncryptionAllowNullAuthentication</c>). Off by default:
+    /// "Just Works" bonds would be rejected; the protocol token authenticates the phone anyway.
+    /// </summary>
+    public bool BluetoothRequireAuthentication { get; set; }
 
     /// <summary>Путь к <c>vlc.exe</c>; <c>null</c> — искать в реестре/Program Files.</summary>
     public string? VlcPath { get; set; }

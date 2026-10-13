@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
-/** A companion to connect to: found on the network, saved earlier or typed in by hand. */
+/**
+ * A companion to connect to: found on the network, saved earlier, typed in by hand or picked from the
+ * phone's bonded Bluetooth devices (then [host] is blank and [btAddress] is set).
+ */
 data class PairingTarget(
     val host: String,
     val wsPort: Int = COMPANION_WS_PORT,
@@ -20,7 +23,12 @@ data class PairingTarget(
     val pcId: String? = null,
     /** The saved server this target is, when known. */
     val serverId: String? = null,
-)
+    /** PC Bluetooth address (bonded device or saved server). */
+    val btAddress: String? = null,
+) {
+    /** No LAN address: the `hello` goes over RFCOMM. */
+    val viaBluetooth: Boolean get() = host.isBlank() && btAddress != null
+}
 
 /** What the connection screen shows while connecting to a companion. */
 sealed interface PairingState {

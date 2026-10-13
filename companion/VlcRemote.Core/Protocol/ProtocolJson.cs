@@ -55,6 +55,8 @@ public sealed class InfoResponse
     public bool NeedsPairing { get; set; }
     [JsonPropertyName("id")]
     public string PcId { get; set; } = "";
+    /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
+    public string? Bt { get; set; }
 }
 
 public static class ProtocolJson

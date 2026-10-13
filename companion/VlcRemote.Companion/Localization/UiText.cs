@@ -40,6 +40,16 @@ internal static class UiText
     public static string TrayPhonesConnected(object a0) => F("TrayPhonesConnected", a0);
     /// <summary>Phones: {0}</summary>
     public static string TrayTipPhones(object a0) => F("TrayTipPhones", a0);
+    /// <summary>Bluetooth: on</summary>
+    public static string TrayBluetoothOn => S("TrayBluetoothOn");
+    /// <summary>Bluetooth: starting…</summary>
+    public static string TrayBluetoothStarting => S("TrayBluetoothStarting");
+    /// <summary>Bluetooth: turned off on this PC</summary>
+    public static string TrayBluetoothRadioOff => S("TrayBluetoothRadioOff");
+    /// <summary>Bluetooth: unavailable</summary>
+    public static string TrayBluetoothUnavailable => S("TrayBluetoothUnavailable");
+    /// <summary>Bluetooth: disabled in settings</summary>
+    public static string TrayBluetoothDisabled => S("TrayBluetoothDisabled");
     /// <summary>Pair a phone…</summary>
     public static string TrayPair => S("TrayPair");
     /// <summary>Start VLC</summary>

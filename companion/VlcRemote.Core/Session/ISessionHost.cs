@@ -14,6 +14,8 @@ public interface ISessionHost
     string InstallationId { get; }
     IReadOnlyList<string> Caps { get; }
     VlcInfo VlcInfo { get; }
+    /// <summary>Bluetooth adapter address for <c>welcome.bt</c>; <c>null</c> — no adapter, radio off or Bluetooth disabled.</summary>
+    string? BluetoothAddress { get; }
     PairingService Pairing { get; }
 
     /// <summary>

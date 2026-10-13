@@ -98,6 +98,23 @@ public class ProtocolJsonTests
         Assert.Equal(47555, doc.RootElement.GetProperty("wsPort").GetInt32());
         Assert.Equal(1, doc.RootElement.GetProperty("protocol").GetInt32());
         Assert.True(doc.RootElement.GetProperty("needsPairing").GetBoolean());
+        Assert.False(doc.RootElement.TryGetProperty("bt", out _)); // no adapter / radio off — no field
+    }
+
+    [Fact]
+    public void Bt_Field_InInfoBeaconWelcome()
+    {
+        const string addr = "04:68:74:9A:2B:FC";
+        using var info = JsonDocument.Parse(ProtocolJson.SerializeInfo(new InfoResponse { Name = "PC", Bt = addr }));
+        Assert.Equal(addr, info.RootElement.GetProperty("bt").GetString());
+        Assert.False(JsonDocument.Parse(ProtocolJson.SerializeInfo(new InfoResponse { Name = "PC" })).RootElement.TryGetProperty("bt", out _));
+
+        var beacon = Assert.IsType<BeaconMessage>(ProtocolJson.Deserialize(ProtocolJson.Serialize(new BeaconMessage { Id = "g", Name = "PC", Bt = addr })));
+        Assert.Equal(addr, beacon.Bt);
+
+        var welcome = ProtocolJson.Serialize(new WelcomeMessage { Id = "g", Name = "PC", Caps = [Caps.Bluetooth], Bt = addr });
+        Assert.Contains("\"bt\":\"04:68:74:9A:2B:FC\"", welcome);
+        Assert.Contains("\"caps\":[\"bluetooth\"]", welcome);
     }
 
     [Fact]

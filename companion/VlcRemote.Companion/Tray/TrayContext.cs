@@ -21,12 +21,14 @@ public sealed class TrayContext : ApplicationContext
     private readonly SessionManager _sessions;
     private readonly CompanionHost _host;
     private readonly PowerService _power;
+    private readonly BluetoothRfcommServer _bluetooth;
     private readonly Func<Task> _shutdown;
     private readonly ILogger _log;
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu;
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _phonesItem;
+    private readonly ToolStripMenuItem _bluetoothItem;
     private readonly ToolStripMenuItem _pairItem;
     private readonly ToolStripMenuItem _launchItem;
     private readonly ToolStripMenuItem _restartItem;
@@ -44,7 +46,7 @@ public sealed class TrayContext : ApplicationContext
 
     public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, SettingsStore settingsStore, VlcManager vlc,
         PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host, PowerService power,
-        Func<Task> shutdown, ILogger<TrayContext> log)
+        BluetoothRfcommServer bluetooth, Func<Task> shutdown, ILogger<TrayContext> log)
     {
         _ui = uiMarshaller;
         _paths = paths;
@@ -56,6 +58,7 @@ public sealed class TrayContext : ApplicationContext
         _sessions = sessions;
         _host = host;
         _power = power;
+        _bluetooth = bluetooth;
         _shutdown = shutdown;
         _log = log;
 
@@ -64,6 +67,7 @@ public sealed class TrayContext : ApplicationContext
 
         _statusItem = new ToolStripMenuItem("VLC: …") { Enabled = false };
         _phonesItem = new ToolStripMenuItem(UiText.TrayPhonesConnected(0)) { Enabled = false };
+        _bluetoothItem = new ToolStripMenuItem(BluetoothText()) { Enabled = false };
         _pairItem = new ToolStripMenuItem(UiText.TrayPair, null, (_, _) => BeginPairing());
         _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, _settings.PreferredDisplay, ct)));
         _restartItem = new ToolStripMenuItem(UiText.TrayRestartVlc, null, (_, _) => RestartVlc());
@@ -79,7 +83,7 @@ public sealed class TrayContext : ApplicationContext
         _menu = new ContextMenuStrip();
         _menu.Items.AddRange(
         [
-            _statusItem, _phonesItem, new ToolStripSeparator(),
+            _statusItem, _phonesItem, _bluetoothItem, new ToolStripSeparator(),
             _pairItem, new ToolStripSeparator(),
             _launchItem, _restartItem, _quitVlcItem, _displaysItem, new ToolStripSeparator(),
             _luaItem, _autostartItem, _keepAwakeItem, new ToolStripSeparator(),
@@ -106,6 +110,7 @@ public sealed class TrayContext : ApplicationContext
         _vlc.RunStateChanged += () => Invoke(RefreshStatus);
         _vlc.StateChanged += s => Invoke(() => OnState(s));
         _sessions.CountChanged += () => Invoke(RefreshStatus);
+        _bluetooth.StatusChanged += () => Invoke(RefreshStatus);
         _pairing.Paired += d => Invoke(() => OnPaired(d));
         _pairing.PairingEnded += () => Invoke(OnPairingEnded);
         _vlc.NoControlDetected += _ => Invoke(OnNoControl);
@@ -145,10 +150,20 @@ public sealed class TrayContext : ApplicationContext
         };
         _statusItem.Text = vlc;
         _phonesItem.Text = UiText.TrayPhonesConnected(_sessions.Count);
+        _bluetoothItem.Text = BluetoothText();
         _icon.Icon = _vlc.RunState == VlcRunState.Running ? _iconActive : _iconIdle;
         var tip = $"VLC Remote {AppVersion.Informational}\n{vlc}\n{UiText.TrayTipPhones(_sessions.Count)}";
         _icon.Text = tip.Length > 127 ? tip[..127] : tip;
     }
+
+    private string BluetoothText() => _bluetooth.Status switch
+    {
+        BluetoothServerStatus.Advertising => UiText.TrayBluetoothOn,
+        BluetoothServerStatus.Starting => UiText.TrayBluetoothStarting,
+        BluetoothServerStatus.RadioOff => UiText.TrayBluetoothRadioOff,
+        BluetoothServerStatus.Disabled => UiText.TrayBluetoothDisabled,
+        _ => UiText.TrayBluetoothUnavailable,
+    };
 
     private string PlaybackText()
     {

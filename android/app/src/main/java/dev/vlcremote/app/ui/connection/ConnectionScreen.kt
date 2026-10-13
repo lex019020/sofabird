@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -43,6 +47,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -66,6 +71,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.discovery.DiscoveredHost
@@ -73,7 +80,10 @@ import dev.vlcremote.app.data.player.PairingState
 import dev.vlcremote.app.data.player.TestResult
 import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.app.domain.model.ServerMode
+import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
+import dev.vlcremote.app.ui.common.BluetoothPermissionRationaleDialog
 import dev.vlcremote.app.ui.common.StatusDot
+import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.hint
 import dev.vlcremote.app.ui.common.message
 import dev.vlcremote.app.ui.connectionSummary
@@ -94,6 +104,9 @@ fun ConnectionScreen(
         viewModel.startDiscovery()
         onDispose { viewModel.stopDiscovery() }
     }
+
+    // Back from the system Bluetooth settings: the list of bonded devices may have changed.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshBluetoothPicker() }
 
     // Connected (and paired) through the flow → straight to the remote.
     LaunchedEffect(ui.pairing) {
@@ -184,6 +197,13 @@ fun ConnectionScreen(
                 OtherWaysHeader(ui.otherOptionsExpanded) { viewModel.setOtherOptionsExpanded(!ui.otherOptionsExpanded) }
             }
             if (ui.otherOptionsExpanded) {
+                item(key = "bluetooth") {
+                    BluetoothEntry(
+                        busy = (ui.pairing as? PairingState.Connecting)?.target?.viaBluetooth == true,
+                        onClick = viewModel::openBluetoothPicker,
+                    )
+                }
+                item(key = "bt-divider") { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
                 item(key = "other-found-header") {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         SectionHeader(stringResource(R.string.found_pcs), Modifier.weight(1f))
@@ -215,6 +235,8 @@ fun ConnectionScreen(
         }
     }
 
+    BluetoothPicker(ui.btPicker, viewModel)
+
     (ui.pairing as? PairingState.EnterCode)?.let { state ->
         PairCodeDialog(
             state = state,
@@ -240,7 +262,11 @@ private fun PairingProgressCard(state: PairingState.Connecting, onCancel: () -> 
             Spacer(Modifier.width(16.dp))
             Text(
                 stringResource(
-                    if (state.auto) R.string.pairing_auto_found else R.string.pairing_connecting,
+                    when {
+                        state.auto -> R.string.pairing_auto_found
+                        state.target.viaBluetooth -> R.string.pairing_connecting_bt
+                        else -> R.string.pairing_connecting
+                    },
                     state.target.name,
                 ),
                 style = MaterialTheme.typography.titleSmall,
@@ -405,14 +431,108 @@ private fun SavedServerRow(server: SavedServer, active: Boolean, onConnect: () -
             Column(Modifier.weight(1f)) {
                 Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${server.host}:${if (server.isCompanion) server.wsPort else server.httpPort} · " +
-                        stringResource(if (server.isCompanion) R.string.mode_companion else R.string.mode_direct),
+                    if (server.isCompanion && !server.hasLanAddress) {
+                        stringResource(R.string.saved_via_bluetooth, server.btAddress.orEmpty()) + " · " +
+                            stringResource(R.string.mode_companion)
+                    } else {
+                        "${server.host}:${if (server.isCompanion) server.wsPort else server.httpPort} · " +
+                            stringResource(if (server.isCompanion) R.string.mode_companion else R.string.mode_direct) +
+                            (if (server.isCompanion && server.btAddress != null) " · " + stringResource(R.string.transport_bluetooth) else "")
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, stringResource(R.string.edit)) }
             IconButton(onClick = onForget) { Icon(Icons.Default.Delete, stringResource(R.string.forget)) }
+        }
+    }
+}
+
+@Composable
+private fun BluetoothEntry(busy: Boolean, onClick: () -> Unit) {
+    Column {
+        OutlinedButton(onClick = onClick, enabled = !busy) {
+            Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.bt_connect_action))
+        }
+        Text(
+            stringResource(R.string.bt_connect_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Permission rationale → "turn Bluetooth on" → bonded devices (computers first). */
+@Composable
+private fun BluetoothPicker(state: BtPickerState, viewModel: ConnectionViewModel) {
+    val requests = rememberBluetoothRequests(
+        onPermissionResult = viewModel::onBluetoothPermissionResult,
+        onEnableResult = viewModel::onBluetoothEnableResult,
+    )
+    when (state) {
+        BtPickerState.Hidden -> Unit
+        BtPickerState.NeedsPermission -> BluetoothPermissionRationaleDialog(
+            onAllow = requests.requestPermission,
+            onDismiss = viewModel::closeBluetoothPicker,
+        )
+        BtPickerState.PermissionDenied -> BluetoothPermissionDeniedDialog(
+            onOpenSettings = {
+                viewModel.closeBluetoothPicker()
+                requests.openAppSettings()
+            },
+            onDismiss = viewModel::closeBluetoothPicker,
+        )
+        BtPickerState.Off -> AlertDialog(
+            onDismissRequest = viewModel::closeBluetoothPicker,
+            icon = { Icon(Icons.Default.BluetoothDisabled, null) },
+            title = { Text(stringResource(R.string.bt_off_title)) },
+            text = { Text(stringResource(R.string.bt_off_body)) },
+            confirmButton = { TextButton(onClick = requests.requestEnable) { Text(stringResource(R.string.bt_turn_on)) } },
+            dismissButton = { TextButton(onClick = viewModel::closeBluetoothPicker) { Text(stringResource(R.string.cancel)) } },
+        )
+        BtPickerState.Unsupported -> AlertDialog(
+            onDismissRequest = viewModel::closeBluetoothPicker,
+            title = { Text(stringResource(R.string.bt_unsupported)) },
+            confirmButton = { TextButton(onClick = viewModel::closeBluetoothPicker) { Text(stringResource(R.string.close)) } },
+        )
+        is BtPickerState.Devices -> ModalBottomSheet(onDismissRequest = viewModel::closeBluetoothPicker) {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+                Text(stringResource(R.string.bt_picker_title), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(if (state.devices.isEmpty()) R.string.bt_picker_empty else R.string.bt_picker_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                )
+                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                    items(state.devices, key = { it.address }) { device ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.connectBluetooth(device) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                if (device.isComputer) Icons.Default.Computer else Icons.Default.Bluetooth,
+                                null,
+                                tint = if (device.isComputer) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(device.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(device.address, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                TextButton(onClick = requests.openBluetoothSettings, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(stringResource(R.string.bt_open_settings))
+                }
+            }
         }
     }
 }

@@ -98,6 +98,8 @@ sealed class CompanionMessage {
         val caps: List<String> = emptyList(),
         val token: String? = null,
         val vlc: VlcInfo = VlcInfo(),
+        /** PC Bluetooth adapter address (`AA:BB:CC:DD:EE:FF`); absent without an adapter or with BT off. */
+        val bt: String? = null,
     ) : CompanionMessage() {
         /** `welcome` uses `id` for the PC GUID, not for request correlation. */
         override val id: String? get() = null
@@ -211,6 +213,8 @@ sealed class CompanionMessage {
         val wsPort: Int = COMPANION_WS_PORT,
         val protocol: Int = PROTOCOL_VERSION,
         val needsPairing: Boolean = false,
+        /** PC Bluetooth adapter address, see [Welcome.bt]. */
+        val bt: String? = null,
     ) : CompanionMessage() {
         override val id: String? get() = null
     }
@@ -247,6 +251,8 @@ data class CompanionInfo(
     val vlc: VlcInfo? = null,
     val wsPort: Int = COMPANION_WS_PORT,
     val needsPairing: Boolean = false,
+    /** PC Bluetooth adapter address, see [CompanionMessage.Welcome.bt]. */
+    val bt: String? = null,
 )
 
 enum class ErrorCode(val wire: String) {

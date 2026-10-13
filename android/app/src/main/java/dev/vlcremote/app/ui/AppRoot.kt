@@ -4,17 +4,22 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -31,6 +36,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +65,7 @@ import dev.vlcremote.app.ui.playlist.PlaylistScreen
 import dev.vlcremote.app.ui.remote.RemoteScreen
 import dev.vlcremote.app.ui.settings.SettingsScreen
 import dev.vlcremote.protocol.model.ConnectionState
+import dev.vlcremote.protocol.model.TransportKind
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import org.koin.compose.koinInject
@@ -114,6 +121,22 @@ fun AppRoot() {
         }
     }
 
+    // Wi-Fi ↔ Bluetooth switch of a live companion session: a quiet notice, never a dialog.
+    val transport = (connection as? ConnectionState.Connected)?.transport
+    val lastTransport = remember { mutableStateOf<TransportKind?>(null) }
+    LaunchedEffect(transport) {
+        if (transport == null) return@LaunchedEffect
+        val previous = lastTransport.value
+        lastTransport.value = transport
+        if (previous != null && previous != transport) {
+            snackbar.showSnackbar(
+                context.getString(
+                    if (transport == TransportKind.BLUETOOTH) R.string.transport_switched_bluetooth else R.string.transport_switched_wifi,
+                ),
+            )
+        }
+    }
+
     // First launch without any saved PC: start on the connection screen (once, not a loop).
     val servers: ServerRepository = koinInject()
     LaunchedEffect(Unit) {
@@ -129,6 +152,7 @@ fun AppRoot() {
                 ConnectionTopBar(
                     connection = connection,
                     hostName = server?.displayName,
+                    showTransport = server?.isCompanion == true,
                     onClick = { navController.navigate(Routes.CONNECTION) { launchSingleTop = true } },
                     onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
                 )
@@ -199,6 +223,7 @@ fun AppRoot() {
 private fun ConnectionTopBar(
     connection: ConnectionState,
     hostName: String?,
+    showTransport: Boolean,
     onClick: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -229,10 +254,41 @@ private fun ConnectionTopBar(
             }
         },
         actions = {
+            val transport = connection.transportOrNull
+            if (showTransport && transport != null) TransportIndicator(transport)
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
     )
+}
+
+/** Small "Wi-Fi" / "Bluetooth" badge: which link carries the companion session. */
+@Composable
+private fun TransportIndicator(transport: TransportKind) {
+    val bluetooth = transport == TransportKind.BLUETOOTH
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(
+                if (bluetooth) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                RoundedCornerShape(8.dp),
+            )
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        val tint = if (bluetooth) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+        Icon(
+            if (bluetooth) Icons.Default.Bluetooth else Icons.Default.Wifi,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(14.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            stringResource(if (bluetooth) R.string.transport_bluetooth else R.string.transport_wifi),
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+        )
+    }
 }
 
 @Composable
@@ -247,7 +303,13 @@ fun connectionSummary(connection: ConnectionState, hostName: String?): Pair<Colo
         is ConnectionState.Connected -> Color(0xFF4CAF50) to buildString {
             append(
                 when (connection.level) {
-                    2 -> context.getString(R.string.level_companion)
+                    2 -> context.getString(
+                        R.string.connection_level_transport,
+                        context.getString(R.string.level_companion),
+                        context.getString(
+                            if (connection.transport == TransportKind.BLUETOOTH) R.string.transport_bluetooth else R.string.transport_wifi,
+                        ),
+                    )
                     1 -> context.getString(R.string.level_lua)
                     else -> context.getString(R.string.level_http)
                 },

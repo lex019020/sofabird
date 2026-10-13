@@ -23,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
 import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.ThemeMode
+import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
+import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -114,6 +119,10 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            Section(stringResource(R.string.settings_connection))
+            BluetoothFallbackRow(checked = s.bluetoothFallback) { v -> viewModel.update { it.copy(bluetoothFallback = v) } }
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_background))
             SwitchRow(
                 title = stringResource(R.string.settings_keep_connection),
@@ -132,6 +141,37 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             )
             Text("", Modifier.padding(bottom = 24.dp))
         }
+    }
+}
+
+/**
+ * "Use Bluetooth when Wi-Fi is unavailable". Turning it on is the moment to ask for "Nearby devices"
+ * (Android 12+): the switch text is the rationale. A refusal keeps the setting on — the remote then
+ * offers the permission again when Wi-Fi actually fails.
+ */
+@Composable
+private fun BluetoothFallbackRow(checked: Boolean, onChange: (Boolean) -> Unit) {
+    var denied by remember { mutableStateOf(false) }
+    val requests = rememberBluetoothRequests(
+        onPermissionResult = { granted -> if (!granted) denied = true },
+        onEnableResult = { },
+    )
+    SwitchRow(
+        title = stringResource(R.string.settings_bluetooth_fallback),
+        subtitle = stringResource(R.string.settings_bluetooth_fallback_hint),
+        checked = checked,
+    ) { v ->
+        onChange(v)
+        if (v) requests.requestPermission()
+    }
+    if (denied) {
+        BluetoothPermissionDeniedDialog(
+            onOpenSettings = {
+                denied = false
+                requests.openAppSettings()
+            },
+            onDismiss = { denied = false },
+        )
     }
 }
 

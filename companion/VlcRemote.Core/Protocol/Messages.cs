@@ -64,6 +64,8 @@ public sealed class WelcomeMessage : Message
     public IReadOnlyList<string> Caps { get; set; } = [];
     public string? Token { get; set; }
     public VlcInfo Vlc { get; set; } = new();
+    /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
+    public string? Bt { get; set; }
 }
 
 public sealed class ErrMessage : Message
@@ -203,6 +205,8 @@ public sealed class BeaconMessage : Message
     public int WsPort { get; set; }
     public int Protocol { get; set; } = ProtocolConstants.Version;
     public bool NeedsPairing { get; set; }
+    /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
+    public string? Bt { get; set; }
 }
 
 public static class ProtocolConstants
@@ -212,6 +216,13 @@ public static class ProtocolConstants
     public const int DefaultBeaconPort = 47556;
     public const string DnsSdServiceType = "_vlcremote._tcp";
     public const string BeaconRequest = "VLCREMOTE_DISCOVER 1";
+
+    /// <summary>RFCOMM service UUID of the companion (protocol/README.md, «Транспорт»).</summary>
+    public static readonly Guid BluetoothServiceUuid = new("47fe5bd6-98ad-4d9f-9812-174b3394037d");
+    /// <summary>Service name in the SDP record (attribute 0x0100).</summary>
+    public const string BluetoothServiceName = "VLC Remote";
+    /// <summary>Maximum length of one NDJSON line on a byte-stream transport (RFCOMM), excluding the line separator.</summary>
+    public const int MaxStreamLineBytes = 1024 * 1024;
 }
 
 public static class ErrorCodes

@@ -33,6 +33,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val keepInBackground = booleanPreferencesKey("keep_connection_in_background")
         val haptics = booleanPreferencesKey("haptics")
         val libraryMediaOnly = booleanPreferencesKey("library_media_only")
+        val bluetoothFallback = booleanPreferencesKey("bluetooth_fallback")
     }
 
     val flow: Flow<AppSettings> = store.data.map { p ->
@@ -48,6 +49,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
             keepConnectionInBackground = p[Keys.keepInBackground] ?: defaults.keepConnectionInBackground,
             haptics = p[Keys.haptics] ?: defaults.haptics,
             libraryMediaOnly = p[Keys.libraryMediaOnly] ?: defaults.libraryMediaOnly,
+            bluetoothFallback = p[Keys.bluetoothFallback] ?: defaults.bluetoothFallback,
         )
     }
 
@@ -68,6 +70,7 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
             p[Keys.keepInBackground] = next.keepConnectionInBackground
             p[Keys.haptics] = next.haptics
             p[Keys.libraryMediaOnly] = next.libraryMediaOnly
+            p[Keys.bluetoothFallback] = next.bluetoothFallback
         }
     }
 }

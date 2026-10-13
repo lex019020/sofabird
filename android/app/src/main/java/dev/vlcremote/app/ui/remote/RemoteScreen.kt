@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -40,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +59,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.vlcremote.app.R
+import dev.vlcremote.app.data.companion.BluetoothStatus
+import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
+import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.RemoteButton
 import dev.vlcremote.app.ui.common.formatRemaining
 import dev.vlcremote.app.ui.common.formatTime
@@ -92,6 +97,7 @@ fun RemoteScreen(
                     Spacer(Modifier.height(8.dp))
                     if (ui.vlcBlock == null) TitleBlock(ui)
                     OfflineCard(ui, onOpenConnection)
+                    BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(
@@ -126,6 +132,7 @@ fun RemoteScreen(
                 val block = ui.vlcBlock
                 if (block == null) TitleBlock(ui)
                 OfflineCard(ui, onOpenConnection)
+                BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
                 if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
                 QuickChips(ui, onTracks = { tracksSheet = it }, onMore = { moreSheet = true })
                 Spacer(Modifier.weight(1f))
@@ -219,6 +226,58 @@ private fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit) {
                 Button(onClick = onOpenConnection) { Text(stringResource(R.string.action_connect)) }
             }
         }
+    }
+}
+
+/**
+ * The LAN is down and the PC could be reached over Bluetooth once the user grants "Nearby devices"
+ * or turns Bluetooth on. The card is the in-context rationale; "Allow" opens the system dialog.
+ */
+@Composable
+private fun BluetoothFallbackCard(ui: RemoteUiState, onReady: () -> Unit, onDismiss: () -> Unit) {
+    val need = ui.bluetoothNeed ?: return
+    if (ui.connection.isOnline) return
+    var denied by remember { mutableStateOf(false) }
+    val requests = rememberBluetoothRequests(
+        onPermissionResult = { granted -> if (granted) onReady() else denied = true },
+        onEnableResult = { on -> if (on) onReady() },
+    )
+    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Bluetooth, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.bt_fallback_title, ui.hostName.orEmpty()),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(
+                    if (need == BluetoothStatus.OFF) R.string.bt_fallback_off_body else R.string.bt_fallback_permission_body,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.not_now)) }
+                Spacer(Modifier.width(8.dp))
+                if (need == BluetoothStatus.OFF) {
+                    Button(onClick = requests.requestEnable) { Text(stringResource(R.string.bt_turn_on)) }
+                } else {
+                    Button(onClick = requests.requestPermission) { Text(stringResource(R.string.bt_permission_allow)) }
+                }
+            }
+        }
+    }
+    if (denied) {
+        BluetoothPermissionDeniedDialog(
+            onOpenSettings = {
+                denied = false
+                requests.openAppSettings()
+            },
+            onDismiss = { denied = false },
+        )
     }
 }
 

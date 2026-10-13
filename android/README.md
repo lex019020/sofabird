@@ -1,7 +1,8 @@
 # vlc-remote — Android‑приложение
 
 Пульт для VLC 3.0.x, запущенного на Windows‑ПК у телевизора. Работает в двух режимах:
-напрямую с HTTP‑интерфейсом VLC (уровни 0/1) и через Windows‑компаньон (уровень 2).
+напрямую с HTTP‑интерфейсом VLC (уровни 0/1) и через Windows‑компаньон (уровень 2) — по Wi‑Fi
+(WebSocket) или, если Wi‑Fi недоступен, по Bluetooth (RFCOMM).
 Протокол — [`../protocol/README.md`](../protocol/README.md) и [`../protocol/vlc-http.md`](../protocol/vlc-http.md).
 
 ## Сборка
@@ -40,15 +41,20 @@ android/
     vlc/                VlcStatusParser (status/playlist/browse/tracks.json), VlcStateMapper,
                         VlcCommands (строки запросов), VlcErrorPage (детект «Error loading»)
     companion/          CompanionMessage (sealed, дискриминатор `t`), CompanionCodec,
-                        CommandMapping (PlayerCommand → cmd/sys)
+                        CommandMapping (PlayerCommand → cmd/sys), NdjsonFramer/NdjsonReader (строки
+                        NDJSON поверх потока байт RFCOMM, ≤ 1 МиБ), BtAddress, COMPANION_RFCOMM_UUID
     src/test/           тесты на фикстурах из docs/research/samples (скопированы в resources)
   app/                  Android‑приложение (dev.vlcremote.app)
     data/vlc/           VlcHttpApi, VlcErrorClassifier, VlcHttpBackend (опрос, команды, уровни 0/1)
-    data/companion/     CompanionSocket (рукопожатие), CompanionBackend (WebSocket, уровень 2)
+    data/companion/     CompanionTransport (+ рукопожатие поверх любого канала), WebSocketTransport,
+                        RfcommTransport, BluetoothSupport (разрешение, радио, сопряжённые устройства),
+                        AndroidCompanionTransports (WS / RFCOMM / проба LAN), CompanionBackend (уровень 2,
+                        выбор канала, возврат на Wi‑Fi)
     data/discovery/     NsdDiscovery, UdpBeaconDiscovery, SubnetScanner, LocalNetwork, DiscoveryRepository
     data/player/        PlayerController (единственный владелец активного backend), ConnectionTester, AppVisibility,
                         PairingFlow (подключение/сопряжение с компаньоном) + CompanionPairingLink, DeviceIdentity
-    data/servers|settings|secrets|net
+    data/servers/       ServerRepository, CompanionServerSync (адреса LAN/Bluetooth из обнаружения → сохранённые ПК)
+    data/settings|secrets|net
     service/            PlaybackService (FGS + MediaSession), RemotePlayer (SimpleBasePlayer), ServiceCoordinator
     ui/                 AppRoot (навигация, строка состояния), remote/, connection/, library/, playlist/, settings/
     di/AppModule.kt     Koin
@@ -86,6 +92,48 @@ push `state`, запросы `cmd`/`sys`/`browse`/`getPlaylist` по `id`, `ping
 переподключение), экспоненциальный backoff, команды буферизуются до 5 с на время переподключения.
 `pairing_required`/`unauthorized` при рукопожатии — терминальные (`ConnectionError.PairingRequired` /
 `InvalidPairCode`): backend не долбит ПК повторами, а экран «Подключение» просит код.
+
+**Bluetooth (M3)** — резервный канал к компаньону, когда Wi‑Fi нет или ПК по нему не отвечает:
+
+- Протокол тот же: RFCOMM‑служба `47fe5bd6-98ad-4d9f-9812-174b3394037d`, NDJSON (строка UTF‑8 на сообщение,
+  разделитель `\n`, ≤ 1 МиБ), то же `hello` с токеном. Сокет — *secure* `createRfcommSocketToServiceRecord` (ПК
+  должен быть сопряжён, канал шифруется), канал RFCOMM ищется по SDP. `read() == -1` (Android 17) и `IOException` —
+  обрыв. Блокирующие `connect()`/`read()` идут на `Dispatchers.IO`; отмена корутины закрывает сокет, чтобы они
+  вернулись.
+- Адрес Bluetooth ПК (`bt` из `welcome`, маяка и `/info`) хранится в `SavedServer.btAddress` и обновляется при
+  каждом `welcome`; маяк/`/info` того же компаньона (по GUID) дописывают в сохранённый ПК адрес LAN или Bluetooth
+  (`CompanionServerSync`). Адреса не стираются: маяк без `bt` (на ПК выключен Bluetooth) известный адрес не удаляет.
+- Выбор канала при каждом (пере)подключении (`CompanionBackend`): сначала WebSocket (таймаут ~3 с); если не вышло,
+  адрес Bluetooth известен, настройка «Использовать Bluetooth, когда Wi‑Fi недоступен» включена (по умолчанию),
+  Bluetooth включён, разрешение есть и ПК среди сопряжённых → RFCOMM (до 12 с). Отказ в сопряжении или другой
+  протокол по LAN — окончательный ответ, по Bluetooth его не перепроверяем. ПК, известный только по Bluetooth
+  (адреса LAN ещё нет), подключается сразу по RFCOMM независимо от настройки.
+- На RFCOMM `ping` каждые 15 с (на WebSocket — 30 с), нет `pong` 10 с → переподключение. Каждые ~20 с телефон
+  проверяет LAN: `GET /info` по известному адресу (2 с), иначе короткий раунд UDP‑маяка с поиском по GUID/`bt`
+  (так ПК, сопряжённый по Bluetooth, узнаёт свой IP). Ответил — открывается WebSocket, `hello` с тем же токеном и
+  `getState`, и только потом закрывается RFCOMM (ответов на запросы «в полёте» ждём до 1 с): состояние на экране
+  не сбрасывается, статус не уходит в «Подключение…».
+- В шапке пульта рядом с именем ПК — значок «Wi‑Fi» / «Bluetooth», в строке статуса «Компаньон · Bluetooth»;
+  переключение канала — снэкбар «Нет связи с ПК по Wi‑Fi — переключились на Bluetooth» / «Снова по Wi‑Fi».
+- Разрешения: `BLUETOOTH_CONNECT` (Android 12+, «Устройства поблизости») запрашивается только в контексте — при
+  включении настройки, в карточке на пульте «… недоступен по Wi‑Fi», которая появляется, когда LAN упала и
+  Bluetooth мог бы помочь (текст карточки и есть объяснение), или по кнопке «Подключиться по Bluetooth» (сначала
+  диалог с объяснением). Отказ → диалог со ссылкой в настройки приложения. Выключенное радио — системный диалог
+  `ACTION_REQUEST_ENABLE` («Включить»). После разрешения/включения переподключение идёт сразу, без ожидания backoff.
+  `BLUETOOTH`/`BLUETOOTH_ADMIN` — только до Android 11 (`maxSdkVersion="30"`). `BLUETOOTH_SCAN` и геолокация не
+  нужны: используются только сопряжённые устройства (поэтому `cancelDiscovery()` на Android 12+ не вызывается — ему
+  нужен `BLUETOOTH_SCAN`).
+- Первое подключение по Bluetooth: «Другие способы подключения» → «Подключиться по Bluetooth» → список
+  сопряжённых устройств (имя + адрес, компьютеры — `BluetoothClass.Device.Major.COMPUTER` — сверху; кнопка
+  «Настройки Bluetooth», список перечитывается при возврате) → `hello` по RFCOMM → тот же `PairingFlow`: код на
+  экране ПК, окно для кода на телефоне, токен. Сохранённый ПК создаётся с id = GUID компаньона, `btAddress` и
+  пустым `host`; как только маяк/`/info` этого компаньона виден в LAN, адрес дописывается в ту же запись (тот же
+  токен). Если ПК уже был сопряжён по Wi‑Fi, `welcome.id` находит существующую запись — второй не появляется.
+  Ошибка RFCOMM — «Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен».
+- Нажатие на сохранённый ПК при недоступной LAN: `hello` по LAN, затем (если Bluetooth готов) по RFCOMM.
+- Фон: foreground‑сервис `connectedDevice` подходит и для Bluetooth. Пока идёт переподключение (Wi‑Fi пропал →
+  RFCOMM), `ServiceCoordinator` не гасит сервис до 2 минут: остановленный в фоне сервис нельзя запустить снова, а
+  вместе с ним пропал бы и переход на Bluetooth.
 
 **Подключение и сопряжение** (`PairingFlow`, экран «Подключение»):
 
@@ -155,11 +203,14 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
 - `/art` VLC отдаёт обложку только текущего элемента; URL снабжён `?item=<plid>` как ключ кэша Coil.
 - Удалённая громкость через MediaSession с погашенным экраном зависит от прошивки (см. research §2.1).
 - Android 17 / targetSdk 37 потребует runtime‑разрешения `ACCESS_LOCAL_NETWORK` — пока targetSdk 35.
-- Автоподключение при старте идёт к последнему ПК по LAN; выбора канала BT нет.
+- Автоподключение при старте идёт к последнему ПК: LAN, затем Bluetooth (если адрес известен и разрешение есть).
+- Сопряжение Bluetooth (телефон ↔ ПК) делается в настройках Android/Windows; приложение его не инициирует и
+  не ищет новые устройства (нет `BLUETOOTH_SCAN`). `CompanionDeviceManager` не используется.
+- Обложки и миниатюры по Bluetooth не передаются (`/art` — HTTP по LAN).
 
 ## Отложено
 
-- **M3 — Bluetooth RFCOMM** (`BtTransport`, `CompanionDeviceManager`, автопереключение LAN↔BT) — `Capability.BLUETOOTH` и NDJSON‑кодек уже готовы.
+- `CompanionDeviceManager` (системный выбор ПК, presence‑события) вместо собственного списка сопряжённых устройств.
 - **M4 — постеры/метаданные** (TMDB через компаньон, Room для «продолжить просмотр», Quick Settings‑плитка, Glance‑виджет).
 - Таймер сна.
 
@@ -184,3 +235,22 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
 11. Состояния VLC на пульте: VLC закрыт → «Запустить VLC»; VLC открыт вручную → «без управления» →
     «Перезапустить с управлением» (тот же фильм на ТВ); статус на карточке ПК обновляется (~8–10 с).
 12. «Другие способы подключения» раскрываются сами, если компаньон не найден за ~6 с.
+13. **Bluetooth** (Galaxy S24 ↔ ноутбук у ТВ с Intel BT, уже сопряжены):
+    1. Подключение по Wi‑Fi → в `welcome` пришёл `bt`; в «Сохранённых ПК» в строке ПК есть «Bluetooth».
+    2. Выключить Wi‑Fi на телефоне при открытом пульте → снэкбар «переключились на Bluetooth» и значок «Bluetooth»
+       в шапке за ~3–5 с; пауза, громкость, перемотка работают, задержка на глаз приемлема.
+    3. Без разрешения «Устройства поблизости»: карточка «… недоступен по Wi‑Fi» → «Разрешить» → системный диалог →
+       подключение по Bluetooth сразу. Отказ → диалог «Настройки приложения».
+    4. Включить Wi‑Fi обратно → не позже ~20 с значок «Wi‑Fi», снэкбар «Снова по Wi‑Fi»; статус ни разу не ушёл в
+       «Подключение…», название и позиция не мигнули.
+    5. Wi‑Fi и Bluetooth телефона выключены → карточка «включите Bluetooth» → «Включить» → системный диалог → подключение.
+    6. «Другие способы подключения» → «Подключиться по Bluetooth»: ноутбук наверху списка (иконка компьютера), адрес
+       совпадает с `bt` компаньона; выбор → код на экране ТВ → ввод → пульт. Затем включить Wi‑Fi → у сохранённого ПК
+       появился IP (та же запись, без повторного кода).
+    7. Ноутбук не сопряжён / компаньон закрыт → «Компаньон не отвечает по Bluetooth…» не позже чем через ~12 с,
+       приложение не виснет, «Отмена» во время подключения работает.
+    8. Фон: идёт фильм, приложение свёрнуто, уведомление есть → выключить Wi‑Fi → через минуту кнопки уведомления
+       работают (сервис пережил переход на RFCOMM). Экран погашен 10+ минут — соединение живо (ping 15 с).
+    9. Сон ноутбука во время сессии по Bluetooth → переподключение после пробуждения.
+    10. Компаньон закрывается во время сессии по Bluetooth → обрыв замечен сразу (`read() == -1`/`IOException`),
+        дальше обычные попытки переподключения.

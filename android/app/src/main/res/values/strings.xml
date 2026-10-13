@@ -204,7 +204,7 @@
     <string name="badge_vlc_not_installed">VLC not installed</string>
     <string name="forget_pc">Forget this computer</string>
     <string name="other_ways">Other ways to connect</string>
-    <string name="other_ways_hint">VLC without the companion, manual address, network scan</string>
+    <string name="other_ways_hint">Bluetooth, VLC without the companion, manual address, network scan</string>
     <string name="manual_companion_hint">After you tap “Connect”, a code appears on the computer screen — type it on the phone.</string>
     <string name="pairing_connecting">Connecting to %1$s…</string>
     <string name="pairing_auto_found">Found computer %1$s — connecting…</string>
@@ -226,4 +226,37 @@
     <string name="vlc_state_not_installed_title">VLC was not found on the computer</string>
     <string name="vlc_state_not_installed_body">Install VLC 3.0 from videolan.org — the companion will find it.</string>
     <string name="unit_ms">ms</string>
+
+    <!-- Bluetooth (M3) -->
+    <string name="err_bluetooth_failed">The companion is not answering over Bluetooth: check that the PC is paired with the phone and the companion is running</string>
+    <string name="hint_bluetooth_failed">Pair the phone with the PC in the Bluetooth settings of Android or Windows. The PC must be nearby (about 10 m) with Bluetooth on.</string>
+    <string name="transport_wifi">Wi‑Fi</string>
+    <string name="transport_bluetooth">Bluetooth</string>
+    <string name="connection_level_transport">%1$s · %2$s</string>
+    <string name="transport_switched_bluetooth">No Wi‑Fi connection to the PC — switched to Bluetooth</string>
+    <string name="transport_switched_wifi">Back on Wi‑Fi</string>
+    <string name="bt_connect_action">Connect via Bluetooth</string>
+    <string name="bt_connect_hint">When there is no Wi‑Fi: the phone must be paired with the PC in the Bluetooth settings.</string>
+    <string name="bt_picker_title">Choose the computer</string>
+    <string name="bt_picker_hint">Devices paired with this phone. The computer with the companion is usually at the top.</string>
+    <string name="bt_picker_empty">No paired devices. Pair the phone with the PC in the Bluetooth settings first.</string>
+    <string name="bt_open_settings">Bluetooth settings</string>
+    <string name="bt_permission_title">Allow access to nearby devices</string>
+    <string name="bt_permission_rationale">To control the PC over Bluetooth the app connects to a computer that is already paired with this phone. Android calls this permission “Nearby devices”. The app does not search for devices and does not use your location.</string>
+    <string name="bt_permission_allow">Allow</string>
+    <string name="bt_permission_denied">Without the “Nearby devices” permission the remote cannot use Bluetooth. You can allow it in the app settings.</string>
+    <string name="bt_open_app_settings">App settings</string>
+    <string name="bt_off_title">Bluetooth is off</string>
+    <string name="bt_off_body">Turn Bluetooth on to connect to the PC without Wi‑Fi.</string>
+    <string name="bt_turn_on">Turn on</string>
+    <string name="bt_unsupported">This phone has no Bluetooth</string>
+    <string name="not_now">Not now</string>
+    <string name="bt_fallback_title">%1$s is not reachable over Wi‑Fi</string>
+    <string name="bt_fallback_permission_body">The remote can keep working over Bluetooth if you allow access to nearby devices.</string>
+    <string name="bt_fallback_off_body">The remote can keep working over Bluetooth — turn Bluetooth on.</string>
+    <string name="settings_connection">Connection</string>
+    <string name="settings_bluetooth_fallback">Use Bluetooth when Wi‑Fi is unavailable</string>
+    <string name="settings_bluetooth_fallback_hint">For a PC paired with the phone. Slower than Wi‑Fi; artwork is not loaded.</string>
+    <string name="saved_via_bluetooth">Bluetooth · %1$s</string>
+    <string name="pairing_connecting_bt">Connecting to %1$s over Bluetooth…</string>
 </resources>

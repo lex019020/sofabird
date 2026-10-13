@@ -5,6 +5,7 @@ import android.util.Log
 import dev.vlcremote.app.data.player.AppVisibility
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
+import dev.vlcremote.protocol.model.ConnectionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,7 +20,10 @@ import kotlinx.coroutines.launch
  *  - start when connected and (VLC is playing, or the app is visible) and the
  *    "keep connection in background" setting is on;
  *  - keep running while paused/stopped for up to [IDLE_STOP_MS] (10 min), then stop;
- *  - stop immediately when disconnected or the setting is turned off.
+ *  - stop immediately when disconnected or the setting is turned off;
+ *  - while the link is re-established (Wi-Fi dropped → Bluetooth, PC rebooting) keep running for up
+ *    to [RECONNECT_GRACE_MS]: once stopped in the background it could not be started again, and the
+ *    reconnect — e.g. the switch to RFCOMM — would be lost with it.
  * The service is only ever started while the app is visible or already running, which keeps us
  * inside the foreground-service start restrictions.
  */
@@ -31,6 +35,7 @@ class ServiceCoordinator(
     private val scope: CoroutineScope,
 ) {
     private var idleStopJob: Job? = null
+    private var reconnectStopJob: Job? = null
     private var started = false
 
     fun start() {
@@ -44,6 +49,7 @@ class ServiceCoordinator(
         ) { connection, state, visible, prefs ->
             Decision(
                 online = connection.isOnline,
+                reconnecting = connection is ConnectionState.Connecting,
                 playing = state.isPlaying,
                 visible = visible,
                 allowed = prefs.keepConnectionInBackground,
@@ -54,11 +60,30 @@ class ServiceCoordinator(
             .launchIn(scope)
     }
 
-    private data class Decision(val online: Boolean, val playing: Boolean, val visible: Boolean, val allowed: Boolean)
+    private data class Decision(
+        val online: Boolean,
+        val reconnecting: Boolean,
+        val playing: Boolean,
+        val visible: Boolean,
+        val allowed: Boolean,
+    )
 
     private fun apply(d: Decision) {
         val running = controller.serviceRunning.value
+        if (!d.reconnecting) {
+            reconnectStopJob?.cancel()
+            reconnectStopJob = null
+        }
         when {
+            d.allowed && d.reconnecting -> {
+                // Keep the service (and with it the process and the reconnect loop) for a while.
+                if (running && reconnectStopJob?.isActive != true) {
+                    reconnectStopJob = scope.launch {
+                        delay(RECONNECT_GRACE_MS)
+                        if (!controller.connection.value.isOnline) stop()
+                    }
+                }
+            }
             !d.allowed || !d.online -> {
                 idleStopJob?.cancel()
                 if (running) stop()
@@ -92,5 +117,6 @@ class ServiceCoordinator(
     private companion object {
         const val TAG = "ServiceCoordinator"
         const val IDLE_STOP_MS = 10 * 60 * 1000L
+        const val RECONNECT_GRACE_MS = 2 * 60 * 1000L
     }
 }
