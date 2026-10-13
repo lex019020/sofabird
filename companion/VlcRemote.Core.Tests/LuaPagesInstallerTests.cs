@@ -15,7 +15,7 @@ public class LuaPagesInstallerTests : IDisposable
     {
         _stock = Path.Combine(_root, "stock", "http");
         _target = Path.Combine(_root, "appdata", "vlc", "lua", "http");
-        // Имитация штатной папки VLC: requests/*.json, вложенные папки, бинарный файл.
+        // Imitation of VLC's stock folder: requests/*.json, nested folders, a binary file.
         Directory.CreateDirectory(Path.Combine(_stock, "requests"));
         Directory.CreateDirectory(Path.Combine(_stock, "css", "ui-lightness", "images"));
         File.WriteAllText(Path.Combine(_stock, "requests", "status.json"), "<?vlc print('status') ?>");
@@ -63,7 +63,7 @@ public class LuaPagesInstallerTests : IDisposable
 
         Assert.True(inst.IsInstalled("3.0.23"));
         Assert.False(inst.NeedsInstall("3.0.23"));
-        // Штатный файл был read-only — копия должна быть перезаписываемой (повторная установка).
+        // The stock file was read-only — the copy must be writable (repeated installation).
         inst.Install("3.0.23");
     }
 
@@ -97,6 +97,6 @@ public class LuaPagesInstallerTests : IDisposable
         inst.Uninstall();
         Assert.False(Directory.Exists(_target));
         Assert.True(File.Exists(Path.Combine(_stock, "requests", "status.json")));
-        inst.Uninstall(); // идемпотентно
+        inst.Uninstall(); // idempotent
     }
 }

@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">VLC Remote</string>
 
-    <!-- Навигация -->
+    <!-- Navigation -->
     <string name="tab_remote">Пульт</string>
     <string name="tab_library">Библиотека</string>
     <string name="tab_playlist">Плейлист</string>
@@ -15,7 +15,7 @@
     <string name="forget">Забыть</string>
     <string name="remove">Удалить</string>
 
-    <!-- Состояние соединения -->
+    <!-- Connection state -->
     <string name="no_server">ПК не выбран</string>
     <string name="state_disconnected">Не подключено</string>
     <string name="state_connecting">Подключение…</string>
@@ -29,7 +29,7 @@
     <string name="paired_with">Сопряжение с %1$s выполнено</string>
     <string name="volume_percent">Громкость %1$d %%</string>
 
-    <!-- Ошибки (точные, по классам) -->
+    <!-- Errors (precise, by class) -->
     <string name="err_no_password_set">В VLC не задан пароль веб‑интерфейса (ответ 403)</string>
     <string name="err_wrong_password">Неверный пароль веб‑интерфейса (ответ 401)</string>
     <string name="err_refused">Соединение отклонено: веб‑интерфейс VLC выключен или порт другой</string>
@@ -53,7 +53,7 @@
     <string name="hint_empty_body">Подождите, пока VLC полностью запустится, и нажмите «Проверить» ещё раз.</string>
     <string name="hint_pairing_required">Нажмите на компьютер в списке — на его экране появится код. Если окна нет: значок VLC Remote в трее → «Сопряжение телефона…».</string>
 
-    <!-- Пульт -->
+    <!-- Remote -->
     <string name="not_connected_title">Нет подключения</string>
     <string name="vlc_not_running_title">VLC не запущен</string>
     <string name="nothing_playing">Ничего не играет</string>
@@ -79,7 +79,7 @@
     <string name="track_off">выкл.</string>
     <string name="track_unknown_count">\? из %1$d</string>
 
-    <!-- Sheet дорожек -->
+    <!-- Tracks sheet -->
     <string name="sheet_audio_title">Аудиодорожка</string>
     <string name="sheet_subtitles_title">Субтитры</string>
     <string name="sheet_video_title">Видеодорожка</string>
@@ -90,7 +90,7 @@
     <string name="delay_subtitles">Задержка субтитров</string>
     <string name="delay_reset">Сбросить задержку</string>
 
-    <!-- Sheet «Ещё» -->
+    <!-- "More" sheet -->
     <string name="sheet_more_title">Ещё</string>
     <string name="section_chapters">Главы</string>
     <string name="chapters_none">В этом файле нет глав</string>
@@ -107,7 +107,7 @@
     <string name="action_sleep_pc">Усыпить ПК</string>
     <string name="needs_companion_hint">Запуск VLC, перенос окна на ТВ, аудиоустройство и сон ПК доступны только с компаньоном на Windows.</string>
 
-    <!-- Библиотека -->
+    <!-- Library -->
     <string name="up">Вверх</string>
     <string name="drives">Диски</string>
     <string name="favorite">Избранная папка</string>
@@ -115,13 +115,13 @@
     <string name="library_offline">Подключитесь к ПК, чтобы просматривать файлы</string>
     <string name="folder_empty">Папка пуста</string>
 
-    <!-- Плейлист -->
+    <!-- Playlist -->
     <string name="playlist_count">Плейлист · %1$d</string>
     <string name="playlist_empty">Очередь пуста. Выберите фильм в Библиотеке.</string>
     <string name="playlist_clear">Очистить</string>
     <string name="playlist_clear_confirm">Удалить все элементы из плейлиста VLC?</string>
 
-    <!-- Подключение -->
+    <!-- Connection -->
     <string name="connection_title">Подключение</string>
     <string name="saved_pcs">Сохранённые ПК</string>
     <string name="found_pcs">VLC в сети без компаньона</string>
@@ -157,7 +157,7 @@
     <string name="instructions_lua" formatted="false">Чтобы видеть текущую дорожку и названия глав без компаньона, скопируйте страницы из companion/lua в %APPDATA%\\vlc\\lua\\http (скрипт install.ps1) и перезапустите VLC.</string>
     <string name="instructions_companion">С компаньоном на Windows всё это делается автоматически: ПК находится сам, VLC запускается на ТВ, появляются звук, сон и Bluetooth.</string>
 
-    <!-- Настройки -->
+    <!-- Settings -->
     <string name="settings_control">Управление</string>
     <string name="settings_volume_keys">Клавиши громкости управляют ПК</string>
     <string name="settings_volume_keys_hint">Пока приложение на экране. Иначе — громкость телефона.</string>
@@ -179,7 +179,7 @@
     <string name="settings_about">О программе</string>
     <string name="about_text">VLC Remote — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
 
-    <!-- Уведомление -->
+    <!-- Notification -->
     <string name="notif_channel_name">Управление VLC</string>
     <string name="notif_channel_description">Кнопки управления и состояние подключения к ПК</string>
     <string name="notif_nothing_playing">Ничего не играет</string>
@@ -187,7 +187,7 @@
     <string name="notif_paused_on">Пауза · %1$s</string>
     <string name="notif_connected_to">Подключено к %1$s</string>
 
-    <!-- Компаньон: системные функции -->
+    <!-- Companion: system functions -->
     <string name="section_system_volume">Громкость Windows</string>
     <string name="section_audio_device">Аудиоустройство</string>
     <string name="audio_device_default">По умолчанию</string>
@@ -215,7 +215,7 @@
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
 
-    <!-- Сопряжение и состояние VLC -->
+    <!-- Pairing and VLC state -->
     <string name="close">Закрыть</string>
     <string name="expand">Развернуть</string>
     <string name="collapse">Свернуть</string>
@@ -286,7 +286,7 @@
     <string name="saved_via_bluetooth">Bluetooth · %1$s</string>
     <string name="pairing_connecting_bt">Подключаюсь к %1$s по Bluetooth…</string>
 
-    <!-- Экран разрешений при первом запуске и «Настройки → Разрешения» (domain/permissions/AppPermissions.kt) -->
+    <!-- First-run permissions screen and Settings → Permissions (domain/permissions/AppPermissions.kt) -->
     <string name="perm_screen_title">Разрешения</string>
     <string name="perm_screen_intro">Прежде чем Android спросит, объясним, что нужно пульту и зачем. Решение можно изменить позже в настройках.</string>
     <string name="perm_continue">Продолжить</string>
@@ -303,7 +303,7 @@
     <string name="perm_nearby_without">Без него пульт работает только по Wi‑Fi.</string>
     <string name="settings_permissions">Разрешения</string>
 
-    <!-- История просмотра, вопрос о продолжении, следующая серия (возможность компаньона `history`) -->
+    <!-- Watch history, resume prompt, next episode (companion `history` capability) -->
     <string name="resume_title">Продолжить просмотр?</string>
     <string name="resume_continue_from">Продолжить с %1$s</string>
     <string name="resume_from_start">С начала</string>

@@ -1,122 +1,124 @@
-# vlc-remote — Android‑приложение
+# vlc-remote — Android app
 
-Пульт для VLC 3.0.x, запущенного на Windows‑ПК у телевизора. Работает в двух режимах:
-напрямую с HTTP‑интерфейсом VLC (уровни 0/1) и через Windows‑компаньон (уровень 2) — по Wi‑Fi
-(WebSocket) или, если Wi‑Fi недоступен, по Bluetooth (RFCOMM).
-Протокол — [`../protocol/README.md`](../protocol/README.md) и [`../protocol/vlc-http.md`](../protocol/vlc-http.md).
+A remote for VLC 3.0.x running on a Windows PC at the TV. It works in two modes: directly with VLC's
+HTTP interface (levels 0/1) and through the Windows companion (level 2) — over Wi‑Fi (WebSocket) or, if
+Wi‑Fi is unavailable, over Bluetooth (RFCOMM).
+Protocol — [`../protocol/README.md`](../protocol/README.md) and [`../protocol/vlc-http.md`](../protocol/vlc-http.md).
 
-## Сборка
+## Build
 
-Требования: JDK 21, Android SDK с `platforms;android-35` и `build-tools;35.0.0`, доступ к Maven Central/Google.
+Requirements: JDK 21, Android SDK with `platforms;android-35` and `build-tools;35.0.0`, access to Maven Central/Google.
 
 ```powershell
 cd android
-$env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # любой JDK 17/21
-# local.properties (не коммитится): sdk.dir=D\:\\Android\\android-sdk
+$env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # any JDK 17/21
+# local.properties (not committed): sdk.dir=D\:\\Android\\android-sdk
 .\gradlew.bat :app:assembleDebug      # APK: app\build\outputs\apk\debug\app-debug.apk
-.\gradlew.bat test                    # unit‑тесты обоих модулей
+.\gradlew.bat test                    # unit tests of both modules
 ```
 
-Стек: Gradle 8.6 (wrapper), AGP 8.4.2, Kotlin 2.0.21, Compose BOM 2024.10.01 (Material 3),
-Ktor 3.0.1 (движок OkHttp 4.12), kotlinx.serialization 1.7.3, Koin 4.0.0, Media3 1.4.1,
+Stack: Gradle 8.6 (wrapper), AGP 8.4.2, Kotlin 2.0.21, Compose BOM 2024.10.01 (Material 3),
+Ktor 3.0.1 (OkHttp 4.12 engine), kotlinx.serialization 1.7.3, Koin 4.0.0, Media3 1.4.1,
 DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`targetSdk` 35, `minSdk` 26.
 
-## Варианты сборки и подпись
+## Build variants and signing
 
-- `debug` — `dev.vlcremote.app.debug`, «VLC Remote (dev)», debug‑ключ; ставится рядом с основной.
-- `release` — `dev.vlcremote.app`, подписывается общим ключом из `android/keystore.properties` (не в git) или
-  переменных `VLCR_KEYSTORE_FILE`/`VLCR_KEYSTORE_PASSWORD`/`VLCR_KEY_ALIAS`/`VLCR_KEY_PASSWORD`. Так собираются
-  тестовые сборки и релизы в CI; см. CLAUDE.md «Подпись APK».
-- Версия: `versionName` из файла `VERSION` + `-Pvlcr.versionSuffix=beta.N`, `versionCode` из
-  `-Pvlcr.versionCode=<число коммитов>`. Видна в «Настройки → О приложении».
+- `debug` — `dev.vlcremote.app.debug`, "VLC Remote (dev)", debug key; installs side by side with the main app.
+- `release` — `dev.vlcremote.app`, signed with the shared key from `android/keystore.properties` (not in git) or the
+  variables `VLCR_KEYSTORE_FILE`/`VLCR_KEYSTORE_PASSWORD`/`VLCR_KEY_ALIAS`/`VLCR_KEY_PASSWORD`. This is how test
+  builds and releases are built in CI; see CLAUDE.md "APK signing".
+- Version: `versionName` from the `VERSION` file + `-Pvlcr.versionSuffix=beta.N`, `versionCode` from
+  `-Pvlcr.versionCode=<number of commits>`. Shown in "Settings → About".
 
-## Структура
+## Structure
 
 ```
 android/
-  core/protocol/        чистый Kotlin/JVM, без Android‑зависимостей (dev.vlcremote.protocol)
-    model/              PlayerState и части (Playback, Tracks, Chapters, Volume…), Capabilities,
+  core/protocol/        pure Kotlin/JVM, no Android dependencies (dev.vlcremote.protocol)
+    model/              PlayerState and its parts (Playback, Tracks, Chapters, Volume…), Capabilities,
                         ConnectionState/ConnectionError, Entry, PlaylistItem
-    backend/            PlayerBackend (интерфейс), PlayerCommand, SystemCommand
+    backend/            PlayerBackend (interface), PlayerCommand, SystemCommand
     vlc/                VlcStatusParser (status/playlist/browse/tracks.json), VlcStateMapper,
-                        VlcCommands (строки запросов), VlcErrorPage (детект «Error loading»)
-    companion/          CompanionMessage (sealed, дискриминатор `t`), CompanionCodec,
-                        CommandMapping (PlayerCommand → cmd/sys), NdjsonFramer/NdjsonReader (строки
-                        NDJSON поверх потока байт RFCOMM, ≤ 1 МиБ), BtAddress, COMPANION_RFCOMM_UUID
-    src/test/           тесты на фикстурах из docs/research/samples (скопированы в resources)
-  app/                  Android‑приложение (dev.vlcremote.app)
-    data/vlc/           VlcHttpApi, VlcErrorClassifier, VlcHttpBackend (опрос, команды, уровни 0/1)
-    data/companion/     CompanionTransport (+ рукопожатие поверх любого канала), WebSocketTransport,
-                        RfcommTransport, BluetoothSupport (разрешение, радио, сопряжённые устройства),
-                        AndroidCompanionTransports (WS / RFCOMM / проба LAN), CompanionBackend (уровень 2,
-                        выбор канала, возврат на Wi‑Fi)
+                        VlcCommands (request strings), VlcErrorPage (detects "Error loading")
+    companion/          CompanionMessage (sealed, discriminator `t`), CompanionCodec,
+                        CommandMapping (PlayerCommand → cmd/sys), NdjsonFramer/NdjsonReader (NDJSON
+                        lines over the RFCOMM byte stream, ≤ 1 MiB), BtAddress, COMPANION_RFCOMM_UUID
+    src/test/           tests on fixtures from docs/research/samples (copied into resources)
+  app/                  Android app (dev.vlcremote.app)
+    data/vlc/           VlcHttpApi, VlcErrorClassifier, VlcHttpBackend (polling, commands, levels 0/1)
+    data/companion/     CompanionTransport (+ handshake over any channel), WebSocketTransport,
+                        RfcommTransport, BluetoothSupport (permission, radio, bonded devices),
+                        AndroidCompanionTransports (WS / RFCOMM / LAN probe), CompanionBackend (level 2,
+                        channel choice, return to Wi‑Fi)
     data/discovery/     NsdDiscovery, UdpBeaconDiscovery, SubnetScanner, LocalNetwork, DiscoveryRepository
-    data/player/        PlayerController (единственный владелец активного backend), ConnectionTester, AppVisibility,
-                        PairingFlow (подключение/сопряжение с компаньоном) + CompanionPairingLink, DeviceIdentity
-    data/servers/       ServerRepository, CompanionServerSync (адреса LAN/Bluetooth из обнаружения → сохранённые ПК)
+    data/player/        PlayerController (the single owner of the active backend), ConnectionTester, AppVisibility,
+                        PairingFlow (connecting/pairing with the companion) + CompanionPairingLink, DeviceIdentity
+    data/servers/       ServerRepository, CompanionServerSync (LAN/Bluetooth addresses from discovery → saved PCs)
     data/settings|secrets|net
     service/            PlaybackService (FGS + MediaSession), RemotePlayer (SimpleBasePlayer), ServiceCoordinator
     domain/permissions/ PermissionRegistry: the single list of runtime permissions (see "Runtime permissions")
-    ui/                 AppRoot (навигация, строка состояния), remote/, connection/, library/, playlist/, settings/,
+    ui/                 AppRoot (navigation, status bar), remote/, connection/, library/, playlist/, settings/,
                         permissions/ (first-run screen, Settings → Permissions, shared card and state)
     di/AppModule.kt     Koin
 ```
 
-## Где лежат секреты
+## Where secrets are stored
 
-- Пароль HTTP‑интерфейса VLC и токен компаньона — `EncryptedSharedPreferences` (`secrets`, AES‑256 через
-  Android Keystore), ключ — id сохранённого ПК (для компаньонов, найденных в сети, это GUID установки
-  компаньона из маяка/`welcome`). Если Keystore на устройстве недоступен, `SecretStore`
-  откатывается на обычные SharedPreferences (`secrets_fallback`) и пишет предупреждение в лог.
-- Список ПК (без секретов) и настройки — DataStore (`servers`, `settings`).
-- `local.properties` с путём к SDK не коммитится.
+- The VLC HTTP interface password and the companion token — `EncryptedSharedPreferences` (`secrets`, AES‑256 via
+  the Android Keystore), the key is the id of the saved PC (for companions found on the network this is the
+  companion's installation GUID from the beacon/`welcome`). If the Keystore is unavailable on the device, `SecretStore`
+  falls back to plain SharedPreferences (`secrets_fallback`) and writes a warning to the log.
+- The list of PCs (without secrets) and the settings — DataStore (`servers`, `settings`).
+- `local.properties` with the SDK path is not committed.
 
-## Как работают режимы и уровни
+## How the modes and levels work
 
-| Режим | Что на ПК | Как определяется | Что умеет пульт |
+| Mode | What runs on the PC | How it is detected | What the remote can do |
 |---|---|---|---|
-| Прямой, уровень 0 | VLC с включённым веб‑интерфейсом и паролем | `GET /requests/tracks.json` → 404 | транспорт, громкость, главы по номерам, скорость, задержки, список дорожек (из `Stream N`), обзор файлов, плейлист, обложка |
-| Прямой, уровень 1 | + наши Lua‑страницы в `%APPDATA%\vlc\lua\http` | `tracks.json` → 200 | + текущая дорожка, названия глав |
-| Компаньон, уровень 2 | трей‑приложение на Windows | `welcome.caps` | + обнаружение, push‑состояние, запуск/закрытие VLC, «не спать», сон, экран, системная громкость, аудиоустройство |
+| Direct, level 0 | VLC with the web interface enabled and a password | `GET /requests/tracks.json` → 404 | transport, volume, chapters by number, speed, delays, track list (from `Stream N`), file browsing, playlist, artwork |
+| Direct, level 1 | + our Lua pages in `%APPDATA%\vlc\lua\http` | `tracks.json` → 200 | + current track, chapter names |
+| Companion, level 2 | tray app on Windows | `welcome.caps` | + discovery, push state, start/close VLC, "keep awake", sleep, display, system volume, audio device |
 
-**Прямой режим** (`VlcHttpBackend`): Basic‑auth с пустым логином; сетевой интерцептор OkHttp
-удаляет заголовок `Connection` (иначе VLC рвёт соединение после каждого запроса); опрос 1 с при
-воспроизведении, 3 с в паузе/стопе; опрос останавливается, когда приложение не видно и нет
-foreground‑сервиса; один запрос в полёте на тип (status/playlist/browse), порядковые номера,
-устаревшие ответы отбрасываются; ответ на команду применяется сразу, «чистый» статус — через 500 мс;
-позиция интерполируется локально (`PlayerState.interpolatedTime`). Mute эмулируется (запоминаем
-громкость, ставим 0). На уровне 0 текущая дорожка запоминается на телефоне и сбрасывается при
-смене `currentplid`. Ошибки различаются: 403 «пароль не задан», 401 «неверный пароль», refused,
-timeout, пустое тело, Lua‑страница с `<title>Error loading`.
+**Direct mode** (`VlcHttpBackend`): Basic auth with an empty user name; an OkHttp network interceptor
+removes the `Connection` header (otherwise VLC drops the connection after every request); polling every 1 s during
+playback, 3 s when paused/stopped; polling stops when the app is not visible and there is no
+foreground service; one request in flight per type (status/playlist/browse), sequence numbers,
+stale responses are discarded; the response to a command is applied at once, a "clean" status follows after 500 ms;
+the position is interpolated locally (`PlayerState.interpolatedTime`). Mute is emulated (we remember the
+volume and set 0). At level 0 the current track is remembered on the phone and reset when
+`currentplid` changes. Errors are told apart: 403 "password not set", 401 "wrong password", refused,
+timeout, empty body, a Lua page with `<title>Error loading`.
 
-**Компаньон** (`CompanionBackend`): `ws://host:47555/ws`, `hello` с токеном, `welcome` с `caps`,
-push `state`, запросы `cmd`/`sys`/`browse`/`getPlaylist` по `id`, `ping` каждые 30 с (нет `pong` 10 с →
-переподключение), экспоненциальный backoff, команды буферизуются до 5 с на время переподключения.
-`pairing_required`/`unauthorized` при рукопожатии — терминальные (`ConnectionError.PairingRequired` /
-`InvalidPairCode`): backend не долбит ПК повторами, а экран «Подключение» просит код.
+**Companion** (`CompanionBackend`): `ws://host:47555/ws`, `hello` with the token, `welcome` with `caps`,
+push `state`, requests `cmd`/`sys`/`browse`/`getPlaylist` by `id`, `ping` every 30 s (no `pong` within 10 s →
+reconnect), exponential backoff, commands are buffered for up to 5 s while reconnecting.
+`pairing_required`/`unauthorized` during the handshake are terminal (`ConnectionError.PairingRequired` /
+`InvalidPairCode`): the backend does not hammer the PC with retries, and the "Connection" screen asks for a code.
 
-**Bluetooth (M3)** — резервный канал к компаньону, когда Wi‑Fi нет или ПК по нему не отвечает:
+**Bluetooth (M3)** — a fallback channel to the companion when there is no Wi‑Fi or the PC does not answer over it:
 
-- Протокол тот же: RFCOMM‑служба `47fe5bd6-98ad-4d9f-9812-174b3394037d`, NDJSON (строка UTF‑8 на сообщение,
-  разделитель `\n`, ≤ 1 МиБ), то же `hello` с токеном. Сокет — *secure* `createRfcommSocketToServiceRecord` (ПК
-  должен быть сопряжён, канал шифруется), канал RFCOMM ищется по SDP. `read() == -1` (Android 17) и `IOException` —
-  обрыв. Блокирующие `connect()`/`read()` идут на `Dispatchers.IO`; отмена корутины закрывает сокет, чтобы они
-  вернулись.
-- Адрес Bluetooth ПК (`bt` из `welcome`, маяка и `/info`) хранится в `SavedServer.btAddress` и обновляется при
-  каждом `welcome`; маяк/`/info` того же компаньона (по GUID) дописывают в сохранённый ПК адрес LAN или Bluetooth
-  (`CompanionServerSync`). Адреса не стираются: маяк без `bt` (на ПК выключен Bluetooth) известный адрес не удаляет.
-- Выбор канала при каждом (пере)подключении (`CompanionBackend`): сначала WebSocket (таймаут ~3 с); если не вышло,
-  адрес Bluetooth известен, настройка «Использовать Bluetooth, когда Wi‑Fi недоступен» включена (по умолчанию),
-  Bluetooth включён, разрешение есть и ПК среди сопряжённых → RFCOMM (до 12 с). Отказ в сопряжении или другой
-  протокол по LAN — окончательный ответ, по Bluetooth его не перепроверяем. ПК, известный только по Bluetooth
-  (адреса LAN ещё нет), подключается сразу по RFCOMM независимо от настройки.
-- На RFCOMM `ping` каждые 15 с (на WebSocket — 30 с), нет `pong` 10 с → переподключение. Каждые ~20 с телефон
-  проверяет LAN: `GET /info` по известному адресу (2 с), иначе короткий раунд UDP‑маяка с поиском по GUID/`bt`
-  (так ПК, сопряжённый по Bluetooth, узнаёт свой IP). Ответил — открывается WebSocket, `hello` с тем же токеном и
-  `getState`, и только потом закрывается RFCOMM (ответов на запросы «в полёте» ждём до 1 с): состояние на экране
-  не сбрасывается, статус не уходит в «Подключение…».
-- В шапке пульта рядом с именем ПК — значок «Wi‑Fi» / «Bluetooth», в строке статуса «Компаньон · Bluetooth»;
-  переключение канала — снэкбар «Нет связи с ПК по Wi‑Fi — переключились на Bluetooth» / «Снова по Wi‑Fi».
+- The protocol is the same: RFCOMM service `47fe5bd6-98ad-4d9f-9812-174b3394037d`, NDJSON (one UTF‑8 line per message,
+  separator `\n`, ≤ 1 MiB), the same `hello` with the token. The socket is a *secure* `createRfcommSocketToServiceRecord`
+  (the PC must be paired, the channel is encrypted), the RFCOMM channel is looked up via SDP. `read() == -1` (Android 17)
+  and `IOException` mean the link is broken. Blocking `connect()`/`read()` run on `Dispatchers.IO`; cancelling the
+  coroutine closes the socket so that they return.
+- The PC's Bluetooth address (`bt` from `welcome`, the beacon and `/info`) is stored in `SavedServer.btAddress` and
+  updated on every `welcome`; the beacon/`/info` of the same companion (by GUID) adds the LAN or Bluetooth address to
+  the saved PC (`CompanionServerSync`). Addresses are never erased: a beacon without `bt` (Bluetooth is off on the PC)
+  does not remove a known address.
+- Channel choice on every (re)connect (`CompanionBackend`): WebSocket first (timeout ~3 s); if that fails, the
+  Bluetooth address is known, the setting "Use Bluetooth when Wi‑Fi is unavailable" is on (the default), Bluetooth is
+  on, the permission is granted and the PC is among the bonded devices → RFCOMM (up to 12 s). A pairing refusal or a
+  different protocol over the LAN is a final answer; it is not re-checked over Bluetooth. A PC known only via
+  Bluetooth (no LAN address yet) is connected over RFCOMM right away regardless of the setting.
+- On RFCOMM `ping` is sent every 15 s (on WebSocket — 30 s), no `pong` within 10 s → reconnect. Every ~20 s the phone
+  checks the LAN: `GET /info` at the known address (2 s), otherwise a short UDP beacon round looking for the GUID/`bt`
+  (this is how the phone learns the IP of a PC paired via Bluetooth). If it answers, a WebSocket is opened, `hello` with the same
+  token and `getState` are sent, and only then RFCOMM is closed (responses to requests "in flight" are awaited for up
+  to 1 s): the state on screen is not reset and the status never goes to "Connecting…".
+- The remote's header shows a "Wi‑Fi" / "Bluetooth" icon next to the PC name, the status line reads
+  "Companion · Bluetooth"; a channel switch shows the snackbar "No Wi‑Fi connection to the PC — switched to
+  Bluetooth" / "Back on Wi‑Fi".
 - Permissions: `BLUETOOTH_CONNECT` (Android 12+, "Nearby devices") is requested on the first-run permissions screen
   (see "Runtime permissions"). In-context requests remain as a fallback and do nothing when it is already granted:
   turning the setting on, the remote's "… is unavailable over Wi‑Fi" card that appears when the LAN is down and
@@ -126,89 +128,90 @@ push `state`, запросы `cmd`/`sys`/`browse`/`getPlaylist` по `id`, `ping
   `BLUETOOTH`/`BLUETOOTH_ADMIN` are declared only up to Android 11 (`maxSdkVersion="30"`). Neither `BLUETOOTH_SCAN` nor
   location is needed: only bonded devices are used (hence `cancelDiscovery()` is not called on Android 12+ — it needs
   `BLUETOOTH_SCAN`).
-- Первое подключение по Bluetooth: «Другие способы подключения» → «Подключиться по Bluetooth» → список
-  сопряжённых устройств (имя + адрес, компьютеры — `BluetoothClass.Device.Major.COMPUTER` — сверху; кнопка
-  «Настройки Bluetooth», список перечитывается при возврате) → `hello` по RFCOMM → тот же `PairingFlow`: код на
-  экране ПК, окно для кода на телефоне, токен. Сохранённый ПК создаётся с id = GUID компаньона, `btAddress` и
-  пустым `host`; как только маяк/`/info` этого компаньона виден в LAN, адрес дописывается в ту же запись (тот же
-  токен). Если ПК уже был сопряжён по Wi‑Fi, `welcome.id` находит существующую запись — второй не появляется.
-  Ошибка RFCOMM — «Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен».
-- Нажатие на сохранённый ПК при недоступной LAN: `hello` по LAN, затем (если Bluetooth готов) по RFCOMM.
-- Фон: foreground‑сервис `connectedDevice` подходит и для Bluetooth. Пока идёт переподключение (Wi‑Fi пропал →
-  RFCOMM), `ServiceCoordinator` не гасит сервис до 2 минут: остановленный в фоне сервис нельзя запустить снова, а
-  вместе с ним пропал бы и переход на Bluetooth.
+- The first connection over Bluetooth: "Other ways to connect" → "Connect via Bluetooth" → the list of bonded
+  devices (name + address, computers — `BluetoothClass.Device.Major.COMPUTER` — on top; a "Bluetooth settings"
+  button, the list is re-read on return) → `hello` over RFCOMM → the same `PairingFlow`: a code on the PC screen, the
+  code dialog on the phone, a token. The saved PC is created with id = the companion GUID, `btAddress` and an empty
+  `host`; as soon as this companion's beacon/`/info` is seen on the LAN, the address is added to the same record (the
+  same token). If the PC was already paired over Wi‑Fi, `welcome.id` finds the existing record — no second one
+  appears. An RFCOMM error — "The companion is not answering over Bluetooth: check that the PC is paired with the
+  phone and the companion is running".
+- Tapping a saved PC while the LAN is unavailable: `hello` over the LAN, then (if Bluetooth is ready) over RFCOMM.
+- Background: the `connectedDevice` foreground service also fits Bluetooth. While a reconnect is in progress (Wi‑Fi
+  lost → RFCOMM), `ServiceCoordinator` keeps the service alive for up to 2 minutes: a service stopped in the background
+  cannot be started again, and the switch to Bluetooth would be lost with it.
 
-**Подключение и сопряжение** (`PairingFlow`, экран «Подключение»):
+**Connecting and pairing** (`PairingFlow`, the "Connection" screen):
 
-1. Сверху — «Компьютеры рядом»: крупные карточки найденных компаньонов с именем ПК, состоянием VLC
-   (`/info` → `vlc.status`: запущен / не запущен / без управления / запускается / не установлен) и
-   отметкой «сопряжён», если для этого ПК есть токен.
-2. Нажатие на карточку → `hello` с сохранённым токеном. Токен принят → сразу пульт. Ответ
-   `pairing_required` (токена нет или ПК его забыл; старый компаньон отвечает `unauthorized`) → токен
-   удаляется, **компаньон сам показывает код на экране ТВ/ноутбука**, а телефон — окно «Введите код с
-   экрана компьютера»: шесть крупных ячеек, цифровая клавиатура открывается сама, код отправляется на
-   шестой цифре (`hello` с `pairCode`). Успех → токен в `EncryptedSharedPreferences`, ПК сохраняется,
-   подключение, переход на пульт, снэкбар «Сопряжение выполнено». `unauthorized` → «Неверный или
-   устаревший код», поле очищается, окно остаётся. Отмена закрывает окно.
-3. Первый запуск (сохранённых ПК нет) и в сети ровно один компаньон (ждём 1,5 с после первого ответа)
-   → подключение стартует само: карточка «Найден компьютер … — подключаюсь…» с кнопкой «Отмена», затем
-   окно для кода. Если ПК уже сохранены, автостарта нет: при запуске приложения идёт автоподключение к
-   последнему ПК (`PlayerController.autoConnectLast`), как и раньше.
-4. Если активный компаньон отверг токен, при открытии экрана окно для кода появляется сразу (и есть
-   кнопка «Ввести код» в карточке текущего подключения).
-5. Всё техническое — прямой режим VLC, адрес/порт, пароль веб‑интерфейса, скан подсети, инструкция по
-   веб‑интерфейсу — под свёрнутым блоком «Другие способы подключения». Он раскрывается сам, только
-   если за ~6 с поиска не найдено ни одного компаньона. Ручной ввод компаньона идёт тем же путём (код
-   появится на экране ПК).
+1. On top — "Computers nearby": large cards of the discovered companions with the PC name, the VLC state
+   (`/info` → `vlc.status`: running / not running / without control / starting / not installed) and
+   a "paired" badge if there is a token for this PC.
+2. Tapping a card → `hello` with the saved token. Token accepted → straight to the remote. A
+   `pairing_required` response (no token, or the PC has forgotten it; an old companion answers `unauthorized`) → the
+   token is deleted, **the companion shows a code on the TV/laptop screen by itself**, and the phone shows the "Enter
+   the code from the computer screen" dialog: six large cells, the numeric keyboard opens by itself, the code is sent
+   on the sixth digit (`hello` with `pairCode`). Success → the token goes to `EncryptedSharedPreferences`, the PC is
+   saved, connected, the app switches to the remote, the snackbar "Paired with …". `unauthorized` → "Wrong or
+   expired code", the field is cleared, the dialog stays. Cancel closes the dialog.
+3. First launch (no saved PCs) and exactly one companion on the network (we wait 1.5 s after the first answer)
+   → connecting starts by itself: a "Found computer … — connecting…" card with a "Cancel" button, then the
+   code dialog. If PCs are already saved, there is no auto-start: on app launch it auto-connects to the
+   last PC (`PlayerController.autoConnectLast`), as before.
+4. If the active companion rejected the token, the code dialog appears as soon as the screen opens (and the
+   current connection's card has an "Enter code" button).
+5. Everything technical — direct VLC mode, address/port, web interface password, subnet scan, web interface
+   instructions — is under the collapsed "Other ways to connect" block. It expands by itself only
+   if no companion is found within ~6 s of searching. Manually entering a companion goes the same way (the code
+   appears on the PC screen).
 
-ПК сопоставляется с сохранённым по id, затем по GUID установки (`pcId`; адрес обновляется, если DHCP
-выдал ПК другой IP), затем по адресу и порту.
+A PC is matched to a saved one by id, then by the installation GUID (`pcId`; the address is updated if DHCP
+gave the PC a different IP), then by address and port.
 
-**Состояние VLC на пульте (компаньон)**: `vlc.status` (нет у старых компаньонов → выводится из
-`running`). Пока VLC не управляем, вместо шкалы, громкости и кнопок транспорта — карточка:
-`notRunning` — «VLC не запущен» + «Запустить VLC» (`cmd launch`, только при `caps.launchVlc`);
-`starting` — «VLC запускается…»; `noControl` (VLC открыт вручную до того, как компаньон его настроил) —
-«VLC открыт без управления с телефона» + «Перезапустить с управлением» (`cmd launch`, позиция в фильме
-не сохраняется); `notInstalled` — «На компьютере не найден VLC». После нажатия кнопка показывает
-прогресс, пока компаньон не сообщит новое состояние (до 20 с). Sheet «Ещё» (громкость Windows, сон и
-т. п.) доступен и в этих состояниях. В прямом режиме поведение прежнее.
+**VLC state on the remote (companion)**: `vlc.status` (absent in old companions → derived from
+`running`). While VLC cannot be controlled, a card replaces the seek bar, the volume and the transport buttons:
+`notRunning` — "VLC is not running" + "Launch VLC" (`cmd launch`, only with `caps.launchVlc`);
+`starting` — "VLC is starting…"; `noControl` (VLC was opened by hand before the companion configured it) —
+"VLC is open without phone control" + "Restart with control" (`cmd launch`, the position in the movie
+is not kept); `notInstalled` — "VLC was not found on the computer". After a tap the button shows
+progress until the companion reports a new state (up to 20 s). The "More" sheet (Windows volume, sleep,
+etc.) is available in these states too. In direct mode the behaviour is unchanged.
 
-**Экран для VLC (компаньон, `caps.windowControl`)**: на пульте рядом с чипами «Аудио»/«Субтитры» — чип
-«Экран: <имя>» (значок ТВ для внешнего монитора, ноутбука — для встроенной панели). Он показывает монитор, где
-сейчас окно VLC, а если VLC закрыт — монитор, на котором VLC откроется; имена мониторов читаются (`sys listDisplays`)
-сразу после подключения. Чип работает и при закрытом VLC. Нажатие открывает sheet «Экран для VLC» (туда же ведёт
-пункт «Экран» в «Ещё»): список мониторов — значок, понятное имя из EDID, разрешение, метки «основной» и «VLC здесь»;
-переключатель отмечает предпочтительный монитор. Нажатие на монитор → `sys moveToDisplay {displayId}` (хаптика,
-прогресс в строке): VLC переезжает туда сейчас, если открыт, и дальше открывается там; при закрытом VLC под
-выбранным монитором подпись «VLC откроется на этом экране». Последний пункт «Не управлять» →
-`sys preferredDisplay {displayId: null}`: компаньон не трогает окно. Предпочтительный монитор не подключён
-(ТВ выключен) — пояснение под списком. Список перечитывается при открытии и после каждого действия; ошибка —
-текстом в sheet и снэкбаром. После успешной команды выбор отмечается сразу (оптимистично), пока компаньон не
-пришлёт новое `state.system` (`displayId`, `preferredDisplayId`); затем верит ему. Логика выбора — чистая
-функция `displayChoice` (`ui/remote/DisplayChoice.kt`), покрыта тестами.
-Старые компаньоны (мониторы без `id`): переключатель показывает монитор с VLC, перенос — `moveToDisplay {display: N}`
-по индексу и только при открытом VLC, пункта «Не управлять» нет.
+**Display for VLC (companion, `caps.windowControl`)**: on the remote, next to the "Audio"/"Subtitles" chips, there is
+a "Display: <name>" chip (a TV icon for an external monitor, a laptop icon for the built-in panel). It shows the monitor
+where the VLC window is now, or, if VLC is closed, the monitor VLC will open on; monitor names are read (`sys listDisplays`)
+right after connecting. The chip works while VLC is closed too. A tap opens the "Display for VLC" sheet (the "Display"
+item in "More" leads there as well): the list of monitors — icon, friendly name from EDID, resolution, the "primary" and
+"VLC is here" labels; a radio button marks the preferred monitor. Tapping a monitor → `sys moveToDisplay {displayId}`
+(haptics, progress in the row): VLC moves there now if it is open, and opens there from then on; while VLC is closed the
+chosen monitor is captioned "VLC will open on this display". The last item "Do not manage" →
+`sys preferredDisplay {displayId: null}`: the companion does not touch the window. The preferred monitor is not connected
+(TV off) — an explanation under the list. The list is re-read on opening and after every action; an error is shown as
+text in the sheet and as a snackbar. After a successful command the choice is marked at once (optimistically) until the
+companion sends a new `state.system` (`displayId`, `preferredDisplayId`); after that it is trusted. The choice logic is
+a pure function `displayChoice` (`ui/remote/DisplayChoice.kt`), covered by tests.
+Old companions (monitors without `id`): the radio button shows the monitor with VLC, moving is `moveToDisplay {display: N}`
+by index and only while VLC is open, there is no "Do not manage" item.
 
-**Обнаружение**: NSD `_vlcremote._tcp` (одна сессия discovery, последовательный resolve,
-MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLCREMOTE_DISCOVER 1` → `255.255.255.255:47556`
-(плюс направленный broadcast подсети), опциональный скан `/24` по порту 8080 (48 параллельно,
-таймаут 1 с, ближайшие к своему IP адреса первыми; 200/401/403 = «VLC есть»), ручной ввод.
-Для найденных компаньонов дополнительно читается `GET /info` (состояние VLC, нужно ли сопряжение) —
-сразу и затем не чаще раза в 8 с, пока экран открыт.
+**Discovery**: NSD `_vlcremote._tcp` (one discovery session, sequential resolve,
+MulticastLock, "loss" with a 3 s delay), UDP beacon `VLCREMOTE_DISCOVER 1` → `255.255.255.255:47556`
+(plus the subnet's directed broadcast), an optional `/24` scan on port 8080 (48 in parallel,
+1 s timeout, addresses closest to our own IP first; 200/401/403 = "VLC is there"), manual entry.
+For discovered companions `GET /info` is read as well (VLC state, whether pairing is needed) —
+right away and then at most once every 8 s while the screen is open.
 
-**Соединение в UI**: статус всегда в шапке (точка + уровень + задержка), переподключение тихое,
-со снэкбаром; блокирующих диалогов нет (кроме окна для кода сопряжения на экране «Подключение»).
-Ошибки авторизации (401/403 VLC, `pairing_required`/`unauthorized` компаньона) — терминальные: нужно
-исправить пароль на экране «Подключение» или ввести код.
+**Connection in the UI**: the status is always in the header (dot + level + latency), reconnecting is quiet,
+with a snackbar; there are no blocking dialogs (except the pairing code dialog on the "Connection" screen).
+Authorization errors (VLC 401/403, the companion's `pairing_required`/`unauthorized`) are terminal: the password
+has to be fixed on the "Connection" screen or a code entered.
 
-**Фон**: `PlaybackService` — foreground‑сервис типа `connectedDevice` (пререквизит —
-`CHANGE_WIFI_MULTICAST_STATE` в манифесте) с media‑уведомлением (prev / −10 / play‑pause / +30 / next)
-и Media3 `MediaSession` поверх `RemotePlayer : SimpleBasePlayer` (громкость объявлена как
-`PLAYBACK_TYPE_REMOTE`, 0..100). Сервис запускается, когда есть соединение и (идёт воспроизведение
-или приложение видно) при включённой настройке «Держать соединение в фоне»; останавливается через
-10 минут после stop/паузы, при отключении или выключении настройки. Сервис — обычный
-`LifecycleService`, а не `MediaSessionService`: последний сам вызывает `startForeground` с типом
-`mediaPlayback`, что конфликтует с объявленным `connectedDevice`.
+**Background**: `PlaybackService` is a foreground service of type `connectedDevice` (prerequisite —
+`CHANGE_WIFI_MULTICAST_STATE` in the manifest) with a media notification (prev / −10 / play‑pause / +30 / next)
+and a Media3 `MediaSession` over `RemotePlayer : SimpleBasePlayer` (volume declared as
+`PLAYBACK_TYPE_REMOTE`, 0..100). The service starts when there is a connection and (playback is on
+or the app is visible) with the setting "Keep the connection in the background" enabled; it stops
+10 minutes after stop/pause, on disconnect or when the setting is turned off. The service is a plain
+`LifecycleService`, not a `MediaSessionService`: the latter calls `startForeground` with the
+`mediaPlayback` type by itself, which conflicts with the declared `connectedDevice`.
 
 **Runtime permissions.** Project rule: every runtime permission is requested **at the first launch, after an
 explanation**, and is listed in one place — `PermissionRegistry.all` (`domain/permissions/AppPermissions.kt`):
@@ -246,8 +249,8 @@ Behaviour:
   again; `adb shell pm revoke <package> android.permission.BLUETOOTH_CONNECT` (and `POST_NOTIFICATIONS`) to start
   from scratch; `adb shell pm clear <package>` resets everything, including pairings.
 
-**Аппаратные клавиши громкости**: `MainActivity.dispatchKeyEvent` при включённой настройке и живом
-соединении шлёт `volume&val=` на ПК и показывает результат снэкбаром; иначе — штатное поведение.
+**Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
+connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
 ## Watch history
 
@@ -292,81 +295,84 @@ The companion is the source of truth: the phone keeps no history of its own.
 - **Refresh**: Library and History watch `state.history.revision` while they are on screen and refresh (debounced
   1–1.5 s; the PC saves the position every 10 s during playback). A refresh failure keeps the current list.
 
-## Известные ограничения
+## Known limitations
 
-- Насечки глав на шкале расположены равномерно: HTTP‑интерфейс VLC 3 не отдаёт смещения глав,
-  только их количество и индекс (названия — на уровне ≥ 1).
-- `pl_delete` в VLC ненадёжен — после удаления из плейлиста список перечитывается.
-- На уровне 0 выбранная дорожка известна только телефону; если её переключили на ПК, пульт этого не увидит.
-- `/art` VLC отдаёт обложку только текущего элемента; URL снабжён `?item=<plid>` как ключ кэша Coil.
-- Удалённая громкость через MediaSession с погашенным экраном зависит от прошивки (см. research §2.1).
-- Android 17 / targetSdk 37 потребует runtime‑разрешения `ACCESS_LOCAL_NETWORK` — пока targetSdk 35.
-- Автоподключение при старте идёт к последнему ПК: LAN, затем Bluetooth (если адрес известен и разрешение есть).
-- Сопряжение Bluetooth (телефон ↔ ПК) делается в настройках Android/Windows; приложение его не инициирует и
-  не ищет новые устройства (нет `BLUETOOTH_SCAN`). `CompanionDeviceManager` не используется.
-- Обложки и миниатюры по Bluetooth не передаются (`/art` — HTTP по LAN).
+- Chapter ticks on the seek bar are evenly spaced: VLC 3's HTTP interface does not report chapter offsets,
+  only their count and index (names — at level ≥ 1).
+- `pl_delete` in VLC is unreliable — the list is re-read after removing an item from the playlist.
+- At level 0 the selected track is known only to the phone; if it is switched on the PC, the remote will not see it.
+- VLC's `/art` serves artwork only for the current item; the URL carries `?item=<plid>` as the Coil cache key.
+- Remote volume through the MediaSession with the screen off depends on the firmware (see research §2.1).
+- Android 17 / targetSdk 37 will require the `ACCESS_LOCAL_NETWORK` runtime permission — targetSdk is 35 for now.
+- Auto-connect on startup goes to the last PC: LAN, then Bluetooth (if the address is known and the permission is granted).
+- Bluetooth pairing (phone ↔ PC) is done in the Android/Windows settings; the app does not initiate it and
+  does not search for new devices (no `BLUETOOTH_SCAN`). `CompanionDeviceManager` is not used.
+- Artwork and thumbnails are not transferred over Bluetooth (`/art` is HTTP over the LAN).
 
-## Отложено
+## Deferred
 
-- `CompanionDeviceManager` (системный выбор ПК, presence‑события) вместо собственного списка сопряжённых устройств.
-- **M4 — постеры/метаданные** (TMDB через компаньон, Room для «продолжить просмотр», Quick Settings‑плитка, Glance‑виджет).
-- Таймер сна.
+- `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
+- **M4 — posters/metadata** (TMDB via the companion, Room for "continue watching", a Quick Settings tile, a Glance widget).
+- Sleep timer.
 
-## Проверить на устройстве
+## To check on a device
 
-Эмулятора на этой машине нет, собрано и проверено только unit‑тестами (парсеры, команды,
-сообщения компаньона, опрос/команды `VlcHttpBackend` на Ktor `MockEngine`). Нужна проверка на телефоне:
+There is no emulator on this machine; the app has been built and verified only by unit tests (parsers, commands,
+companion messages, `VlcHttpBackend` polling/commands on the Ktor `MockEngine`). It needs checking on a phone:
 
-1. NSD: находит ли `NsdManager` службу компаньона (`_vlcremote._tcp`), работает ли resolve на целевой прошивке; UDP‑маяк как запасной путь.
-2. Foreground‑сервис `connectedDevice` на Android 14/15: старт из `ServiceCoordinator`, уведомление с кнопками, остановка через 10 минут; запрос `POST_NOTIFICATIONS` на Android 13+.
-3. MediaSession: кнопки гарнитуры и экран блокировки; клавиши громкости при погашенном экране (`RemotePlayer`, `PLAYBACK_TYPE_REMOTE`).
-4. Клавиши громкости на переднем плане (`dispatchKeyEvent`), хаптика на кнопках.
-5. Coil и `/art` с Basic‑auth (интерцептор `ArtAuth`), обложка в уведомлении.
-6. `EncryptedSharedPreferences` на целевом устройстве (fallback не должен срабатывать).
-7. Ландшафтный макет пульта (две колонки), predictive back в sheet’ах.
-8. Сопряжение: первый запуск с одним компаньоном в сети → автостарт, код появляется на ТВ, окно для кода
-   на телефоне (автофокус, цифровая клавиатура Samsung, отправка на 6‑й цифре); неверный код → ошибка и
-   очистка поля; «Отмена»; токен сохраняется, после перезапуска приложения — подключение без кода;
-   реконнект после сна ноутбука; «Забыть этот компьютер» → при следующем нажатии снова код.
-9. Sheet «Ещё» с компаньоном: список аудиоустройств (`getAudioDevices` → `sys audioDevice`), пункт «Экран» открывает «Экран для VLC» (п. 14), «не спать»/экран/сон (`sys keepAwake|displayPower|sleep`), слайдер громкости Windows (`sys systemVolume`) — секции появляются только при соответствующих `caps`.
-10. Имя телефона в окне сопряжения на ПК (`Settings.Global.DEVICE_NAME`, например «Galaxy S24»).
-11. Состояния VLC на пульте: VLC закрыт → «Запустить VLC»; VLC открыт вручную → «без управления» →
-    «Перезапустить с управлением» (тот же фильм на ТВ); статус на карточке ПК обновляется (~8–10 с).
-12. «Другие способы подключения» раскрываются сами, если компаньон не найден за ~6 с.
-13. **Bluetooth** (Galaxy S24 ↔ ноутбук у ТВ с Intel BT, уже сопряжены):
-    1. Подключение по Wi‑Fi → в `welcome` пришёл `bt`; в «Сохранённых ПК» в строке ПК есть «Bluetooth».
-    2. Выключить Wi‑Fi на телефоне при открытом пульте → снэкбар «переключились на Bluetooth» и значок «Bluetooth»
-       в шапке за ~3–5 с; пауза, громкость, перемотка работают, задержка на глаз приемлема.
-    3. Без разрешения «Устройства поблизости»: карточка «… недоступен по Wi‑Fi» → «Разрешить» → системный диалог →
-       подключение по Bluetooth сразу. Отказ → диалог «Настройки приложения».
-    4. Включить Wi‑Fi обратно → не позже ~20 с значок «Wi‑Fi», снэкбар «Снова по Wi‑Fi»; статус ни разу не ушёл в
-       «Подключение…», название и позиция не мигнули.
-    5. Wi‑Fi и Bluetooth телефона выключены → карточка «включите Bluetooth» → «Включить» → системный диалог → подключение.
-    6. «Другие способы подключения» → «Подключиться по Bluetooth»: ноутбук наверху списка (иконка компьютера), адрес
-       совпадает с `bt` компаньона; выбор → код на экране ТВ → ввод → пульт. Затем включить Wi‑Fi → у сохранённого ПК
-       появился IP (та же запись, без повторного кода).
-    7. Ноутбук не сопряжён / компаньон закрыт → «Компаньон не отвечает по Bluetooth…» не позже чем через ~12 с,
-       приложение не виснет, «Отмена» во время подключения работает.
-    8. Фон: идёт фильм, приложение свёрнуто, уведомление есть → выключить Wi‑Fi → через минуту кнопки уведомления
-       работают (сервис пережил переход на RFCOMM). Экран погашен 10+ минут — соединение живо (ping 15 с).
-    9. Сон ноутбука во время сессии по Bluetooth → переподключение после пробуждения.
-    10. Компаньон закрывается во время сессии по Bluetooth → обрыв замечен сразу (`read() == -1`/`IOException`),
-        дальше обычные попытки переподключения.
-14. **Экран для VLC** (Galaxy S24 ↔ ноутбук у ТВ: встроенная панель + ТВ по HDMI, компаньон с `id` мониторов):
-    1. На пульте чип «Экран: <имя ТВ>» со значком ТВ (или «<панель>» со значком ноутбука); имя — из EDID, как в
-       параметрах экрана Windows; на узком экране чипы переносятся на вторую строку без обрезки «Ещё».
-    2. VLC открыт на ноутбуке → sheet: «VLC здесь» у панели, переключатель на предпочтительном мониторе, разрешения
-       верные, «основной» у основного. Нажать ТВ → хаптика, прогресс, окно VLC на ТВ (полный экран сохранился),
-       «VLC здесь» и переключатель переехали на ТВ, чип «Экран: <ТВ>».
-    3. Закрыть VLC → чип показывает предпочтительный монитор; в sheet подпись «VLC откроется на этом экране»;
-       выбрать панель ноутбука → запустить VLC с телефона и двойным кликом по файлу на ПК → оба раза окно на панели.
-    4. «Не управлять» → переключатель на нём; VLC открывается там, где решит Windows, компаньон окно не двигает.
-    5. Выключить ТВ при выбранном ТВ → в sheet нет ТВ, пояснение «Выбранный экран сейчас не подключён»; включить ТВ →
-       кнопка «Обновить» (или переоткрыть sheet) → ТВ снова в списке и выбран.
-    6. Перетащить окно VLC мышью на другой монитор → чип и «VLC здесь» обновились (push `state`), выбор не сбросился.
-    7. Старый компаньон (без `id`): список по индексам, переключатель = где VLC, «Не управлять» нет, при закрытом VLC
-       строки неактивны с подсказкой обновить компаньон.
-    8. Пульт по Bluetooth: перенос работает так же.
+1. NSD: whether `NsdManager` finds the companion service (`_vlcremote._tcp`) and resolve works on the target firmware; the UDP beacon as the fallback.
+2. The `connectedDevice` foreground service on Android 14/15: start from `ServiceCoordinator`, the notification with buttons, stopping after 10 minutes; the `POST_NOTIFICATIONS` request on Android 13+.
+3. MediaSession: headset buttons and the lock screen; volume keys with the screen off (`RemotePlayer`, `PLAYBACK_TYPE_REMOTE`).
+4. Volume keys in the foreground (`dispatchKeyEvent`), haptics on buttons.
+5. Coil and `/art` with Basic auth (the `ArtAuth` interceptor), artwork in the notification.
+6. `EncryptedSharedPreferences` on the target device (the fallback must not kick in).
+7. The landscape layout of the remote (two columns), predictive back in sheets.
+8. Pairing: first launch with one companion on the network → auto-start, the code appears on the TV, the code dialog
+   on the phone (autofocus, Samsung numeric keyboard, sending on the 6th digit); a wrong code → an error and
+   the field cleared; "Cancel"; the token is saved, after an app restart — connecting without a code;
+   reconnect after the laptop sleeps; "Forget this computer" → a code again on the next tap.
+9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "Display" item opens "Display for VLC" (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`) — the sections appear only with the corresponding `caps`.
+10. The phone name in the pairing window on the PC (`Settings.Global.DEVICE_NAME`, e.g. "Galaxy S24").
+11. VLC states on the remote: VLC closed → "Launch VLC"; VLC opened by hand → "without control" →
+    "Restart with control" (the same movie on the TV); the status on the PC card updates (~8–10 s).
+12. "Other ways to connect" expands by itself if no companion is found within ~6 s.
+13. **Bluetooth** (Galaxy S24 ↔ the TV laptop with Intel BT, already paired):
+    1. Connect over Wi‑Fi → `welcome` contains `bt`; in "Saved PCs" the PC row shows "Bluetooth".
+    2. Turn off Wi‑Fi on the phone with the remote open → the snackbar "switched to Bluetooth" and the "Bluetooth" icon
+       in the header within ~3–5 s; pause, volume, seeking work, the latency is acceptable to the eye.
+    3. Without the "Nearby devices" permission: the "… is not reachable over Wi‑Fi" card → "Allow" → the system dialog →
+       connecting over Bluetooth at once. Refusal → the "App settings" dialog.
+    4. Turn Wi‑Fi back on → within ~20 s the "Wi‑Fi" icon, the snackbar "Back on Wi‑Fi"; the status never went to
+       "Connecting…", the title and position did not flicker.
+    5. The phone's Wi‑Fi and Bluetooth are off → the "turn Bluetooth on" card → "Turn on" → the system dialog → connection.
+    6. "Other ways to connect" → "Connect via Bluetooth": the laptop is at the top of the list (computer icon), the address
+       matches the companion's `bt`; select → a code on the TV screen → enter it → the remote. Then turn Wi‑Fi on → the saved
+       PC gets an IP (the same record, no second code).
+    7. Laptop not paired / companion closed → "The companion is not answering over Bluetooth…" within ~12 s,
+       the app does not hang, "Cancel" during connecting works.
+    8. Background: a movie is playing, the app is minimized, the notification is shown → turn off Wi‑Fi → a minute later
+       the notification buttons work (the service survived the switch to RFCOMM). Screen off for 10+ minutes — the
+       connection is alive (ping 15 s).
+    9. The laptop sleeps during a Bluetooth session → reconnect after it wakes up.
+    10. The companion closes during a Bluetooth session → the break is noticed at once (`read() == -1`/`IOException`),
+        then the usual reconnect attempts.
+14. **Display for VLC** (Galaxy S24 ↔ the TV laptop: built-in panel + TV over HDMI, a companion with monitor `id`s):
+    1. On the remote, the chip "Display: <TV name>" with a TV icon (or "<panel>" with a laptop icon); the name comes from
+       EDID, as in the Windows display settings; on a narrow screen the chips wrap to a second line without cutting "More".
+    2. VLC open on the laptop → sheet: "VLC is here" on the panel, the radio button on the preferred monitor, resolutions
+       correct, "primary" on the primary one. Tap the TV → haptics, progress, the VLC window on the TV (fullscreen kept),
+       "VLC is here" and the radio button moved to the TV, chip "Display: <TV>".
+    3. Close VLC → the chip shows the preferred monitor; the sheet shows the caption "VLC will open on this display";
+       choose the laptop panel → start VLC from the phone and by double-clicking a file on the PC → both times the window
+       is on the panel.
+    4. "Do not manage" → the radio button is on it; VLC opens wherever Windows decides, the companion does not move the window.
+    5. Turn the TV off while the TV is chosen → no TV in the sheet, the explanation "The chosen display is not connected
+       right now"; turn the TV on → the "Refresh" button (or reopen the sheet) → the TV is back in the list and chosen.
+    6. Drag the VLC window with the mouse to another monitor → the chip and "VLC is here" update (push `state`), the
+       choice is not reset.
+    7. Old companion (no `id`): the list by index, radio button = where VLC is, no "Do not manage", while VLC is closed
+       the rows are disabled with a hint to update the companion.
+    8. Remote over Bluetooth: moving works the same way.
 15. **First-run permissions** (Galaxy S24, Android 16). Reset: `adb shell pm clear dev.vlcremote.app` (forgets
     pairings) or `pm revoke` both permissions + the `show_permissions` hook above.
     1. Fresh start → the "Permissions" screen before "Connection": two cards (Notifications, Nearby devices), nothing

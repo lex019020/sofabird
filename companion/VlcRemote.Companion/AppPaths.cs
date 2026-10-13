@@ -1,8 +1,8 @@
 namespace VlcRemote.Companion;
 
 /// <summary>
-/// Папки компаньона. По умолчанию <c>%LocalAppData%\VlcRemote</c>; переопределяется аргументом
-/// <c>--data-dir &lt;path&gt;</c> или переменной <c>VLCREMOTE_DATA_DIR</c> (для тестов).
+/// Companion folders. Default: <c>%LocalAppData%\VlcRemote</c>; overridden by the
+/// <c>--data-dir &lt;path&gt;</c> argument or the <c>VLCREMOTE_DATA_DIR</c> variable (for tests).
 /// </summary>
 public sealed class AppPaths
 {

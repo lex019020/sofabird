@@ -58,7 +58,7 @@ public static class HistoryRules
     }
 
     /// <summary>
-    /// «Continue watching»: unfinished entries with at least <see cref="ResumeThresholdSeconds"/> watched, plus for each
+    /// "Continue watching": unfinished entries with at least <see cref="ResumeThresholdSeconds"/> watched, plus for each
     /// folder the next unfinished episode after the most recently finished one (<see cref="HistoryItem.Next"/>);
     /// newest first. <paramref name="listFolder"/> returns the file names of a folder (null — not available).
     /// </summary>
@@ -183,7 +183,7 @@ public static class HistoryRules
         a is not null && b is not null && string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>Natural order: «Episode 2» before «Episode 10»; case-insensitive.</summary>
+/// <summary>Natural order: "Episode 2" before "Episode 10"; case-insensitive.</summary>
 public sealed class NaturalStringComparer : IComparer<string>
 {
     public static NaturalStringComparer Instance { get; } = new();

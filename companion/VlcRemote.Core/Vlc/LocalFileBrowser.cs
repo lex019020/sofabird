@@ -3,15 +3,15 @@ using VlcRemote.Core.Protocol;
 namespace VlcRemote.Core.Vlc;
 
 /// <summary>
-/// Обзор файлов силами компаньона (System.IO), без VLC: библиотека работает, даже когда VLC закрыт
-/// или открыт без управления. URI совпадают по формату с <c>browse.json</c> VLC (<c>file:///D:/dir/</c>,
-/// <c>file://host/share/dir/</c>), так что их можно передать в <c>in_play</c>/командную строку VLC.
+/// File browsing by the companion itself (System.IO), without VLC: the library works even when VLC is closed
+/// or open without control. The URIs have the same format as VLC's <c>browse.json</c> (<c>file:///D:/dir/</c>,
+/// <c>file://host/share/dir/</c>), so they can be passed to <c>in_play</c>/the VLC command line.
 /// </summary>
 public sealed class LocalFileBrowser
 {
     private readonly Func<IEnumerable<string>> _roots;
 
-    /// <param name="extraRoots">Дополнительные корни (настройка MediaRoots), например <c>\\nas\video</c>.</param>
+    /// <param name="extraRoots">Extra roots (the MediaRoots setting), for example <c>\\nas\video</c>.</param>
     public LocalFileBrowser(Func<IEnumerable<string>>? extraRoots = null)
     {
         _roots = extraRoots ?? (() => Array.Empty<string>());
@@ -84,13 +84,13 @@ public sealed class LocalFileBrowser
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var u) || !u.IsFile)
         {
-            // Не URI — считаем, что передан обычный путь.
+            // Not a URI — assume a plain path was passed.
             return uri;
         }
         return u.LocalPath;
     }
 
-    /// <summary>Путь → file URI в формате VLC (папки со слэшем на конце).</summary>
+    /// <summary>Path → file URI in VLC's format (folders with a trailing slash).</summary>
     public static string ToUri(string path, bool isDir)
     {
         var p = path;
@@ -111,7 +111,7 @@ public sealed class LocalFileBrowser
 
     private static IEnumerable<T> Safe<T>(Func<IEnumerable<T>> enumerate)
     {
-        // Папки без доступа пропускаем, а не роняем весь список.
+        // Folders without access are skipped instead of failing the whole list.
         IEnumerator<T> e;
         try { e = enumerate().GetEnumerator(); }
         catch (UnauthorizedAccessException) { yield break; }

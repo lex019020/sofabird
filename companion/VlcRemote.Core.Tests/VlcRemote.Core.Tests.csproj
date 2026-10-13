@@ -25,10 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Реальные ответы VLC 3.0.23 из docs/research/samples — фикстуры парсеров. -->
+    <!-- Real VLC 3.0.23 responses from docs/research/samples — parser fixtures. -->
     <None Include="..\..\docs\research\samples\*.json;..\..\docs\research\samples\rc-*.txt"
           Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Наши Lua-страницы: проверяем, что это валидные шаблоны с ожидаемыми маркерами. -->
+    <!-- Our Lua pages: check that they are valid templates with the expected markers. -->
     <None Include="..\lua\requests\*.json" Link="fixtures\lua\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

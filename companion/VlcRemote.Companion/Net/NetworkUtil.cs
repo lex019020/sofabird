@@ -6,7 +6,7 @@ namespace VlcRemote.Companion.Net;
 
 public static class NetworkUtil
 {
-    /// <summary>IPv4-адреса активных интерфейсов (без loopback и APIPA), «лучший» первым.</summary>
+    /// <summary>IPv4 addresses of active interfaces (without loopback and APIPA), the "best" one first.</summary>
     public static IReadOnlyList<IPAddress> GetLanAddresses()
     {
         var result = new List<(IPAddress Address, int Score)>();

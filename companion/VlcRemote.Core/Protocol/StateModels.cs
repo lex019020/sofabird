@@ -2,30 +2,30 @@ namespace VlcRemote.Core.Protocol;
 
 public sealed class VlcInfo
 {
-    /// <summary>Можно управлять (полный контроль). Подробности — <see cref="Status"/>.</summary>
+    /// <summary>Can be controlled (full control). Details in <see cref="Status"/>.</summary>
     public bool Running { get; set; }
-    /// <summary>Состояние VLC на ПК: одно из <see cref="VlcStatusNames"/>.</summary>
+    /// <summary>State of VLC on the PC: one of <see cref="VlcStatusNames"/>.</summary>
     public string? Status { get; set; }
     public string? Version { get; set; }
     public int? ApiVersion { get; set; }
-    /// <summary>Уровень возможностей: 2 = компаньон.</summary>
+    /// <summary>Capability level: 2 = companion.</summary>
     public int Level { get; set; } = 2;
 
     public VlcInfo Clone() => (VlcInfo)MemberwiseClone();
 }
 
-/// <summary>Значения <c>vlc.status</c> (protocol/README.md, «Состояние: state»).</summary>
+/// <summary>Values of <c>vlc.status</c> (protocol/README.md, "State: <c>state</c>").</summary>
 public static class VlcStatusNames
 {
-    /// <summary>VLC не найден на ПК.</summary>
+    /// <summary>VLC was not found on the PC.</summary>
     public const string NotInstalled = "notInstalled";
-    /// <summary>Процесса нет.</summary>
+    /// <summary>There is no process.</summary>
     public const string NotRunning = "notRunning";
-    /// <summary>Запускается компаньоном.</summary>
+    /// <summary>Being started by the companion.</summary>
     public const string Starting = "starting";
-    /// <summary>Процесс есть, но веб-интерфейс не отвечает с паролем компаньона.</summary>
+    /// <summary>The process exists, but the web interface does not answer with the companion's password.</summary>
     public const string NoControl = "noControl";
-    /// <summary>Полный контроль.</summary>
+    /// <summary>Full control.</summary>
     public const string Running = "running";
 }
 
@@ -37,7 +37,7 @@ public sealed class PlaybackInfo
     public long Length { get; set; }
     public double Position { get; set; }
     public double Rate { get; set; } = 1.0;
-    /// <summary>Unix-время (мс) момента снятия состояния.</summary>
+    /// <summary>Unix time (ms) when the state was captured.</summary>
     public long UpdatedAt { get; set; }
 }
 
@@ -108,10 +108,10 @@ public sealed class FlagsInfo
 
 public sealed class SystemInfo
 {
-    /// <summary>Системная громкость 0..100.</summary>
+    /// <summary>System volume 0..100.</summary>
     public int? Volume { get; set; }
     public bool? Muted { get; set; }
-    /// <summary>ID устройства вывода VLC (<c>{0.0.0.00000000}.{guid}</c>), "" = по умолчанию.</summary>
+    /// <summary>VLC output device ID (<c>{0.0.0.00000000}.{guid}</c>), "" = default.</summary>
     public string? AudioDevice { get; set; }
     /// <summary>Index (in <c>listDisplays</c>) of the monitor with the VLC window; <c>null</c> — no window.</summary>
     public int? Display { get; set; }

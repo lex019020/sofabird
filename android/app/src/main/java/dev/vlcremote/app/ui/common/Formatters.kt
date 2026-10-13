@@ -16,7 +16,7 @@ fun formatTime(seconds: Double): String = formatTime(seconds.toLong())
 fun formatRemaining(position: Double, length: Long): String =
     if (length <= 0) "" else "-" + formatTime((length - position).coerceAtLeast(0.0))
 
-/** File size in the phone's language (system formatter: "1.5 GB" / "1,5 ГБ"). */
+/** File size in the phone's language (system formatter: "1.5 GB"; units and decimal separator follow the locale). */
 fun formatSize(context: android.content.Context, bytes: Long?): String =
     if (bytes == null || bytes < 0) "" else android.text.format.Formatter.formatShortFileSize(context, bytes)
 

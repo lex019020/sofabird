@@ -4,27 +4,27 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace VlcRemote.Core.Vlc;
 
-/// <summary>Что компаньон прописывает в <c>vlcrc</c>, чтобы VLC, открытый как угодно, был управляем.</summary>
+/// <summary>What the companion writes into <c>vlcrc</c> so that VLC, however it is opened, can be controlled.</summary>
 public sealed record VlcrcSettings(int HttpPort, string HttpPassword, int RcPort);
 
 public enum VlcrcResult
 {
-    /// <summary>Файл уже настроен — ничего не записано.</summary>
+    /// <summary>The file is already configured — nothing was written.</summary>
     Unchanged,
-    /// <summary>Файл изменён (с резервной копией перед первым изменением).</summary>
+    /// <summary>The file was changed (with a backup copy before the first change).</summary>
     Updated,
-    /// <summary>Файла не было (VLC ни разу не запускался) — создан минимальный.</summary>
+    /// <summary>There was no file (VLC has never been started) — a minimal one was created.</summary>
     Created,
-    /// <summary>Файл не удалось разобрать (не UTF-8) — не трогаем.</summary>
+    /// <summary>The file could not be parsed (not UTF-8) — left untouched.</summary>
     Skipped,
 }
 
 /// <summary>
-/// Правка текста <c>vlcrc</c> (VLC 3.0.x): секции вида <c>[core] # core program</c>, ключи — как
-/// закомментированные умолчания <c>#extraintf=</c>. Ключ ищется только внутри своей секции
-/// (в <c>[lua]</c> тоже есть <c>#rc-host=</c>), первая строка <c>^#?key=</c> заменяется (раскомментируется);
-/// нет строки — дописывается в конец секции; нет секции — секция с ключом дописывается в конец файла.
-/// Окончания строк сохраняются.
+/// Edits the text of <c>vlcrc</c> (VLC 3.0.x): sections like <c>[core] # core program</c>, keys as
+/// commented-out defaults <c>#extraintf=</c>. A key is looked up only within its own section
+/// (<c>[lua]</c> also has <c>#rc-host=</c>), the first <c>^#?key=</c> line is replaced (uncommented);
+/// no such line — it is appended to the end of the section; no section — a section with the key is appended to the end of the file.
+/// Line endings are preserved.
 /// </summary>
 public static class VlcrcEditor
 {
@@ -33,7 +33,7 @@ public static class VlcrcEditor
     public const string OldRcSection = "oldrc";
     public const string QtSection = "qt";
 
-    /// <summary>Нужные значения: (секция, ключ, функция «текущее значение → новое»).</summary>
+    /// <summary>Required values: (section, key, "current value → new value" function).</summary>
     private static IEnumerable<(string Section, string Key, Func<string?, string> Value)> Wanted(VlcrcSettings s) =>
     [
         (CoreSection, "extraintf", MergeExtraIntf),
@@ -46,8 +46,8 @@ public static class VlcrcEditor
     ];
 
     /// <summary>
-    /// Добавить <c>http</c> и <c>rc</c> к списку дополнительных интерфейсов, сохранив остальные
-    /// (разделитель — двоеточие, как у VLC).
+    /// Add <c>http</c> and <c>rc</c> to the list of extra interfaces, keeping the others
+    /// (the separator is a colon, as in VLC).
     /// </summary>
     public static string MergeExtraIntf(string? existing)
     {
@@ -60,7 +60,7 @@ public static class VlcrcEditor
         return string.Join(':', items);
     }
 
-    /// <summary>Минимальный <c>vlcrc</c> для ПК, где VLC ещё ни разу не запускался.</summary>
+    /// <summary>Minimal <c>vlcrc</c> for a PC where VLC has never been started.</summary>
     public static string CreateMinimal(VlcrcSettings s, string newline = "\r\n")
     {
         var sb = new StringBuilder();
@@ -74,11 +74,11 @@ public static class VlcrcEditor
         return sb.ToString();
     }
 
-    /// <summary>Применить настройки к тексту (без BOM). Возвращает новый текст; <paramref name="changed"/> — отличается ли он.</summary>
+    /// <summary>Apply the settings to the text (without BOM). Returns the new text; <paramref name="changed"/> — whether it differs.</summary>
     public static string Apply(string content, VlcrcSettings s, out bool changed)
     {
         var newline = content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-        // Строки без окончаний; последняя пустая строка означает, что файл заканчивался переводом строки.
+        // Lines without endings; a trailing empty line means the file ended with a line break.
         var lines = content.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
         var endsWithNewline = lines.Count > 0 && lines[^1].Length == 0;
         if (endsWithNewline) lines.RemoveAt(lines.Count - 1);
@@ -89,7 +89,7 @@ public static class VlcrcEditor
             var (start, end) = FindSection(lines, section);
             if (start < 0)
             {
-                // Секции нет — дописываем в конец файла.
+                // No section — append it to the end of the file.
                 if (lines.Count > 0 && lines[^1].Trim().Length > 0) lines.Add("");
                 lines.Add($"[{section}]");
                 lines.Add($"{key}={value(null)}");
@@ -124,7 +124,7 @@ public static class VlcrcEditor
             }
             else
             {
-                // Вставляем после последней непустой строки секции.
+                // Insert after the last non-empty line of the section.
                 var insertAt = end;
                 while (insertAt - 1 > start && lines[insertAt - 1].Trim().Length == 0) insertAt--;
                 lines.Insert(insertAt, $"{key}={value(null)}");
@@ -137,7 +137,7 @@ public static class VlcrcEditor
         return result;
     }
 
-    /// <summary>Индекс заголовка секции и индекс конца (следующий заголовок или конец файла); -1, если нет.</summary>
+    /// <summary>Index of the section header and index of its end (the next header or the end of the file); -1 if absent.</summary>
     private static (int Start, int End) FindSection(List<string> lines, string name)
     {
         var start = -1;
@@ -161,9 +161,9 @@ public static class VlcrcEditor
 }
 
 /// <summary>
-/// Файл <c>vlcrc</c>: читает (UTF-8, BOM сохраняется), правит через <see cref="VlcrcEditor"/>,
-/// перед первым изменением делает копию <c>vlcrc.vlcremote-backup</c>, пишет атомарно (временный файл + замена).
-/// Вызывать только когда VLC не запущен: VLC перезаписывает vlcrc из памяти.
+/// The <c>vlcrc</c> file: reads it (UTF-8, the BOM is preserved), edits it via <see cref="VlcrcEditor"/>,
+/// makes a <c>vlcrc.vlcremote-backup</c> copy before the first change, writes atomically (temp file + replace).
+/// Call only when VLC is not running: VLC overwrites vlcrc from memory.
 /// </summary>
 public sealed class VlcrcConfigurator
 {

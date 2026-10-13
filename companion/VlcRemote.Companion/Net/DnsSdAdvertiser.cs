@@ -6,14 +6,14 @@ using VlcRemote.Core.Protocol;
 namespace VlcRemote.Companion.Net;
 
 /// <summary>
-/// Объявление службы <c>_vlcremote._tcp</c> через встроенный DNS-SD responder Windows
-/// (<c>DnsServiceRegister</c>, dnsapi.dll). Регистрация живёт, пока жив процесс. Ошибки не
-/// фатальны — остаются UDP-маяк и ручной ввод адреса.
+/// Advertises the <c>_vlcremote._tcp</c> service through the built-in Windows DNS-SD responder
+/// (<c>DnsServiceRegister</c>, dnsapi.dll). The registration lives as long as the process. Errors are not
+/// fatal — the UDP beacon and manual address entry remain.
 /// </summary>
 public sealed class DnsSdAdvertiser : IDisposable
 {
     private readonly ILogger _log;
-    // Делегат держим в поле: нативный код вызовет его асинхронно.
+    // The delegate is kept in a field: native code calls it asynchronously.
     private readonly NativeMethods.DnsServiceRegisterComplete _callback;
     private NativeMethods.DNS_SERVICE_REGISTER_REQUEST _request;
     private IntPtr _instance;

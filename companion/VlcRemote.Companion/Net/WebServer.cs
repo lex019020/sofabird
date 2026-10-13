@@ -14,8 +14,8 @@ using VlcRemote.Core.Vlc;
 namespace VlcRemote.Companion.Net;
 
 /// <summary>
-/// Kestrel: <c>/ws</c> (WebSocket → NDJSON-сессия), <c>/info</c> (анонимный JSON),
-/// <c>/art</c> (Bearer-токен → прокси обложки VLC).
+/// Kestrel: <c>/ws</c> (WebSocket → NDJSON session), <c>/info</c> (anonymous JSON),
+/// <c>/art</c> (Bearer token → proxy of VLC artwork).
 /// </summary>
 public sealed class WebServer : IAsyncDisposable
 {

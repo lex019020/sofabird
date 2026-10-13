@@ -2,7 +2,7 @@ using Microsoft.Win32;
 
 namespace VlcRemote.Companion.Services;
 
-/// <summary>Автозапуск через <c>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</c> (без прав администратора).</summary>
+/// <summary>Autostart via <c>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</c> (no administrator rights).</summary>
 public static class AutostartService
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";

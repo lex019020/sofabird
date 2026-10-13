@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace VlcRemote.Core.Session;
 
-/// <summary>Типизированный доступ к <c>args</c> команды с понятными ошибками <c>bad_request</c>.</summary>
+/// <summary>Typed access to the command's <c>args</c> with clear <c>bad_request</c> errors.</summary>
 public readonly struct CommandArgs
 {
     private readonly JsonElement? _el;

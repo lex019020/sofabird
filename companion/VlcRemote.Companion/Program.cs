@@ -78,12 +78,12 @@ internal static class Program
     }
 
     /// <summary>
-    /// <c>--shutdown</c>: просит уже запущенный экземпляр (с тем же каталогом данных) корректно завершиться
-    /// и ждёт до 15 с. Используется скриптом развёртывания перед обновлением файлов.
+    /// <c>--shutdown</c>: asks an already running instance (with the same data directory) to exit gracefully
+    /// and waits up to 15 s. Used by the deploy script before updating the files.
     /// </summary>
     private static int RequestShutdown(string quitEventName)
     {
-        if (!EventWaitHandle.TryOpenExisting(quitEventName, out var evt)) return 0; // не запущен
+        if (!EventWaitHandle.TryOpenExisting(quitEventName, out var evt)) return 0; // not running
         using (evt) evt.Set();
         var deadline = DateTime.UtcNow.AddSeconds(15);
         var self = Environment.ProcessId;
@@ -93,7 +93,7 @@ internal static class Program
             if (others.Count == 0) return 0;
             Thread.Sleep(250);
         }
-        return 4; // не успел завершиться
+        return 4; // did not exit in time
     }
 
     private static int Run(AppPaths paths, ILoggerFactory lf, Microsoft.Extensions.Logging.ILogger log, string quitEventName)
@@ -102,7 +102,7 @@ internal static class Program
         var settingsStore = new SettingsStore(paths.SettingsFile);
         var settings = settingsStore.Load();
 
-        // Скрытый контрол для маршалинга в UI-поток (у ApplicationContext нет окна).
+        // Hidden control for marshalling to the UI thread (ApplicationContext has no window).
         var ui = new Control();
         _ = ui.Handle;
 

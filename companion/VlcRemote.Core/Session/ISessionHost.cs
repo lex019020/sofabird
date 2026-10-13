@@ -4,9 +4,9 @@ using VlcRemote.Core.Protocol;
 namespace VlcRemote.Core.Session;
 
 /// <summary>
-/// То, что компаньон предоставляет сессии: сведения о ПК, сопряжение и исполнители запросов.
-/// Исполнители бросают <see cref="ProtocolException"/> (→ <c>err</c> с кодом) либо
-/// исключения VLC (<see cref="Vlc.VlcException"/> → <c>vlc_error</c>/<c>vlc_not_running</c>).
+/// What the companion provides to a session: PC details, pairing and request executors.
+/// Executors throw <see cref="ProtocolException"/> (→ <c>err</c> with a code) or
+/// VLC exceptions (<see cref="Vlc.VlcException"/> → <c>vlc_error</c>/<c>vlc_not_running</c>).
 /// </summary>
 public interface ISessionHost
 {
@@ -19,15 +19,15 @@ public interface ISessionHost
     PairingService Pairing { get; }
 
     /// <summary>
-    /// Несопряжённый телефон прислал <c>hello</c> без кода: показать на экране ПК окно с кодом
-    /// (или поднять уже открытое). Не должен блокировать и бросать — сессия всё равно ответит
-    /// <c>pairing_required</c> и закроется.
+    /// An unpaired phone sent <c>hello</c> without a code: show the code window on the PC screen
+    /// (or raise the one already open). Must not block or throw — the session answers
+    /// <c>pairing_required</c> and closes anyway.
     /// </summary>
     void RequestPairing(DeviceInfo? device);
 
     Task<StateMessage> GetStateAsync(CancellationToken ct);
     Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct);
-    /// <summary>Системная команда; возвращает ответное сообщение (например, <c>displays</c>) или <c>null</c> → <c>ok</c>.</summary>
+    /// <summary>A system command; returns the response message (for example, <c>displays</c>) or <c>null</c> → <c>ok</c>.</summary>
     Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct);
     Task<IReadOnlyList<BrowseEntry>> BrowseAsync(string uri, CancellationToken ct);
     Task<IReadOnlyList<PlaylistEntry>> GetPlaylistAsync(CancellationToken ct);

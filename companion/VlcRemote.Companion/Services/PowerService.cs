@@ -6,9 +6,9 @@ using VlcRemote.Companion.Interop;
 namespace VlcRemote.Companion.Services;
 
 /// <summary>
-/// Питание: keep-awake через <c>SetThreadExecutionState</c> (состояние привязано к потоку, поэтому
-/// вызывается всегда на UI-потоке), выключение экрана <c>SC_MONITORPOWER</c>, сон
-/// <c>SetSuspendState</c>, выключение <c>shutdown.exe</c>.
+/// Power: keep-awake via <c>SetThreadExecutionState</c> (the state is bound to the thread, so
+/// it is always called on the UI thread), display off via <c>SC_MONITORPOWER</c>, sleep via
+/// <c>SetSuspendState</c>, shutdown via <c>shutdown.exe</c>.
 /// </summary>
 public sealed class PowerService
 {
@@ -23,7 +23,7 @@ public sealed class PowerService
         _uiInvoke = uiInvoke;
     }
 
-    /// <summary>Пользовательский флаг «не давать уснуть во время фильма».</summary>
+    /// <summary>User flag "keep the PC awake during a movie".</summary>
     public bool KeepAwakeEnabled
     {
         get => _keepAwakeEnabled;
@@ -36,7 +36,7 @@ public sealed class PowerService
 
     public bool KeepAwakeActive => _keepAwakeActive;
 
-    /// <summary>Вызывается менеджером VLC при смене состояния воспроизведения.</summary>
+    /// <summary>Called by the VLC manager when the playback state changes.</summary>
     public void OnPlaybackState(bool playing) => ApplyKeepAwake(playing && _keepAwakeEnabled);
 
     private void ApplyKeepAwake(bool on)
@@ -58,7 +58,7 @@ public sealed class PowerService
     {
         if (on)
         {
-            // Надёжнее «разбудить» экран имитацией ввода, затем попросить включить явно.
+            // It is more reliable to "wake" the display by simulating input, then ask to turn it on explicitly.
             var input = new NativeMethods.INPUT[]
             {
                 new() { type = NativeMethods.INPUT_MOUSE, U = new NativeMethods.InputUnion { mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_MOVE } } },

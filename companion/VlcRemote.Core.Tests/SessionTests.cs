@@ -131,7 +131,7 @@ public class SessionTests
         await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"pairCode":"123456"}""");
         Assert.Equal("unauthorized", Recv(t).GetProperty("code").GetString());
         await run.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Single(host.PairingRequests); // код истёк/не было — окно с новым кодом
+        Assert.Single(host.PairingRequests); // the code expired/did not exist — a window with a new code
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class SessionTests
         t.PhoneDisconnect();
         await run.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // Вторая сессия с выданным токеном.
+        // A second session with the issued token.
         var store2 = pairing;
         var host2 = new FakeHost(store2) { BluetoothAddress = null }; // Bluetooth off — no "bt" field
         var t2 = new InMemoryLineTransport();
@@ -164,7 +164,7 @@ public class SessionTests
         await t2.PhoneSendAsync($$"""{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"dev-1"},"token":"{{token}}"}""");
         var w2 = Recv(t2);
         Assert.Equal("welcome", w2.GetProperty("t").GetString());
-        Assert.False(w2.TryGetProperty("token", out _)); // токен выдаётся только при pairCode
+        Assert.False(w2.TryGetProperty("token", out _)); // the token is issued only with pairCode
         Assert.False(w2.TryGetProperty("bt", out _));
         t2.PhoneDisconnect();
         await run2.WaitAsync(TimeSpan.FromSeconds(5));
@@ -180,7 +180,7 @@ public class SessionTests
         var err = Recv(t);
         Assert.Equal("unauthorized", err.GetProperty("code").GetString());
         await run.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.True(pairing.IsPairingActive); // неверный код не закрывает окно
+        Assert.True(pairing.IsPairingActive); // a wrong code does not close the window
         Assert.Empty(host.PairingRequests);
     }
 
@@ -281,7 +281,7 @@ public class SessionTests
         await t.PhoneSendAsync("""{"t":"hello","v":1}""");
         Assert.Equal("bad_request", Recv(t).GetProperty("code").GetString());
 
-        // Push от ПК
+        // Push from the PC
         await session.SendAsync(new EventMessage { Name = EventNames.VlcStarted });
         Assert.Equal("vlcStarted", Recv(t).GetProperty("name").GetString());
 

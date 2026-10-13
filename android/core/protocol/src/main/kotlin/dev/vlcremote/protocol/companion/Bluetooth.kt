@@ -1,6 +1,6 @@
 package dev.vlcremote.protocol.companion
 
-/** RFCOMM service of the companion (protocol/README.md, «Транспорт»). Found by SDP lookup, no fixed channel. */
+/** RFCOMM service of the companion (protocol/README.md, "Transport"). Found by SDP lookup, no fixed channel. */
 const val COMPANION_RFCOMM_UUID = "47fe5bd6-98ad-4d9f-9812-174b3394037d"
 
 /** Longest NDJSON line accepted over RFCOMM, in bytes (without the `\n`). */

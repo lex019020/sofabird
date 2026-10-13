@@ -13,7 +13,7 @@ using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion.Tray;
 
-/// <summary>Контекст приложения без главного окна: иконка в трее и контекстное меню.</summary>
+/// <summary>Application context without a main window: the tray icon and the context menu.</summary>
 public sealed class TrayContext : ApplicationContext
 {
     private readonly AppPaths _paths;
@@ -246,17 +246,17 @@ public sealed class TrayContext : ApplicationContext
                 form.BringToFrontTopMost();
                 return;
             }
-            form.Close(); // код в окне уже недействителен (исчерпаны попытки)
+            form.Close(); // the code in the window is no longer valid (attempts used up)
         }
         ShowPairingForm(_pairing.BeginPairing(), requestingDevice: null);
     }
 
-    /// <summary>Телефон без токена постучался без кода (<see cref="CompanionHost.RequestPairing"/>).</summary>
+    /// <summary>A phone without a token knocked without a code (<see cref="CompanionHost.RequestPairing"/>).</summary>
     private void OnPairingPrompt(PairingPrompt prompt)
     {
         if (_pairingForm is { IsDisposed: false } stale && prompt.Action == PairingPromptAction.ShowNew)
         {
-            // В окне устаревший код (попытки исчерпаны) — заменяем окно новым.
+            // The window has a stale code (attempts used up) — replace the window with a new one.
             stale.Close();
         }
         if (_pairingForm is { IsDisposed: false } form)
@@ -266,9 +266,9 @@ public sealed class TrayContext : ApplicationContext
             _log.LogInformation("Pairing window brought to front for {Device}", prompt.DeviceName ?? "?");
             return;
         }
-        // Окна нет: показываем действующий код (или созданный для этого запроса).
+        // No window: show the active code (or the one created for this request).
         var code = _pairing.ActiveCode ?? prompt.Code;
-        if (code is null) return; // код успел истечь — телефон постучится снова
+        if (code is null) return; // the code has already expired — the phone will knock again
         ShowPairingForm(code, prompt.DeviceName);
     }
 
@@ -281,7 +281,7 @@ public sealed class TrayContext : ApplicationContext
         form.FormClosed += (_, _) =>
         {
             if (ReferenceEquals(_pairingForm, form)) _pairingForm = null;
-            // Отменяем только свой код: окно могли закрыть, заменяя его окном с новым кодом.
+            // Cancel only our own code: the window may have been closed while being replaced by a window with a new code.
             if (_pairing.ActiveCode == code) _pairing.CancelPairing();
         };
         form.Show();
@@ -312,7 +312,7 @@ public sealed class TrayContext : ApplicationContext
         ShowBalloon(6000, UiText.BalloonNoControl,
             ToolTipIcon.Warning, () =>
             {
-                // Уведомление могло пролежать в центре уведомлений — перезапускаем, только если VLC всё ещё без управления.
+                // The notification may have sat in the notification center — restart only if VLC is still without control.
                 if (_vlc.RunState == VlcRunState.RunningNoApi) RestartVlc();
             });
     }
@@ -377,7 +377,7 @@ public sealed class TrayContext : ApplicationContext
 
     private void OnPairingEnded()
     {
-        // Истёк срок/исчерпаны попытки — окно закроется само по таймеру; при успехе ShowPaired уже вызван.
+        // Expired/attempts used up — the window closes by itself on its timer; on success ShowPaired has already been called.
     }
 
     private void InstallLuaPages()
@@ -446,7 +446,7 @@ public sealed class TrayContext : ApplicationContext
         });
     }
 
-    /// <summary>Потокобезопасный запрос на выход (например, от <c>--shutdown</c>).</summary>
+    /// <summary>Thread-safe request to exit (for example, from <c>--shutdown</c>).</summary>
     public void RequestExit()
     {
         try { _ui.BeginInvoke(Exit); } catch (InvalidOperationException) { Environment.Exit(0); }

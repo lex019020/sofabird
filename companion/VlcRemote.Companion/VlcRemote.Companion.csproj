@@ -12,7 +12,7 @@
     <AssemblyName>VlcRemote.Companion</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <!-- Версия берётся из файла VERSION в корне репозитория; CI добавляет суффикс: -p:VersionSuffix=beta.42 -->
+    <!-- The version comes from the VERSION file in the repository root; CI adds a suffix: -p:VersionSuffix=beta.42 -->
     <VersionPrefix>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</VersionPrefix>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>VLC Remote Companion</Product>
@@ -39,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Наши Lua-страницы (companion/lua/requests) встраиваются как ресурсы и устанавливаются LuaPagesInstaller. -->
+    <!-- Our Lua pages (companion/lua/requests) are embedded as resources and installed by LuaPagesInstaller. -->
     <EmbeddedResource Include="..\lua\requests\tracks.json" LogicalName="lua.requests.tracks.json" />
     <EmbeddedResource Include="..\lua\requests\setvar.json" LogicalName="lua.requests.setvar.json" />
   </ItemGroup>

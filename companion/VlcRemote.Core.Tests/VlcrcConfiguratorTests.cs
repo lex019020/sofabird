@@ -16,7 +16,7 @@ public class VlcrcConfiguratorTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { }
     }
 
-    /// <summary>Фрагмент настоящего vlcrc VLC 3.0.x: закомментированные умолчания, в [lua] тоже есть rc-host.</summary>
+    /// <summary>A fragment of a real VLC 3.0.x vlcrc: commented-out defaults, [lua] also has rc-host.</summary>
     private const string Sample =
         "###\r\n" +
         "###  vlc 3.0.23\r\n" +
@@ -79,11 +79,11 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Contains("extraintf=http:rc", Section(result, "core"));
         Assert.Contains("http-port=8080", Section(result, "core"));
         Assert.DoesNotContain("#extraintf=", result);
-        Assert.Contains("#http-host=", result); // http-host не трогаем
+        Assert.Contains("#http-host=", result); // http-host is not touched
 
         var lua = Section(result, "lua");
         Assert.Contains("http-password=Secret123", lua);
-        Assert.Contains("#rc-host=", lua); // rc-host в [lua] — чужой ключ, не трогаем
+        Assert.Contains("#rc-host=", lua); // rc-host in [lua] is someone else's key, not touched
         Assert.DoesNotContain("rc-host=127.0.0.1:4212", lua);
 
         var oldrc = Section(result, "oldrc");
@@ -94,7 +94,7 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Contains("qt-continue=0", Section(result, "qt"));
         Assert.DoesNotContain("#qt-continue=1", result);
 
-        // Ключ заменён на месте, комментарий-описание над ним сохранён, окончания строк — CRLF.
+        // The key is replaced in place, the description comment above it is kept, line endings are CRLF.
         Assert.Contains("# Extra interface modules (string)\r\nextraintf=http:rc\r\n", result);
         Assert.DoesNotContain("\n", result.Replace("\r\n", ""));
         Assert.Equal(Sample.Split("\r\n").Length, result.Split("\r\n").Length);
@@ -146,7 +146,7 @@ public class VlcrcConfiguratorTests : IDisposable
         var core = Section(result, "core");
         Assert.Contains("extraintf=http:rc", core);
         Assert.Contains("http-port=8080", core);
-        // Ключи вставлены до пустой строки перед [qt], а не после неё.
+        // The keys are inserted before the empty line preceding [qt], not after it.
         Assert.Contains("#volume=256\nextraintf=http:rc\nhttp-port=8080\n\n[qt]", result);
         Assert.Contains("#qt-privacy-ask=1", Section(result, "qt"));
         Assert.Contains("#qt-privacy-ask=1\nqt-continue=0\n\n[lua]", result);
@@ -188,7 +188,7 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Equal(VlcrcResult.Updated, cfg.Ensure(S));
         var bytes = File.ReadAllBytes(path);
         Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, bytes[..3]);
-        Assert.NotEqual(0xEF, bytes[3]); // BOM не задвоен
+        Assert.NotEqual(0xEF, bytes[3]); // the BOM is not doubled
         var text = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
         Assert.Contains("extraintf=http:rc\r\n", text);
         Assert.Equal(original, File.ReadAllBytes(cfg.BackupPath));
@@ -197,7 +197,7 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Equal(VlcrcResult.Unchanged, cfg.Ensure(S));
         Assert.Equal(bytes, File.ReadAllBytes(path));
 
-        // Пароль поменялся — файл обновляется, но резервная копия остаётся первой (оригинал пользователя).
+        // The password changed — the file is updated, but the backup copy stays the first one (the user's original).
         Assert.Equal(VlcrcResult.Updated, cfg.Ensure(S with { HttpPassword = "Other" }));
         Assert.Contains("http-password=Other", File.ReadAllText(path));
         Assert.Equal(original, File.ReadAllBytes(cfg.BackupPath));

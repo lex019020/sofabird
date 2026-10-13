@@ -7,9 +7,9 @@ using VlcRemote.Core.Vlc;
 namespace VlcRemote.Core.Session;
 
 /// <summary>
-/// Одна сессия телефона поверх любого <see cref="ILineTransport"/>: рукопожатие
-/// <c>hello</c> → <c>welcome</c>/<c>err</c>, затем диспетчеризация запросов. Исходящие
-/// сообщения (<c>state</c>, <c>event</c>) шлются через <see cref="SendAsync"/> из любого потока.
+/// One phone session over any <see cref="ILineTransport"/>: the handshake
+/// <c>hello</c> → <c>welcome</c>/<c>err</c>, then request dispatching. Outgoing
+/// messages (<c>state</c>, <c>event</c>) are sent via <see cref="SendAsync"/> from any thread.
 /// </summary>
 public sealed class Session : IAsyncDisposable
 {
@@ -33,11 +33,11 @@ public sealed class Session : IAsyncDisposable
     public DeviceInfo? Device { get; private set; }
     public DateTimeOffset ConnectedAt { get; } = DateTimeOffset.UtcNow;
 
-    /// <summary>Сессия прошла рукопожатие — можно слать <c>state</c>.</summary>
+    /// <summary>The session has completed the handshake — <c>state</c> can be sent.</summary>
     public event Action<Session>? Authenticated;
     public event Action<Session>? Closed;
 
-    /// <summary>Главный цикл; завершается при закрытии транспорта или ошибке рукопожатия.</summary>
+    /// <summary>Main loop; ends when the transport closes or the handshake fails.</summary>
     public async Task RunAsync(CancellationToken ct)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
@@ -118,7 +118,7 @@ public sealed class Session : IAsyncDisposable
             if (!result.Success)
             {
                 _log.LogWarning("Pairing failed for {Device}: {Reason}", hello.Device?.Name, result.Reason);
-                // Код истёк или попытки исчерпаны — показать окно с новым кодом (ограничено по частоте).
+                // The code has expired or the attempts are used up — show the window with a new code (rate limited).
                 if (!pairing.IsPairingActive) RequestPairing(hello.Device);
                 await SendAsync(new ErrMessage { Id = hello.Id, Code = ErrorCodes.Unauthorized, Msg = result.Reason ?? "pairing failed" }, ct).ConfigureAwait(false);
                 return false;
@@ -280,7 +280,7 @@ public sealed class Session : IAsyncDisposable
         _ => new ErrMessage { Id = id, Code = ErrorCodes.Internal, Msg = ex.Message },
     };
 
-    /// <summary>Отправить сообщение (потокобезопасно). Ошибка записи закрывает сессию.</summary>
+    /// <summary>Send a message (thread-safe). A write error closes the session.</summary>
     public async Task SendAsync(Message message, CancellationToken ct = default)
     {
         if (Volatile.Read(ref _closed) != 0) return;

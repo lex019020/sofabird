@@ -51,7 +51,7 @@ data class VlcInfo(
 }
 
 /**
- * `vlc.status` (protocol/README.md, "Состояние: state"). Values a newer companion may add decode as
+ * `vlc.status` (protocol/README.md, "State: `state`"). Values a newer companion may add decode as
  * [UNKNOWN] instead of failing the whole message.
  */
 @Serializable(with = VlcProcessStatusSerializer::class)

@@ -470,7 +470,7 @@ private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDispl
     val tracks = ui.state.tracks
     val audioLabel = trackChipLabel(tracks.audio.firstOrNull { it.id == tracks.currentAudio }?.let { it.lang ?: it.name }, tracks.currentAudio, tracks.audio.size)
     val subLabel = trackChipLabel(tracks.subtitle.firstOrNull { it.id == tracks.currentSubtitle }?.let { it.lang ?: it.name }, tracks.currentSubtitle, tracks.subtitle.size)
-    // Wraps to a second line on narrow screens (the "Экран" chip makes four).
+    // Wraps to a second line on narrow screens (the "Display" chip makes four).
     FlowRow(
         Modifier
             .fillMaxWidth()

@@ -5,7 +5,7 @@ namespace VlcRemote.Companion.Services;
 
 public sealed record SystemVolume(int Percent, bool Muted);
 
-/// <summary>Системная громкость/mute устройства вывода по умолчанию (NAudio CoreAudio).</summary>
+/// <summary>System volume/mute of the default output device (NAudio CoreAudio).</summary>
 public sealed class AudioService
 {
     private readonly ILogger _log;
@@ -46,7 +46,7 @@ public sealed class AudioService
         _log.LogInformation("System mute → {Mute}", mute);
     }
 
-    /// <summary>Активные устройства вывода Windows (ID совпадают с <c>adev</c> VLC для mmdevice).</summary>
+    /// <summary>Active Windows output devices (the IDs match VLC's <c>adev</c> for mmdevice).</summary>
     public IReadOnlyList<(string Id, string Name)> ListRenderDevices()
     {
         var list = new List<(string, string)>();

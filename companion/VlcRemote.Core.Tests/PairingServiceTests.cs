@@ -21,14 +21,14 @@ public class PairingServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(result.Token);
-        Assert.Matches("^[A-Za-z0-9_-]{43}$", result.Token); // 32 байта base64url без '='
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", result.Token); // 32 bytes of base64url without '='
         Assert.True(svc.ValidateToken(result.Token));
         Assert.False(svc.ValidateToken(result.Token + "x"));
         Assert.False(svc.ValidateToken(null));
-        Assert.False(svc.IsPairingActive); // код одноразовый
+        Assert.False(svc.IsPairingActive); // the code is single-use
         Assert.Equal(PairingService.Hash(result.Token), Assert.Single(store.Load()).TokenHash);
         Assert.Equal("Pixel 8", paired!.DeviceName);
-        Assert.DoesNotContain(result.Token, store.Load().Select(d => d.TokenHash)); // хранится только хэш
+        Assert.DoesNotContain(result.Token, store.Load().Select(d => d.TokenHash)); // only the hash is stored
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class PairingServiceTests
         Assert.False(svc.TryPair(wrong, "x", "y").Success);
         Assert.True(svc.IsPairingActive);
         Assert.False(svc.TryPair(wrong, "x", "y").Success);
-        Assert.False(svc.IsPairingActive); // исчерпаны попытки
+        Assert.False(svc.IsPairingActive); // attempts used up
         Assert.False(svc.TryPair(code, "x", "y").Success);
     }
 

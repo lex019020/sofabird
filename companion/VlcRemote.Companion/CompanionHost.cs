@@ -12,7 +12,7 @@ using VlcRemote.Core.Localization;
 
 namespace VlcRemote.Companion;
 
-/// <summary>Реализация <see cref="ISessionHost"/>: связывает сессии с VLC, экранами, питанием и звуком.</summary>
+/// <summary>Implementation of <see cref="ISessionHost"/>: connects sessions with VLC, displays, power and sound.</summary>
 public sealed class CompanionHost : ISessionHost
 {
     private readonly Settings _settings;
@@ -86,10 +86,10 @@ public sealed class CompanionHost : ISessionHost
     public DisplayController Displays { get; }
     public PairingService Pairing { get; }
 
-    /// <summary>Решения об автоматическом окне сопряжения (ограничение частоты, «не создавать второй код»).</summary>
+    /// <summary>Decisions about the automatic pairing window (rate limiting, "do not create a second code").</summary>
     public PairingPrompter PairingPrompter { get; }
 
-    /// <summary>Нужно показать/поднять окно с кодом. Вызывается из потока сессии — подписчик сам маршалит в UI.</summary>
+    /// <summary>The code window must be shown/raised. Called from the session thread — the subscriber marshals to the UI itself.</summary>
     public event Action<PairingPrompt>? PairingPromptRequested;
 
     public void RequestPairing(DeviceInfo? device)
