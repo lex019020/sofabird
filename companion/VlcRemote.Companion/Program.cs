@@ -139,7 +139,7 @@ internal static class Program
         if (settings.AutoLaunchVlc && installation is not null)
             _ = Task.Run(async () =>
             {
-                try { await vlc.LaunchAsync(null, settings.PreferredDisplay, CancellationToken.None); }
+                try { await vlc.LaunchAsync(null, null, CancellationToken.None); }
                 catch (Exception ex) { log.LogWarning(ex, "Auto-launch of VLC failed"); }
             });
 
@@ -153,6 +153,7 @@ internal static class Program
             await sessions.CloseAllAsync();
             await web.DisposeAsync();
             await vlc.DisposeAsync();
+            display.Dispose();
             sessions.Dispose();
         }
 

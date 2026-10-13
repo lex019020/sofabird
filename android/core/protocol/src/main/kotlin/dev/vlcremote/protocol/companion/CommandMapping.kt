@@ -60,7 +60,11 @@ object CommandMapping {
 
     fun toSys(id: String, command: SystemCommand): CompanionMessage.Sys {
         val (name, args) = when (command) {
-            is SystemCommand.MoveToDisplay -> "moveToDisplay" to args { put("display", command.display) }
+            is SystemCommand.MoveToDisplay -> "moveToDisplay" to args {
+                // New companions work by stable id; the index is only for those that report no ids.
+                if (command.displayId != null) put("displayId", command.displayId) else put("display", command.legacyIndex)
+            }
+            is SystemCommand.PreferredDisplay -> "preferredDisplay" to args { put("displayId", command.displayId) }
             SystemCommand.ListDisplays -> "listDisplays" to EMPTY
             is SystemCommand.KeepAwake -> "keepAwake" to args { put("on", command.on) }
             is SystemCommand.DisplayPower -> "displayPower" to args { put("on", command.on) }

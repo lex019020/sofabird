@@ -20,7 +20,7 @@ import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.companion.AudioDevice
-import dev.vlcremote.protocol.companion.Display
+import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
@@ -242,7 +242,7 @@ class PlayerController(
     suspend fun audioDevices(): Result<List<AudioDevice>> =
         _backend.value?.audioDevices() ?: Result.failure(IllegalStateException("not connected"))
 
-    suspend fun listDisplays(): Result<List<Display>> =
+    suspend fun listDisplays(): Result<DisplayList> =
         _backend.value?.listDisplays() ?: Result.failure(IllegalStateException("not connected"))
 
     /** Hardware volume keys: ±[delta] VLC units, then report the resulting percentage. */

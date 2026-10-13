@@ -14,15 +14,19 @@ import dev.vlcremote.protocol.backend.SystemCommand
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.PlayerState
+import dev.vlcremote.protocol.model.SystemState
 import dev.vlcremote.protocol.model.TrackKind
 import dev.vlcremote.protocol.model.VlcInfo
 import dev.vlcremote.protocol.model.VlcProcessStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -40,10 +44,16 @@ data class RemoteUiState(
     /** User is dragging the scrub bar: show the target instead of the live position. */
     val scrubTarget: Double? = null,
     val hostName: String? = null,
-    /** Companion `getAudioDevices` / `listDisplays`; loaded when the "More" sheet opens. */
+    /** Companion `getAudioDevices`; loaded when the "More" sheet opens. */
     val audioDevices: List<AudioDevice> = emptyList(),
-    val displays: List<Display> = emptyList(),
     val pcInfoLoading: Boolean = false,
+    /** Monitor for the VLC window (`windowControl`): chip on the remote + "Экран для VLC" sheet. */
+    val displayChoice: DisplayChoice = DisplayChoice(),
+    val displaysLoading: Boolean = false,
+    /** [Display.key] (or [UNMANAGED_KEY]) of the action in flight. */
+    val displayPending: String? = null,
+    /** Last `listDisplays` / display action failure, shown inside the sheet. */
+    val displayError: Throwable? = null,
     /** The active server is a companion (known before the first `welcome`). */
     val companionMode: Boolean = false,
     /** "Запустить VLC" / "Перезапустить" was pressed and VLC has not changed state yet. */
@@ -56,7 +66,19 @@ data class RemoteUiState(
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
+
+    /** "Экран: …" chip and the "Экран для VLC" sheet. */
+    val showDisplayChoice: Boolean get() = isCompanion && capabilities.windowControl
+
+    companion object {
+        /** [displayPending] value for "Не управлять" (never a monitor key). */
+        const val UNMANAGED_KEY = "unmanaged:"
+    }
 }
+
+/** The VLC window exists: controllable, or opened by hand without control. */
+val VlcInfo.windowOpen: Boolean
+    get() = effectiveStatus == VlcProcessStatus.RUNNING || effectiveStatus == VlcProcessStatus.NO_CONTROL
 
 /**
  * Companion mode only: when VLC is not controllable ([VlcInfo.effectiveStatus] other than running)
@@ -77,6 +99,9 @@ class RemoteViewModel(
     private val scrubTarget = MutableStateFlow<Double?>(null)
     private val pcInfo = MutableStateFlow(PcInfo())
     private var pcInfoJob: Job? = null
+    private val displayPanel = MutableStateFlow(DisplayPanel())
+    private var displaysJob: Job? = null
+    private var displayActionJob: Job? = null
     private val launching = MutableStateFlow(false)
     private var launchJob: Job? = null
 
@@ -85,8 +110,15 @@ class RemoteViewModel(
 
     private data class PcInfo(
         val audioDevices: List<AudioDevice> = emptyList(),
-        val displays: List<Display> = emptyList(),
         val loading: Boolean = false,
+    )
+
+    private data class DisplayPanel(
+        val snapshot: DisplaySnapshot? = null,
+        val mark: DisplayMark? = null,
+        val loading: Boolean = false,
+        val pendingKey: String? = null,
+        val error: Throwable? = null,
     )
 
     private data class Extras(
@@ -96,6 +128,7 @@ class RemoteViewModel(
         val pcInfo: PcInfo,
         val launching: Boolean,
         val bluetoothNeed: BluetoothStatus?,
+        val displays: DisplayPanel,
     )
 
     val uiState: StateFlow<RemoteUiState> = combine(
@@ -108,7 +141,8 @@ class RemoteViewModel(
             pcInfo,
             launching,
             combine(controller.bluetoothNeed, bluetoothDismissed) { need, dismissed -> need.takeUnless { dismissed } },
-        ) { (p, t, s), i, l, bt -> Extras(p, t, s, i, l, bt) },
+            displayPanel,
+        ) { (p, t, s), i, l, bt, d -> Extras(p, t, s, i, l, bt, d) },
     ) { state, connection, caps, prefs, extras ->
         RemoteUiState(
             state = state,
@@ -119,8 +153,11 @@ class RemoteViewModel(
             scrubTarget = extras.scrubTarget,
             hostName = extras.server?.displayName,
             audioDevices = extras.pcInfo.audioDevices,
-            displays = extras.pcInfo.displays,
             pcInfoLoading = extras.pcInfo.loading,
+            displayChoice = displayChoice(extras.displays, state),
+            displaysLoading = extras.displays.loading,
+            displayPending = extras.displays.pendingKey,
+            displayError = extras.displays.error,
             companionMode = extras.server?.isCompanion == true,
             launching = extras.launching,
             bluetoothNeed = extras.bluetoothNeed,
@@ -136,7 +173,26 @@ class RemoteViewModel(
                 delay(if (s.isPlaying) 250 else 1_000)
             }
         }
+        // Monitor names for the "Экран" chip: load once a companion with `windowControl` is online.
+        viewModelScope.launch {
+            combine(controller.capabilities, controller.connection) { caps, c -> caps.windowControl && c.isOnline }
+                .distinctUntilChanged()
+                .collect { ready ->
+                    if (ready) loadDisplays()
+                    else if (!controller.capabilities.value.windowControl) displayPanel.value = DisplayPanel()
+                }
+        }
+        // VLC showed up on a monitor the list does not know (plugged in since): re-read the list.
+        viewModelScope.launch {
+            controller.state.map { it.system?.displayId }.distinctUntilChanged().collect { id ->
+                val snapshot = displayPanel.value.snapshot ?: return@collect
+                if (!id.isNullOrEmpty() && snapshot.list.items.none { it.id == id }) loadDisplays()
+            }
+        }
     }
+
+    private fun displayChoice(panel: DisplayPanel, state: PlayerState): DisplayChoice =
+        displayChoice(panel.snapshot, state.system, state.vlc.windowOpen, panel.mark)
 
     fun send(command: PlayerCommand) = controller.send(command)
 
@@ -222,16 +278,65 @@ class RemoteViewModel(
         if (!caps.audioDevices && !caps.windowControl) return
         pcInfoJob?.cancel()
         pcInfoJob = viewModelScope.launch {
+            if (caps.windowControl) loadDisplays()
+            if (!caps.audioDevices) return@launch
             pcInfo.update { it.copy(loading = true) }
-            val devices = if (caps.audioDevices) controller.audioDevices().getOrNull() else null
-            val displays = if (caps.windowControl) controller.listDisplays().getOrNull() else null
-            pcInfo.update {
-                it.copy(
-                    audioDevices = devices ?: it.audioDevices,
-                    displays = displays ?: it.displays,
-                    loading = false,
+            val devices = controller.audioDevices().getOrNull()
+            pcInfo.update { it.copy(audioDevices = devices ?: it.audioDevices, loading = false) }
+        }
+    }
+
+    // ---------------------------------------------------------------- monitor for the VLC window
+
+    /** Re-read `listDisplays` (sheet opened, after each action). */
+    fun loadDisplays() {
+        if (!controller.capabilities.value.windowControl) return
+        displaysJob?.cancel()
+        displaysJob = viewModelScope.launch {
+            displayPanel.update { it.copy(loading = true) }
+            val result = controller.listDisplays()
+            ensureActive() // runCatching inside the backend swallows cancellation
+            val system = controller.state.value.system
+            displayPanel.update { panel ->
+                result.fold(
+                    onSuccess = { panel.copy(snapshot = DisplaySnapshot(it, system), loading = false, error = null) },
+                    onFailure = { panel.copy(loading = false, error = it) },
                 )
             }
+        }
+    }
+
+    private fun currentDisplayChoice(): DisplayChoice = displayChoice(displayPanel.value, controller.state.value)
+
+    /** Tap on a monitor: move the VLC window there (if open) and remember it as the preferred one. */
+    fun moveVlcTo(display: Display) {
+        val choice = currentDisplayChoice()
+        runDisplayAction(display.key, choice.commandFor(display)) { system -> choice.markAfterMove(display, system) }
+    }
+
+    /** "Не управлять": the companion leaves the VLC window alone. */
+    fun unmanageDisplay() {
+        val choice = currentDisplayChoice()
+        if (!choice.canUnmanage) return
+        runDisplayAction(RemoteUiState.UNMANAGED_KEY, SystemCommand.PreferredDisplay(null)) { system -> choice.markAfterUnmanage(system) }
+    }
+
+    private fun runDisplayAction(key: String, command: SystemCommand, mark: (SystemState?) -> DisplayMark) {
+        if (displayActionJob?.isActive == true) return
+        displayActionJob = viewModelScope.launch {
+            displayPanel.update { it.copy(pendingKey = key, error = null) }
+            try {
+                val result = controller.sendSystemAwait(command) // failures also reach the snackbar
+                displayPanel.update { panel ->
+                    result.fold(
+                        onSuccess = { panel.copy(mark = mark(controller.state.value.system)) },
+                        onFailure = { panel.copy(error = it) },
+                    )
+                }
+            } finally {
+                displayPanel.update { it.copy(pendingKey = null) }
+            }
+            loadDisplays()
         }
     }
 
@@ -246,7 +351,6 @@ class RemoteViewModel(
         }
     }
 
-    fun moveToDisplay(index: Int) = sendSystem(SystemCommand.MoveToDisplay(index))
     fun setKeepAwake(on: Boolean) = sendSystem(SystemCommand.KeepAwake(on))
     fun displayPower(on: Boolean) = sendSystem(SystemCommand.DisplayPower(on))
     fun sleepPc() = sendSystem(SystemCommand.Sleep)

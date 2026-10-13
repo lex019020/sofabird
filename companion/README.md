@@ -19,12 +19,15 @@ companion/
 │   ├── Pairing/               PairingService (код на 5 мин, токен 32 байта base64url, хранится SHA‑256)
 │   ├── Session/               Session (NDJSON‑сессия поверх ILineTransport), StreamLineTransport (NDJSON поверх потока байт), ISessionHost, CommandArgs
 │   ├── Bluetooth/             BluetoothFormat (адрес AA:BB:…, кодирование атрибута SDP)
+│   ├── Displays/              MonitorTopology (имена/id/тип мониторов), DisplayController (sys‑команды экранов,
+│   │                          предпочтительный монитор, разовый перенос нового окна VLC), AutoPlacement
 │   └── Lua/                   LuaPagesInstaller (копия штатных страниц VLC + наши в %APPDATA%)
 ├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: трей, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (служба RFCOMM, M3)
 │   ├── Vlc/                   VlcLocator, VlcManager (процесс, опрос, RC, команды), EmbeddedLuaPages
-│   ├── Services/              DisplayService, PowerService, AudioService, AutostartService
+│   ├── Services/              DisplayService (мониторы через CCD API, окно VLC), VlcWindowHost, PowerService,
+│   │                          AudioService, AutostartService
 │   └── Tray/                  TrayContext (меню), PairingForm (код на экране ТВ), TrayIconFactory
 ├── VlcRemote.Core.Tests/      xunit: парсеры на реальных ответах VLC 3.0.23 (docs/research/samples), сессия, сопряжение
 └── lua/                       Lua‑страницы уровня 1 и install.ps1 (работают и без компаньона)
@@ -211,6 +214,38 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
 - Телефон сопряжён «Just Works» и включено `bluetoothRequireAuthentication` — выключите настройку или пересопрягите
   телефон со сравнением кода.
 
+## Экран для VLC (ТВ)
+
+Компаньон помнит **предпочтительный монитор** и открывает VLC на нём — и запущенный с телефона, и открытый вручную
+(двойной клик по фильму в Проводнике).
+
+- **Мониторы.** Список строится из `Screen.AllScreens` (границы, основной) и CCD API Windows (`QueryDisplayConfig` +
+  `DisplayConfigGetDeviceInfo`): понятное имя из EDID («SAMSUNG», «L27q-35»), тип подключения (`internal` —
+  встроенная панель ноутбука: eDP/LVDS/«internal»; `external` — HDMI/DP/…) и **устойчивый id** — путь устройства
+  монитора (`\\?\DISPLAY#SAM0F99#…`). Id не меняется, когда ТВ выключают и включают (в отличие от номера
+  `\\.\DISPLAYn` и индекса в списке). Нет имени в EDID — «Экран N» (на языке телефона / Windows), у встроенной
+  панели — «Встроенный экран»; нет пути устройства — id = имя GDI. В режиме дублирования — одна строка на
+  источник (имена через « + », id — ТВ). При запуске и при каждом изменении конфигурации экранов в журнал
+  пишется по строке на монитор: имя, тип, основной, `gdi`, границы, id — так список проверяется удалённо
+  (`dev-laptop.ps1 -Logs`). По SSH `Screen.AllScreens` видит только фиктивный экран — проверять через компаньон.
+- **Выбор.** На телефоне (`sys moveToDisplay`) или в трее («Перенести VLC на экран ▸»): окно VLC переносится
+  (снять полный экран → переместить → вернуть полный экран, если был) **и монитор запоминается**
+  (`preferredDisplayId` в `settings.json`). VLC не запущен — только запоминается. «Не управлять экраном» в трее
+  (`sys preferredDisplay {"displayId": null}`) — компаньон больше не трогает окно VLC.
+- **Новое окно VLC** переносится на предпочтительный монитор **один раз**, если он подключён и окно не там
+  (главное окно ждём до 10 с). Потом окно не трогается — если перетащить его обратно, компаньон не спорит.
+  Не трогаются и окна VLC, запущенного до старта компаньона. ТВ выключен — окно остаётся, где открылось.
+- **Запуск компаньоном** (с телефона или из трея; предпочтительный монитор подключён и мониторов 2+):
+  VLC стартует без файла и с `--qt-fullscreen-screennumber=-1` (полный экран — на мониторе главного окна; номера
+  экранов у Qt не совпадают с нашими), окно переносится, и только потом файл открывается по HTTP — с
+  `launchFullscreen` фильм сразу разворачивается на нужном экране.
+- **Перенос окна.** Обычное окно сохраняет размер (не больше рабочей области) и встаёт по центру, развёрнутое —
+  разворачивается там же. Полноэкранный VLC под управлением — через HTTP `fullscreen`; без управления (открыт
+  до настройки vlcrc) окно без рамки на весь монитор просто растягивается на новый монитор.
+- **Старый формат.** `preferredDisplay` (индекс) из прежних версий при первом запуске заменяется на id монитора с
+  этим индексом; `moveToDisplay {"display": int}` и `display` в `launch`/`open` по‑прежнему понимаются
+  (`display` в `launch` — разовый выбор, не запоминается).
+
 ## Меню в трее
 
 - строка статуса VLC, число подключённых телефонов и состояние Bluetooth;
@@ -218,8 +253,9 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
   6‑значным кодом и адресом `host:port`; код действует 5 минут, не более 5 попыток (открывается и само,
   когда несопряжённый телефон пытается подключиться — см. «Сопряжение»);
 - **Запустить VLC**, **Перезапустить VLC с веб‑интерфейсом**, **Закрыть VLC**;
-- **Перенести VLC на экран ▸** — список мониторов; перенос = снять полный экран → `SetWindowPos`
-  на выбранный монитор → полный экран;
+- **Перенести VLC на экран ▸** — мониторы с понятными именами, галочка — предпочтительный (на нём открывается
+  VLC); щелчок = перенести окно и запомнить, как с телефона; **Не управлять экраном** — забыть
+  (см. «Экран для VLC»);
 - **Установить Lua‑страницы**, **Автозапуск** (`HKCU\…\Run`), **Не давать ПК уснуть во время фильма**;
 - **Открыть журнал**, **Открыть папку настроек**, **Выход**.
 
@@ -229,7 +265,7 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
 
 | Файл | Что |
 |---|---|
-| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplay`, `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId` |
+| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (предпочтительный монитор; старый `preferredDisplay` переносится сам), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId` |
 | `paired.json` | сопряжённые устройства: SHA‑256 токена, имя, id, дата |
 | `logs\companion-YYYYMMDD.log` | Serilog, ротация по дням, 14 файлов |
 
@@ -259,6 +295,10 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 - `hello` с неверным токеном → `err unauthorized` и закрытие; с токеном → `welcome` + первый `state`;
 - `pause/play/seek/track/volume/mute/chapter/rate/random/playlistRemove/open/launch/quit`,
   `getState/getPlaylist/getTracks/getAudioDevices/browse`, `sys listDisplays/keepAwake/moveToDisplay`;
+- мониторы: CCD API видит «L27q-35» (`external`, id `\\?\DISPLAY#LEN66D5#…`); `listDisplays` с `current`/
+  `preferred`/`preferredId`, `moveToDisplay` по id и по старому индексу без VLC (только запоминание, без ошибки),
+  неподключённый id, `preferredDisplay null`, `state.system.preferredDisplayId`, перенос старого `preferredDisplay`
+  в settings.json; безголовый VLC, открытый «вручную», — автоперенос ждёт окно 10 с и ничего не двигает;
 - текущие дорожки через RC `atrack/strack` (без Lua‑страниц в VLC) и выбор дорожек после `open`;
 - события `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 раза в секунду при воспроизведении;
 - `LuaPagesInstaller` — только против временной папки (юнит‑тесты), в `%APPDATA%` не ставился.
@@ -269,9 +309,10 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 
 ### Проверить на ноутбуке у ТВ
 
-- Перенос окна на второй монитор (`moveToDisplay`, `--qt-fullscreen-screennumber`): здесь один
-  экран и безголовый VLC без окна — проверена только ветка «окно не найдено». Порядок экранов в
-  меню стабилизирован по имени устройства (`\\.\DISPLAY1`, `\\.\DISPLAY2`); Qt может нумеровать иначе.
+- Мониторы (встроенная панель + ТВ по HDMI): имена и `kind` в `listDisplays`/журнале, id ТВ после выключения и
+  включения ТВ; перенос окна VLC (обычного, развёрнутого, полноэкранного под управлением и без него) и обратно;
+  автоперенос нового окна — запуск с телефона с `launchFullscreen` (фильм сразу на ТВ) и двойной клик по фильму;
+  ТВ выключен — окно не трогается; режим дублирования; разный масштаб (DPI) панели и ТВ.
 - `adev` с реальным `mmdevice` (с `--aout dummy` список пуст) и выбор устройства; «по умолчанию»
   (`id=""`) RC не умеет — компаньон делает это через `setvar.json?obj=aout&name=device&val=`,
   т.е. только при установленных Lua‑страницах.

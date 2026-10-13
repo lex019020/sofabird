@@ -100,8 +100,29 @@
 
 | name | args | cap |
 |---|---|---|
-| `moveToDisplay` | `{"display": int}` | `windowControl` |
-| `listDisplays` | — → ответ `{"t":"displays","id":..,"items":[{"index","name","primary","bounds"}]}` | `windowControl` |
+| `listDisplays` | — → `{"t":"displays","id":..,"items":[{"index","id","name","kind","primary","current","preferred","bounds"}],"preferredId":string?}` | `windowControl` |
+| `moveToDisplay` | `{"displayId": string}` (старое `{"display": int}` тоже принимается) | `windowControl` |
+| `preferredDisplay` | `{"displayId": string \| null}` | `windowControl` |
+
+Мониторы (`listDisplays`):
+- `id` — **устойчивый** идентификатор монитора (путь устройства монитора из `DisplayConfigGetDeviceInfo` /
+  `monitorDevicePath`; если его нет — имя GDI‑устройства `\\.\DISPLAYn`). Не меняется, когда ТВ выключают и
+  включают, в отличие от `index`. Все новые команды работают по `id`.
+- `name` — понятное имя из EDID (`monitorFriendlyDeviceName`, например «LG TV SSCR2»), если пусто — модель/
+  «Экран N»; `kind` — `internal` (встроенная панель ноутбука) или `external` (HDMI/DP/…); `primary` — основной.
+- `current` — сейчас здесь окно VLC; `preferred` — здесь VLC открывается по умолчанию (`preferredId` дублирует).
+
+Поведение компаньона:
+- `moveToDisplay` переносит окно VLC (снять полный экран → переместить → вернуть полный экран, если был) **и
+  запоминает монитор как предпочтительный**. Если VLC не запущен — только запоминает, без ошибки.
+- `preferredDisplay` — только запомнить (`null` — «не управлять»: компаньон не трогает окно VLC).
+- Когда появляется новое окно VLC (запущенное компаньоном **или вручную**, например двойным кликом по фильму),
+  компаньон переносит его на предпочтительный монитор, если он подключён (один раз на окно; если пользователь
+  потом сам перетащит окно — компаньон его не возвращает). Если при запуске компаньоном включён `launchFullscreen`,
+  окно разворачивается на весь экран уже на нужном мониторе.
+- Предпочтительный монитор не подключён (ТВ выключен) — окно не трогается.
+- В `state.system`: `display` (индекс, где сейчас VLC), `displayId` (id монитора, где сейчас VLC),
+  `preferredDisplayId`.
 | `keepAwake` | `{"on": bool}` | `power` |
 | `displayPower` | `{"on": bool}` | `power` |
 | `sleep` / `shutdown` | — | `power` |
@@ -140,7 +161,7 @@
   "video": {"fullscreen": true, "aspect": "default"},
   "delays": {"audio": 0.0, "subtitle": 0.0},
   "flags": {"random": false, "loop": false, "repeat": false},
-  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "keepAwake": true}
+  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true}
 }
 ```
 

@@ -6,6 +6,9 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="VlcWindowNotFound" xml:space="preserve"><value>VLC window not found</value></data>
+  <data name="DisplayFallbackName" xml:space="preserve"><value>Display {0}</value></data>
+  <data name="DisplayBuiltIn" xml:space="preserve"><value>Built-in display</value></data>
+  <data name="DisplayNotConnected" xml:space="preserve"><value>This display is not connected</value></data>
   <data name="VlcNotFoundInstall" xml:space="preserve"><value>VLC was not found on the PC. Install VLC 3.x or set its path in the companion settings.</value></data>
   <data name="VlcStartFailed" xml:space="preserve"><value>Could not start VLC</value></data>
   <data name="VlcExitedImmediately" xml:space="preserve"><value>VLC exited right after starting (code {0}). One-instance mode may be on.</value></data>

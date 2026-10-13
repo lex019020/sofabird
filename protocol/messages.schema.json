@@ -291,13 +291,14 @@
         },
         "name": {
           "enum": [
-            "moveToDisplay",
-            "listDisplays",
-            "keepAwake",
-            "displayPower",
-            "sleep",
-            "shutdown",
             "audioDevice",
+            "displayPower",
+            "keepAwake",
+            "listDisplays",
+            "moveToDisplay",
+            "preferredDisplay",
+            "shutdown",
+            "sleep",
             "systemVolume"
           ]
         },
@@ -682,6 +683,7 @@
             "type": "object",
             "required": [
               "index",
+              "id",
               "name"
             ],
             "properties": {
@@ -710,9 +712,31 @@
                     "type": "integer"
                   }
                 }
+              },
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "internal",
+                  "external",
+                  "unknown"
+                ]
+              },
+              "current": {
+                "type": "boolean"
+              },
+              "preferred": {
+                "type": "boolean"
               }
             }
           }
+        },
+        "preferredId": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -905,6 +929,18 @@
             },
             "keepAwake": {
               "type": "boolean"
+            },
+            "displayId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "preferredDisplayId": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }

@@ -228,6 +228,7 @@ public sealed class Session : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(s.Name)) throw ProtocolException.BadRequest("sys.name is required");
         var reply = await _host.ExecuteSysAsync(s.Name, new CommandArgs(s.Args), ct).ConfigureAwait(false);
         if (reply is null) return new OkMessage { Id = s.Id };
+        if (reply is DisplaysMessage displays) displays.Localize(Culture);
         reply.Id = s.Id;
         return reply;
     }

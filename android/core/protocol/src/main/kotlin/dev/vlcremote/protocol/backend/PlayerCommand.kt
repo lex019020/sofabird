@@ -61,7 +61,19 @@ sealed class PlayerCommand {
 
 /** System-level commands; each needs the corresponding capability (companion only). */
 sealed class SystemCommand {
-    data class MoveToDisplay(val display: Int) : SystemCommand()
+    /**
+     * Move the VLC window to a monitor and remember it as the preferred one (when VLC is closed the
+     * companion only remembers it). [displayId] is the stable `id` from `listDisplays`; companions that
+     * report no ids only understand [legacyIndex] (`{"display": int}`).
+     */
+    data class MoveToDisplay(val displayId: String?, val legacyIndex: Int? = null) : SystemCommand() {
+        init {
+            require(displayId != null || legacyIndex != null) { "displayId or legacyIndex is required" }
+        }
+    }
+
+    /** Only remember the monitor VLC opens on; `null` = the companion does not manage the VLC window. */
+    data class PreferredDisplay(val displayId: String?) : SystemCommand()
     data object ListDisplays : SystemCommand()
     data class KeepAwake(val on: Boolean) : SystemCommand()
     data class DisplayPower(val on: Boolean) : SystemCommand()
