@@ -35,36 +35,63 @@ function New-LocalVersion {
     return [pscustomobject]@{ Root = $root; Suffix = $suffix; Version = "$base-$suffix" }
 }
 
-function Assert-Gh {
-    $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        throw 'GitHub CLI is required: winget install --id GitHub.cli -e; then gh auth login'
-    }
+# ---------------------------------------------------------------- GitHub Releases
+# The repository is public: the REST API and the release files are read anonymously (the API allows 60 requests
+# an hour per IP; a deploy makes two). If that fails (no network to the API, the limit is used up, the repository
+# is private) and the GitHub CLI is installed and logged in, the same requests go through gh.
+
+function Test-GhReady {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return $false }
+    $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script
     & gh auth status *> $null
-    if ($LASTEXITCODE -ne 0) { throw 'gh is not authenticated: run gh auth login' }
+    return $LASTEXITCODE -eq 0
+}
+
+function Invoke-ReleasesApi([string]$Path) {
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $headers = @{ 'User-Agent' = 'vlc-remote-deploy'; 'Accept' = 'application/vnd.github+json' }
+        $result = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/$Path" -Headers $headers -UseBasicParsing
+        return [pscustomobject]@{ Data = $result; ViaGh = $false }
+    } catch {
+        $reason = $_.Exception.Message
+    }
+    if (-not (Test-GhReady)) {
+        throw "Could not read GitHub releases of $Repo ($reason). Check the network, or install the GitHub CLI and run gh auth login."
+    }
+    Write-Note "GitHub API is not reachable anonymously ($reason); using gh"
+    $ErrorActionPreference = 'Continue'
+    $json = & gh api "repos/$Repo/$Path"
+    if ($LASTEXITCODE -ne 0) { throw "gh api repos/$Repo/$Path failed" }
+    # PS 5.1: ConvertFrom-Json returns a JSON array as a single object - the callers unroll it with @().
+    return [pscustomobject]@{ Data = (($json -join "`n") | ConvertFrom-Json); ViaGh = $true }
 }
 
 function Resolve-ReleaseTag {
-    $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
     if ($Tag) { return $Tag }
-    $json = & gh release list --repo $Repo --limit 50 --json tagName,isPrerelease,isDraft,publishedAt
-    if ($LASTEXITCODE -ne 0) { throw "Could not get the list of releases of $Repo" }
-    # PS 5.1: ConvertFrom-Json returns a JSON array as a single object - unroll it with @() before filtering.
-    $all = ($json -join "`n") | ConvertFrom-Json
-    $releases = @($all) | Where-Object { -not $_.isDraft }
-    if ($Channel -eq 'stable') { $releases = $releases | Where-Object { -not $_.isPrerelease } }
-    $latest = $releases | Sort-Object { [datetime]$_.publishedAt } -Descending | Select-Object -First 1
+    $all = (Invoke-ReleasesApi 'releases?per_page=50').Data
+    $releases = @($all) | ForEach-Object { $_ } | Where-Object { -not $_.draft }
+    if ($Channel -eq 'stable') { $releases = $releases | Where-Object { -not $_.prerelease } }
+    $latest = $releases | Sort-Object { [datetime]$_.published_at } -Descending | Select-Object -First 1
     if (-not $latest) { throw "There are no builds in channel '$Channel'" }
-    return $latest.tagName
+    return $latest.tag_name
 }
 
 function Get-ReleaseAsset([string]$ReleaseTag, [string]$Pattern, [string]$Dest) {
-    $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
-    & gh release download $ReleaseTag --repo $Repo --dir $Dest --clobber --pattern $Pattern
-    if ($LASTEXITCODE -ne 0) { throw "Could not download $Pattern from release $ReleaseTag" }
-    $file = Get-ChildItem $Dest -Filter $Pattern | Select-Object -First 1
-    if (-not $file) { throw "Release $ReleaseTag has no file $Pattern" }
-    return $file.FullName
+    $release = Invoke-ReleasesApi "releases/tags/$ReleaseTag"
+    $asset = @($release.Data.assets) | Where-Object { $_.name -like $Pattern } | Select-Object -First 1
+    if (-not $asset) { throw "Release $ReleaseTag has no file $Pattern" }
+    $file = Join-Path $Dest $asset.name
+    Write-Step "Downloading $($asset.name) ($([math]::Round($asset.size / 1MB, 1)) MB)"
+    if ($release.ViaGh) {
+        $ErrorActionPreference = 'Continue'
+        & gh release download $ReleaseTag --repo $Repo --dir $Dest --clobber --pattern $asset.name
+        if ($LASTEXITCODE -ne 0) { throw "Could not download $($asset.name) from release $ReleaseTag" }
+    } else {
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $file -UseBasicParsing -Headers @{ 'User-Agent' = 'vlc-remote-deploy' }
+    }
+    if (-not (Test-Path $file)) { throw "Could not download $($asset.name) from release $ReleaseTag" }
+    return $file
 }
 
 # ---------------------------------------------------------------- companion (Windows)

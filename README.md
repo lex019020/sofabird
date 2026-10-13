@@ -37,10 +37,15 @@ Every merge to `main` publishes a test build to [Releases](https://github.com/le
 with notes from the PR. The companion for Windows and the app for the phone are installed by separate scripts:
 
 ```powershell
-gh release download --repo lex019020/vlc-remote --pattern 'deploy-*' --dir $env:TEMP\vlcremote --clobber
-& $env:TEMP\vlcremote\deploy-windows.ps1   # the companion on this PC
-& $env:TEMP\vlcremote\deploy-android.ps1   # the app on an allowed phone via adb
+$d = "$env:TEMP\vlcremote"; New-Item -ItemType Directory -Force $d | Out-Null
+$tag = @(Invoke-RestMethod 'https://api.github.com/repos/lex019020/vlc-remote/releases?per_page=1')[0].tag_name
+'deploy-lib.ps1', 'deploy-windows.ps1', 'deploy-android.ps1' | ForEach-Object {
+    Invoke-WebRequest "https://github.com/lex019020/vlc-remote/releases/download/$tag/$_" -OutFile "$d\$_" -UseBasicParsing }
+& $d\deploy-windows.ps1   # the companion on this PC
+& $d\deploy-android.ps1   # the app on an allowed phone via adb
 ```
+
+No GitHub account or CLI is needed: the scripts read the public releases anonymously.
 
 From a working copy: `scripts\deploy-windows.ps1`, `scripts\deploy-android.ps1` (the `-Local` switch builds from
 source). All switches are listed in [CLAUDE.md](CLAUDE.md).

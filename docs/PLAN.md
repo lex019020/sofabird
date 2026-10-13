@@ -300,7 +300,7 @@ Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the 
 Criterion: with Wi-Fi off on the phone, the remote keeps working.
 
 ### M4 — Library, history and polish
-- [ ] **Watch history and resume ("Continue watching")**: the companion records every played item (including
+- [x] **Watch history and resume ("Continue watching")**: the companion records every played item (including
       files opened manually on the PC) with position, length, a finished flag and the last-watched time, offers to
       resume on open; the phone shows a "Continue watching" row and a history screen. The companion is the source
       of truth, so several phones share it.
@@ -309,6 +309,11 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       ellipsis or neatly on two; check Russian and English, large font scales (1.3–2.0),
       a narrow screen and landscape. Method: screenshots of all screens from the phone via adb → list of defects →
       fixes → screenshot tests (Roborazzi) for the key screens so that it does not regress.
+- [ ] **Refactoring and code cleanliness** (user request): split the large files and classes (the Remote screen,
+      the companion host, the deploy scripts), remove duplication and dead code, consistent naming and
+      error handling, enable and fix the analysers (detekt/ktlint for Kotlin, .NET analyzers and
+      `TreatWarningsAsErrors` for the companion, PSScriptAnalyzer for the scripts) and run them in CI; no
+      behaviour changes, covered by the existing tests.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
 - [ ] Installer and auto-update for the companion (Velopack).
@@ -331,6 +336,7 @@ iOS via Compose Multiplatform.
       from PRs, stable releases on demand.
 - [x] Deploy scripts for Windows and Android (device allowlist, automatic phone discovery over Wi-Fi debugging).
 - [x] SSH-based remote debugging of the TV laptop (`scripts/dev-laptop.ps1`).
+- [x] Deploy scripts download releases anonymously (public repository), `gh` only as a fallback.
 
 ## 7. Risks and open questions
 
@@ -376,16 +382,11 @@ vlc-remote/
 
 ## 10. Next steps
 
-1. **Finish first-run permissions** (in progress): on the phone — notifications + Bluetooth with an explanation
-   screen; on the PC — a setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
-   VLC configuration, keep-awake.
-2. **Watch history and resume ("Continue watching")** — see M4: the companion records every played item (also manual
-   opens) with position, length, finished flag and last-watched time, offers to resume on open; the phone shows a
-   "Continue watching" row and a history screen; the companion is the source of truth so several phones share it.
-3. **UI layout polish**: no truncated or broken text, alignment, large font scales, both languages, landscape;
-   screenshot tests.
-4. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
-5. **Installer and auto-update for the companion** (Velopack).
-6. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+1. **UI layout polish** (in progress): no truncated or broken text, alignment, large font scales, both languages,
+   landscape; screenshot tests.
+2. **Refactoring and code cleanliness**: large files split, duplication and dead code removed, analysers in CI.
+3. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
+4. **Installer and auto-update for the companion** (Velopack).
+5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.

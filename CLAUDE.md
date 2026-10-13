@@ -105,7 +105,7 @@ messages in English:
 
 | Command | What it does |
 |---|---|
-| `deploy-windows.ps1` | the latest test build of the companion from GitHub Releases (requires `gh auth login`) |
+| `deploy-windows.ps1` | the latest test build of the companion from GitHub Releases (anonymous; `gh` is used only as a fallback) |
 | `-Channel stable` / `-Tag v0.2.0-beta.12` | the latest release / a specific build |
 | `-Local` | build from the working copy and install |
 | `-CheckOnly` | compare the installed version with the latest one |
