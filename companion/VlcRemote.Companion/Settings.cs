@@ -134,10 +134,15 @@ public sealed class Settings
 [JsonSerializable(typeof(Settings))]
 internal sealed partial class SettingsJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// The settings file. <see cref="Load"/> returns the one <see cref="Settings"/> instance the companion shares;
+/// every change goes through <see cref="Update"/>, so concurrent changes are written one at a time.
+/// </summary>
 public sealed class SettingsStore
 {
     private readonly string _path;
     private readonly object _lock = new();
+    private Settings? _current;
 
     public SettingsStore(string path) => _path = path;
 
@@ -164,19 +169,31 @@ public sealed class SettingsStore
         var before = JsonSerializer.Serialize(s, SettingsJsonContext.Default.Settings);
         s.EnsureDefaults();
         var after = JsonSerializer.Serialize(s, SettingsJsonContext.Default.Settings);
-        if (wasNull || before != after) Save(s);
+        lock (_lock)
+        {
+            _current = s;
+            if (wasNull || before != after) Write(s);
+        }
         return s;
     }
 
-    public void Save(Settings settings)
+    /// <summary>Changes the loaded settings and writes them.</summary>
+    public void Update(Action<Settings> change)
     {
         lock (_lock)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            var json = JsonSerializer.Serialize(settings, SettingsJsonContext.Default.Settings);
-            var tmp = _path + ".tmp";
-            File.WriteAllText(tmp, json);
-            File.Move(tmp, _path, overwrite: true);
+            var settings = _current ?? throw new InvalidOperationException("Settings are not loaded");
+            change(settings);
+            Write(settings);
         }
+    }
+
+    private void Write(Settings settings)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        var json = JsonSerializer.Serialize(settings, SettingsJsonContext.Default.Settings);
+        var tmp = _path + ".tmp";
+        File.WriteAllText(tmp, json);
+        File.Move(tmp, _path, overwrite: true);
     }
 }

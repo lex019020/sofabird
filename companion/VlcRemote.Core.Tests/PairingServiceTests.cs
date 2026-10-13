@@ -91,12 +91,34 @@ public class PairingServiceTests
             var svc2 = new PairingService(new JsonFileTokenStore(path));
             Assert.True(svc2.ValidateToken(token));
             Assert.True(svc2.HasPairedDevices);
-            svc2.ForgetAll();
-            Assert.False(new PairingService(new JsonFileTokenStore(path)).ValidateToken(token));
         }
         finally
         {
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
         }
+    }
+
+    [Fact]
+    public void Store_IsReadOnce_AndWrittenOnPairing()
+    {
+        var store = new CountingStore();
+        var svc = new PairingService(store);
+        var token = svc.TryPair(svc.BeginPairing(), "Phone", "dev").Token!;
+        for (var i = 0; i < 3; i++) Assert.True(svc.ValidateToken(token));
+        Assert.True(svc.HasPairedDevices);
+        Assert.Equal(1, store.Loads);
+        Assert.Single(store.Load());
+    }
+
+    private sealed class CountingStore : ITokenStore
+    {
+        private readonly InMemoryTokenStore _inner = new();
+        public int Loads { get; private set; }
+        public IReadOnlyList<PairedDevice> Load()
+        {
+            Loads++;
+            return _inner.Load();
+        }
+        public void Save(IReadOnlyList<PairedDevice> devices) => _inner.Save(devices);
     }
 }

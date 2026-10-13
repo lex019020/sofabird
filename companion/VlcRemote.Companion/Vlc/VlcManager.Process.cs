@@ -66,7 +66,7 @@ public sealed partial class VlcManager
     private async Task StartProcessAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
         var installation = Installation ?? throw ProtocolException.VlcNotRunning(ProtocolText.VlcNotFoundInstall);
-        if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: false);
+        if (_settings.AutoInstallLuaPages) TryInstallLuaPages();
         TryConfigureVlcrc();
 
         // Window placement: the media is opened only after the window is on the target monitor, so the video
@@ -256,10 +256,7 @@ public sealed partial class VlcManager
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < deadline)
         {
-            var procs = VlcLocator.RunningProcesses();
-            var any = procs.Length > 0;
-            foreach (var p in procs) p.Dispose();
-            if (!any) return true;
+            if (!VlcLocator.IsAnyRunning()) return true;
             await Task.Delay(200, ct).ConfigureAwait(false);
         }
         return false;
