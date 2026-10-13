@@ -30,6 +30,14 @@ public sealed class VlcWindowHost : IVlcWindowHost
     public bool MoveWindow(long window, MonitorInfo target) => _display.MoveWindowToMonitor(new IntPtr(window), target);
 
     public bool PlaybackHeld => _vlc.PlaybackHeld;
+
+    public bool RestoreWindow(long window) => DisplayService.RestoreWindow(new IntPtr(window));
+
+    public DateTimeOffset? LastFullscreenAt => _vlc.LastFullscreenAt;
+
+    public bool IsPlaying => _vlc.IsPlaying;
+
+    public Task PauseAsync(CancellationToken ct) => _vlc.PauseAsync(ct);
 }
 
 /// <summary><see cref="IDisplayPreferenceStore"/> over the companion settings file.</summary>

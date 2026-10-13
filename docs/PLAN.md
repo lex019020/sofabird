@@ -318,6 +318,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
 - [ ] Installer and auto-update for the companion (Velopack).
+- [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
+      item in the setup window, tray warning when Windows changes it back); after a monitor change the VLC window
+      returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
+      when it comes back.
 - [ ] Sleep timer, landscape/tablet, settings, true black.
 - [ ] Tests: Compose + Roborazzi screenshots, fake-VLC scenarios, a checklist on real devices.
 

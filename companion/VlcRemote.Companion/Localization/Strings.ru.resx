@@ -96,6 +96,20 @@
   <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Не удалось настроить VLC (подробности в журнале)</value></data>
   <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>
   <data name="SetupKeepAwakeText" xml:space="preserve"><value>Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. После остановки снова действуют обычные настройки электропитания.</value></data>
+  <data name="SetupMediaStationTitle" xml:space="preserve"><value>Этот ПК — медиастанция</value></data>
+  <data name="SetupMediaStationText" xml:space="preserve"><value>Для компьютера или ноутбука у телевизора: он продолжает работать с закрытой крышкой и сам не засыпает и не уходит в гибернацию — и от сети, и от батареи, чтобы его не остановило даже отключение света. Компаньон меняет эти настройки текущей схемы электропитания Windows; если потом снять галочку, они не вернутся назад. Экран по‑прежнему может гаснуть, а телевизор — уходить в дежурный режим.</value></data>
+  <data name="SetupMediaStationOk" xml:space="preserve"><value>✓ Крышку можно закрывать, ПК не засыпает</value></data>
+  <data name="SetupMediaStationOff" xml:space="preserve"><value>Выключено — действуют обычные настройки электропитания Windows</value></data>
+  <data name="SetupMediaStationNow" xml:space="preserve"><value>Сейчас: {0}</value></data>
+  <data name="SetupMediaStationDrift" xml:space="preserve"><value>⚠ Настройки электропитания изменились: {0}. Нажмите «Применить», чтобы вернуть их.</value></data>
+  <data name="SetupMediaStationUnknown" xml:space="preserve"><value>Не удалось прочитать схему электропитания Windows</value></data>
+  <data name="SetupMediaStationFailed" xml:space="preserve"><value>✗ Не удалось изменить схему электропитания ({0}). Подробности в журнале.</value></data>
+  <data name="PowerPluggedIn" xml:space="preserve"><value>от сети</value></data>
+  <data name="PowerOnBattery" xml:space="preserve"><value>от батареи</value></data>
+  <data name="PowerLidStops" xml:space="preserve"><value>закрытие крышки его останавливает ({0})</value></data>
+  <data name="PowerSleepAfter" xml:space="preserve"><value>сон через {0} мин ({1})</value></data>
+  <data name="PowerHibernateAfter" xml:space="preserve"><value>гибернация через {0} мин ({1})</value></data>
+  <data name="BalloonMediaStationDrift" xml:space="preserve"><value>Настройки электропитания медиастанции изменились — ПК может уснуть. Нажмите, чтобы исправить.</value></data>
   <data name="SetupBluetoothTitle" xml:space="preserve"><value>Bluetooth (необязательно)</value></data>
   <data name="SetupBluetoothText" xml:space="preserve"><value>Без Wi‑Fi телефон может управлять ПК по Bluetooth. Разрешений Windows для этого не нужно, но телефон надо один раз сопрячь с этим ПК в параметрах Bluetooth Windows.</value></data>
   <data name="SetupBluetoothOn" xml:space="preserve"><value>✓ Bluetooth включён — телефон сможет подключиться после сопряжения</value></data>

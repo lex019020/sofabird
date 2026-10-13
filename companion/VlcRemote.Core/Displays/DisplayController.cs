@@ -8,8 +8,9 @@ namespace VlcRemote.Core.Displays;
 
 /// <summary>
 /// Monitor selection for the VLC window: <c>listDisplays</c> / <c>moveToDisplay</c> / <c>preferredDisplay</c>
-/// (protocol/README.md, "sys"), the remembered preferred monitor and the one-time placement of every new VLC
-/// window on it. Win32 specifics live behind <see cref="IMonitorSource"/> and <see cref="IVlcWindowHost"/>.
+/// (protocol/README.md, "sys"), the remembered preferred monitor, the one-time placement of every new VLC
+/// window on it and the recovery after a monitor change (<see cref="OnTopologyChanged"/>).
+/// Win32 specifics live behind <see cref="IMonitorSource"/> and <see cref="IVlcWindowHost"/>.
 /// </summary>
 public sealed class DisplayController
 {
@@ -22,6 +23,13 @@ public sealed class DisplayController
     private readonly HashSet<int> _claimedPids = new();
     private readonly HashSet<int> _pendingPids = new();
     private readonly HashSet<long> _handledWindows = new();
+    // Monitor change recovery: the topology and the VLC window's monitor as of the last handled change.
+    private IReadOnlyList<MonitorInfo>? _lastTopology;
+    private string? _lastVlcMonitorId;
+    private bool _awaitingPreferred;
+    private bool _fullscreenWhenLost;
+    private DateTimeOffset? _topologyChangedAt;
+    private CancellationTokenSource? _topologyCts;
 
     public DisplayController(IMonitorSource monitors, IDisplayPreferenceStore prefs, IVlcWindowHost vlc,
         ILogger? log = null, Func<TimeSpan, CancellationToken, Task>? delay = null)
@@ -45,6 +53,15 @@ public sealed class DisplayController
     /// <summary>How long to wait for VLC to become controllable and show video before giving up on fullscreen.</summary>
     public TimeSpan FullscreenWaitTimeout { get; init; } = TimeSpan.FromSeconds(20);
     public TimeSpan FullscreenPollInterval { get; init; } = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// Windows rebuilds the desktop in several steps (a monitor goes, the primary one moves): the reaction waits until
+    /// the changes stop for this long.
+    /// </summary>
+    public TimeSpan TopologySettleDelay { get; init; } = TimeSpan.FromSeconds(2);
+    /// <summary>See <see cref="TopologyRecovery.WasFullscreen"/>; covers the 2 s status polling while paused.</summary>
+    public TimeSpan FullscreenMemory { get; init; } = TimeSpan.FromSeconds(5);
+    public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
 
     /// <summary>The preferred monitor or the VLC window's monitor changed — the state should be pushed.</summary>
     public event Action? Changed;
@@ -108,7 +125,112 @@ public sealed class DisplayController
         if (_vlc.ProcessId is not int pid) return null;
         var window = _vlc.FindMainWindow(pid);
         if (window == 0) return null;
-        return MonitorTopology.FindByGdi(monitors ?? _monitors.GetMonitors(), _vlc.GetWindowMonitor(window));
+        var monitor = MonitorTopology.FindByGdi(monitors ?? _monitors.GetMonitors(), _vlc.GetWindowMonitor(window));
+        // Remembered for the next monitor change; not while one is being handled (Windows has already moved the window).
+        lock (_gate)
+        {
+            if (monitor is not null && _topologyChangedAt is null) _lastVlcMonitorId = monitor.Id;
+        }
+        return monitor;
+    }
+
+    /// <summary>
+    /// The set of monitors changed (called by the monitor source, on any thread). After <see cref="TopologySettleDelay"/>
+    /// without further changes the VLC window is brought back to the preferred monitor — restored and fullscreen again
+    /// if the change knocked it out of fullscreen — or playback is paused when that monitor went away.
+    /// </summary>
+    public void OnTopologyChanged()
+    {
+        var cts = MarkTopologyChanged();
+        _ = Task.Run(async () =>
+        {
+            try { await HandleTopologyChangeAsync(cts.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { _log.LogWarning(ex, "Handling the monitor change failed"); }
+        });
+    }
+
+    /// <summary>Notes the time of the first change of a burst and cancels the pending reaction (the burst goes on).</summary>
+    internal CancellationTokenSource MarkTopologyChanged()
+    {
+        lock (_gate)
+        {
+            _topologyChangedAt ??= Clock();
+            _topologyCts?.Cancel();
+            return _topologyCts = new CancellationTokenSource();
+        }
+    }
+
+    /// <summary>Remembers the current monitors as the baseline for the next change (at startup).</summary>
+    public void CaptureTopology()
+    {
+        var monitors = _monitors.GetMonitors();
+        lock (_gate) _lastTopology ??= monitors;
+    }
+
+    internal async Task<TopologyReaction> HandleTopologyChangeAsync(CancellationToken ct)
+    {
+        await _delay(TopologySettleDelay, ct).ConfigureAwait(false);
+        var after = _monitors.GetMonitors();
+        DateTimeOffset changedAt;
+        TopologyInput input;
+        lock (_gate)
+        {
+            ct.ThrowIfCancellationRequested();
+            changedAt = _topologyChangedAt ?? Clock();
+            _topologyChangedAt = null;
+            input = new TopologyInput(_prefs.PreferredId, _lastVlcMonitorId, _lastTopology ?? after, after, _awaitingPreferred);
+            _lastTopology = after;
+        }
+        var reaction = TopologyRecovery.Decide(input);
+        _log.LogInformation("Monitors changed ({Before} → {After}): {Reaction}", input.Before.Count, after.Count, reaction);
+        switch (reaction)
+        {
+            case TopologyReaction.Restore:
+            {
+                // Back after it was lost: fullscreen as it was then (minutes may have passed).
+                var wasFullscreen = input.AwaitingPreferred ? _fullscreenWhenLost : TopologyRecovery.WasFullscreen(_vlc.LastFullscreenAt, changedAt, FullscreenMemory);
+                lock (_gate) _awaitingPreferred = false;
+                await RestoreVlcWindowAsync(MonitorTopology.FindById(after, input.PreferredId)!, wasFullscreen, ct).ConfigureAwait(false);
+                break;
+            }
+            case TopologyReaction.PreferredLost:
+                lock (_gate)
+                {
+                    // A second loss in a row (another monitor went too) keeps what was known at the first one.
+                    if (!_awaitingPreferred) _fullscreenWhenLost = TopologyRecovery.WasFullscreen(_vlc.LastFullscreenAt, changedAt, FullscreenMemory);
+                    _awaitingPreferred = true;
+                }
+                if (_vlc.ProcessId is not null && _vlc.IsControllable && _vlc.IsPlaying && !_vlc.PlaybackHeld)
+                {
+                    await _vlc.PauseAsync(ct).ConfigureAwait(false);
+                    _log.LogInformation("The display with VLC is gone: playback paused until it is back");
+                }
+                break;
+        }
+        RaiseChanged();
+        return reaction;
+    }
+
+    private async Task RestoreVlcWindowAsync(MonitorInfo target, bool wasFullscreen, CancellationToken ct)
+    {
+        if (_vlc.ProcessId is not int pid) return;
+        var window = _vlc.FindMainWindow(pid);
+        if (window == 0) return;
+        // A minimized window is restored only if the change knocked it out of fullscreen (or it has to move anyway):
+        // one the user minimized on purpose stays minimized.
+        var onTarget = string.Equals(_vlc.GetWindowMonitor(window), target.GdiDeviceName, StringComparison.OrdinalIgnoreCase);
+        var restored = (wasFullscreen || !onTarget) && _vlc.RestoreWindow(window);
+        var moved = !onTarget && await MoveVlcWindowAsync(window, target, ct).ConfigureAwait(false);
+        var fullscreenAgain = false;
+        if (wasFullscreen && _vlc.IsControllable && await _vlc.GetFullscreenAsync(ct).ConfigureAwait(false) == false)
+        {
+            await _vlc.SetFullscreenAsync(true, ct).ConfigureAwait(false);
+            fullscreenAgain = true;
+        }
+        lock (_gate) _lastVlcMonitorId = target.Id;
+        _log.LogInformation("VLC window after the monitor change: on {Name}{Restored}{Moved}{Fullscreen}", target.Name,
+            restored ? ", restored" : "", moved ? ", moved" : "", fullscreenAgain ? ", fullscreen again" : "");
     }
 
     /// <summary>Remember the preferred monitor (<c>null</c>/empty — do not manage the VLC window). Does not move anything.</summary>
@@ -172,6 +294,8 @@ public sealed class DisplayController
             throw ProtocolException.VlcError(ProtocolText.VlcWindowNotFound);
         }
         lock (_gate) _handledWindows.Add(window);
+        // Choosing a display from the phone also brings a minimized VLC back into view there.
+        if (_vlc.RestoreWindow(window)) _log.LogInformation("moveToDisplay: VLC window restored");
         if (!await MoveVlcWindowAsync(window, target, ct).ConfigureAwait(false))
             throw ProtocolException.VlcError(ProtocolText.VlcWindowNotFound);
     }

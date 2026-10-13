@@ -121,7 +121,9 @@ internal static class Program
         var display = new DisplayService(lf.CreateLogger<DisplayService>());
         var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
         var audio = new AudioService(lf.CreateLogger<AudioService>());
-        var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, lf.CreateLogger<CompanionHost>());
+        var audioWatcher = new AudioDeviceWatcher(lf.CreateLogger<AudioDeviceWatcher>());
+        var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
+        var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
@@ -131,7 +133,7 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, power, bluetooth, lf.CreateLogger<SetupBackend>());
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, power, bluetooth, powerPlan, lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
         SetupForm? earlySetup = null;
@@ -194,6 +196,7 @@ internal static class Program
             _ = dnssd.RegisterAsync(Environment.MachineName, settings.WsPort, settings.InstallationId, startupCts.Token);
 
         vlc.Start();
+        audioWatcher.Start();
         if (settings.AutoLaunchVlc && installation is not null)
             _ = Task.Run(async () =>
             {
@@ -205,6 +208,7 @@ internal static class Program
         {
             log.LogInformation("Shutting down");
             power.KeepAwakeEnabled = false;
+            audioWatcher.Dispose();
             dnssd.Dispose();
             await beacon.DisposeAsync();
             await bluetooth.DisposeAsync();
@@ -217,11 +221,12 @@ internal static class Program
         }
 
         using var trayContext = new TrayContext(ui, paths, settings, settingsStore, vlc, pairing, display, sessions, host, power,
-            bluetooth, setup, ShutdownAsync, lf.CreateLogger<TrayContext>());
+            bluetooth, setup, powerPlan, ShutdownAsync, lf.CreateLogger<TrayContext>());
         Volatile.Write(ref tray, trayContext);
         if (Volatile.Read(ref quitRequested)) trayContext.RequestExit();
         else if (showSetup) trayContext.ShowSetupOnStart();
         else if (!earlyShown) trayContext.CheckFirewallOnStart();
+        trayContext.WatchMediaStationPower();
         Application.Run(trayContext);
         quitWait.Unregister(null);
         ui.Dispose();

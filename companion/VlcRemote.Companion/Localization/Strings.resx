@@ -96,6 +96,20 @@ Change wsPort in {2}.</value></data>
   <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Could not configure VLC (details are in the log)</value></data>
   <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Keep the PC awake during a movie</value></data>
   <data name="SetupKeepAwakeText" xml:space="preserve"><value>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</value></data>
+  <data name="SetupMediaStationTitle" xml:space="preserve"><value>This PC is a media station</value></data>
+  <data name="SetupMediaStationText" xml:space="preserve"><value>For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. The companion changes these settings of the current Windows power plan; unticking this later does not change them back. The screen may still turn off, and the TV may go to standby.</value></data>
+  <data name="SetupMediaStationOk" xml:space="preserve"><value>✓ The lid can be closed; the PC does not go to sleep</value></data>
+  <data name="SetupMediaStationOff" xml:space="preserve"><value>Off: the usual Windows power settings apply</value></data>
+  <data name="SetupMediaStationNow" xml:space="preserve"><value>Now: {0}</value></data>
+  <data name="SetupMediaStationDrift" xml:space="preserve"><value>⚠ The power settings were changed: {0}. Press Apply to set them again.</value></data>
+  <data name="SetupMediaStationUnknown" xml:space="preserve"><value>Could not read the Windows power plan</value></data>
+  <data name="SetupMediaStationFailed" xml:space="preserve"><value>✗ Could not change the power plan ({0}). Details are in the log.</value></data>
+  <data name="PowerPluggedIn" xml:space="preserve"><value>plugged in</value></data>
+  <data name="PowerOnBattery" xml:space="preserve"><value>on battery</value></data>
+  <data name="PowerLidStops" xml:space="preserve"><value>closing the lid stops it ({0})</value></data>
+  <data name="PowerSleepAfter" xml:space="preserve"><value>sleep after {0} min ({1})</value></data>
+  <data name="PowerHibernateAfter" xml:space="preserve"><value>hibernation after {0} min ({1})</value></data>
+  <data name="BalloonMediaStationDrift" xml:space="preserve"><value>The power settings of the media station were changed: the PC may go to sleep. Click to fix.</value></data>
   <data name="SetupBluetoothTitle" xml:space="preserve"><value>Bluetooth (optional)</value></data>
   <data name="SetupBluetoothText" xml:space="preserve"><value>Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, but the phone has to be paired with this PC once in the Windows Bluetooth settings.</value></data>
   <data name="SetupBluetoothOn" xml:space="preserve"><value>✓ Bluetooth is on: the phone can connect once it is paired</value></data>

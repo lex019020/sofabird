@@ -1,5 +1,6 @@
 using VlcRemote.Companion.Localization;
 using VlcRemote.Companion.Net;
+using VlcRemote.Core.Power;
 using VlcRemote.Core.Setup;
 
 namespace VlcRemote.Companion.Setup;
@@ -19,6 +20,7 @@ public sealed class SetupForm : Form
     private readonly Item _autostart;
     private readonly Item _vlc;
     private readonly Item _keepAwake;
+    private readonly Item _mediaStation;
     private readonly Item _bluetooth;
     private readonly Label _networkHint;
     private readonly LinkLabel _networkLink;
@@ -77,6 +79,7 @@ public sealed class SetupForm : Form
         _autostart = AddItem(UiText.SetupAutostartTitle, UiText.SetupAutostartText, toggle: true);
         _vlc = AddItem(UiText.SetupVlcTitle, UiText.SetupVlcText, toggle: true);
         _keepAwake = AddItem(UiText.SetupKeepAwakeTitle, UiText.SetupKeepAwakeText, toggle: true);
+        _mediaStation = AddItem(UiText.SetupMediaStationTitle, UiText.SetupMediaStationText, toggle: true);
         _bluetooth = AddItem(UiText.SetupBluetoothTitle, UiText.SetupBluetoothText, toggle: false, last: true);
         _bluetooth.Content.Controls.Add(Link(UiText.SetupOpenBluetoothSettings, () => _backend.OpenBluetoothSettings()));
 
@@ -130,7 +133,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems) item.Status.Text = UiText.SetupChecking;
     }
 
-    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _keepAwake, _bluetooth];
+    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _keepAwake, _mediaStation, _bluetooth];
 
     private static bool HighContrast => SystemInformation.HighContrast;
     private static Color SecondaryText => HighContrast ? SystemColors.WindowText : Color.FromArgb(0x5A, 0x5A, 0x5A);
@@ -310,10 +313,12 @@ public sealed class SetupForm : Form
     {
         if (_choicesInitialized) return;
         _choicesInitialized = true;
-        _firewall.Toggle!.Checked = !s.Completed || s.ManageFirewall;
-        _autostart.Toggle!.Checked = !s.Completed || s.Autostart;
-        _vlc.Toggle!.Checked = s.Vlc != VlcSetupState.NotInstalled && (!s.Completed || s.ConfigureVlc);
+        // Items from an older item set keep what the user chose then; a new item starts ticked.
+        _firewall.Toggle!.Checked = !s.EverCompleted || s.ManageFirewall;
+        _autostart.Toggle!.Checked = !s.EverCompleted || s.Autostart;
+        _vlc.Toggle!.Checked = s.Vlc != VlcSetupState.NotInstalled && (!s.EverCompleted || s.ConfigureVlc);
         _keepAwake.Toggle!.Checked = s.KeepAwake;
+        _mediaStation.Toggle!.Checked = s.MediaStation ?? true;
     }
 
     private void Render(SetupSnapshot s)
@@ -339,6 +344,7 @@ public sealed class SetupForm : Form
             }
 
         SetStatus(_keepAwake, s.KeepAwake ? UiText.SetupOn : UiText.SetupOff, s.KeepAwake ? Tone.Ok : Tone.Neutral);
+        RenderMediaStation(s);
 
         switch (s.Bluetooth)
         {
@@ -349,6 +355,32 @@ public sealed class SetupForm : Form
             default: SetStatus(_bluetooth, UiText.SetupBluetoothNoAdapter, Tone.Neutral); break;
         }
     }
+
+    private void RenderMediaStation(SetupSnapshot s)
+    {
+        if (_result?.MediaStation is { Outcome: StepOutcome.Failed } failed)
+            SetStatus(_mediaStation, UiText.SetupMediaStationFailed(failed.Detail ?? ""), Tone.Error);
+        else if (s.PowerDeviations is null)
+            SetStatus(_mediaStation, UiText.SetupMediaStationUnknown, Tone.Warning);
+        else if (s.PowerDeviations.Count == 0)
+            SetStatus(_mediaStation, UiText.SetupMediaStationOk, Tone.Ok);
+        else if (s.MediaStation == true)
+            SetStatus(_mediaStation, UiText.SetupMediaStationDrift(Describe(s.PowerDeviations)), Tone.Warning);
+        else if (s.MediaStation == false)
+            SetStatus(_mediaStation, UiText.SetupMediaStationOff, Tone.Neutral);
+        else
+            SetStatus(_mediaStation, UiText.SetupMediaStationNow(Describe(s.PowerDeviations)), Tone.Neutral);
+    }
+
+    /// <summary>"closing the lid stops it (on battery), sleep after 10 min (on battery)".</summary>
+    private static string Describe(IReadOnlyList<PowerDeviation> deviations) =>
+        string.Join(", ", deviations.Select(d =>
+        {
+            var source = d.Source == PowerSource.Ac ? UiText.PowerPluggedIn : UiText.PowerOnBattery;
+            if (d.Setting == MediaStationPower.LidClose) return UiText.PowerLidStops(source);
+            var minutes = Math.Max(1, (d.Current + 59) / 60);
+            return d.Setting == MediaStationPower.SleepAfter ? UiText.PowerSleepAfter(minutes, source) : UiText.PowerHibernateAfter(minutes, source);
+        }));
 
     private void RenderFirewall(SetupSnapshot s)
     {
@@ -411,7 +443,8 @@ public sealed class SetupForm : Form
         _busy = true;
         SetEnabled(false);
         _result = null;
-        var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked);
+        var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked,
+            _mediaStation.Toggle!.Checked);
         if (choices.Firewall && _snapshot.Firewall is not { Ok: true })
             SetStatus(_firewall, UiText.SetupFirewallWaiting, Tone.Neutral);
         try

@@ -7,6 +7,7 @@ using VlcRemote.Companion.Setup;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;
+using VlcRemote.Core.Power;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Setup;
 using VlcRemote.Companion.Localization;
@@ -27,6 +28,9 @@ public sealed class TrayContext : ApplicationContext
     private readonly PowerService _power;
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly SetupBackend _setup;
+    private readonly PowerPlanService _powerPlan;
+    private readonly System.Windows.Forms.Timer _powerTimer = new() { Interval = (int)TimeSpan.FromMinutes(30).TotalMilliseconds };
+    private string? _powerWarned;
     private readonly Func<Task> _shutdown;
     private readonly ILogger _log;
     private readonly NotifyIcon _icon;
@@ -52,8 +56,9 @@ public sealed class TrayContext : ApplicationContext
 
     public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, SettingsStore settingsStore, VlcManager vlc,
         PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host, PowerService power,
-        BluetoothRfcommServer bluetooth, SetupBackend setup, Func<Task> shutdown, ILogger<TrayContext> log)
+        BluetoothRfcommServer bluetooth, SetupBackend setup, PowerPlanService powerPlan, Func<Task> shutdown, ILogger<TrayContext> log)
     {
+        _powerPlan = powerPlan;
         _ui = uiMarshaller;
         _paths = paths;
         _settings = settings;
@@ -341,6 +346,42 @@ public sealed class TrayContext : ApplicationContext
         });
     }
 
+    /// <summary>
+    /// Media station: a Windows update or the user may change the power plan back (lid → sleep). Checked shortly
+    /// after the start and every 30 minutes; each new set of changes is reported once, a click opens the setup window.
+    /// </summary>
+    public void WatchMediaStationPower()
+    {
+        _powerTimer.Tick += (_, _) => CheckMediaStationPower();
+        _powerTimer.Start();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Invoke(CheckMediaStationPower);
+        });
+    }
+
+    private void CheckMediaStationPower()
+    {
+        if (_settings.MediaStation != true || _setupForm is { IsDisposed: false })
+        {
+            _powerWarned = null;
+            return;
+        }
+        var deviations = _powerPlan.CheckMediaStation();
+        if (deviations is null) return;
+        if (deviations.Count == 0)
+        {
+            _powerWarned = null;
+            return;
+        }
+        var signature = MediaStationPower.Signature(deviations);
+        if (signature == _powerWarned) return;
+        _powerWarned = signature;
+        _log.LogWarning("Media station power settings were changed: {Deviations}", signature);
+        ShowBalloon(10000, UiText.BalloonMediaStationDrift, ToolTipIcon.Warning, () => ShowSetup(firstRun: false));
+    }
+
     private void ShowSetup(bool firstRun)
     {
         if (_exiting) return;
@@ -471,6 +512,7 @@ public sealed class TrayContext : ApplicationContext
     {
         if (disposing)
         {
+            _powerTimer.Dispose();
             _icon.Dispose();
             _menu.Dispose();
             _iconActive.Dispose();

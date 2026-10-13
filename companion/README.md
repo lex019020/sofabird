@@ -255,6 +255,17 @@ it is opened by hand (double-clicking a movie in Explorer).
 - **Moving the window.** A normal window keeps its size (no larger than the work area) and is centred, a maximized one
   is maximized there as well. A controlled fullscreen VLC is handled via HTTP `fullscreen`; without control (opened
   before vlcrc was configured) a borderless monitor-sized window is simply stretched over the new monitor.
+- **Monitor changes** (laptop lid closed, TV switched off at the mains or unplugged, HDMI re-plugged). Windows rebuilds
+  the desktop in a few steps; 2 s after the last one the companion reacts (`TopologyRecovery` in Core):
+  - the preferred monitor is there and VLC was on it (or its own monitor went away) — the window is restored if the
+    change minimized it, moved back and made **fullscreen again if it was** (closing the lid makes VLC drop fullscreen
+    and minimize). A window the user minimized or moved to another monitor on purpose is left alone;
+  - the preferred monitor went away with VLC on it — playback is **paused**; when the monitor is back, the window
+    returns there (fullscreen as it was), playback stays paused until the phone resumes it;
+  - no preferred monitor — nothing is done.
+
+  A Samsung TV switched off with its remote keeps the HDMI link (measured 2026-10-13: neither the monitor nor its
+  HDMI audio device disappeared), so this matters for lid changes, mains power and cables.
 - **Old format.** `preferredDisplay` (an index) from earlier versions is replaced at the first start with the id of the
   monitor with that index; `moveToDisplay {"display": int}` and `display` in `launch`/`open` are still understood
   (`display` in `launch` is a one-time choice, not remembered).
@@ -325,7 +336,7 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
 
 | File | What |
 |---|---|
-| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
+| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
 | `logs\companion-YYYYMMDD.log` | Serilog, daily rotation, 14 files |
@@ -344,6 +355,7 @@ user presses **Apply**; **Later** closes the window (it opens again at the next 
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (no admin rights) | on |
 | Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes | on |
 | Keep the PC awake during a movie | `keepAwake` | on |
+| This PC is a media station | `mediaStation`: the active power plan gets lid close action "do nothing", sleep and hibernate "never", **plugged in and on battery** (powrprof, no admin rights); unticking does not restore the old values | on |
 | Bluetooth (info only) | nothing: Windows needs no permission; a link opens `ms-settings:bluetooth` to pair the phone | — |
 
 Each item shows its current state (✓ / not set up / ⚠ / ✗ with the reason) and, after Apply, the result. If a
@@ -352,6 +364,9 @@ the network settings (the category is read via `INetworkListManager`; the compan
 
 When the window appears by itself: `setupCompleted` is `false`, or `setupVersion` is lower than
 `SetupPolicy.CurrentVersion` (Core). The tray item **Setup and permissions…** opens it at any time.
+
+With `mediaStation` on, the tray re-checks the power plan 5 s after the start and every 30 minutes; if Windows (an
+update, the user) changed it back, a notification offers to fix it (once per set of changes; a click opens the window).
 
 > **Rule:** every new permission or system change (firewall, registry, files of other programs, power, devices…)
 > must be added as an item of this window, with a short "what and why" text in `tools/gen_localization.py`, and

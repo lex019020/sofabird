@@ -55,6 +55,16 @@ public sealed class Settings
     public int? PreferredDisplay { get; set; }
     /// <summary>Keep the PC/display awake during playback.</summary>
     public bool KeepAwake { get; set; } = true;
+    /// <summary>
+    /// "This PC is a media station" (setup window): the power plan keeps it working with the lid closed and without
+    /// sleep, on mains and on battery; the tray warns when Windows changes that. <c>null</c> — not decided yet.
+    /// </summary>
+    public bool? MediaStation { get; set; }
+    /// <summary>
+    /// VLC output device chosen from the phone (mmdevice endpoint id); when it disappears (TV off) and comes back,
+    /// VLC is switched back to it. <c>null</c> — VLC uses the Windows default device.
+    /// </summary>
+    public string? VlcAudioDevice { get; set; }
     /// <summary>Update the Lua pages in <c>%APPDATA%\vlc\lua\http</c> automatically.</summary>
     public bool AutoInstallLuaPages { get; set; } = true;
     /// <summary>Start VLC automatically when the companion starts.</summary>

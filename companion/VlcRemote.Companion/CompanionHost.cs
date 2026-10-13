@@ -26,7 +26,7 @@ public sealed class CompanionHost : ISessionHost
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
-        DisplayService display, PowerService power, AudioService audio, ILogger<CompanionHost> log)
+        DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -61,7 +61,11 @@ public sealed class CompanionHost : ISessionHost
             FullscreenAfterManualPlacement = () => _settings.LaunchFullscreen,
         };
         Displays.Changed += _vlc.Poke;
+        Displays.CaptureTopology();
         display.TopologyChanged += _vlc.Poke;
+        // Lid closed, TV off/on, HDMI unplugged: VLC back on the TV, or paused while the TV is gone.
+        display.TopologyChanged += Displays.OnTopologyChanged;
+        audioWatcher.DeviceArrived += OnAudioDeviceArrived;
         _vlc.ProcessAppeared += OnVlcProcessAppeared;
         _vlc.LaunchTargetResolver = ResolveLaunchTarget;
         _vlc.PlaceLaunchedWindowAsync = (pid, target, ct) => Displays.PlaceNewWindowAsync(pid, startedBeforeCompanion: false, target, ct);
@@ -139,6 +143,27 @@ public sealed class CompanionHost : ISessionHost
         };
     }
 
+    /// <summary>
+    /// An output device became active. If it is the one chosen from the phone (the TV's HDMI audio after the TV was off),
+    /// VLC is switched back to it: VLC moved to another device when it disappeared and does not return by itself.
+    /// </summary>
+    private void OnAudioDeviceArrived(string id)
+    {
+        var wanted = _settings.VlcAudioDevice;
+        if (string.IsNullOrEmpty(wanted) || !string.Equals(wanted, id, StringComparison.OrdinalIgnoreCase)) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Windows reports the endpoint before audio can be opened on it.
+                await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                if (await _vlc.RestoreAudioDeviceAsync(id, CancellationToken.None).ConfigureAwait(false))
+                    _log.LogInformation("Audio device {Id} is back: VLC switched back to it", id);
+            }
+            catch (Exception ex) { _log.LogWarning(ex, "Switching VLC back to audio device {Id} failed", id); }
+        });
+    }
+
     /// <summary>A VLC opened outside the companion (e.g. a double-click on a movie): place its window once.</summary>
     private void OnVlcProcessAppeared(VlcProcessAppeared appeared)
     {
@@ -197,8 +222,13 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "audioDevice":
-                await _vlc.SetAudioDeviceAsync(args.GetString("id") ?? "", ct).ConfigureAwait(false);
+            {
+                var id = args.GetString("id") ?? "";
+                await _vlc.SetAudioDeviceAsync(id, ct).ConfigureAwait(false);
+                _settings.VlcAudioDevice = id.Length == 0 ? null : id;
+                _settingsStore.Save(_settings);
                 return null;
+            }
 
             case "systemVolume":
             {

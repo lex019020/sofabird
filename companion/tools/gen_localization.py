@@ -141,6 +141,30 @@ UI = [
                            "When playback stops, your usual power settings apply again.",
      "Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. "
      "После остановки снова действуют обычные настройки электропитания."),
+    ("SetupMediaStationTitle", "This PC is a media station", "Этот ПК — медиастанция"),
+    ("SetupMediaStationText", "For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep "
+                              "or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. "
+                              "The companion changes these settings of the current Windows power plan; unticking this later does "
+                              "not change them back. The screen may still turn off, and the TV may go to standby.",
+     "Для компьютера или ноутбука у телевизора: он продолжает работать с закрытой крышкой и сам не засыпает "
+     "и не уходит в гибернацию — и от сети, и от батареи, чтобы его не остановило даже отключение света. "
+     "Компаньон меняет эти настройки текущей схемы электропитания Windows; если потом снять галочку, они не вернутся назад. "
+     "Экран по‑прежнему может гаснуть, а телевизор — уходить в дежурный режим."),
+    ("SetupMediaStationOk", "✓ The lid can be closed; the PC does not go to sleep", "✓ Крышку можно закрывать, ПК не засыпает"),
+    ("SetupMediaStationOff", "Off: the usual Windows power settings apply", "Выключено — действуют обычные настройки электропитания Windows"),
+    ("SetupMediaStationNow", "Now: {0}", "Сейчас: {0}"),
+    ("SetupMediaStationDrift", "⚠ The power settings were changed: {0}. Press Apply to set them again.",
+     "⚠ Настройки электропитания изменились: {0}. Нажмите «Применить», чтобы вернуть их."),
+    ("SetupMediaStationUnknown", "Could not read the Windows power plan", "Не удалось прочитать схему электропитания Windows"),
+    ("SetupMediaStationFailed", "✗ Could not change the power plan ({0}). Details are in the log.",
+     "✗ Не удалось изменить схему электропитания ({0}). Подробности в журнале."),
+    ("PowerPluggedIn", "plugged in", "от сети"),
+    ("PowerOnBattery", "on battery", "от батареи"),
+    ("PowerLidStops", "closing the lid stops it ({0})", "закрытие крышки его останавливает ({0})"),
+    ("PowerSleepAfter", "sleep after {0} min ({1})", "сон через {0} мин ({1})"),
+    ("PowerHibernateAfter", "hibernation after {0} min ({1})", "гибернация через {0} мин ({1})"),
+    ("BalloonMediaStationDrift", "The power settings of the media station were changed: the PC may go to sleep. Click to fix.",
+     "Настройки электропитания медиастанции изменились — ПК может уснуть. Нажмите, чтобы исправить."),
     ("SetupBluetoothTitle", "Bluetooth (optional)", "Bluetooth (необязательно)"),
     ("SetupBluetoothText", "Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, "
                            "but the phone has to be paired with this PC once in the Windows Bluetooth settings.",
