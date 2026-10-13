@@ -56,7 +56,9 @@ android/
     data/servers/       ServerRepository, CompanionServerSync (адреса LAN/Bluetooth из обнаружения → сохранённые ПК)
     data/settings|secrets|net
     service/            PlaybackService (FGS + MediaSession), RemotePlayer (SimpleBasePlayer), ServiceCoordinator
-    ui/                 AppRoot (навигация, строка состояния), remote/, connection/, library/, playlist/, settings/
+    domain/permissions/ PermissionRegistry: the single list of runtime permissions (see "Runtime permissions")
+    ui/                 AppRoot (навигация, строка состояния), remote/, connection/, library/, playlist/, settings/,
+                        permissions/ (first-run screen, Settings → Permissions, shared card and state)
     di/AppModule.kt     Koin
 ```
 
@@ -115,14 +117,15 @@ push `state`, запросы `cmd`/`sys`/`browse`/`getPlaylist` по `id`, `ping
   не сбрасывается, статус не уходит в «Подключение…».
 - В шапке пульта рядом с именем ПК — значок «Wi‑Fi» / «Bluetooth», в строке статуса «Компаньон · Bluetooth»;
   переключение канала — снэкбар «Нет связи с ПК по Wi‑Fi — переключились на Bluetooth» / «Снова по Wi‑Fi».
-- Разрешения: `BLUETOOTH_CONNECT` (Android 12+, «Устройства поблизости») запрашивается только в контексте — при
-  включении настройки, в карточке на пульте «… недоступен по Wi‑Fi», которая появляется, когда LAN упала и
-  Bluetooth мог бы помочь (текст карточки и есть объяснение), или по кнопке «Подключиться по Bluetooth» (сначала
-  диалог с объяснением). Отказ → диалог со ссылкой в настройки приложения. Выключенное радио — системный диалог
-  `ACTION_REQUEST_ENABLE` («Включить»). После разрешения/включения переподключение идёт сразу, без ожидания backoff.
-  `BLUETOOTH`/`BLUETOOTH_ADMIN` — только до Android 11 (`maxSdkVersion="30"`). `BLUETOOTH_SCAN` и геолокация не
-  нужны: используются только сопряжённые устройства (поэтому `cancelDiscovery()` на Android 12+ не вызывается — ему
-  нужен `BLUETOOTH_SCAN`).
+- Permissions: `BLUETOOTH_CONNECT` (Android 12+, "Nearby devices") is requested on the first-run permissions screen
+  (see "Runtime permissions"). In-context requests remain as a fallback and do nothing when it is already granted:
+  turning the setting on, the remote's "… is unavailable over Wi‑Fi" card that appears when the LAN is down and
+  Bluetooth could help (the card text is the rationale), and "Connect via Bluetooth" (a rationale dialog first).
+  A refusal → a dialog linking to the app settings. Radio off → the system `ACTION_REQUEST_ENABLE` dialog ("Turn on").
+  After the permission is granted / the radio is on, the reconnect happens at once, without waiting for the backoff.
+  `BLUETOOTH`/`BLUETOOTH_ADMIN` are declared only up to Android 11 (`maxSdkVersion="30"`). Neither `BLUETOOTH_SCAN` nor
+  location is needed: only bonded devices are used (hence `cancelDiscovery()` is not called on Android 12+ — it needs
+  `BLUETOOTH_SCAN`).
 - Первое подключение по Bluetooth: «Другие способы подключения» → «Подключиться по Bluetooth» → список
   сопряжённых устройств (имя + адрес, компьютеры — `BluetoothClass.Device.Major.COMPUTER` — сверху; кнопка
   «Настройки Bluetooth», список перечитывается при возврате) → `hello` по RFCOMM → тот же `PairingFlow`: код на
@@ -207,6 +210,42 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
 `LifecycleService`, а не `MediaSessionService`: последний сам вызывает `startForeground` с типом
 `mediaPlayback`, что конфликтует с объявленным `connectedDevice`.
 
+**Runtime permissions.** Project rule: every runtime permission is requested **at the first launch, after an
+explanation**, and is listed in one place — `PermissionRegistry.all` (`domain/permissions/AppPermissions.kt`):
+`PermissionItem(kind, permission, minSdk, addedInScreenVersion, title, rationale, without)`. Adding a permission:
+
+1. Declare it in `AndroidManifest.xml`.
+2. Add a `PermissionItem` to the registry with `addedInScreenVersion` = current maximum + 1, a new `PermissionKind`
+   (and its icon in `ui/permissions/PermissionsScreen.kt`), and the three strings in `values/strings.xml` and
+   `values-ru/strings.xml` (name; why it is needed — one sentence; what does not work without it).
+3. Extend `AppPermissionsTest` (filtering by SDK level). An in-context request at the moment of use is optional
+   and only a fallback.
+
+Behaviour:
+
+- First-run screen (`ui/permissions/PermissionsScreen.kt`), shown before the connection screen: title, an intro line
+  and one card per permission that is a runtime permission on this Android version (Notifications — Android 13+,
+  Nearby devices — Android 12+; on Android 8–11 there is nothing to ask and the screen is skipped). "Continue" asks
+  for all of them in one system request (`RequestMultiplePermissions`); if everything is granted the app goes on at
+  once, otherwise the cards show the result ("Allowed" / "Not allowed" / "Blocked" + "Open settings" → the app
+  details page) and the next "Continue" goes on. "Not now" and Back skip.
+- When it is shown: the DataStore key `permissions_screen_version` stores the registry version the user has passed
+  (0 = never). The screen is shown while some applicable item with `addedInScreenVersion` greater than the stored
+  version is not granted; i.e. on the first launch, and once more after an update that added a new permission. If
+  there is nothing to ask, the current version is stored right away, so a permission revoked later in the system
+  settings never brings the screen back (Settings → Permissions and the in-context fallbacks handle that).
+- Status: granted → "Allowed"; `shouldShowRequestPermissionRationale` → "Not allowed" (can ask again); asked before
+  (DataStore `permissions_requested`, filled by every request in the app) and no rationale → "Blocked" (only the
+  app settings can grant it). Pure function `permissionStatus`, covered by tests.
+- Settings → "Permissions": the same cards with the current status and "Allow" / "Open settings"; statuses are
+  re-read on resume (returning from the system settings).
+- Fallbacks: the notification request on connect fires only if the user skipped the screen and was never asked
+  (not after answering the system dialog); the Bluetooth requests stay where they were.
+- Test hook (no data loss):
+  `adb shell am start -S -n <package>/dev.vlcremote.app.ui.MainActivity --ez show_permissions true` shows the screen
+  again; `adb shell pm revoke <package> android.permission.BLUETOOTH_CONNECT` (and `POST_NOTIFICATIONS`) to start
+  from scratch; `adb shell pm clear <package>` resets everything, including pairings.
+
 **Аппаратные клавиши громкости**: `MainActivity.dispatchKeyEvent` при включённой настройке и живом
 соединении шлёт `volume&val=` на ПК и показывает результат снэкбаром; иначе — штатное поведение.
 
@@ -285,3 +324,14 @@ MulticastLock, «потеря» с задержкой 3 с), UDP‑маяк `VLC
     7. Старый компаньон (без `id`): список по индексам, переключатель = где VLC, «Не управлять» нет, при закрытом VLC
        строки неактивны с подсказкой обновить компаньон.
     8. Пульт по Bluetooth: перенос работает так же.
+15. **First-run permissions** (Galaxy S24, Android 16). Reset: `adb shell pm clear dev.vlcremote.app` (forgets
+    pairings) or `pm revoke` both permissions + the `show_permissions` hook above.
+    1. Fresh start → the "Permissions" screen before "Connection": two cards (Notifications, Nearby devices), nothing
+       cut off; also with the largest font size and in Russian.
+    2. "Continue" → two system dialogs in a row → both allowed → straight to "Connection"; the in-context notification
+       request does not appear on connect; the Bluetooth fallback (Wi‑Fi off) works without any dialog.
+    3. Refuse one → the card shows "Not allowed", "Continue" goes on. Refuse twice (or "Don't allow" again from
+       Settings → Permissions) → "Blocked" + "Open settings" opens the app details page; after allowing there and
+       returning, the status is "Allowed".
+    4. "Not now" → "Connection"; on the first connection Android asks for notifications once (fallback).
+    5. Restart the app → the screen does not appear again.

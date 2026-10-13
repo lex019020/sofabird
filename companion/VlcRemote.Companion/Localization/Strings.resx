@@ -54,4 +54,54 @@ Change wsPort in {2}.</value></data>
   <data name="BalloonLuaDeferred" xml:space="preserve"><value>VLC is running: the pages will be installed automatically after it closes.</value></data>
   <data name="BalloonLuaFailed" xml:space="preserve"><value>Could not install the Lua pages (see the log).</value></data>
   <data name="BalloonAutostartFailed" xml:space="preserve"><value>Could not change autostart: {0}</value></data>
+  <data name="BalloonFirewallBlocked" xml:space="preserve"><value>Windows Firewall blocks the phone from connecting. Click to fix it.</value></data>
+  <data name="BalloonFirewallMissing" xml:space="preserve"><value>Network access for the phone is not set up. Click to allow it.</value></data>
+  <data name="TraySetup" xml:space="preserve"><value>Setup and permissions…</value></data>
+  <data name="SetupTitle" xml:space="preserve"><value>VLC Remote: setup and permissions</value></data>
+  <data name="SetupHeader" xml:space="preserve"><value>Set up this PC for the remote</value></data>
+  <data name="SetupIntro" xml:space="preserve"><value>So that the phone can control VLC, the companion needs a few permissions and settings on this PC. Here is what each of them does and why it is needed. Nothing changes until you press Apply.</value></data>
+  <data name="SetupChecking" xml:space="preserve"><value>Checking…</value></data>
+  <data name="SetupOn" xml:space="preserve"><value>✓ On</value></data>
+  <data name="SetupOff" xml:space="preserve"><value>Off</value></data>
+  <data name="SetupFooterNote" xml:space="preserve"><value>You can open this window at any time from the tray icon menu: “Setup and permissions…”.</value></data>
+  <data name="SetupApply" xml:space="preserve"><value>Apply</value></data>
+  <data name="SetupLater" xml:space="preserve"><value>Later</value></data>
+  <data name="SetupClose" xml:space="preserve"><value>Close</value></data>
+  <data name="SetupFirewallTitle" xml:space="preserve"><value>Network access (Windows Firewall)</value></data>
+  <data name="SetupFirewallText" xml:space="preserve"><value>The phone connects to this PC over Wi‑Fi, and Windows blocks incoming connections until you allow them. The companion will allow itself and VLC to accept connections on private (home) networks only. Windows will ask for administrator permission once.</value></data>
+  <data name="SetupFirewallOk" xml:space="preserve"><value>✓ Allowed on private networks</value></data>
+  <data name="SetupFirewallOff" xml:space="preserve"><value>✓ Windows Firewall is off for private networks: nothing to allow</value></data>
+  <data name="SetupFirewallMissing" xml:space="preserve"><value>Not allowed yet: Windows will block the phone</value></data>
+  <data name="SetupFirewallBlocked" xml:space="preserve"><value>⚠ A firewall rule blocks {0} (usually left by “Cancel” in a Windows prompt). Apply removes it.</value></data>
+  <data name="SetupProgramCompanion" xml:space="preserve"><value>the companion</value></data>
+  <data name="SetupProgramVlc" xml:space="preserve"><value>VLC</value></data>
+  <data name="SetupAnd" xml:space="preserve"><value>{0} and {1}</value></data>
+  <data name="SetupFirewallUnknown" xml:space="preserve"><value>Could not read the firewall rules: {0}</value></data>
+  <data name="SetupFirewallWaiting" xml:space="preserve"><value>Waiting for administrator permission: confirm the Windows prompt…</value></data>
+  <data name="SetupFirewallCancelled" xml:space="preserve"><value>⚠ Administrator permission was not given. Press Apply to try again, or allow access when Windows asks.</value></data>
+  <data name="SetupFirewallFailed" xml:space="preserve"><value>✗ Could not change the firewall rules ({0}). Details are in the log.</value></data>
+  <data name="SetupFirewallNotManaged" xml:space="preserve"><value>Not managed by the companion: allow access yourself when Windows asks</value></data>
+  <data name="SetupPublicNetwork" xml:space="preserve"><value>⚠ The network “{0}” is public. Windows does not let the phone in on public networks: make it private in the network settings.</value></data>
+  <data name="SetupOpenNetworkSettings" xml:space="preserve"><value>Open network settings</value></data>
+  <data name="SetupAutostartTitle" xml:space="preserve"><value>Start with Windows</value></data>
+  <data name="SetupAutostartText" xml:space="preserve"><value>The companion starts when you sign in to Windows, so the phone can control VLC without anyone touching the PC. It uses your own startup list; no administrator rights are needed.</value></data>
+  <data name="SetupAutostartFailed" xml:space="preserve"><value>✗ Could not change autostart: {0}</value></data>
+  <data name="SetupVlcTitle" xml:space="preserve"><value>Configure VLC for phone control</value></data>
+  <data name="SetupVlcText" xml:space="preserve"><value>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles.</value></data>
+  <data name="SetupVlcConfigured" xml:space="preserve"><value>✓ VLC is configured</value></data>
+  <data name="SetupVlcNotConfigured" xml:space="preserve"><value>Not configured yet</value></data>
+  <data name="SetupVlcRunning" xml:space="preserve"><value>VLC is running: its settings will be written after it closes</value></data>
+  <data name="SetupVlcNotInstalled" xml:space="preserve"><value>VLC is not installed. Install VLC 3.x, then open this window again from the tray menu.</value></data>
+  <data name="SetupVlcOff" xml:space="preserve"><value>Off: VLC's settings stay as they are</value></data>
+  <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Could not configure VLC (details are in the log)</value></data>
+  <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Keep the PC awake during a movie</value></data>
+  <data name="SetupKeepAwakeText" xml:space="preserve"><value>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</value></data>
+  <data name="SetupBluetoothTitle" xml:space="preserve"><value>Bluetooth (optional)</value></data>
+  <data name="SetupBluetoothText" xml:space="preserve"><value>Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, but the phone has to be paired with this PC once in the Windows Bluetooth settings.</value></data>
+  <data name="SetupBluetoothOn" xml:space="preserve"><value>✓ Bluetooth is on: the phone can connect once it is paired</value></data>
+  <data name="SetupBluetoothStarting" xml:space="preserve"><value>Bluetooth is starting…</value></data>
+  <data name="SetupBluetoothRadioOff" xml:space="preserve"><value>Bluetooth is turned off on this PC</value></data>
+  <data name="SetupBluetoothNoAdapter" xml:space="preserve"><value>No Bluetooth adapter: the phone will connect over Wi‑Fi only</value></data>
+  <data name="SetupBluetoothDisabled" xml:space="preserve"><value>Turned off in the companion settings (bluetooth: false)</value></data>
+  <data name="SetupOpenBluetoothSettings" xml:space="preserve"><value>Open Bluetooth settings</value></data>
 </root>

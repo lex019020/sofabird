@@ -68,7 +68,7 @@ public sealed class VlcManager : IAsyncDisposable
     private int _consecutiveHttpFailures;
     private CancellationTokenSource? _postOpenCts;
     private string? _lastAudioDevice;
-    private readonly VlcrcConfigurator? _vlcrc;
+    private readonly VlcrcConfigurator _vlcrc;
     private int? _noControlNotifiedPid;
     private int? _announcedPid;
     private volatile bool _launchInProgress;
@@ -86,8 +86,8 @@ public sealed class VlcManager : IAsyncDisposable
         _rc.StatusChanged += OnRcStatusChanged;
         RunState = installation is null ? VlcRunState.NotInstalled : VlcRunState.NotRunning;
         Info = new VlcInfo { Running = false, Status = ToStatus(RunState), Version = installation?.Version, Level = 2 };
-        if (settings.ConfigureVlc)
-            _vlcrc = new VlcrcConfigurator(settings.VlcrcPath ?? VlcrcConfigurator.DefaultPath, lf.CreateLogger<VlcrcConfigurator>());
+        // Always created: ConfigureVlc can be turned on at run time from the setup window.
+        _vlcrc = new VlcrcConfigurator(settings.VlcrcPath ?? VlcrcConfigurator.DefaultPath, lf.CreateLogger<VlcrcConfigurator>());
     }
 
     /// <summary><see cref="VlcRunState"/> → <c>vlc.status</c> протокола.</summary>
@@ -831,7 +831,7 @@ public sealed class VlcManager : IAsyncDisposable
     /// </summary>
     public VlcrcResult? TryConfigureVlcrc()
     {
-        if (_vlcrc is null || Installation is null) return null;
+        if (!_settings.ConfigureVlc || Installation is null) return null;
         try
         {
             var procs = VlcLocator.RunningProcesses();
@@ -845,6 +845,20 @@ public sealed class VlcManager : IAsyncDisposable
             _log.LogWarning(ex, "Configuring {Path} failed", _vlcrc.Path);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Read-only: VLC is set up for phone control (vlcrc has our interfaces and password, Lua pages are current).
+    /// <c>null</c> when VLC is not installed.
+    /// </summary>
+    public bool? IsConfiguredForPhone()
+    {
+        if (Installation is null) return null;
+        var rc = _vlcrc.IsConfigured(new VlcrcSettings(_settings.VlcHttpPort, _settings.VlcHttpPassword ?? "", _settings.VlcRcPort));
+        bool lua;
+        try { lua = _lua is null || !_lua.NeedsInstall(Installation.Version); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { lua = false; }
+        return rc && lua;
     }
 
     // ------------------------------------------------------------------ Lua pages

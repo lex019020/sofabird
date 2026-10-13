@@ -21,13 +21,17 @@ companion/
 │   ├── Bluetooth/             BluetoothFormat (адрес AA:BB:…, кодирование атрибута SDP)
 │   ├── Displays/              MonitorTopology (имена/id/тип мониторов), DisplayController (sys‑команды экранов,
 │   │                          предпочтительный монитор, разовый перенос нового окна VLC), AutoPlacement
-│   └── Lua/                   LuaPagesInstaller (копия штатных страниц VLC + наши в %APPDATA%)
+│   ├── Lua/                   LuaPagesInstaller (копия штатных страниц VLC + наши в %APPDATA%)
+│   └── Setup/                 FirewallPlanner (which firewall rules allow/block, what to remove/add), SetupPolicy
+│                              (when the setup window and the startup notice appear)
 ├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: трей, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (служба RFCOMM, M3)
 │   ├── Vlc/                   VlcLocator, VlcManager (процесс, опрос, RC, команды), EmbeddedLuaPages
 │   ├── Services/              DisplayService (мониторы через CCD API, окно VLC), VlcWindowHost, PowerService,
 │   │                          AudioService, AutostartService
+│   ├── Setup/                 SetupForm (setup and permissions window), SetupBackend, ComFirewallRuleSource (COM
+│   │                          HNetCfg.FwPolicy2), FirewallElevation (elevated --apply-firewall helper), NetworkCategories
 │   └── Tray/                  TrayContext (меню), PairingForm (код на экране ТВ), TrayIconFactory
 ├── VlcRemote.Core.Tests/      xunit: парсеры на реальных ответах VLC 3.0.23 (docs/research/samples), сессия, сопряжение
 └── lua/                       Lua‑страницы уровня 1 и install.ps1 (работают и без компаньона)
@@ -81,6 +85,11 @@ dotnet publish companion\VlcRemote.Companion -c Release -r win-x64 --self-contai
 
 ## Что делает при запуске
 
+0. **Setup and permissions window** on the first start (and once more after an update that adds an item) — see
+   "Setup and permissions" below. If the firewall has no rules for the companion/VLC yet, the window is shown
+   *before* the network listeners start, so Windows never shows its own "allow access" prompt. Otherwise it opens
+   next to the running companion. On every later start the companion checks the firewall and offers a fix in a tray
+   notification (see below).
 1. Поднимает Kestrel на `0.0.0.0:47555`: `ws://…/ws` (NDJSON‑сессия), `GET /info` (без
    авторизации), `GET /art?plId=N` (заголовок `Authorization: Bearer <token>`, проксирует `/art` VLC).
 2. Отвечает на UDP‑маяк `VLCREMOTE_DISCOVER 1` на порту 47556 unicast‑JSON `{"t":"beacon",…}`.
@@ -256,6 +265,7 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
 - **Перенести VLC на экран ▸** — мониторы с понятными именами, галочка — предпочтительный (на нём открывается
   VLC); щелчок = перенести окно и запомнить, как с телефона; **Не управлять экраном** — забыть
   (см. «Экран для VLC»);
+- **Setup and permissions…** — the setup window (state re-read on every open);
 - **Установить Lua‑страницы**, **Автозапуск** (`HKCU\…\Run`), **Не давать ПК уснуть во время фильма**;
 - **Открыть журнал**, **Открыть папку настроек**, **Выход**.
 
@@ -265,26 +275,66 @@ Wi‑Fi и сам переходит на Bluetooth, если ПК в сети �
 
 | Файл | Что |
 |---|---|
-| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (предпочтительный монитор; старый `preferredDisplay` переносится сам), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId` |
+| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (предпочтительный монитор; старый `preferredDisplay` переносится сам), `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | сопряжённые устройства: SHA‑256 токена, имя, id, дата |
 | `logs\companion-YYYYMMDD.log` | Serilog, ротация по дням, 14 файлов |
 
 Пароль HTTP‑интерфейса VLC в журнал не пишется.
 
-## Брандмауэр
+## Setup and permissions
 
-При первом `listen` Windows покажет диалог «Оповещение системы безопасности». Нажмите
-**Разрешить доступ** для частных сетей. Кнопка **Отмена** молча создаёт блокирующие правила для
-exe — тогда телефон не увидит ПК; правила придётся удалить вручную
-(`Параметры → Брандмауэр → Разрешить взаимодействие с приложением`) или добавить от администратора:
+Every permission the companion needs and every change it makes to the system is listed in one window,
+**"Setup and permissions"** (`Setup/SetupForm.cs`), with what it is and why it is needed. Nothing changes until the
+user presses **Apply**; **Later** closes the window (it opens again at the next start until it is completed).
+
+| Item | What Apply does | Default |
+|---|---|---|
+| Network access (Windows Firewall) | allow rules for the companion and VLC, **private networks only**; removes rules that block them (one UAC prompt, see below) | on |
+| Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (no admin rights) | on |
+| Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes | on |
+| Keep the PC awake during a movie | `keepAwake` | on |
+| Bluetooth (info only) | nothing: Windows needs no permission; a link opens `ms-settings:bluetooth` to pair the phone | — |
+
+Each item shows its current state (✓ / not set up / ⚠ / ✗ with the reason) and, after Apply, the result. If a
+connected network is **public**, the firewall item warns that Windows will not let the phone in there and links to
+the network settings (the category is read via `INetworkListManager`; the companion does not change it).
+
+When the window appears by itself: `setupCompleted` is `false`, or `setupVersion` is lower than
+`SetupPolicy.CurrentVersion` (Core). The tray item **Setup and permissions…** opens it at any time.
+
+> **Rule:** every new permission or system change (firewall, registry, files of other programs, power, devices…)
+> must be added as an item of this window, with a short "what and why" text in `tools/gen_localization.py`, and
+> `SetupPolicy.CurrentVersion` must be bumped so users who completed the window see it once more.
+
+### Firewall
+
+Windows shows its "allow access" prompt the first time a program listens on the network. **Cancel** there silently
+creates **block** rules, and block wins over allow — the phone then cannot find the PC. The companion therefore
+manages the rules itself:
+
+- **Detection** (no admin rights): COM `HNetCfg.FwPolicy2` (`ComFirewallRuleSource`), only rules bound to
+  `VlcRemote.Companion.exe` / `vlc.exe`. A program is *allowed* when an enabled inbound allow rule for its path covers
+  the private profile and TCP (plus UDP for the companion's discovery beacon); it is *blocked* when an enabled inbound
+  block rule for it covers the private profile. Block rules for the public profile only (left by "Allow" with only
+  "Private networks" ticked) are fine and kept. Decisions are pure functions in Core (`FirewallPlanner`,
+  `SetupPolicy`) with unit tests.
+- **Applying** needs admin rights, the companion runs without them. It starts **one elevated copy of itself**
+  (`Verb=runas`, one UAC prompt):
+  `VlcRemote.Companion.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>"`.
+  The helper removes the blocking rules, replaces our own rules for these paths with fresh ones — inbound allow,
+  **private profile**, any protocol, names `VLC Remote Companion` and `VLC (VLC Remote)` (the same as
+  `deploy-windows.ps1 -Firewall`), group `VLC Remote` — reads the rules again and exits: `0` OK, `2` bad arguments,
+  `3` error, `4` rules still not right (e.g. a Group Policy rule). It logs every change to the companion log and never
+  starts the tray, the listeners or VLC. Declined UAC → the window says so; Apply can be pressed again.
+- **Every start** (when `manageFirewall` is on): if a block rule exists, or the allow rules are gone after the window
+  was completed, a tray notification offers the fix; a click opens the window.
+
+Manual equivalent (administrator PowerShell):
 
 ```powershell
-netsh advfirewall firewall add rule name="VLC Remote Companion" dir=in action=allow program="<путь к exe>" protocol=TCP localport=47555 profile=private remoteip=localsubnet
-netsh advfirewall firewall add rule name="VLC Remote Companion UDP" dir=in action=allow program="<путь к exe>" protocol=UDP localport=47556 profile=private remoteip=localsubnet
+netsh advfirewall firewall add rule name="VLC Remote Companion" dir=in action=allow profile=private program="<path to VlcRemote.Companion.exe>" enable=yes
+netsh advfirewall firewall add rule name="VLC (VLC Remote)" dir=in action=allow profile=private program="C:\Program Files\VideoLAN\VLC\vlc.exe" enable=yes
 ```
-
-Такой же диалог появится для `vlc.exe`, если его HTTP‑интерфейс слушает `0.0.0.0` (прямой режим
-с телефона). Компаньон сам ходит к VLC только через `127.0.0.1`.
 
 ## Что проверено на этом ПК (один монитор, VLC 3.0.23)
 
@@ -308,6 +358,15 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
   снимает службу. Кадрирование RFCOMM (`StreamLineTransport`) — юнит‑тесты.
 
 ### Проверить на ноутбуке у ТВ
+
+- Setup window: first start with a fresh data dir (`--data-dir`) — the window appears before the listeners when rules
+  are missing; Apply → exactly one UAC prompt, rules `VLC Remote Companion` / `VLC (VLC Remote)` (private profile,
+  group "VLC Remote") appear, no Windows "allow access" prompt afterwards, the phone connects. Declining UAC → "not
+  given" status, Apply again works. With the existing allow rules (current state of the laptop) the window opens
+  next to the running companion with ✓ for network access. A block rule created by hand
+  (`netsh advfirewall firewall add rule name=test dir=in action=block profile=private program=<companion exe>`) →
+  tray notification at the next start, Apply removes it. Text must not be cut at the laptop's and the TV's DPI
+  (window moved between them), in English and Russian Windows.
 
 - Мониторы (встроенная панель + ТВ по HDMI): имена и `kind` в `listDisplays`/журнале, id ТВ после выключения и
   включения ТВ; перенос окна VLC (обычного, развёрнутого, полноэкранного под управлением и без него) и обратно;
@@ -334,4 +393,4 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 
 - **Velopack** — установщик и обновления; сейчас exe запускается откуда угодно, автозапуск через `HKCU\Run`.
 - **TMDB / библиотека** (M4) — разбор имён файлов, постеры.
-- **UAC‑помощник для брандмауэра**, TLS с пиннингом, HDMI‑CEC.
+- TLS с пиннингом, HDMI‑CEC.

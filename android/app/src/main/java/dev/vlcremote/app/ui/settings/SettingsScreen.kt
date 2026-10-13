@@ -36,6 +36,7 @@ import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.ThemeMode
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
+import dev.vlcremote.app.ui.permissions.PermissionsSettingsSection
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -129,6 +130,11 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 subtitle = stringResource(R.string.settings_keep_connection_hint),
                 checked = s.keepConnectionInBackground,
             ) { v -> viewModel.update { it.copy(keepConnectionInBackground = v) } }
+
+            PermissionsSettingsSection(Modifier.padding(vertical = 4.dp)) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                Section(stringResource(R.string.settings_permissions))
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_about))

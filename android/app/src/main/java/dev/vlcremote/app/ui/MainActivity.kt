@@ -20,10 +20,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Test hook (adb): `am start -S -n <package>/dev.vlcremote.app.ui.MainActivity --ez show_permissions true`
+        // shows the first-run permissions screen again without clearing the app data.
+        val forcePermissions = savedInstanceState == null && intent?.getBooleanExtra(EXTRA_SHOW_PERMISSIONS, false) == true
         setContent {
             val prefs by settings.settings.collectAsStateWithLifecycle()
             VlcRemoteTheme(prefs) {
-                AppRoot()
+                AppRoot(forcePermissionsScreen = forcePermissions)
             }
         }
     }
@@ -46,5 +49,9 @@ class MainActivity : ComponentActivity() {
             controller.adjustVolume(delta)
         }
         return true // swallow ACTION_UP too, so the system slider never appears
+    }
+
+    companion object {
+        const val EXTRA_SHOW_PERMISSIONS = "show_permissions"
     }
 }

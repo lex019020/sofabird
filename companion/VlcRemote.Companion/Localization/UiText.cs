@@ -106,4 +106,104 @@ internal static class UiText
     public static string BalloonLuaFailed => S("BalloonLuaFailed");
     /// <summary>Could not change autostart: {0}</summary>
     public static string BalloonAutostartFailed(object a0) => F("BalloonAutostartFailed", a0);
+    /// <summary>Windows Firewall blocks the phone from connecting. Click to fix it.</summary>
+    public static string BalloonFirewallBlocked => S("BalloonFirewallBlocked");
+    /// <summary>Network access for the phone is not set up. Click to allow it.</summary>
+    public static string BalloonFirewallMissing => S("BalloonFirewallMissing");
+    /// <summary>Setup and permissions…</summary>
+    public static string TraySetup => S("TraySetup");
+    /// <summary>VLC Remote: setup and permissions</summary>
+    public static string SetupTitle => S("SetupTitle");
+    /// <summary>Set up this PC for the remote</summary>
+    public static string SetupHeader => S("SetupHeader");
+    /// <summary>So that the phone can control VLC, the companion needs a few permissions and settings on this PC. Here is what each of them does and why it is needed. Nothing changes until you press Apply.</summary>
+    public static string SetupIntro => S("SetupIntro");
+    /// <summary>Checking…</summary>
+    public static string SetupChecking => S("SetupChecking");
+    /// <summary>✓ On</summary>
+    public static string SetupOn => S("SetupOn");
+    /// <summary>Off</summary>
+    public static string SetupOff => S("SetupOff");
+    /// <summary>You can open this window at any time from the tray icon menu: “Setup and permissions…”.</summary>
+    public static string SetupFooterNote => S("SetupFooterNote");
+    /// <summary>Apply</summary>
+    public static string SetupApply => S("SetupApply");
+    /// <summary>Later</summary>
+    public static string SetupLater => S("SetupLater");
+    /// <summary>Close</summary>
+    public static string SetupClose => S("SetupClose");
+    /// <summary>Network access (Windows Firewall)</summary>
+    public static string SetupFirewallTitle => S("SetupFirewallTitle");
+    /// <summary>The phone connects to this PC over Wi‑Fi, and Windows blocks incoming connections until you allow them. The companion will allow itself and VLC to accept connections on private (home) networks only. Windows will ask for administrator permission once.</summary>
+    public static string SetupFirewallText => S("SetupFirewallText");
+    /// <summary>✓ Allowed on private networks</summary>
+    public static string SetupFirewallOk => S("SetupFirewallOk");
+    /// <summary>✓ Windows Firewall is off for private networks: nothing to allow</summary>
+    public static string SetupFirewallOff => S("SetupFirewallOff");
+    /// <summary>Not allowed yet: Windows will block the phone</summary>
+    public static string SetupFirewallMissing => S("SetupFirewallMissing");
+    /// <summary>⚠ A firewall rule blocks {0} (usually left by “Cancel” in a Windows prompt). Apply removes it.</summary>
+    public static string SetupFirewallBlocked(object a0) => F("SetupFirewallBlocked", a0);
+    /// <summary>the companion</summary>
+    public static string SetupProgramCompanion => S("SetupProgramCompanion");
+    /// <summary>VLC</summary>
+    public static string SetupProgramVlc => S("SetupProgramVlc");
+    /// <summary>{0} and {1}</summary>
+    public static string SetupAnd(object a0, object a1) => F("SetupAnd", a0, a1);
+    /// <summary>Could not read the firewall rules: {0}</summary>
+    public static string SetupFirewallUnknown(object a0) => F("SetupFirewallUnknown", a0);
+    /// <summary>Waiting for administrator permission: confirm the Windows prompt…</summary>
+    public static string SetupFirewallWaiting => S("SetupFirewallWaiting");
+    /// <summary>⚠ Administrator permission was not given. Press Apply to try again, or allow access when Windows asks.</summary>
+    public static string SetupFirewallCancelled => S("SetupFirewallCancelled");
+    /// <summary>✗ Could not change the firewall rules ({0}). Details are in the log.</summary>
+    public static string SetupFirewallFailed(object a0) => F("SetupFirewallFailed", a0);
+    /// <summary>Not managed by the companion: allow access yourself when Windows asks</summary>
+    public static string SetupFirewallNotManaged => S("SetupFirewallNotManaged");
+    /// <summary>⚠ The network “{0}” is public. Windows does not let the phone in on public networks: make it private in the network settings.</summary>
+    public static string SetupPublicNetwork(object a0) => F("SetupPublicNetwork", a0);
+    /// <summary>Open network settings</summary>
+    public static string SetupOpenNetworkSettings => S("SetupOpenNetworkSettings");
+    /// <summary>Start with Windows</summary>
+    public static string SetupAutostartTitle => S("SetupAutostartTitle");
+    /// <summary>The companion starts when you sign in to Windows, so the phone can control VLC without anyone touching the PC. It uses your own startup list; no administrator rights are needed.</summary>
+    public static string SetupAutostartText => S("SetupAutostartText");
+    /// <summary>✗ Could not change autostart: {0}</summary>
+    public static string SetupAutostartFailed(object a0) => F("SetupAutostartFailed", a0);
+    /// <summary>Configure VLC for phone control</summary>
+    public static string SetupVlcTitle => S("SetupVlcTitle");
+    /// <summary>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles.</summary>
+    public static string SetupVlcText => S("SetupVlcText");
+    /// <summary>✓ VLC is configured</summary>
+    public static string SetupVlcConfigured => S("SetupVlcConfigured");
+    /// <summary>Not configured yet</summary>
+    public static string SetupVlcNotConfigured => S("SetupVlcNotConfigured");
+    /// <summary>VLC is running: its settings will be written after it closes</summary>
+    public static string SetupVlcRunning => S("SetupVlcRunning");
+    /// <summary>VLC is not installed. Install VLC 3.x, then open this window again from the tray menu.</summary>
+    public static string SetupVlcNotInstalled => S("SetupVlcNotInstalled");
+    /// <summary>Off: VLC's settings stay as they are</summary>
+    public static string SetupVlcOff => S("SetupVlcOff");
+    /// <summary>✗ Could not configure VLC (details are in the log)</summary>
+    public static string SetupVlcFailed => S("SetupVlcFailed");
+    /// <summary>Keep the PC awake during a movie</summary>
+    public static string SetupKeepAwakeTitle => S("SetupKeepAwakeTitle");
+    /// <summary>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</summary>
+    public static string SetupKeepAwakeText => S("SetupKeepAwakeText");
+    /// <summary>Bluetooth (optional)</summary>
+    public static string SetupBluetoothTitle => S("SetupBluetoothTitle");
+    /// <summary>Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, but the phone has to be paired with this PC once in the Windows Bluetooth settings.</summary>
+    public static string SetupBluetoothText => S("SetupBluetoothText");
+    /// <summary>✓ Bluetooth is on: the phone can connect once it is paired</summary>
+    public static string SetupBluetoothOn => S("SetupBluetoothOn");
+    /// <summary>Bluetooth is starting…</summary>
+    public static string SetupBluetoothStarting => S("SetupBluetoothStarting");
+    /// <summary>Bluetooth is turned off on this PC</summary>
+    public static string SetupBluetoothRadioOff => S("SetupBluetoothRadioOff");
+    /// <summary>No Bluetooth adapter: the phone will connect over Wi‑Fi only</summary>
+    public static string SetupBluetoothNoAdapter => S("SetupBluetoothNoAdapter");
+    /// <summary>Turned off in the companion settings (bluetooth: false)</summary>
+    public static string SetupBluetoothDisabled => S("SetupBluetoothDisabled");
+    /// <summary>Open Bluetooth settings</summary>
+    public static string SetupOpenBluetoothSettings => S("SetupOpenBluetoothSettings");
 }

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.ThemeMode
@@ -14,12 +15,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class SettingsRepository(context: Context, scope: CoroutineScope) {
+class SettingsRepository(context: Context, private val scope: CoroutineScope) {
     private val store = context.applicationContext.settingsStore
 
     private object Keys {
@@ -34,6 +37,8 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
         val haptics = booleanPreferencesKey("haptics")
         val libraryMediaOnly = booleanPreferencesKey("library_media_only")
         val bluetoothFallback = booleanPreferencesKey("bluetooth_fallback")
+        val permissionsScreenVersion = intPreferencesKey("permissions_screen_version")
+        val permissionsRequested = stringSetPreferencesKey("permissions_requested")
     }
 
     val flow: Flow<AppSettings> = store.data.map { p ->
@@ -72,5 +77,33 @@ class SettingsRepository(context: Context, scope: CoroutineScope) {
             p[Keys.libraryMediaOnly] = next.libraryMediaOnly
             p[Keys.bluetoothFallback] = next.bluetoothFallback
         }
+    }
+
+    // ------------------------------------------------------------ first-run permissions screen
+    // Kept outside AppSettings: the hot `settings` copy starts from defaults, and these values decide
+    // what the very first frame shows, so they are read from the store itself.
+
+    /** `PermissionRegistry.screenVersion` the user has already passed; 0 = the screen was never shown. */
+    suspend fun permissionsScreenVersion(): Int = store.data.first()[Keys.permissionsScreenVersion] ?: 0
+
+    suspend fun markPermissionsScreenSeen(version: Int) {
+        store.edit { p -> if ((p[Keys.permissionsScreenVersion] ?: 0) < version) p[Keys.permissionsScreenVersion] = version }
+    }
+
+    /** Debug/test hook: show the permissions screen again on the next start. */
+    suspend fun resetPermissionsScreen() {
+        store.edit { p -> p.remove(Keys.permissionsScreenVersion) }
+    }
+
+    /**
+     * Runtime permissions the app has asked for at least once: tells "never asked" from "refused for good"
+     * (both have `shouldShowRequestPermissionRationale == false`).
+     */
+    val requestedPermissions: StateFlow<Set<String>> =
+        store.data.map { it[Keys.permissionsRequested].orEmpty() }.stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+    fun noteRequested(permissions: Collection<String>) {
+        if (permissions.isEmpty()) return
+        scope.launch { store.edit { p -> p[Keys.permissionsRequested] = p[Keys.permissionsRequested].orEmpty() + permissions } }
     }
 }

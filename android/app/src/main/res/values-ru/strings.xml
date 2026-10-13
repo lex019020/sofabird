@@ -285,4 +285,21 @@
     <string name="settings_bluetooth_fallback_hint">Если ПК сопряжён с телефоном. Медленнее Wi‑Fi, обложки не загружаются.</string>
     <string name="saved_via_bluetooth">Bluetooth · %1$s</string>
     <string name="pairing_connecting_bt">Подключаюсь к %1$s по Bluetooth…</string>
+
+    <!-- Экран разрешений при первом запуске и «Настройки → Разрешения» (domain/permissions/AppPermissions.kt) -->
+    <string name="perm_screen_title">Разрешения</string>
+    <string name="perm_screen_intro">Прежде чем Android спросит, объясним, что нужно пульту и зачем. Решение можно изменить позже в настройках.</string>
+    <string name="perm_continue">Продолжить</string>
+    <string name="perm_allow">Разрешить</string>
+    <string name="perm_open_settings">Открыть настройки</string>
+    <string name="perm_status_granted">Разрешено</string>
+    <string name="perm_status_not_granted">Не разрешено</string>
+    <string name="perm_status_blocked">Запрещено: теперь разрешить можно только в настройках приложения</string>
+    <string name="perm_notifications_title">Уведомления</string>
+    <string name="perm_notifications_why">Что сейчас играет и кнопки управления — в шторке и на экране блокировки, пока пульт держит связь с ПК в фоне.</string>
+    <string name="perm_notifications_without">Без него кнопок вне приложения может не быть, или они покажут устаревшие сведения.</string>
+    <string name="perm_nearby_title">Устройства поблизости (Bluetooth)</string>
+    <string name="perm_nearby_why">Пульт продолжит управлять ПК по Bluetooth, когда Wi‑Fi недоступен. Используется только ПК, уже сопряжённый с телефоном: без поиска устройств и геолокации.</string>
+    <string name="perm_nearby_without">Без него пульт работает только по Wi‑Fi.</string>
+    <string name="settings_permissions">Разрешения</string>
 </resources>

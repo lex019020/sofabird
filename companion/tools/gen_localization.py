@@ -65,6 +65,94 @@ UI = [
      "VLC запущен — страницы будут установлены автоматически после его закрытия."),
     ("BalloonLuaFailed", "Could not install the Lua pages (see the log).", "Не удалось установить Lua-страницы (см. журнал)."),
     ("BalloonAutostartFailed", "Could not change autostart: {0}", "Не удалось изменить автозапуск: {0}"),
+    ("BalloonFirewallBlocked", "Windows Firewall blocks the phone from connecting. Click to fix it.",
+     "Брандмауэр Windows не пускает телефон. Нажмите, чтобы исправить."),
+    ("BalloonFirewallMissing", "Network access for the phone is not set up. Click to allow it.",
+     "Доступ телефона по сети не настроен. Нажмите, чтобы разрешить."),
+    ("TraySetup", "Setup and permissions…", "Настройка и разрешения…"),
+    # Setup and permissions window (Setup/SetupForm.cs). Every permission or system change gets an item there.
+    ("SetupTitle", "VLC Remote: setup and permissions", "VLC Remote: настройка и разрешения"),
+    ("SetupHeader", "Set up this PC for the remote", "Подготовим ПК к работе с пультом"),
+    ("SetupIntro", "So that the phone can control VLC, the companion needs a few permissions and settings on this PC. "
+                   "Here is what each of them does and why it is needed. Nothing changes until you press Apply.",
+     "Чтобы телефон мог управлять VLC, компаньону нужны несколько разрешений и настроек на этом ПК. "
+     "Ниже — что делает каждое из них и зачем оно нужно. Пока вы не нажмёте «Применить», ничего не меняется."),
+    ("SetupChecking", "Checking…", "Проверяем…"),
+    ("SetupOn", "✓ On", "✓ Включено"),
+    ("SetupOff", "Off", "Выключено"),
+    ("SetupFooterNote", "You can open this window at any time from the tray icon menu: “Setup and permissions…”.",
+     "Это окно всегда можно открыть из меню значка в трее: «Настройка и разрешения…»."),
+    ("SetupApply", "Apply", "Применить"),
+    ("SetupLater", "Later", "Позже"),
+    ("SetupClose", "Close", "Закрыть"),
+    ("SetupFirewallTitle", "Network access (Windows Firewall)", "Доступ по сети (брандмауэр Windows)"),
+    ("SetupFirewallText", "The phone connects to this PC over Wi‑Fi, and Windows blocks incoming connections until you allow them. "
+                          "The companion will allow itself and VLC to accept connections on private (home) networks only. "
+                          "Windows will ask for administrator permission once.",
+     "Телефон подключается к ПК по Wi‑Fi, а Windows блокирует входящие подключения, пока их не разрешить. "
+     "Компаньон разрешит себе и VLC принимать подключения только в частных (домашних) сетях. "
+     "Windows один раз запросит права администратора."),
+    ("SetupFirewallOk", "✓ Allowed on private networks", "✓ Разрешено в частных сетях"),
+    ("SetupFirewallOff", "✓ Windows Firewall is off for private networks: nothing to allow",
+     "✓ Брандмауэр Windows выключен для частных сетей — разрешать нечего"),
+    ("SetupFirewallMissing", "Not allowed yet: Windows will block the phone", "Ещё не разрешено — Windows будет блокировать телефон"),
+    ("SetupFirewallBlocked", "⚠ A firewall rule blocks {0} (usually left by “Cancel” in a Windows prompt). Apply removes it.",
+     "⚠ Правило брандмауэра блокирует {0} (обычно остаётся после «Отмена» в запросе Windows). «Применить» его удалит."),
+    ("SetupProgramCompanion", "the companion", "компаньон"),
+    ("SetupProgramVlc", "VLC", "VLC"),
+    ("SetupAnd", "{0} and {1}", "{0} и {1}"),
+    ("SetupFirewallUnknown", "Could not read the firewall rules: {0}", "Не удалось прочитать правила брандмауэра: {0}"),
+    ("SetupFirewallWaiting", "Waiting for administrator permission: confirm the Windows prompt…",
+     "Ждём права администратора — подтвердите запрос Windows…"),
+    ("SetupFirewallCancelled", "⚠ Administrator permission was not given. Press Apply to try again, or allow access when Windows asks.",
+     "⚠ Права администратора не получены. Нажмите «Применить» ещё раз или разрешите доступ, когда Windows спросит сама."),
+    ("SetupFirewallFailed", "✗ Could not change the firewall rules ({0}). Details are in the log.",
+     "✗ Не удалось изменить правила брандмауэра ({0}). Подробности в журнале."),
+    ("SetupFirewallNotManaged", "Not managed by the companion: allow access yourself when Windows asks",
+     "Компаньон не настраивает — разрешите доступ сами, когда Windows спросит"),
+    ("SetupPublicNetwork", "⚠ The network “{0}” is public. Windows does not let the phone in on public networks: make it private in the network settings.",
+     "⚠ Сеть «{0}» отмечена как общедоступная. В таких сетях Windows не пускает телефон — сделайте её частной в параметрах сети."),
+    ("SetupOpenNetworkSettings", "Open network settings", "Открыть параметры сети"),
+    ("SetupAutostartTitle", "Start with Windows", "Запуск вместе с Windows"),
+    ("SetupAutostartText", "The companion starts when you sign in to Windows, so the phone can control VLC without anyone touching the PC. "
+                           "It uses your own startup list; no administrator rights are needed.",
+     "Компаньон запускается при входе в Windows, и телефоном можно управлять, не подходя к ПК. "
+     "Используется ваш список автозагрузки, права администратора не нужны."),
+    ("SetupAutostartFailed", "✗ Could not change autostart: {0}", "✗ Не удалось изменить автозапуск: {0}"),
+    ("SetupVlcTitle", "Configure VLC for phone control", "Настроить VLC для управления с телефона"),
+    ("SetupVlcText", "VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way "
+                     "(even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file "
+                     "(a backup copy is kept) and installs helper pages for audio tracks and subtitles.",
+     "В VLC включается веб‑интерфейс с паролем, который создал компаньон, — так VLC, открытый как угодно "
+     "(даже двойным щелчком по фильму), управляется с телефона. Компаньон правит файл настроек VLC "
+     "(резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров."),
+    ("SetupVlcConfigured", "✓ VLC is configured", "✓ VLC настроен"),
+    ("SetupVlcNotConfigured", "Not configured yet", "Ещё не настроен"),
+    ("SetupVlcRunning", "VLC is running: its settings will be written after it closes",
+     "VLC запущен — настройки будут записаны после его закрытия"),
+    ("SetupVlcNotInstalled", "VLC is not installed. Install VLC 3.x, then open this window again from the tray menu.",
+     "VLC не установлен. Установите VLC 3.x и снова откройте это окно из меню в трее."),
+    ("SetupVlcOff", "Off: VLC's settings stay as they are", "Выключено — настройки VLC остаются как есть"),
+    ("SetupVlcFailed", "✗ Could not configure VLC (details are in the log)", "✗ Не удалось настроить VLC (подробности в журнале)"),
+    ("SetupKeepAwakeTitle", "Keep the PC awake during a movie", "Не давать ПК уснуть во время фильма"),
+    ("SetupKeepAwakeText", "While a movie is playing, Windows won't put the PC to sleep or turn off the screen. "
+                           "When playback stops, your usual power settings apply again.",
+     "Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. "
+     "После остановки снова действуют обычные настройки электропитания."),
+    ("SetupBluetoothTitle", "Bluetooth (optional)", "Bluetooth (необязательно)"),
+    ("SetupBluetoothText", "Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, "
+                           "but the phone has to be paired with this PC once in the Windows Bluetooth settings.",
+     "Без Wi‑Fi телефон может управлять ПК по Bluetooth. Разрешений Windows для этого не нужно, "
+     "но телефон надо один раз сопрячь с этим ПК в параметрах Bluetooth Windows."),
+    ("SetupBluetoothOn", "✓ Bluetooth is on: the phone can connect once it is paired",
+     "✓ Bluetooth включён — телефон сможет подключиться после сопряжения"),
+    ("SetupBluetoothStarting", "Bluetooth is starting…", "Bluetooth запускается…"),
+    ("SetupBluetoothRadioOff", "Bluetooth is turned off on this PC", "Bluetooth выключен на этом ПК"),
+    ("SetupBluetoothNoAdapter", "No Bluetooth adapter: the phone will connect over Wi‑Fi only",
+     "Адаптера Bluetooth нет — телефон будет подключаться только по Wi‑Fi"),
+    ("SetupBluetoothDisabled", "Turned off in the companion settings (bluetooth: false)",
+     "Выключен в настройках компаньона (bluetooth: false)"),
+    ("SetupOpenBluetoothSettings", "Open Bluetooth settings", "Открыть параметры Bluetooth"),
 ]
 
 PROTO = [

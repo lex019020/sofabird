@@ -182,6 +182,24 @@ public sealed class VlcrcConfigurator
     public static string DefaultPath =>
         System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "vlc", "vlcrc");
 
+    /// <summary>Read-only check: the file exists and already has the values <see cref="Ensure"/> would write.</summary>
+    public bool IsConfigured(VlcrcSettings settings)
+    {
+        try
+        {
+            if (!File.Exists(Path)) return false;
+            var bytes = File.ReadAllBytes(Path);
+            var skip = bytes.AsSpan().StartsWith(Bom) ? 3 : 0;
+            var text = new UTF8Encoding(false, throwOnInvalidBytes: true).GetString(bytes, skip, bytes.Length - skip);
+            VlcrcEditor.Apply(text, settings, out var changed);
+            return !changed;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+        {
+            return false;
+        }
+    }
+
     public VlcrcResult Ensure(VlcrcSettings settings)
     {
         if (!File.Exists(Path))

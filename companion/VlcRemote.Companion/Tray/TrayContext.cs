@@ -3,10 +3,12 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
+using VlcRemote.Companion.Setup;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
+using VlcRemote.Core.Setup;
 using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion.Tray;
@@ -24,6 +26,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly CompanionHost _host;
     private readonly PowerService _power;
     private readonly BluetoothRfcommServer _bluetooth;
+    private readonly SetupBackend _setup;
     private readonly Func<Task> _shutdown;
     private readonly ILogger _log;
     private readonly NotifyIcon _icon;
@@ -43,12 +46,13 @@ public sealed class TrayContext : ApplicationContext
     private readonly Icon _iconIdle;
     private readonly Control _ui;
     private PairingForm? _pairingForm;
+    private SetupForm? _setupForm;
     private Action? _balloonClick;
     private bool _exiting;
 
     public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, SettingsStore settingsStore, VlcManager vlc,
         PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host, PowerService power,
-        BluetoothRfcommServer bluetooth, Func<Task> shutdown, ILogger<TrayContext> log)
+        BluetoothRfcommServer bluetooth, SetupBackend setup, Func<Task> shutdown, ILogger<TrayContext> log)
     {
         _ui = uiMarshaller;
         _paths = paths;
@@ -61,6 +65,7 @@ public sealed class TrayContext : ApplicationContext
         _host = host;
         _power = power;
         _bluetooth = bluetooth;
+        _setup = setup;
         _shutdown = shutdown;
         _log = log;
 
@@ -78,6 +83,7 @@ public sealed class TrayContext : ApplicationContext
         _luaItem = new ToolStripMenuItem(UiText.TrayInstallLua, null, (_, _) => InstallLuaPages());
         _autostartItem = new ToolStripMenuItem(UiText.TrayAutostart, null, (_, _) => ToggleAutostart()) { CheckOnClick = false };
         _keepAwakeItem = new ToolStripMenuItem(UiText.TrayKeepAwake, null, (_, _) => ToggleKeepAwake());
+        var setupItem = new ToolStripMenuItem(UiText.TraySetup, null, (_, _) => ShowSetup(firstRun: false));
         var logItem = new ToolStripMenuItem(UiText.TrayOpenLog, null, (_, _) => OpenLogs());
         var settingsItem = new ToolStripMenuItem(UiText.TrayOpenSettings, null, (_, _) => OpenFolder(_paths.DataDir));
         var exitItem = new ToolStripMenuItem(UiText.TrayExit, null, (_, _) => Exit());
@@ -88,7 +94,7 @@ public sealed class TrayContext : ApplicationContext
             _statusItem, _phonesItem, _bluetoothItem, new ToolStripSeparator(),
             _pairItem, new ToolStripSeparator(),
             _launchItem, _restartItem, _quitVlcItem, _displaysItem, new ToolStripSeparator(),
-            _luaItem, _autostartItem, _keepAwakeItem, new ToolStripSeparator(),
+            setupItem, _luaItem, _autostartItem, _keepAwakeItem, new ToolStripSeparator(),
             logItem, settingsItem, new ToolStripSeparator(),
             exitItem,
         ]);
@@ -311,6 +317,49 @@ public sealed class TrayContext : ApplicationContext
             });
     }
 
+    /// <summary>The setup window is due at startup and the firewall needs nothing first: show it once the tray runs.</summary>
+    public void ShowSetupOnStart() => _ui.BeginInvoke(() => ShowSetup(firstRun: true));
+
+    /// <summary>
+    /// Every start: if a firewall rule blocks the companion or VLC (e.g. "Cancel" in the Windows prompt), or the allow
+    /// rules disappeared after setup was completed, offer to fix it (a click opens the setup window).
+    /// </summary>
+    public void CheckFirewallOnStart()
+    {
+        if (!_settings.ManageFirewall) return;
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+            var status = _setup.InspectFirewall();
+            var notice = SetupPolicy.Decide(_settings.SetupCompleted, _settings.ManageFirewall, status);
+            if (notice == StartupNotice.None) return;
+            _log.LogWarning("Firewall needs attention: {Notice} ({Programs})", notice,
+                string.Join(", ", status!.Programs.Where(p => !p.Ok).Select(p => $"{p.Program.Key}: allowed={p.Allowed}, blocking={p.BlockingRules.Count}")));
+            Invoke(() => ShowBalloon(10000,
+                notice == StartupNotice.FirewallBlocked ? UiText.BalloonFirewallBlocked : UiText.BalloonFirewallMissing,
+                ToolTipIcon.Warning, () => ShowSetup(firstRun: false)));
+        });
+    }
+
+    private void ShowSetup(bool firstRun)
+    {
+        if (_exiting) return;
+        if (_setupForm is { IsDisposed: false } open)
+        {
+            open.BringToFrontActivated();
+            _ = open.RefreshStateAsync();
+            return;
+        }
+        var form = _setupForm = new SetupForm(_setup, firstRun);
+        form.FormClosed += (_, _) =>
+        {
+            if (ReferenceEquals(_setupForm, form)) _setupForm = null; // a modeless form disposes itself
+        };
+        form.Show();
+        form.BringToFrontActivated();
+        _log.LogInformation("Setup window shown ({Reason})", firstRun ? "first run" : "tray");
+    }
+
     private void RestartVlc() => RunAsync(ct => _vlc.RestartAsync(null, null, ct));
 
     private void ShowBalloon(int timeoutMs, string text, ToolTipIcon icon, Action? onClick = null)
@@ -409,6 +458,7 @@ public sealed class TrayContext : ApplicationContext
         _exiting = true;
         _icon.Visible = false;
         _pairingForm?.Close();
+        _setupForm?.CloseForExit();
         _ = Task.Run(async () =>
         {
             try { await _shutdown().ConfigureAwait(false); }

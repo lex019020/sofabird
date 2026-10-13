@@ -6,9 +6,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,6 +40,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,11 +61,15 @@ import dev.vlcremote.app.R
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.player.PlayerEvent
 import dev.vlcremote.app.data.servers.ServerRepository
+import dev.vlcremote.app.data.settings.SettingsRepository
+import dev.vlcremote.app.domain.permissions.PermissionRegistry
 import dev.vlcremote.app.ui.common.StatusDot
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.message
 import dev.vlcremote.app.ui.connection.ConnectionScreen
 import dev.vlcremote.app.ui.library.LibraryScreen
+import dev.vlcremote.app.ui.permissions.PermissionsScreen
+import dev.vlcremote.app.ui.permissions.isGranted
 import dev.vlcremote.app.ui.playlist.PlaylistScreen
 import dev.vlcremote.app.ui.remote.RemoteScreen
 import dev.vlcremote.app.ui.settings.SettingsScreen
@@ -68,6 +77,7 @@ import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.TransportKind
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 object Routes {
@@ -80,7 +90,7 @@ object Routes {
 }
 
 @Composable
-fun AppRoot() {
+fun AppRoot(forcePermissionsScreen: Boolean = false) {
     val controller: PlayerController = koinInject()
     val navController = rememberNavController()
     val snackbar = remember { SnackbarHostState() }
@@ -90,14 +100,36 @@ fun AppRoot() {
     val server by controller.activeServer.collectAsStateWithLifecycle()
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
+    val settings: SettingsRepository = koinInject()
+    val scope = rememberCoroutineScope()
 
-    // Android 13+: ask for notifications once we are connected (the service shows a media card).
+    // First-run "Permissions" screen (and once more after an update that added a permission): decided
+    // from the stored screen version before anything else is shown. null = still deciding.
+    var showPermissions by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(Unit) {
+        if (showPermissions != null) return@LaunchedEffect
+        val sdk = Build.VERSION.SDK_INT
+        val show = if (forcePermissionsScreen) {
+            PermissionRegistry.applicable(sdk).isNotEmpty()
+        } else {
+            PermissionRegistry.shouldShowScreen(sdk, settings.permissionsScreenVersion()) { isGranted(context, it) }
+        }
+        // Nothing to ask (all granted / old Android): never show it later just because a permission was revoked.
+        if (!show) settings.markPermissionsScreenSeen(PermissionRegistry.screenVersion)
+        showPermissions = show
+    }
+
+    // Fallback after "Not now" on the permissions screen — Android 13+: ask for notifications once we are
+    // connected (the service shows a media card). Not over the permissions screen, and not again if the
+    // user has already answered the system dialog (Settings → Permissions can still grant it).
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    LaunchedEffect(connection.isConnected) {
-        if (connection.isConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+    LaunchedEffect(connection.isConnected, showPermissions) {
+        val permission = Manifest.permission.POST_NOTIFICATIONS
+        if (showPermissions == false && connection.isConnected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !isGranted(context, permission) && permission !in settings.requestedPermissions.value
         ) {
-            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            settings.noteRequested(listOf(permission))
+            notifLauncher.launch(permission)
         }
     }
 
@@ -137,12 +169,30 @@ fun AppRoot() {
         }
     }
 
-    // First launch without any saved PC: start on the connection screen (once, not a loop).
+    // First launch without any saved PC: start on the connection screen (once, not a loop),
+    // after the permissions screen.
     val servers: ServerRepository = koinInject()
-    LaunchedEffect(Unit) {
-        if (servers.servers.first().isEmpty()) {
+    LaunchedEffect(showPermissions) {
+        if (showPermissions == false && servers.servers.first().isEmpty()) {
             navController.navigate(Routes.CONNECTION) { launchSingleTop = true }
         }
+    }
+
+    when (showPermissions) {
+        null -> {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+            return
+        }
+        true -> {
+            PermissionsScreen(
+                onDone = {
+                    scope.launch { settings.markPermissionsScreenSeen(PermissionRegistry.screenVersion) }
+                    showPermissions = false
+                },
+            )
+            return
+        }
+        false -> Unit
     }
 
     val showChrome = route in Routes.tabs
