@@ -45,12 +45,16 @@ $SshConfig = Join-Path $SshDir 'config'
 
 function Invoke-Remote([string]$Script, [switch]$Interactive) {
     # -EncodedCommand: без проблем с кавычками, работает при любой оболочке sshd по умолчанию.
-    $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("`$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; " + $Script))
+    # Ошибка удалённого скрипта -> код 1 (иначе ssh вернул бы 0); -ExecutionPolicy Bypass действует только на этот процесс.
+    # *>&1: Write-Host/предупреждения идут обычным текстом (иначе без консоли PowerShell шлёт их в stderr как CLIXML).
+    $wrapped = "`$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; `$ErrorActionPreference='Stop'; " +
+        "& { try {`n" + $Script + "`n} catch { 'ОШИБКА: ' + (`$_ | Out-String).Trim(); exit 1 } } *>&1 | ForEach-Object { `"`$_`" }"
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($wrapped))
     $ErrorActionPreference = 'Continue'
     $sshArgs = @('-o', 'ConnectTimeout=8')
     if (-not $Interactive) { $sshArgs += @('-o', 'BatchMode=yes') }
     # Вывод сразу на экран: функция возвращает только код завершения.
-    & ssh @sshArgs $HostAlias "powershell -NoProfile -NonInteractive -EncodedCommand $b64" | Out-Host
+    & ssh @sshArgs $HostAlias "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand $b64" | Out-Host
     $code = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
     if ($code -eq 255) { throw "Нет SSH-связи с ноутбуком ($HostAlias). Проверьте, что он включён и в той же сети: .\dev-laptop.ps1 -Status" }
@@ -145,7 +149,7 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
             $ErrorActionPreference = 'Stop'
             if ($scpCode -ne 0) { throw "scp завершился с кодом $scpCode" }
             $leaf = Split-Path $zip -Leaf
-            $code = Invoke-Remote "& (Join-Path `$HOME 'vlcremote-deploy\deploy-windows.ps1') -Package (Join-Path `$HOME 'vlcremote-deploy\$leaf'); exit `$LASTEXITCODE"
+            $code = Invoke-Remote "& (Join-Path `$HOME 'vlcremote-deploy\deploy-windows.ps1') -Package (Join-Path `$HOME 'vlcremote-deploy\$leaf')"
             if ($code -ne 0) { throw "Установка на ноутбуке завершилась с кодом $code" }
         } finally {
             Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

@@ -65,7 +65,7 @@ function Invoke-InUserSession([string]$Exe, [string]$Arguments, [string]$Purpose
     $name = "VlcRemote-$Purpose"
     $action = if ($Arguments) { New-ScheduledTaskAction -Execute $Exe -Argument $Arguments -WorkingDirectory (Split-Path $Exe) }
               else { New-ScheduledTaskAction -Execute $Exe -WorkingDirectory (Split-Path $Exe) }
-    $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+    $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
     Register-ScheduledTask -TaskName $name -Action $action -Principal $principal -Settings $settings -Force | Out-Null
     Start-ScheduledTask -TaskName $name
