@@ -112,7 +112,7 @@ Full reports in `docs/research/`:
 - **Lua pages** — our `requests/tracks.json`, `requests/setvar.json` plus a copy of VLC's stock
   pages; installed by the companion or by the `companion/lua/install.ps1` script, they also work without the companion.
 - **The companion** — a single exe in the tray, without administrator rights (except for a one-time helper
-  for the firewall), autostart via HKCU\Run, updates via Velopack (planned).
+  for the firewall), autostart via HKCU\Run, quiet updates via Velopack.
 
 ### 4.2. Capability levels and `PlayerBackend`
 
@@ -221,7 +221,7 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
   TMDB with a cache of ≤ 6 months and attribution, thumbnails via `vlc.exe` snapshot or ffmpeg (if present);
   watch history and resume positions (the companion is the source of truth, shared by all phones).
 - Installation: today `scripts/deploy-windows.ps1` (`%LOCALAPPDATA%\VlcRemote\app`, no admin rights), HKCU\Run,
-  one UAC prompt for the firewall rules (companion + vlc.exe, private profile); planned: Velopack. Lua pages are
+  one UAC prompt for the firewall rules (companion + vlc.exe, private profile); Velopack installs and updates it. Lua pages are
   copied into `%APPDATA%\vlc\lua\http\requests\` at the first start.
 - UI language follows Windows, English by default, Russian translation; `err.msg` is rendered in the phone's
   language.
@@ -286,7 +286,7 @@ Criterion: a movie from `D:\shared` starts and is fully controlled from the phon
 - [x] Localization: system language, English by default, Russian translation; `err.msg` in the phone's language.
 - [ ] First-run setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
       VLC configuration, keep-awake (in progress).
-- [ ] Velopack installer and auto-update (next, see § 10).
+- [x] Velopack installer and quiet auto-update (see the companion README).
 
 Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the audio device.
 
@@ -326,7 +326,8 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       ViewModel, the position ticker in the scrub bar; dead code removed on both sides.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
-- [ ] Installer and auto-update for the companion (Velopack).
+- [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
+      updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
       item in the setup window, tray warning when Windows changes it back); after a monitor change the VLC window
       returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
@@ -397,8 +398,8 @@ vlc-remote/
 ## 10. Next steps
 
 1. **UI in landscape and on tablets**: the remaining part of the layout polish.
-2. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
-3. **Installer and auto-update for the companion** (Velopack).
-4. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+2. **Library**: a setup step for the media folders, file name parsing, posters/backdrops (TMDB) via the companion,
+   cache; on the phone a poster grid next to the folders.
+3. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.

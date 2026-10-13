@@ -37,6 +37,7 @@ Change wsPort in {2}.</value></data>
   <data name="TrayInstallLuaPending" xml:space="preserve"><value>Install Lua pages (after VLC closes)</value></data>
   <data name="TrayAutostart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="TrayKeepAwake" xml:space="preserve"><value>Keep the PC awake during a movie</value></data>
+  <data name="TrayTestBuilds" xml:space="preserve"><value>Get test builds</value></data>
   <data name="TrayOpenLog" xml:space="preserve"><value>Open log</value></data>
   <data name="TrayOpenSettings" xml:space="preserve"><value>Open settings folder</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
@@ -50,6 +51,7 @@ Change wsPort in {2}.</value></data>
   <data name="PlaybackStopped" xml:space="preserve"><value>stopped</value></data>
   <data name="BalloonNoControl" xml:space="preserve"><value>VLC is open without phone control. Restart it, and from then on VLC will always start with phone control.</value></data>
   <data name="BalloonPaired" xml:space="preserve"><value>Phone “{0}” paired</value></data>
+  <data name="BalloonUpdated" xml:space="preserve"><value>The companion was updated to {0}</value></data>
   <data name="BalloonLuaInstalled" xml:space="preserve"><value>Lua pages were installed to %APPDATA%\vlc\lua\http. They take effect the next time VLC starts.</value></data>
   <data name="BalloonLuaDeferred" xml:space="preserve"><value>VLC is running: the pages will be installed automatically after it closes.</value></data>
   <data name="BalloonLuaFailed" xml:space="preserve"><value>Could not install the Lua pages (see the log).</value></data>

@@ -72,6 +72,8 @@ internal static class UiText
     public static string TrayAutostart => S("TrayAutostart");
     /// <summary>Keep the PC awake during a movie</summary>
     public static string TrayKeepAwake => S("TrayKeepAwake");
+    /// <summary>Get test builds</summary>
+    public static string TrayTestBuilds => S("TrayTestBuilds");
     /// <summary>Open log</summary>
     public static string TrayOpenLog => S("TrayOpenLog");
     /// <summary>Open settings folder</summary>
@@ -98,6 +100,8 @@ internal static class UiText
     public static string BalloonNoControl => S("BalloonNoControl");
     /// <summary>Phone “{0}” paired</summary>
     public static string BalloonPaired(object a0) => F("BalloonPaired", a0);
+    /// <summary>The companion was updated to {0}</summary>
+    public static string BalloonUpdated(object a0) => F("BalloonUpdated", a0);
     /// <summary>Lua pages were installed to %APPDATA%\vlc\lua\http. They take effect the next time VLC starts.</summary>
     public static string BalloonLuaInstalled => S("BalloonLuaInstalled");
     /// <summary>VLC is running: the pages will be installed automatically after it closes.</summary>

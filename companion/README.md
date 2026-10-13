@@ -62,25 +62,31 @@ dotnet run --project companion\VlcRemote.Companion -c Release
 For debugging with a separate data folder: `VlcRemote.Companion.exe --data-dir D:\tmp\vlcremote`
 (or the `VLCREMOTE_DATA_DIR` environment variable).
 
-## Installing with the script
+## Installing and updates
 
-Usually the companion is not installed by hand but by the `scripts\deploy-windows.ps1` script (from GitHub Releases or
-`-Local` from source) into `%LOCALAPPDATA%\VlcRemote\app`; an update closes the running instance with
-`VlcRemote.Companion.exe --shutdown` and keeps the previous version for `-Rollback`. Details are in CLAUDE.md.
+The companion is installed by `VlcRemoteCompanion-win-Setup.exe` from GitHub Releases (Velopack; per user, into
+`%LOCALAPPDATA%\VlcRemoteCompanion`, with the .NET 9 runtime when it is missing) — by hand or through
+`scripts\deploy-windows.ps1` (which adds VLC, the firewall rules and autostart; `-Local` builds the installer from
+source). Then it updates itself (`Services/UpdateService.cs`): a few minutes after the start and every 6 hours it checks
+GitHub Releases, downloads the update in the background and restarts into it as soon as VLC is not playing; the first
+start of a new version shows "The companion was updated to …" in the tray. Test builds follow test builds and
+releases follow releases (`updateChannel` in `settings.json`, tray: "Get test builds"); builds made with `-Local`
+(`-local.*`) do not update themselves. Uninstalling (Windows "Apps", or `deploy-windows.ps1 -Uninstall`) removes the
+autostart entry and keeps the settings. Details are in CLAUDE.md.
 The version comes from the `VERSION` file in the root (`-p:VersionSuffix=beta.N` for test builds) and is shown in the
 tray icon tooltip and in `/info`.
 
 ## Publishing
 
 ```powershell
-dotnet publish companion\VlcRemote.Companion -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+. .\scripts\deploy-lib.ps1; New-CompanionPackage (Get-Location).Path 0.4.0-local.1 local.1 .\releases
 ```
 
-The result is `publish\VlcRemote.Companion.exe` (framework-dependent, ~26 MB, 24 MB of which is the
-Windows SDK projection `Microsoft.Windows.SDK.NET.dll`, pulled in by the `net9.0-windows10.0.19041.0` TFM
-for the WinRT Bluetooth of milestone M3). The target PC needs the **.NET Desktop Runtime 9** and the
-**ASP.NET Core Runtime 9** (Kestrel). A variant without dependencies:
-`--self-contained true -p:EnableCompressionInSingleFile=true` (~60 MB).
+`dotnet publish` (framework-dependent, a folder of ~27 MB, 24 MB of which is the Windows SDK projection
+`Microsoft.Windows.SDK.NET.dll`, pulled in by the `net9.0-windows10.0.19041.0` TFM for the WinRT Bluetooth) packed
+by `dotnet vpk pack` into `VlcRemoteCompanion-win-Setup.exe` (~17 MB) and a ~9 MB update package. The PC needs the
+**.NET Desktop Runtime 9** and the **ASP.NET Core Runtime 9** (Kestrel): the installer installs them when they are
+missing. A self-contained build would be ~160 MB.
 
 `companion/global.json` pins the SDK to 9.0.3xx: SDK 10 parses `--self-contained false`
 differently and produces a 150 MB self-contained build (the csproj also sets
@@ -473,6 +479,5 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 
 ## Deferred
 
-- **Velopack** — installer and updates; for now the exe runs from anywhere, autostart via `HKCU\Run`.
 - **TMDB / library** (M4) — file name parsing, posters.
 - TLS with pinning, HDMI-CEC.

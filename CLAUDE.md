@@ -96,7 +96,11 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
   `deploy-android -Local` builds — commits in `origin/main` × 10 + 5: newer than the current test build, older than the next one.
 - A **test build** (pre-release `v<VERSION>-beta.<N>`) is created automatically on every merge to `main`
   (`.github/workflows/release.yml`). Description — the release notes of the merged PR + installation instructions.
-  Files: `VlcRemote.Companion-<version>-win-x64.zip`, `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
+  Files: `VlcRemoteCompanion-win-Setup.exe` + the Velopack update feed (`*-full.nupkg`, `*-delta.nupkg`,
+  `releases.win.json`, …), `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
+- **The companion updates itself** (Velopack, `UpdateService`): a few minutes after the start and every 6 h it checks
+  GitHub Releases, downloads in the background and restarts into the new version when VLC is not playing. Test builds
+  stay on test builds, releases on releases (tray: "Get test builds"); `-local` builds never update themselves.
 - **Release** `v<VERSION>`: Actions → Release → Run workflow → `stable` (or
   `gh workflow run release.yml -f channel=stable`). The notes are collected from all PRs merged since the
   previous release, by section. If the tag already exists, the workflow fails.
@@ -111,17 +115,22 @@ messages in English:
 | Command | What it does |
 |---|---|
 | `deploy-windows.ps1` | the latest test build of the companion from GitHub Releases (anonymous; `gh` is used only as a fallback) |
-| `-Channel stable` / `-Tag v0.2.0-beta.12` | the latest release / a specific build |
-| `-Local` | build from the working copy and install |
+| `-Channel stable` / `-Tag v0.2.0-beta.12` | the latest release / a specific build (also the way back to an earlier one) |
+| `-Local` | build the installer from the working copy and install it |
+| `-Package <Setup.exe>` | install a ready-made installer (used by `dev-laptop.ps1 -Deploy`) |
 | `-CheckOnly` | compare the installed version with the latest one |
 | `-Firewall` / `-Autostart` | firewall rules for the companion and VLC (private network, one UAC prompt) / autostart |
-| `-Rollback` | restore the previous version (`app.prev`) |
 | `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs) |
 
-The companion is installed into `%LOCALAPPDATA%\VlcRemote\app` without administrator rights; before replacing the
-files the old instance is shut down gracefully (`VlcRemote.Companion.exe --shutdown`). If the .NET 9 Desktop/ASP.NET Core
-Runtime is missing, the script installs it via winget. If VLC media player is not installed, the script installs it via winget (`VideoLAN.VLC`, one
-administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
+The companion is installed by its Velopack installer (`VlcRemoteCompanion-win-Setup.exe`, which a user can also just
+run) into `%LOCALAPPDATA%\VlcRemoteCompanion` (`current\VlcRemote.Companion.exe` — a stable path for the firewall
+rules and autostart) for the current user; the .NET 9 runtime, when missing, is installed by it with one administrator
+prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the
+companion and replaces an install made by its earlier versions (`%LOCALAPPDATA%\VlcRemote\app`). Settings, pairings
+and logs stay in `%LOCALAPPDATA%\VlcRemote`. If VLC media player is not installed, the script installs it via winget
+(`VideoLAN.VLC`, one administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
+Packing (`dotnet vpk`, pinned in `dotnet-tools.json`) is `New-CompanionPackage` in `deploy-lib.ps1`, shared by the
+release workflow and `-Local`.
 
 ## Deployment: Android
 

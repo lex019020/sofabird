@@ -69,16 +69,30 @@ jobs:
           dotnet-version: 9.0.x
       - name: Test
         run: dotnet test companion/VlcRemote.sln -c Release
-      - name: Publish
+      - name: Publish and pack (Velopack)
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ needs.meta.outputs.channel }}
+          VERSION: ${{ needs.meta.outputs.version }}
         run: |
-          dotnet publish companion/VlcRemote.Companion/VlcRemote.Companion.csproj -c Release -r win-x64 `
-            --self-contained false -p:PublishSingleFile=true "-p:VersionSuffix=${{ needs.meta.outputs.suffix }}" -o out
-          Compress-Archive -Path out/* -DestinationPath "VlcRemote.Companion-${{ needs.meta.outputs.version }}-win-x64.zip"
+          dotnet tool restore
+          # The previous package of the same kind lets vpk build a small delta update next to the full one.
+          $pre = if ($env:CHANNEL -eq 'stable') { @() } else { @('--pre') }
+          dotnet vpk download github --repoUrl "https://github.com/$env:GITHUB_REPOSITORY" --token $env:GH_TOKEN @pre -o releases
+          if ($LASTEXITCODE -ne 0) { Write-Host 'No previous Velopack release: full package only'; $global:LASTEXITCODE = 0 }
+          . ./scripts/deploy-lib.ps1
+          $null = New-CompanionPackage (Get-Location).Path $env:VERSION '${{ needs.meta.outputs.suffix }}' (Join-Path (Get-Location) 'releases')
+          # This release's files only (the downloaded previous package is already on its own release).
+          New-Item -ItemType Directory dist | Out-Null
+          Get-ChildItem releases | Where-Object {
+            $_.Name -like "*-$env:VERSION-*.nupkg" -or $_.Name -in 'VlcRemoteCompanion-win-Setup.exe', 'releases.win.json', 'assets.win.json', 'RELEASES'
+          } | Copy-Item -Destination dist
+          Get-ChildItem dist | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
           name: companion
-          path: VlcRemote.Companion-*.zip
+          path: dist/*
 
   android:
     name: Android
@@ -160,7 +174,10 @@ jobs:
           tag, repo = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"]
           print(rf"""
           ---
-          **Install or update** (no GitHub account needed):
+          **Companion (Windows PC):** download and run `VlcRemoteCompanion-win-Setup.exe` from this release. It installs for
+          the current user and then updates itself (a PC without the .NET 9 runtime gets it, with one administrator prompt).
+
+          **Scripts** (no GitHub account needed; the phone needs adb):
           ```powershell
           $d = "$env:TEMP\vlcremote"; New-Item -ItemType Directory -Force $d | Out-Null
           'deploy-lib.ps1', 'deploy-windows.ps1', 'deploy-android.ps1' | ForEach-Object {{

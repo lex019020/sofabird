@@ -44,6 +44,8 @@ public sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _luaItem;
     private readonly ToolStripMenuItem _autostartItem;
     private readonly ToolStripMenuItem _keepAwakeItem;
+    private readonly ToolStripMenuItem _testBuildsItem;
+    private readonly UpdateService _updates;
     private readonly Icon _iconActive;
     private readonly Icon _iconIdle;
     private readonly Control _ui;
@@ -54,7 +56,8 @@ public sealed class TrayContext : ApplicationContext
 
     public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, VlcManager vlc,
         PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host,
-        BluetoothRfcommServer bluetooth, SetupBackend setup, PowerPlanService powerPlan, Func<Task> shutdown, ILogger<TrayContext> log)
+        BluetoothRfcommServer bluetooth, SetupBackend setup, PowerPlanService powerPlan, UpdateService updates, Func<Task> shutdown,
+        ILogger<TrayContext> log)
     {
         _powerPlan = powerPlan;
         _ui = uiMarshaller;
@@ -67,6 +70,7 @@ public sealed class TrayContext : ApplicationContext
         _host = host;
         _bluetooth = bluetooth;
         _setup = setup;
+        _updates = updates;
         _shutdown = shutdown;
         _log = log;
 
@@ -84,6 +88,10 @@ public sealed class TrayContext : ApplicationContext
         _luaItem = new ToolStripMenuItem(UiText.TrayInstallLua, null, (_, _) => InstallLuaPages());
         _autostartItem = new ToolStripMenuItem(UiText.TrayAutostart, null, (_, _) => ToggleAutostart()) { CheckOnClick = false };
         _keepAwakeItem = new ToolStripMenuItem(UiText.TrayKeepAwake, null, (_, _) => ToggleKeepAwake());
+        _testBuildsItem = new ToolStripMenuItem(UiText.TrayTestBuilds, null, (_, _) => _updates.SetIncludesTestBuilds(!_updates.IncludesTestBuilds))
+        {
+            Visible = updates.IsInstalled,
+        };
         var setupItem = new ToolStripMenuItem(UiText.TraySetup, null, (_, _) => ShowSetup(firstRun: false));
         var logItem = new ToolStripMenuItem(UiText.TrayOpenLog, null, (_, _) => OpenLogs());
         var settingsItem = new ToolStripMenuItem(UiText.TrayOpenSettings, null, (_, _) => OpenFolder(_paths.DataDir));
@@ -95,7 +103,7 @@ public sealed class TrayContext : ApplicationContext
             _statusItem, _phonesItem, _bluetoothItem, new ToolStripSeparator(),
             _pairItem, new ToolStripSeparator(),
             _launchItem, _restartItem, _quitVlcItem, _displaysItem, new ToolStripSeparator(),
-            setupItem, _luaItem, _autostartItem, _keepAwakeItem, new ToolStripSeparator(),
+            setupItem, _luaItem, _autostartItem, _keepAwakeItem, _testBuildsItem, new ToolStripSeparator(),
             logItem, settingsItem, new ToolStripSeparator(),
             exitItem,
         ]);
@@ -189,6 +197,7 @@ public sealed class TrayContext : ApplicationContext
         _luaItem.Enabled = _vlc.Installation is not null;
         _autostartItem.Checked = AutostartService.IsEnabled();
         _keepAwakeItem.Checked = _settings.KeepAwake;
+        _testBuildsItem.Checked = _updates.IncludesTestBuilds;
         _pairItem.Enabled = _pairingForm is null;
     }
 
@@ -397,6 +406,9 @@ public sealed class TrayContext : ApplicationContext
         _balloonClick = onClick;
         _icon.ShowBalloonTip(timeoutMs, "VLC Remote", text, icon);
     }
+
+    /// <summary>This start is the first one of a new version (an automatic update or a reinstall).</summary>
+    public void ShowUpdated() => ShowBalloon(4000, UiText.BalloonUpdated(AppVersion.Informational), ToolTipIcon.Info);
 
     private void OnPaired(PairedDevice device)
     {

@@ -117,8 +117,8 @@ switch ($PSCmdlet.ParameterSetName) {
     'Status' {
         Assert-Configured
         $null = Invoke-Remote @'
-$root = Join-Path $env:LOCALAPPDATA 'VlcRemote'
-$ver = Get-Content (Join-Path $root 'app\version.txt') -ErrorAction SilentlyContinue
+$exe = Join-Path $env:LOCALAPPDATA 'VlcRemoteCompanion\current\VlcRemote.Companion.exe'
+$ver = if (Test-Path $exe) { (Get-Item $exe).VersionInfo.ProductVersion } else { $null }
 "Laptop:    $env:COMPUTERNAME ($((Get-NetConnectionProfile | ForEach-Object { "$($_.InterfaceAlias)=$($_.NetworkCategory)" }) -join ', '))"
 "Companion: $(if ($ver) { $ver } else { 'not installed' }); process: $(if (Get-Process VlcRemote.Companion -ErrorAction SilentlyContinue) { 'running' } else { 'none' })"
 try { $i = Invoke-RestMethod http://127.0.0.1:47555/info -TimeoutSec 3; "  /info:    $($i | ConvertTo-Json -Compress -Depth 4)" } catch { "  /info:    no response ($($_.Exception.Message))" }
@@ -134,20 +134,20 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
         try {
             if ($Local) {
                 $build = Invoke-LocalCompanionBuild $work
-                $zip = $build.File
+                $setup = $build.File
             } else {
                 $tagName = Resolve-ReleaseTag -Repo $Repo -Channel $Channel -Tag $Tag
-                $zip = Get-ReleaseAsset $Repo $tagName 'VlcRemote.Companion-*-win-x64.zip' $work
+                $setup = Get-ReleaseAsset $Repo $tagName 'VlcRemoteCompanion-win-Setup.exe' $work
             }
-            Write-Step "Copying to the laptop: $(Split-Path $zip -Leaf)"
+            Write-Step "Copying to the laptop: $(Split-Path $setup -Leaf)"
             $null = Invoke-Remote 'New-Item -ItemType Directory -Force -Path (Join-Path $HOME "vlcremote-deploy") | Out-Null'
-            $files = @($zip, (Join-Path $PSScriptRoot 'deploy-lib.ps1'), (Join-Path $PSScriptRoot 'deploy-windows.ps1'))
+            $files = @($setup, (Join-Path $PSScriptRoot 'deploy-lib.ps1'), (Join-Path $PSScriptRoot 'deploy-windows.ps1'))
             $ErrorActionPreference = 'Continue'
             & scp -q -o BatchMode=yes @files "${HostAlias}:vlcremote-deploy/"
             $scpCode = $LASTEXITCODE
             $ErrorActionPreference = 'Stop'
             if ($scpCode -ne 0) { throw "scp exited with code $scpCode" }
-            $leaf = Split-Path $zip -Leaf
+            $leaf = Split-Path $setup -Leaf
             $code = Invoke-Remote "& (Join-Path `$HOME 'vlcremote-deploy\deploy-windows.ps1') -Package (Join-Path `$HOME 'vlcremote-deploy\$leaf')"
             if ($code -ne 0) { throw "Installation on the laptop exited with code $code" }
         } finally {
