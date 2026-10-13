@@ -132,8 +132,9 @@ internal static class Program
         var audioWatcher = new AudioDeviceWatcher(lf.CreateLogger<AudioDeviceWatcher>());
         var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
         using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
+        using var library = new LibraryService(settings, paths, vlc.History?.Store, background, lf.CreateLogger<LibraryService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            lf.CreateLogger<CompanionHost>());
+            library, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
@@ -144,7 +145,7 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, bluetooth, powerPlan, lf.CreateLogger<SetupBackend>());
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
         SetupForm? earlySetup = null;
@@ -208,6 +209,7 @@ internal static class Program
 
         vlc.Start();
         audioWatcher.Start();
+        library.Start();
         if (settings.AutoLaunchVlc && installation is not null)
             background.Run("Auto-launch of VLC", ct => vlc.LaunchAsync(null, null, ct));
 

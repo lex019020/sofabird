@@ -98,6 +98,14 @@
   <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Не удалось настроить VLC (подробности в журнале)</value></data>
   <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>
   <data name="SetupKeepAwakeText" xml:space="preserve"><value>Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. После остановки снова действуют обычные настройки электропитания.</value></data>
+  <data name="SetupMediaTitle" xml:space="preserve"><value>Медиапапки</value></data>
+  <data name="SetupMediaText" xml:space="preserve"><value>Папки с вашими фильмами и сериалами — на дисках этого ПК или в сетевых папках. Компаньон узнаёт названия по именам файлов и загружает постеры и описания, а телефон показывает их как медиатеку. Остальные папки по-прежнему открываются через диски.</value></data>
+  <data name="SetupMediaAdd" xml:space="preserve"><value>Добавить папку…</value></data>
+  <data name="SetupMediaRemove" xml:space="preserve"><value>Убрать</value></data>
+  <data name="SetupMediaPick" xml:space="preserve"><value>Выберите папку с фильмами или сериалами</value></data>
+  <data name="SetupMediaNone" xml:space="preserve"><value>Папок пока нет: телефон показывает только диски</value></data>
+  <data name="SetupMediaCount" xml:space="preserve"><value>Папок: {0}</value></data>
+  <data name="SetupMediaTmdb" xml:space="preserve"><value>Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.</value></data>
   <data name="SetupMediaStationTitle" xml:space="preserve"><value>Этот ПК — медиастанция</value></data>
   <data name="SetupMediaStationText" xml:space="preserve"><value>Для компьютера или ноутбука у телевизора: он продолжает работать с закрытой крышкой и сам не засыпает и не уходит в гибернацию — и от сети, и от батареи, чтобы его не остановило даже отключение света. Компаньон меняет эти настройки текущей схемы электропитания Windows; если потом снять галочку, они не вернутся назад. Экран по‑прежнему может гаснуть, а телевизор — уходить в дежурный режим.</value></data>
   <data name="SetupMediaStationOk" xml:space="preserve"><value>✓ Крышку можно закрывать, ПК не засыпает</value></data>

@@ -98,6 +98,14 @@ Change wsPort in {2}.</value></data>
   <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Could not configure VLC (details are in the log)</value></data>
   <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Keep the PC awake during a movie</value></data>
   <data name="SetupKeepAwakeText" xml:space="preserve"><value>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</value></data>
+  <data name="SetupMediaTitle" xml:space="preserve"><value>Media folders</value></data>
+  <data name="SetupMediaText" xml:space="preserve"><value>Folders with your movies and series, on this PC's disks or network shares. The companion recognizes the titles by the file names and fetches posters and descriptions, and the phone shows them as a library. Other folders can still be opened from the drives.</value></data>
+  <data name="SetupMediaAdd" xml:space="preserve"><value>Add a folder…</value></data>
+  <data name="SetupMediaRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="SetupMediaPick" xml:space="preserve"><value>Choose a folder with movies or series</value></data>
+  <data name="SetupMediaNone" xml:space="preserve"><value>No folders yet: the phone browses the drives only</value></data>
+  <data name="SetupMediaCount" xml:space="preserve"><value>Folders: {0}</value></data>
+  <data name="SetupMediaTmdb" xml:space="preserve"><value>Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</value></data>
   <data name="SetupMediaStationTitle" xml:space="preserve"><value>This PC is a media station</value></data>
   <data name="SetupMediaStationText" xml:space="preserve"><value>For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. The companion changes these settings of the current Windows power plan; unticking this later does not change them back. The screen may still turn off, and the TV may go to standby.</value></data>
   <data name="SetupMediaStationOk" xml:space="preserve"><value>✓ The lid can be closed; the PC does not go to sleep</value></data>

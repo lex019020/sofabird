@@ -324,8 +324,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       work tied to the companion's lifetime, the polling decisions as tested pure functions; on Android every
       screen is `XxxScreen` + stateless `XxxContent(ui, actions)` with screenshot tests, one local state flow per
       ViewModel, the position ticker in the scrub bar; dead code removed on both sides.
-- [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
-      phone), cache.
+- [ ] **Library with posters** (user request): media folders in the setup window, file name parsing, TMDB metadata
+      via the companion (built-in token from CI + the user's own), cache ≤ 6 months; the phone shows posters next to
+      the folders. Done: the companion side and the protocol (`getLibrary`, `getShow`, `state.library`).
+      Left: the phone's poster grid, series and movie pages.
 - [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
       updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan

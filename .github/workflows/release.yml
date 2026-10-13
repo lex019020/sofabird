@@ -75,6 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CHANNEL: ${{ needs.meta.outputs.channel }}
           VERSION: ${{ needs.meta.outputs.version }}
+          TMDB_API_TOKEN: ${{ secrets.TMDB_API_TOKEN }}   # built into the companion for the library's metadata
         run: |
           dotnet tool restore
           # The previous package of the same kind lets vpk build a small delta update next to the full one.

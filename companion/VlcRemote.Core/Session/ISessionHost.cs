@@ -40,4 +40,9 @@ public interface ISessionHost
     Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct);
     /// <summary><c>historyClear</c>.</summary>
     Task ClearHistoryAsync(CancellationToken ct);
+
+    /// <summary><c>getLibrary</c>: the movies and series of the media folders.</summary>
+    Task<LibraryMessage> GetLibraryAsync(CancellationToken ct);
+    /// <summary><c>getShow</c>: one series with its episodes; <c>null</c> when the library has no such series.</summary>
+    Task<ShowMessage?> GetShowAsync(string key, CancellationToken ct);
 }

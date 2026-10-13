@@ -22,13 +22,14 @@ public sealed class CompanionHost : ISessionHost
     private readonly PowerService _power;
     private readonly AudioService _audio;
     private readonly BackgroundWork _background;
+    private readonly LibraryService _library;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
-        ILogger<CompanionHost> log)
+        LibraryService library, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -39,6 +40,7 @@ public sealed class CompanionHost : ISessionHost
         _power = power;
         _audio = audio;
         _background = background;
+        _library = library;
         _log = log;
         _baseCaps =
         [
@@ -51,6 +53,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Power,
             Core.Protocol.Caps.SystemVolume,
             Core.Protocol.Caps.Metadata,
+            Core.Protocol.Caps.Library,
             .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
@@ -74,6 +77,8 @@ public sealed class CompanionHost : ISessionHost
         _vlc.LaunchTargetResolver = ResolveLaunchTarget;
         _vlc.PlaceLaunchedWindowAsync = (pid, target, ct) => Displays.PlaceNewWindowAsync(pid, startedBeforeCompanion: false, target, ct);
         _vlc.SystemInfoProvider = BuildSystemInfo;
+        _vlc.LibraryInfoProvider = () => _library.Info;
+        _library.Changed += _vlc.Poke;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -251,6 +256,10 @@ public sealed class CompanionHost : ISessionHost
     public Task<IReadOnlyList<PlaylistEntry>> GetPlaylistAsync(CancellationToken ct) => _vlc.GetPlaylistAsync(ct);
     public Task<TracksInfo> GetTracksAsync(CancellationToken ct) => _vlc.GetTracksAsync(ct);
     public Task<IReadOnlyList<AudioDeviceEntry>> GetAudioDevicesAsync(CancellationToken ct) => _vlc.GetAudioDevicesAsync(ct);
+
+    public Task<LibraryMessage> GetLibraryAsync(CancellationToken ct) => Task.FromResult(_library.BuildLibrary());
+
+    public Task<ShowMessage?> GetShowAsync(string key, CancellationToken ct) => Task.FromResult(_library.BuildShow(key));
 
     private HistoryStore HistoryStore => _vlc.History?.Store ?? throw ProtocolException.Unsupported("watch history is off");
 

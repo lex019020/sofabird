@@ -14,7 +14,10 @@ enum class Capability(val wire: String) {
     BLUETOOTH("bluetooth"),
 
     /** Watch history, resume prompt and next-episode offer (companion). */
-    HISTORY("history");
+    HISTORY("history"),
+
+    /** Movies and series of the PC's media folders with TMDB metadata (companion). */
+    LIBRARY("library");
 
     companion object {
         private val byWire = entries.associateBy { it.wire }
@@ -35,6 +38,7 @@ data class Capabilities(val flags: Set<Capability> = emptySet()) {
     val metadata: Boolean get() = Capability.METADATA in flags
     val bluetooth: Boolean get() = Capability.BLUETOOTH in flags
     val history: Boolean get() = Capability.HISTORY in flags
+    val library: Boolean get() = Capability.LIBRARY in flags
 
     operator fun contains(capability: Capability): Boolean = capability in flags
 

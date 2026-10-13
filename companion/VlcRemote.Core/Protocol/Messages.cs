@@ -34,6 +34,10 @@ namespace VlcRemote.Core.Protocol;
 [JsonDerivedType(typeof(HistoryMessage), "history")]
 [JsonDerivedType(typeof(HistoryUpdateMessage), "historyUpdate")]
 [JsonDerivedType(typeof(HistoryClearMessage), "historyClear")]
+[JsonDerivedType(typeof(GetLibraryMessage), "getLibrary")]
+[JsonDerivedType(typeof(LibraryMessage), "library")]
+[JsonDerivedType(typeof(GetShowMessage), "getShow")]
+[JsonDerivedType(typeof(ShowMessage), "show")]
 public abstract class Message
 {
     /// <summary>Request identifier; the response carries the same <c>id</c>.</summary>
@@ -275,6 +279,86 @@ public sealed class HistoryUpdateMessage : Message
 
 public sealed class HistoryClearMessage : Message;
 
+/// <summary><c>getLibrary</c>: the movies and series of the media folders (<c>library</c> capability).</summary>
+public sealed class GetLibraryMessage : Message;
+
+/// <summary>A video file of the library.</summary>
+public sealed class MediaFile
+{
+    public string Uri { get; set; } = "";
+    /// <summary>File name.</summary>
+    public string Name { get; set; } = "";
+    public long Size { get; set; }
+    /// <summary>Watched fraction 0..1 from the history; absent when never played.</summary>
+    public double? Progress { get; set; }
+    public bool? Finished { get; set; }
+}
+
+/// <summary>Fields a movie and a series share.</summary>
+public abstract class LibraryTitle
+{
+    /// <summary>Stable id within the PC's library.</summary>
+    public string Key { get; set; } = "";
+    /// <summary>TMDB's title in the PC's language, or the one parsed from the file name.</summary>
+    public string Title { get; set; } = "";
+    public int? Year { get; set; }
+    public string? Overview { get; set; }
+    /// <summary>Full image URL (TMDB, w342); absent when not found.</summary>
+    public string? Poster { get; set; }
+    /// <summary>Full image URL (TMDB, w1280).</summary>
+    public string? Backdrop { get; set; }
+    /// <summary>TMDB user rating 0..10.</summary>
+    public double? Rating { get; set; }
+}
+
+public sealed class MovieItem : LibraryTitle
+{
+    /// <summary>Usually one; several are versions of the same movie, the biggest first.</summary>
+    public IReadOnlyList<MediaFile> Files { get; set; } = [];
+}
+
+public sealed class ShowItem : LibraryTitle
+{
+    public int Episodes { get; set; }
+    /// <summary>Episodes not finished yet (history).</summary>
+    public int Unwatched { get; set; }
+}
+
+public sealed class LibraryMessage : Message
+{
+    /// <summary>Same as <c>state.library.revision</c> when the list was built.</summary>
+    public long Revision { get; set; }
+    /// <summary>A scan or a metadata lookup is in progress; the list will change.</summary>
+    public bool Scanning { get; set; }
+    public IReadOnlyList<MovieItem> Movies { get; set; } = [];
+    public IReadOnlyList<ShowItem> Shows { get; set; } = [];
+}
+
+/// <summary><c>getShow</c>: the episodes of one series (<see cref="LibraryTitle.Key"/>).</summary>
+public sealed class GetShowMessage : Message
+{
+    public string Key { get; set; } = "";
+}
+
+public sealed class EpisodeItem
+{
+    public int Season { get; set; }
+    public int Episode { get; set; }
+    /// <summary>The episode's name from TMDB; absent when unknown.</summary>
+    public string? Title { get; set; }
+    public string? Overview { get; set; }
+    /// <summary>Full image URL (TMDB still, w300).</summary>
+    public string? Still { get; set; }
+    public MediaFile File { get; set; } = new();
+}
+
+public sealed class ShowMessage : Message
+{
+    public ShowItem Show { get; set; } = new();
+    /// <summary>By season and episode.</summary>
+    public IReadOnlyList<EpisodeItem> Episodes { get; set; } = [];
+}
+
 public sealed class PingMessage : Message;
 
 public sealed class PongMessage : Message;
@@ -332,6 +416,8 @@ public static class Caps
     public const string Bluetooth = "bluetooth";
     /// <summary>Watch history, resume prompt and next-episode offer.</summary>
     public const string History = "history";
+    /// <summary>Movies and series of the media folders with TMDB metadata (<c>getLibrary</c>, <c>getShow</c>).</summary>
+    public const string Library = "library";
 }
 
 public static class EventNames
