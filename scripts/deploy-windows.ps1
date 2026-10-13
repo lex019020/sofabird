@@ -3,7 +3,7 @@
   Installs and updates the VLC Remote companion on Windows.
 
 .DESCRIPTION
-  Source: GitHub Releases (default; requires gh with access to the repository) or -Local - a build from the working
+  Source: GitHub Releases (default; no login needed) or -Local - a build from the working
   copy. The beta channel is the newest build (test builds + releases), stable is the latest release.
 
   The companion is installed to %LOCALAPPDATA%\VlcRemote\app without administrator rights. Before the files are
@@ -282,7 +282,6 @@ try {
         $build = Build-LocalCompanion $work
         $target = $build.Version
     } else {
-        Assert-Gh
         $tagName = Resolve-ReleaseTag
         $target = $tagName.TrimStart('v')
     }

@@ -160,11 +160,13 @@ jobs:
           tag, repo = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"]
           print(rf"""
           ---
-          **Install or update** (needs [gh](https://cli.github.com) with access to the repository):
+          **Install or update** (no GitHub account needed):
           ```powershell
-          gh release download {tag} --repo {repo} --pattern 'deploy-*' --dir $env:TEMP\vlcremote --clobber
-          & $env:TEMP\vlcremote\deploy-windows.ps1 -Tag {tag}    # companion on the Windows PC
-          & $env:TEMP\vlcremote\deploy-android.ps1 -Tag {tag}    # app on allowed phones via adb
+          $d = "$env:TEMP\vlcremote"; New-Item -ItemType Directory -Force $d | Out-Null
+          'deploy-lib.ps1', 'deploy-windows.ps1', 'deploy-android.ps1' | ForEach-Object {{
+              Invoke-WebRequest "https://github.com/{repo}/releases/download/{tag}/$_" -OutFile "$d\$_" -UseBasicParsing }}
+          & $d\deploy-windows.ps1 -Tag {tag}    # companion on the Windows PC
+          & $d\deploy-android.ps1 -Tag {tag}    # app on allowed phones via adb
           ```
           Or download the `deploy-*` files from this release and double-click `deploy-windows.cmd` / `deploy-android.cmd`. The APK can also be installed manually.""".replace("\n          ", "\n"))
           PY

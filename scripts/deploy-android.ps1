@@ -3,7 +3,7 @@
   Installs and updates the VLC Remote app on a phone over adb.
 
 .DESCRIPTION
-  Source: GitHub Releases (default; requires gh with access to the repository) or -Local - a build from the working
+  Source: GitHub Releases (default; no login needed) or -Local - a build from the working
   copy (requires android\keystore.properties). The beta channel is the newest build, stable is the latest release.
 
   The APK is installed ONLY on devices from the allow list (%USERPROFILE%\.vlc-remote\devices.json, by the
@@ -281,7 +281,6 @@ try {
         $build = Build-LocalApk $work
         $target = $build.Version
     } else {
-        Assert-Gh
         $tagName = Resolve-ReleaseTag
         $target = $tagName.TrimStart('v')
         $targets = @(Get-TargetDevices)
