@@ -134,3 +134,22 @@ Wi‑Fi‑отладка (Android 11+): «Для разработчиков» �
 - Локально: скопировать `keystore.properties` в `android\` (в git не попадает).
 - CI: секреты репозитория `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
   `ANDROID_KEY_PASSWORD`.
+
+## Отладка на ноутбуке у ТВ (SSH)
+
+Компаньон тестируется на отдельном ноутбуке, подключённом к телевизору. С ПК разработчика к нему ходим по SSH
+(встроенный OpenSSH Server Windows, вход только по ключу, порт 22 открыт только в частной сети):
+
+| Команда (на ПК разработчика) | Что делает |
+|---|---|
+| `scripts\dev-laptop.ps1 -Init` | ключ `~\.ssh\id_ed25519_vlcremote` + файлы настройки в `D:\shared\vlc-remote-setup` |
+| на ноутбуке: `\DESKTOP-9SO2EON\shared\vlc-remote-setup\laptop-setup.cmd` | разовая настройка sshd (запросит права администратора), печатает IP и пользователя |
+| `dev-laptop.ps1 -Connect <IP> -User <имя>` | запись `Host vlcremote-laptop` в `~\.ssh\config` и проверка связи |
+| `dev-laptop.ps1` (`-Status`) | компаньон, `/info`, процессы VLC с командной строкой, ключи `vlcrc`, профили сети |
+| `dev-laptop.ps1 -Deploy -Local` / `-Deploy [-Tag …]` | собрать здесь (или взять из релиза) и поставить на ноутбук |
+| `dev-laptop.ps1 -Logs [-Tail N] [-Follow]` | журнал компаньона |
+| `dev-laptop.ps1 -Exec '<PowerShell>'` / `-Shell` | произвольная команда / интерактивная сессия |
+
+По SSH процессы запускаются вне рабочего стола пользователя, поэтому `deploy-windows.ps1` в SSH‑сеансе запускает и
+останавливает компаньон через задачу планировщика в интерактивном сеансе (пользователь должен быть залогинен).
+Отключить доступ: на ноутбуке `laptop-setup.ps1 -Remove`.

@@ -4,163 +4,969 @@
   "title": "vlc-remote protocol v1 messages",
   "description": "Каждое сообщение — JSON-объект с полем t (тип). Передаётся одним WebSocket-фреймом или одной строкой NDJSON.",
   "type": "object",
-  "required": ["t"],
-  "properties": { "t": { "type": "string" }, "id": { "type": "string" } },
+  "required": [
+    "t"
+  ],
+  "properties": {
+    "t": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
   "oneOf": [
-    { "$ref": "#/$defs/hello" }, { "$ref": "#/$defs/welcome" }, { "$ref": "#/$defs/cmd" },
-    { "$ref": "#/$defs/sys" }, { "$ref": "#/$defs/ok" }, { "$ref": "#/$defs/err" },
-    { "$ref": "#/$defs/browse" }, { "$ref": "#/$defs/entries" }, { "$ref": "#/$defs/getState" },
-    { "$ref": "#/$defs/getPlaylist" }, { "$ref": "#/$defs/playlist" }, { "$ref": "#/$defs/getTracks" },
-    { "$ref": "#/$defs/tracks" }, { "$ref": "#/$defs/getAudioDevices" }, { "$ref": "#/$defs/audioDevices" },
-    { "$ref": "#/$defs/displays" }, { "$ref": "#/$defs/state" }, { "$ref": "#/$defs/event" },
-    { "$ref": "#/$defs/ping" }, { "$ref": "#/$defs/pong" }, { "$ref": "#/$defs/beacon" }
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/welcome"
+    },
+    {
+      "$ref": "#/$defs/cmd"
+    },
+    {
+      "$ref": "#/$defs/sys"
+    },
+    {
+      "$ref": "#/$defs/ok"
+    },
+    {
+      "$ref": "#/$defs/err"
+    },
+    {
+      "$ref": "#/$defs/browse"
+    },
+    {
+      "$ref": "#/$defs/entries"
+    },
+    {
+      "$ref": "#/$defs/getState"
+    },
+    {
+      "$ref": "#/$defs/getPlaylist"
+    },
+    {
+      "$ref": "#/$defs/playlist"
+    },
+    {
+      "$ref": "#/$defs/getTracks"
+    },
+    {
+      "$ref": "#/$defs/tracks"
+    },
+    {
+      "$ref": "#/$defs/getAudioDevices"
+    },
+    {
+      "$ref": "#/$defs/audioDevices"
+    },
+    {
+      "$ref": "#/$defs/displays"
+    },
+    {
+      "$ref": "#/$defs/state"
+    },
+    {
+      "$ref": "#/$defs/event"
+    },
+    {
+      "$ref": "#/$defs/ping"
+    },
+    {
+      "$ref": "#/$defs/pong"
+    },
+    {
+      "$ref": "#/$defs/beacon"
+    }
   ],
   "$defs": {
     "hello": {
-      "type": "object", "required": ["t", "v", "device"],
+      "type": "object",
+      "required": [
+        "t",
+        "v",
+        "device"
+      ],
       "properties": {
-        "t": { "const": "hello" }, "v": { "const": 1 },
-        "device": { "type": "object", "required": ["name", "id"], "properties": { "name": { "type": "string" }, "id": { "type": "string" } } },
-        "token": { "type": ["string", "null"] },
-        "pairCode": { "type": ["string", "null"], "pattern": "^[0-9]{6}$" }
+        "t": {
+          "const": "hello"
+        },
+        "v": {
+          "const": 1
+        },
+        "device": {
+          "type": "object",
+          "required": [
+            "name",
+            "id"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            }
+          }
+        },
+        "token": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pairCode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]{6}$"
+        }
       }
     },
     "welcome": {
-      "type": "object", "required": ["t", "v", "name", "id", "caps", "vlc"],
+      "type": "object",
+      "required": [
+        "t",
+        "v",
+        "name",
+        "id",
+        "caps",
+        "vlc"
+      ],
       "properties": {
-        "t": { "const": "welcome" }, "v": { "const": 1 }, "name": { "type": "string" }, "id": { "type": "string" },
-        "caps": { "type": "array", "items": { "$ref": "#/$defs/cap" } },
-        "token": { "type": "string" },
-        "vlc": { "$ref": "#/$defs/vlcInfo" }
+        "t": {
+          "const": "welcome"
+        },
+        "v": {
+          "const": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "caps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cap"
+          }
+        },
+        "token": {
+          "type": "string"
+        },
+        "vlc": {
+          "$ref": "#/$defs/vlcInfo"
+        }
       }
     },
-    "cap": { "enum": ["currentTrack", "chapterNames", "audioDevices", "pushEvents", "launchVlc", "windowControl", "power", "systemVolume", "metadata", "bluetooth"] },
+    "cap": {
+      "enum": [
+        "currentTrack",
+        "chapterNames",
+        "audioDevices",
+        "pushEvents",
+        "launchVlc",
+        "windowControl",
+        "power",
+        "systemVolume",
+        "metadata",
+        "bluetooth"
+      ]
+    },
     "vlcInfo": {
-      "type": "object", "required": ["running"],
-      "properties": { "running": { "type": "boolean" }, "version": { "type": ["string", "null"] }, "apiVersion": { "type": ["integer", "null"] }, "level": { "type": "integer", "minimum": 0, "maximum": 2 } }
+      "type": "object",
+      "required": [
+        "running"
+      ],
+      "properties": {
+        "running": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "apiVersion": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "status": {
+          "enum": [
+            "notInstalled",
+            "notRunning",
+            "starting",
+            "noControl",
+            "running"
+          ]
+        }
+      }
     },
     "cmd": {
-      "type": "object", "required": ["t", "id", "name"],
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "name"
+      ],
       "properties": {
-        "t": { "const": "cmd" }, "id": { "type": "string" },
-        "name": { "enum": ["play", "pause", "togglePause", "stop", "next", "prev", "seek", "volume", "mute", "rate", "track", "chapter", "title", "delay", "fullscreen", "aspect", "open", "playlistRemove", "playlistClear", "random", "loop", "repeat", "launch", "quit"] },
-        "args": { "type": "object" }
+        "t": {
+          "const": "cmd"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "enum": [
+            "play",
+            "pause",
+            "togglePause",
+            "stop",
+            "next",
+            "prev",
+            "seek",
+            "volume",
+            "mute",
+            "rate",
+            "track",
+            "chapter",
+            "title",
+            "delay",
+            "fullscreen",
+            "aspect",
+            "open",
+            "playlistRemove",
+            "playlistClear",
+            "random",
+            "loop",
+            "repeat",
+            "launch",
+            "quit"
+          ]
+        },
+        "args": {
+          "type": "object"
+        }
       }
     },
     "sys": {
-      "type": "object", "required": ["t", "id", "name"],
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "name"
+      ],
       "properties": {
-        "t": { "const": "sys" }, "id": { "type": "string" },
-        "name": { "enum": ["moveToDisplay", "listDisplays", "keepAwake", "displayPower", "sleep", "shutdown", "audioDevice", "systemVolume"] },
-        "args": { "type": "object" }
+        "t": {
+          "const": "sys"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "enum": [
+            "moveToDisplay",
+            "listDisplays",
+            "keepAwake",
+            "displayPower",
+            "sleep",
+            "shutdown",
+            "audioDevice",
+            "systemVolume"
+          ]
+        },
+        "args": {
+          "type": "object"
+        }
       }
     },
-    "ok": { "type": "object", "required": ["t", "id"], "properties": { "t": { "const": "ok" }, "id": { "type": "string" } } },
+    "ok": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "ok"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
     "err": {
-      "type": "object", "required": ["t", "code", "msg"],
+      "type": "object",
+      "required": [
+        "t",
+        "code",
+        "msg"
+      ],
       "properties": {
-        "t": { "const": "err" }, "id": { "type": "string" },
-        "code": { "enum": ["unauthorized", "bad_request", "vlc_not_running", "vlc_error", "unsupported", "internal"] },
-        "msg": { "type": "string" }
+        "t": {
+          "const": "err"
+        },
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "enum": [
+            "pairing_required",
+            "unauthorized",
+            "bad_request",
+            "vlc_not_running",
+            "vlc_error",
+            "unsupported",
+            "internal"
+          ]
+        },
+        "msg": {
+          "type": "string"
+        }
       }
     },
-    "browse": { "type": "object", "required": ["t", "id", "uri"], "properties": { "t": { "const": "browse" }, "id": { "type": "string" }, "uri": { "type": "string" } } },
+    "browse": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "uri"
+      ],
+      "properties": {
+        "t": {
+          "const": "browse"
+        },
+        "id": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        }
+      }
+    },
     "entries": {
-      "type": "object", "required": ["t", "id", "uri", "items"],
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "uri",
+        "items"
+      ],
       "properties": {
-        "t": { "const": "entries" }, "id": { "type": "string" }, "uri": { "type": "string" },
-        "items": { "type": "array", "items": {
-          "type": "object", "required": ["name", "uri", "type"],
-          "properties": { "name": { "type": "string" }, "uri": { "type": "string" }, "type": { "enum": ["dir", "file"] }, "size": { "type": ["integer", "null"] }, "modified": { "type": ["integer", "null"] } }
-        } }
+        "t": {
+          "const": "entries"
+        },
+        "id": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "uri",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "dir",
+                  "file"
+                ]
+              },
+              "size": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "modified": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
       }
     },
-    "getState": { "type": "object", "required": ["t", "id"], "properties": { "t": { "const": "getState" }, "id": { "type": "string" } } },
-    "getPlaylist": { "type": "object", "required": ["t", "id"], "properties": { "t": { "const": "getPlaylist" }, "id": { "type": "string" } } },
-    "playlist": {
-      "type": "object", "required": ["t", "id", "items"],
+    "getState": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
       "properties": {
-        "t": { "const": "playlist" }, "id": { "type": "string" },
-        "items": { "type": "array", "items": { "$ref": "#/$defs/playlistItem" } }
+        "t": {
+          "const": "getState"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "getPlaylist": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "getPlaylist"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "playlist": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "items"
+      ],
+      "properties": {
+        "t": {
+          "const": "playlist"
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/playlistItem"
+          }
+        }
       }
     },
     "playlistItem": {
-      "type": "object", "required": ["plId", "name", "uri"],
-      "properties": { "plId": { "type": "integer" }, "name": { "type": "string" }, "uri": { "type": "string" }, "durationSec": { "type": ["integer", "null"] }, "current": { "type": "boolean" } }
+      "type": "object",
+      "required": [
+        "plId",
+        "name",
+        "uri"
+      ],
+      "properties": {
+        "plId": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "durationSec": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "current": {
+          "type": "boolean"
+        }
+      }
     },
-    "getTracks": { "type": "object", "required": ["t", "id"], "properties": { "t": { "const": "getTracks" }, "id": { "type": "string" } } },
+    "getTracks": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "getTracks"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
     "tracks": {
-      "type": "object", "required": ["t", "id"],
-      "properties": { "t": { "const": "tracks" }, "id": { "type": "string" } },
-      "allOf": [{ "$ref": "#/$defs/tracksBody" }]
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "tracks"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/$defs/tracksBody"
+        }
+      ]
     },
     "tracksBody": {
       "type": "object",
       "properties": {
-        "audio": { "type": "array", "items": { "$ref": "#/$defs/track" } },
-        "subtitle": { "type": "array", "items": { "$ref": "#/$defs/track" } },
-        "video": { "type": "array", "items": { "$ref": "#/$defs/track" } },
-        "currentAudio": { "type": ["integer", "null"] },
-        "currentSubtitle": { "type": ["integer", "null"] },
-        "currentVideo": { "type": ["integer", "null"] }
+        "audio": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        },
+        "subtitle": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        },
+        "video": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        },
+        "currentAudio": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "currentSubtitle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "currentVideo": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
       }
     },
     "track": {
-      "type": "object", "required": ["id", "name"],
-      "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "lang": { "type": ["string", "null"] }, "codec": { "type": ["string", "null"] } }
-    },
-    "getAudioDevices": { "type": "object", "required": ["t", "id"], "properties": { "t": { "const": "getAudioDevices" }, "id": { "type": "string" } } },
-    "audioDevices": {
-      "type": "object", "required": ["t", "id", "items"],
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
       "properties": {
-        "t": { "const": "audioDevices" }, "id": { "type": "string" },
-        "items": { "type": "array", "items": { "type": "object", "required": ["id", "name"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "current": { "type": "boolean" } } } }
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "lang": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "codec": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "getAudioDevices": {
+      "type": "object",
+      "required": [
+        "t",
+        "id"
+      ],
+      "properties": {
+        "t": {
+          "const": "getAudioDevices"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "audioDevices": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "items"
+      ],
+      "properties": {
+        "t": {
+          "const": "audioDevices"
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "current": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
       }
     },
     "displays": {
-      "type": "object", "required": ["t", "id", "items"],
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "items"
+      ],
       "properties": {
-        "t": { "const": "displays" }, "id": { "type": "string" },
-        "items": { "type": "array", "items": {
-          "type": "object", "required": ["index", "name"],
-          "properties": { "index": { "type": "integer" }, "name": { "type": "string" }, "primary": { "type": "boolean" },
-            "bounds": { "type": "object", "properties": { "x": { "type": "integer" }, "y": { "type": "integer" }, "width": { "type": "integer" }, "height": { "type": "integer" } } } }
-        } }
+        "t": {
+          "const": "displays"
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "index",
+              "name"
+            ],
+            "properties": {
+              "index": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "primary": {
+                "type": "boolean"
+              },
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "y": {
+                    "type": "integer"
+                  },
+                  "width": {
+                    "type": "integer"
+                  },
+                  "height": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "state": {
-      "type": "object", "required": ["t", "vlc", "playback"],
+      "type": "object",
+      "required": [
+        "t",
+        "vlc",
+        "playback"
+      ],
       "properties": {
-        "t": { "const": "state" },
-        "vlc": { "$ref": "#/$defs/vlcInfo" },
+        "t": {
+          "const": "state"
+        },
+        "vlc": {
+          "$ref": "#/$defs/vlcInfo"
+        },
         "playback": {
-          "type": "object", "required": ["state", "time", "length", "position", "rate", "updatedAt"],
+          "type": "object",
+          "required": [
+            "state",
+            "time",
+            "length",
+            "position",
+            "rate",
+            "updatedAt"
+          ],
           "properties": {
-            "state": { "enum": ["playing", "paused", "stopped"] },
-            "time": { "type": "integer" }, "length": { "type": "integer" }, "position": { "type": "number" },
-            "rate": { "type": "number" }, "updatedAt": { "type": "integer", "description": "unix ms на ПК" }
+            "state": {
+              "enum": [
+                "playing",
+                "paused",
+                "stopped"
+              ]
+            },
+            "time": {
+              "type": "integer"
+            },
+            "length": {
+              "type": "integer"
+            },
+            "position": {
+              "type": "number"
+            },
+            "rate": {
+              "type": "number"
+            },
+            "updatedAt": {
+              "type": "integer",
+              "description": "unix ms на ПК"
+            }
           }
         },
-        "item": { "type": ["object", "null"], "properties": { "plId": { "type": ["integer", "null"] }, "uri": { "type": ["string", "null"] }, "title": { "type": ["string", "null"] }, "artUrl": { "type": ["string", "null"] } } },
-        "tracks": { "$ref": "#/$defs/tracksBody" },
-        "chapters": { "type": "object", "properties": { "index": { "type": "integer" }, "count": { "type": "integer" }, "names": { "type": "array", "items": { "type": "string" } } } },
-        "titles": { "type": "object", "properties": { "index": { "type": "integer" }, "count": { "type": "integer" } } },
-        "volume": { "type": "object", "required": ["value", "muted"], "properties": { "value": { "type": "integer", "minimum": 0, "maximum": 512 }, "muted": { "type": "boolean" } } },
-        "video": { "type": "object", "properties": { "fullscreen": { "type": "boolean" }, "aspect": { "type": "string" } } },
-        "delays": { "type": "object", "properties": { "audio": { "type": "number" }, "subtitle": { "type": "number" } } },
-        "flags": { "type": "object", "properties": { "random": { "type": "boolean" }, "loop": { "type": "boolean" }, "repeat": { "type": "boolean" } } },
-        "system": { "type": "object", "properties": { "volume": { "type": "integer" }, "muted": { "type": "boolean" }, "audioDevice": { "type": ["string", "null"] }, "display": { "type": ["integer", "null"] }, "keepAwake": { "type": "boolean" } } }
+        "item": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "plId": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "uri": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "artUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tracks": {
+          "$ref": "#/$defs/tracksBody"
+        },
+        "chapters": {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "integer"
+            },
+            "count": {
+              "type": "integer"
+            },
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "titles": {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "integer"
+            },
+            "count": {
+              "type": "integer"
+            }
+          }
+        },
+        "volume": {
+          "type": "object",
+          "required": [
+            "value",
+            "muted"
+          ],
+          "properties": {
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 512
+            },
+            "muted": {
+              "type": "boolean"
+            }
+          }
+        },
+        "video": {
+          "type": "object",
+          "properties": {
+            "fullscreen": {
+              "type": "boolean"
+            },
+            "aspect": {
+              "type": "string"
+            }
+          }
+        },
+        "delays": {
+          "type": "object",
+          "properties": {
+            "audio": {
+              "type": "number"
+            },
+            "subtitle": {
+              "type": "number"
+            }
+          }
+        },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "random": {
+              "type": "boolean"
+            },
+            "loop": {
+              "type": "boolean"
+            },
+            "repeat": {
+              "type": "boolean"
+            }
+          }
+        },
+        "system": {
+          "type": "object",
+          "properties": {
+            "volume": {
+              "type": "integer"
+            },
+            "muted": {
+              "type": "boolean"
+            },
+            "audioDevice": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "keepAwake": {
+              "type": "boolean"
+            }
+          }
+        }
       }
     },
     "event": {
-      "type": "object", "required": ["t", "name"],
-      "properties": { "t": { "const": "event" }, "name": { "enum": ["vlcStarted", "vlcExited", "inputChanged", "endReached", "paired"] } }
+      "type": "object",
+      "required": [
+        "t",
+        "name"
+      ],
+      "properties": {
+        "t": {
+          "const": "event"
+        },
+        "name": {
+          "enum": [
+            "vlcStarted",
+            "vlcExited",
+            "inputChanged",
+            "endReached",
+            "paired"
+          ]
+        }
+      }
     },
-    "ping": { "type": "object", "required": ["t"], "properties": { "t": { "const": "ping" } } },
-    "pong": { "type": "object", "required": ["t"], "properties": { "t": { "const": "pong" } } },
+    "ping": {
+      "type": "object",
+      "required": [
+        "t"
+      ],
+      "properties": {
+        "t": {
+          "const": "ping"
+        }
+      }
+    },
+    "pong": {
+      "type": "object",
+      "required": [
+        "t"
+      ],
+      "properties": {
+        "t": {
+          "const": "pong"
+        }
+      }
+    },
     "beacon": {
-      "type": "object", "required": ["t", "name", "id", "wsPort", "protocol"],
-      "properties": { "t": { "const": "beacon" }, "name": { "type": "string" }, "id": { "type": "string" }, "wsPort": { "type": "integer" }, "protocol": { "const": 1 }, "needsPairing": { "type": "boolean" } }
+      "type": "object",
+      "required": [
+        "t",
+        "name",
+        "id",
+        "wsPort",
+        "protocol"
+      ],
+      "properties": {
+        "t": {
+          "const": "beacon"
+        },
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "wsPort": {
+          "type": "integer"
+        },
+        "protocol": {
+          "const": 1
+        },
+        "needsPairing": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }
