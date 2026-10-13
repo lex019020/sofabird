@@ -115,7 +115,8 @@ messages in English:
 
 The companion is installed into `%LOCALAPPDATA%\VlcRemote\app` without administrator rights; before replacing the
 files the old instance is shut down gracefully (`VlcRemote.Companion.exe --shutdown`). If the .NET 9 Desktop/ASP.NET Core
-Runtime is missing, the script installs it via winget.
+Runtime is missing, the script installs it via winget. If VLC media player is not installed, the script installs it via winget (`VideoLAN.VLC`, one
+administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
 
 ## Deployment: Android
 

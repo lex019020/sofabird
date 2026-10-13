@@ -18,6 +18,7 @@
   .\deploy-windows.ps1 -Local                # build from source and install
   .\deploy-windows.ps1 -Package <zip>        # install from a ready-made archive (this is how dev-laptop.ps1 installs over SSH)
   .\deploy-windows.ps1 -CheckOnly            # only compare versions
+  .\deploy-windows.ps1 -SkipVlc              # do not install VLC when it is missing
   .\deploy-windows.ps1 -Firewall -Autostart  # + firewall rules (one UAC prompt) and autostart
   .\deploy-windows.ps1 -Rollback             # restore the previous version
   .\deploy-windows.ps1 -Uninstall [-Purge]   # uninstall (with -Purge - also settings, pairings, logs)
@@ -32,6 +33,7 @@ param(
     [switch]$CheckOnly,
     [switch]$Autostart,
     [switch]$Firewall,
+    [switch]$SkipVlc,
     [switch]$Rollback,
     [switch]$Uninstall,
     [switch]$Purge,
@@ -100,6 +102,41 @@ function Test-Runtimes {
         & winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements
         if ($LASTEXITCODE -ne 0) { throw "winget could not install $id" }
     }
+}
+
+function Find-Vlc {
+    foreach ($key in 'HKLM:\SOFTWARE\VideoLAN\VLC', 'HKLM:\SOFTWARE\WOW6432Node\VideoLAN\VLC') {
+        try {
+            $dir = (Get-ItemProperty $key -ErrorAction Stop).InstallDir
+            if ($dir -and (Test-Path (Join-Path $dir 'vlc.exe'))) { return (Join-Path $dir 'vlc.exe') }
+        } catch {}
+    }
+    foreach ($dir in @("$env:ProgramFiles\VideoLAN\VLC", "${env:ProgramFiles(x86)}\VideoLAN\VLC")) {
+        if ($dir -and (Test-Path (Join-Path $dir 'vlc.exe'))) { return (Join-Path $dir 'vlc.exe') }
+    }
+    return $null
+}
+
+function Install-VlcIfMissing {
+    # The companion controls the real VLC media player, so a PC without it gets VLC installed (winget, VideoLAN.VLC).
+    $ErrorActionPreference = 'Continue'
+    $vlc = Find-Vlc
+    if ($vlc) { Write-Ok "VLC found: $vlc"; return }
+    if ($SkipVlc) { Write-Note 'VLC is not installed (-SkipVlc): the companion will report "VLC not found" until it is installed.'; return }
+    if ($InSsh) {
+        Write-Note 'VLC is not installed. Its installer needs an administrator prompt on the desktop, which is not possible over SSH: run deploy-windows.ps1 on the PC itself or install VLC from https://www.videolan.org.'
+        return
+    }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Note 'VLC is not installed and winget is not available: install VLC from https://www.videolan.org (64-bit), then start the companion again.'
+        return
+    }
+    Write-Step 'Installing VLC media player (winget VideoLAN.VLC; Windows will ask for administrator rights)'
+    & winget install --id VideoLAN.VLC -e --silent --accept-package-agreements --accept-source-agreements
+    $code = $LASTEXITCODE
+    $vlc = Find-Vlc
+    if ($vlc) { Write-Ok "VLC installed: $vlc" }
+    else { Write-Note "VLC installation did not complete (winget exit code $code). Install it from https://www.videolan.org and restart the companion." }
 }
 
 function Stop-Companion {
@@ -180,6 +217,7 @@ function Start-Companion([string]$Exe) {
 
 function Install-Companion([string]$Zip, [string]$Version) {
     Test-Runtimes
+    Install-VlcIfMissing
     Write-Step "Installing the companion $Version to $AppDir"
     $staging = Join-Path $InstallRoot 'app.new'
     if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
