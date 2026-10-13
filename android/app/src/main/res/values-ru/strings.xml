@@ -217,7 +217,7 @@
     <string name="badge_vlc_not_installed">VLC не установлен</string>
     <string name="forget_pc">Забыть этот компьютер</string>
     <string name="other_ways">Другие способы подключения</string>
-    <string name="other_ways_hint">VLC без компаньона, ввод адреса вручную, поиск по сети</string>
+    <string name="other_ways_hint">Bluetooth, VLC без компаньона, ввод адреса вручную, поиск по сети</string>
     <string name="manual_companion_hint">После нажатия «Подключить» на экране компьютера появится код — введите его на телефоне.</string>
     <string name="pairing_connecting">Подключаюсь к %1$s…</string>
     <string name="pairing_auto_found">Найден компьютер %1$s — подключаюсь…</string>
@@ -239,4 +239,37 @@
     <string name="vlc_state_not_installed_title">На компьютере не найден VLC</string>
     <string name="vlc_state_not_installed_body">Установите VLC 3.0 с сайта videolan.org — компаньон найдёт его сам.</string>
     <string name="unit_ms">мс</string>
+
+    <!-- Bluetooth (M3) -->
+    <string name="err_bluetooth_failed">Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен</string>
+    <string name="hint_bluetooth_failed">Сопрягите телефон с ПК в настройках Bluetooth Android или Windows. ПК должен быть рядом (около 10 м) с включённым Bluetooth.</string>
+    <string name="transport_wifi">Wi‑Fi</string>
+    <string name="transport_bluetooth">Bluetooth</string>
+    <string name="connection_level_transport">%1$s · %2$s</string>
+    <string name="transport_switched_bluetooth">Нет связи с ПК по Wi‑Fi — переключились на Bluetooth</string>
+    <string name="transport_switched_wifi">Снова по Wi‑Fi</string>
+    <string name="bt_connect_action">Подключиться по Bluetooth</string>
+    <string name="bt_connect_hint">Когда нет Wi‑Fi: телефон должен быть сопряжён с ПК в настройках Bluetooth.</string>
+    <string name="bt_picker_title">Выберите компьютер</string>
+    <string name="bt_picker_hint">Устройства, сопряжённые с телефоном. Компьютер с компаньоном обычно наверху.</string>
+    <string name="bt_picker_empty">Нет сопряжённых устройств. Сначала сопрягите телефон с ПК в настройках Bluetooth.</string>
+    <string name="bt_open_settings">Настройки Bluetooth</string>
+    <string name="bt_permission_title">Разрешите доступ к устройствам поблизости</string>
+    <string name="bt_permission_rationale">Чтобы управлять ПК по Bluetooth, приложение подключается к компьютеру, уже сопряжённому с телефоном. В Android это разрешение называется «Устройства поблизости». Приложение не ищет устройства и не использует ваше местоположение.</string>
+    <string name="bt_permission_allow">Разрешить</string>
+    <string name="bt_permission_denied">Без разрешения «Устройства поблизости» пульт не может работать по Bluetooth. Его можно выдать в настройках приложения.</string>
+    <string name="bt_open_app_settings">Настройки приложения</string>
+    <string name="bt_off_title">Bluetooth выключен</string>
+    <string name="bt_off_body">Включите Bluetooth, чтобы подключаться к ПК без Wi‑Fi.</string>
+    <string name="bt_turn_on">Включить</string>
+    <string name="bt_unsupported">На этом телефоне нет Bluetooth</string>
+    <string name="not_now">Не сейчас</string>
+    <string name="bt_fallback_title">%1$s недоступен по Wi‑Fi</string>
+    <string name="bt_fallback_permission_body">Пульт может продолжить работу по Bluetooth, если разрешить доступ к устройствам поблизости.</string>
+    <string name="bt_fallback_off_body">Пульт может продолжить работу по Bluetooth — включите Bluetooth.</string>
+    <string name="settings_connection">Подключение</string>
+    <string name="settings_bluetooth_fallback">Использовать Bluetooth, когда Wi‑Fi недоступен</string>
+    <string name="settings_bluetooth_fallback_hint">Если ПК сопряжён с телефоном. Медленнее Wi‑Fi, обложки не загружаются.</string>
+    <string name="saved_via_bluetooth">Bluetooth · %1$s</string>
+    <string name="pairing_connecting_bt">Подключаюсь к %1$s по Bluetooth…</string>
 </resources>

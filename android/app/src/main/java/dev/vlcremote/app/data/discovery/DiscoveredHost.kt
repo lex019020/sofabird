@@ -24,6 +24,8 @@ data class DiscoveredHost(
     /** When `/info` was last read (0 = never). */
     val infoAt: Long = 0L,
     val pcId: String? = null,
+    /** Companion's Bluetooth adapter address (beacon / `/info` `bt`), normalized. */
+    val bt: String? = null,
     val sources: Set<DiscoverySource> = emptySet(),
     val lastSeen: Long = System.currentTimeMillis(),
 ) {
@@ -40,6 +42,7 @@ data class DiscoveredHost(
         vlcStatus = other.vlcStatus ?: vlcStatus,
         infoAt = maxOf(infoAt, other.infoAt),
         pcId = other.pcId ?: pcId,
+        bt = other.bt ?: bt,
         sources = sources + other.sources,
         lastSeen = maxOf(lastSeen, other.lastSeen),
     )

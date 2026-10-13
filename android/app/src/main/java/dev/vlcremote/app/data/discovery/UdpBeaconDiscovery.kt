@@ -2,6 +2,7 @@ package dev.vlcremote.app.data.discovery
 
 import android.util.Log
 import dev.vlcremote.protocol.companion.BEACON_REQUEST
+import dev.vlcremote.protocol.companion.BtAddress
 import dev.vlcremote.protocol.companion.COMPANION_BEACON_PORT
 import dev.vlcremote.protocol.companion.CompanionCodec
 import dev.vlcremote.protocol.companion.CompanionMessage
@@ -65,6 +66,7 @@ class UdpBeaconDiscovery(private val localNetwork: LocalNetwork) {
                         wsPort = beacon.wsPort,
                         needsPairing = beacon.needsPairing,
                         pcId = beacon.pcId,
+                        bt = BtAddress.normalize(beacon.bt),
                         sources = setOf(DiscoverySource.UDP_BEACON),
                     ),
                 )

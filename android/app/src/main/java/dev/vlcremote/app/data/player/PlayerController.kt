@@ -1,15 +1,21 @@
 package dev.vlcremote.app.data.player
 
 import android.util.Log
+import dev.vlcremote.app.data.companion.BluetoothStatus
 import dev.vlcremote.app.data.companion.CompanionBackend
 import dev.vlcremote.app.data.companion.CompanionCredentials
+import dev.vlcremote.app.data.companion.CompanionEndpoint
+import dev.vlcremote.app.data.companion.CompanionTransports
 import dev.vlcremote.app.data.net.ArtAuth
 import dev.vlcremote.app.data.secrets.SecretStore
 import dev.vlcremote.app.data.servers.ServerRepository
+import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.data.vlc.VlcHttpApi
 import dev.vlcremote.app.data.vlc.VlcHttpBackend
+import dev.vlcremote.app.domain.model.CompanionSighting
 import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.app.domain.model.ServerMode
+import dev.vlcremote.app.domain.model.mergeSighting
 import dev.vlcremote.protocol.backend.PlayerBackend
 import dev.vlcremote.protocol.backend.PlayerCommand
 import dev.vlcremote.protocol.backend.SystemCommand
@@ -61,6 +67,8 @@ class PlayerController(
     private val artAuth: ArtAuth,
     private val appVisibility: AppVisibility,
     private val identity: DeviceIdentity,
+    private val transports: CompanionTransports,
+    private val settings: SettingsRepository,
     private val scope: CoroutineScope,
 ) {
     private val _activeServer = MutableStateFlow<SavedServer?>(null)
@@ -80,6 +88,14 @@ class PlayerController(
     val capabilities: StateFlow<Capabilities> = _backend
         .flatMapLatest { it?.capabilities ?: flowOf(Capabilities.NONE) }
         .stateIn(scope, SharingStarted.Eagerly, Capabilities.NONE)
+
+    /**
+     * The LAN is gone and Bluetooth could take over once the user grants "Nearby devices" or turns
+     * Bluetooth on; `null` otherwise (see [CompanionBackend.bluetoothNeed]).
+     */
+    val bluetoothNeed: StateFlow<BluetoothStatus?> = _backend
+        .flatMapLatest { (it as? CompanionBackend)?.bluetoothNeed ?: flowOf(null) }
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
     private val _events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 16)
     val events: SharedFlow<PlayerEvent> = _events.asSharedFlow()
@@ -102,7 +118,14 @@ class PlayerController(
         servers.serversState
             .onEach { list ->
                 val active = _activeServer.value ?: return@onEach
-                list.firstOrNull { it.id == active.id }?.let { fresh -> if (fresh != active) _activeServer.value = fresh }
+                list.firstOrNull { it.id == active.id }?.let { fresh ->
+                    if (fresh == active) return@let
+                    _activeServer.value = fresh
+                    // A Bluetooth-paired PC got its LAN address (or DHCP moved it): artwork needs the token there.
+                    if (fresh.isCompanion && fresh.host.isNotBlank() && (fresh.host != active.host || fresh.wsPort != active.wsPort)) {
+                        secrets.companionToken(fresh.id)?.let { artAuth.set(fresh.host, fresh.wsPort, "Bearer $it") }
+                    }
+                }
             }
             .launchIn(scope)
     }
@@ -148,21 +171,34 @@ class PlayerController(
         }
         ServerMode.COMPANION -> {
             val token = secrets.companionToken(server.id)
+            // The freshest copy of this server: discovery / welcome may fill in the LAN or Bluetooth address.
+            val current = { _activeServer.value?.takeIf { it.id == server.id } ?: server }
             val backend = CompanionBackend(
-                client = ktor,
-                host = server.host,
-                port = server.wsPort,
+                transports = transports,
+                endpoint = { current().let { CompanionEndpoint(it.host, it.wsPort, it.btAddress, it.pcId) } },
                 initialName = server.displayName,
                 device = identity.deviceInfo(),
                 credentials = CompanionCredentials(token = token),
                 onToken = { newToken ->
                     secrets.setCompanionToken(server.id, newToken)
-                    artAuth.set(server.host, server.wsPort, "Bearer $newToken")
+                    current().takeIf { it.host.isNotBlank() }?.let { artAuth.set(it.host, it.wsPort, "Bearer $newToken") }
                     _events.tryEmit(PlayerEvent.Paired(server))
                 },
                 scope = backendScope,
+                onWelcome = { welcome ->
+                    val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt)
+                    if (current().mergeSighting(sighting) != current()) {
+                        scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
+                    }
+                },
+                onLanFound = { lan ->
+                    val sighting = CompanionSighting(pcId = null, host = lan.host, wsPort = lan.port, btAddress = lan.btAddress)
+                    scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
+                },
+                // A PC known only by Bluetooth is always reached over it; otherwise the user setting decides.
+                bluetoothAllowed = { settings.settings.value.bluetoothFallback || current().host.isBlank() },
             )
-            token?.let { artAuth.set(server.host, server.wsPort, "Bearer $it") }
+            if (token != null && server.host.isNotBlank()) artAuth.set(server.host, server.wsPort, "Bearer $token")
             backend
         }
     }
@@ -232,6 +268,11 @@ class PlayerController(
     }
 
     fun companionBackend(): CompanionBackend? = _backend.value as? CompanionBackend
+
+    /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */
+    fun retryNow() {
+        companionBackend()?.retryNow()
+    }
 
     private companion object {
         const val TAG = "PlayerController"

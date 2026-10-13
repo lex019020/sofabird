@@ -2,6 +2,7 @@ package dev.vlcremote.app.ui.common
 
 import android.content.Context
 import dev.vlcremote.app.R
+import dev.vlcremote.app.data.companion.BluetoothConnectException
 import dev.vlcremote.app.data.companion.CompanionHandshakeException
 import dev.vlcremote.app.data.vlc.VlcErrorClassifier
 import dev.vlcremote.app.data.vlc.VlcHttpException
@@ -22,6 +23,7 @@ fun ConnectionError.message(context: Context): String = when (this) {
     ConnectionError.InvalidPairCode -> context.getString(R.string.err_invalid_pair_code)
     ConnectionError.VlcNotRunning -> context.getString(R.string.err_vlc_not_running)
     is ConnectionError.ProtocolMismatch -> context.getString(R.string.err_protocol_mismatch, remote?.toString() ?: "?")
+    ConnectionError.BluetoothFailed -> context.getString(R.string.err_bluetooth_failed)
     is ConnectionError.Other -> context.getString(R.string.err_other, message ?: "")
 }
 
@@ -34,12 +36,14 @@ fun ConnectionError.hint(context: Context): String? = when (this) {
     ConnectionError.EmptyBody -> context.getString(R.string.hint_empty_body)
     ConnectionError.PairingRequired -> context.getString(R.string.hint_pairing_required)
     ConnectionError.InvalidPairCode -> context.getString(R.string.hint_invalid_pair_code)
+    ConnectionError.BluetoothFailed -> context.getString(R.string.hint_bluetooth_failed)
     else -> null
 }
 
 fun Throwable.commandErrorMessage(context: Context): String = when (this) {
     is VlcHttpException -> error.message(context)
     is CompanionHandshakeException -> error.message(context)
+    is BluetoothConnectException -> ConnectionError.BluetoothFailed.message(context)
     is CompanionErrorException -> when (code) {
         ErrorCode.VLC_NOT_RUNNING -> context.getString(R.string.err_vlc_not_running)
         ErrorCode.UNAUTHORIZED, ErrorCode.PAIRING_REQUIRED -> context.getString(R.string.err_pairing_required)

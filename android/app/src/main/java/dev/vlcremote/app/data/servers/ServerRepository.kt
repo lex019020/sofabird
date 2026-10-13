@@ -6,7 +6,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.vlcremote.app.domain.model.CompanionSighting
 import dev.vlcremote.app.domain.model.SavedServer
+import dev.vlcremote.app.domain.model.matchSighting
+import dev.vlcremote.app.domain.model.mergeSighting
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,6 +66,23 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
             p[keyServers] = json.encodeToString(serializer, decode(p[keyServers]).filterNot { it.id == id })
             if (p[keyLastId] == id) p.remove(keyLastId)
         }
+    }
+
+    /**
+     * Merges a companion sighting (LAN beacon / `/info`) into the saved companion with the same GUID
+     * or Bluetooth address. Returns the updated entry, or `null` when nothing matched or changed.
+     */
+    suspend fun applySighting(sighting: CompanionSighting): SavedServer? {
+        var updated: SavedServer? = null
+        store.edit { p ->
+            val list = decode(p[keyServers])
+            val match = list.matchSighting(sighting) ?: return@edit
+            val merged = match.mergeSighting(sighting)
+            if (merged == match) return@edit
+            updated = merged
+            p[keyServers] = json.encodeToString(serializer, list.map { if (it.id == match.id) merged else it })
+        }
+        return updated
     }
 
     suspend fun markLastUsed(id: String) {

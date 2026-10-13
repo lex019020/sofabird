@@ -5,7 +5,7 @@
 ([protocol/README.md](../protocol/README.md)): текущие дорожки, названия глав, аудиоустройства,
 push‑события, запуск VLC, перенос окна на ТВ, питание, системная громкость.
 
-Этап **M2** (LAN). Bluetooth RFCOMM, установщик Velopack и TMDB‑библиотека — позже (см. ниже).
+Этапы **M2** (LAN) и **M3** (Bluetooth RFCOMM). Установщик Velopack и TMDB‑библиотека — позже (см. ниже).
 
 ## Состав
 
@@ -17,10 +17,12 @@ companion/
 │   ├── Vlc/                   VlcHttpClient, VlcJsonParser, VlcRcClient, RcParser
 │   ├── State/                 StateBuilder (status.json + tracks.json + RC → state), StateCoalescer (≤ 4/с)
 │   ├── Pairing/               PairingService (код на 5 мин, токен 32 байта base64url, хранится SHA‑256)
-│   ├── Session/               Session (NDJSON‑сессия поверх ILineTransport), ISessionHost, CommandArgs
+│   ├── Session/               Session (NDJSON‑сессия поверх ILineTransport), StreamLineTransport (NDJSON поверх потока байт), ISessionHost, CommandArgs
+│   ├── Bluetooth/             BluetoothFormat (адрес AA:BB:…, кодирование атрибута SDP)
 │   └── Lua/                   LuaPagesInstaller (копия штатных страниц VLC + наши в %APPDATA%)
 ├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: трей, Kestrel, VlcManager, Win32
-│   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser
+│   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
+│   │                          BluetoothRfcommServer + RfcommLineTransport (служба RFCOMM, M3)
 │   ├── Vlc/                   VlcLocator, VlcManager (процесс, опрос, RC, команды), EmbeddedLuaPages
 │   ├── Services/              DisplayService, PowerService, AudioService, AutostartService
 │   └── Tray/                  TrayContext (меню), PairingForm (код на экране ТВ), TrayIconFactory
@@ -29,8 +31,8 @@ companion/
 ```
 
 Принцип разделения: `Core` не знает про WinForms и ASP.NET — сессия работает поверх абстракции
-«строка туда / строка сюда» (`ILineTransport`), так что транспорт RFCOMM в M3 добавляется
-отдельным классом рядом с `WebSocketLineTransport`.
+«строка туда / строка сюда» (`ILineTransport`): WebSocket и RFCOMM — два транспорта одной и той же сессии
+(кадрирование потока RFCOMM — `StreamLineTransport` в `Core`, тестируется без WinRT).
 
 ## Сборка и тесты
 
@@ -93,6 +95,8 @@ dotnet publish companion\VlcRemote.Companion -c Release -r win-x64 --self-contai
    `requests/tracks.json`, `requests/setvar.json`, файл `vlcremote.version`). Переустанавливает при
    смене версии VLC или самих страниц. Делает это только когда VLC не запущен; иначе откладывает
    до его закрытия (пункт меню показывает «после закрытия VLC»).
+7. Публикует Bluetooth‑службу RFCOMM «VLC Remote» для телефона без Wi‑Fi (см. «Bluetooth»). Нет адаптера или
+   Bluetooth выключен — пишет в журнал и работает без него.
 
 Запуск VLC компаньоном:
 
@@ -162,9 +166,54 @@ vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password
 - Закрыть окно (щелчок, Esc) = отменить код. Вручную окно открывается пунктом меню «Сопряжение телефона…» или
   двойным щелчком по иконке.
 
+## Bluetooth
+
+Запасной канал, когда у телефона нет общей сети с ПК (протокол — `protocol/README.md`, «Транспорт» и
+«Обнаружение → Bluetooth»).
+
+**Как работает.** Компаньон публикует в SDP службу RFCOMM с UUID `47fe5bd6-98ad-4d9f-9812-174b3394037d` и именем
+`VLC Remote` (WinRT `RfcommServiceProvider` + `StreamSocketListener`, без прав администратора). ПК при этом **не**
+становится видимым для поиска: подключается только телефон, уже сопряжённый с ним. По каналу идёт тот же NDJSON,
+что по WebSocket (UTF‑8, строка на сообщение, разделитель `\n`, не больше 1 МиБ на строку), то же `hello` с
+токеном и то же окно с кодом для нового телефона; в журнале сессия выглядит как `bt <имя телефона> (<адрес>)`. Одновременно — до
+4 Bluetooth‑подключений.
+
+Адрес адаптера (`AA:BB:CC:DD:EE:FF`) компаньон сообщает в поле `bt` ответа `/info`, UDP‑маяка и `welcome`, пока
+радио включено; пока служба опубликована, в `caps` есть `bluetooth`. Телефон запоминает адрес при подключении по
+Wi‑Fi и сам переходит на Bluetooth, если ПК в сети не отвечает.
+
+**Что нужно.**
+
+- Адаптер Bluetooth Classic (BR/EDR) и включённый Bluetooth в Windows.
+- Телефон **сопряжён с ПК** средствами Windows («Параметры → Bluetooth и устройства → Добавить устройство») или
+  Android. Компаньон сопряжение Bluetooth не инициирует. Токен приложения всё равно нужен: первое подключение —
+  обычное окно с кодом на экране ПК.
+- Настройка `bluetooth` в `settings.json` (по умолчанию `true`; `false` — служба не публикуется, поля `bt` нет).
+- Уровень защиты канала — `BluetoothEncryptionAllowNullAuthentication`: шифрование обязательно, подходит любое
+  сопряжение, включая «Just Works» без сравнения кода (так в образце Microsoft и в проверке на этом ПК). Телефон
+  аутентифицирует токен протокола. `bluetoothRequireAuthentication: true` требует ключ с защитой от MITM
+  (`BluetoothEncryptionWithAuthentication`) — тогда телефон, сопряжённый без сравнения кода, не подключится.
+
+**Устойчивость.** Нет адаптера или радио выключено — компаньон работает без Bluetooth и перепроверяет раз в
+минуту. Службу и слушатель он пересоздаёт после выхода из сна (`PowerModeChanged → Resume`, через 5 с) и при
+включении радио (`Radio.StateChanged`); ошибки WinRT повторяет с паузами 2 с … 5 мин. Состояние видно в меню в трее:
+«Bluetooth: включён / запускается… / выключен на этом ПК / недоступен / выключен в настройках».
+
+**Если телефон не подключается по Bluetooth.**
+
+- В трее «Bluetooth: недоступен» — в журнале строка `Bluetooth RFCOMM service failed to start … (0x…)`; проверьте,
+  что служба Windows «Служба поддержки Bluetooth» (`bthserv`) запущена, и перезапустите компаньон.
+- «Bluetooth: выключен на этом ПК» — включите Bluetooth в Windows (режим «в самолёте» тоже выключает радио).
+- В трее «включён», а телефон не находит службу — Android кэширует список служб ПК: удалите ПК из сопряжённых на
+  телефоне и сопрягите заново (или выключите и включите Bluetooth на телефоне).
+- Связь рвётся после простоя — снимите в диспетчере устройств у адаптера Bluetooth галочку «Разрешить отключение
+  этого устройства для экономии энергии» (если она есть); телефон переподключается сам.
+- Телефон сопряжён «Just Works» и включено `bluetoothRequireAuthentication` — выключите настройку или пересопрягите
+  телефон со сравнением кода.
+
 ## Меню в трее
 
-- строка статуса VLC и число подключённых телефонов;
+- строка статуса VLC, число подключённых телефонов и состояние Bluetooth;
 - **Сопряжение телефона…** — окно без рамки поверх всех окон на экране VLC / предпочитаемом экране (ТВ) с
   6‑значным кодом и адресом `host:port`; код действует 5 минут, не более 5 попыток (открывается и само,
   когда несопряжённый телефон пытается подключиться — см. «Сопряжение»);
@@ -180,7 +229,7 @@ vlc.exe --extraintf http:rc --http-host 0.0.0.0 --http-port 8080 --http-password
 
 | Файл | Что |
 |---|---|
-| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplay`, `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `installationId` |
+| `settings.json` | порты (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, путь к VLC (`vlcPath`), `vlcHttpHost/Port/Password` (пароль генерируется при первом запуске), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplay`, `keepAwake`, `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (автонастройка vlcrc, по умолчанию `true`), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (служба RFCOMM, по умолчанию `true`), `bluetoothRequireAuthentication` (по умолчанию `false`, см. «Bluetooth»), `installationId` |
 | `paired.json` | сопряжённые устройства: SHA‑256 токена, имя, id, дата |
 | `logs\companion-YYYYMMDD.log` | Serilog, ротация по дням, 14 файлов |
 
@@ -213,6 +262,10 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 - текущие дорожки через RC `atrack/strack` (без Lua‑страниц в VLC) и выбор дорожек после `open`;
 - события `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 раза в секунду при воспроизведении;
 - `LuaPagesInstaller` — только против временной папки (юнит‑тесты), в `%APPDATA%` не ставился.
+- Bluetooth (адаптер MediaTek, без сопряжения и подключения устройств, состояние радио не менялось): служба RFCOMM
+  публикуется из обычного процесса без прав администратора (`… advertising on adapter 04:68:74:9A:2B:FC`), поле `bt`
+  есть в `/info`, маяке и `welcome`, `caps` содержит `bluetooth`; с `bluetooth: false` поля нет; `--shutdown`
+  снимает службу. Кадрирование RFCOMM (`StreamLineTransport`) — юнит‑тесты.
 
 ### Проверить на ноутбуке у ТВ
 
@@ -232,10 +285,12 @@ RC `4212`) и компаньоном на `127.0.0.1:47557` с отдельно�
 - Автонастройка настоящего `%APPDATA%\vlc\vlcrc` и запуск VLC из Проводника после неё (здесь — только копия
   во временной папке).
 - Окно сопряжения, открывающееся само поверх полноэкранного VLC на экране ТВ.
+- Bluetooth с телефоном: подключение сопряжённого телефона к службе (Android `createRfcommSocketToServiceRecord`),
+  `hello`/окно с кодом/команды по RFCOMM, задержка; телефон, сопряжённый «Just Works»; переход Wi‑Fi ↔ Bluetooth;
+  выключение/включение Bluetooth на ноутбуке во время работы и восстановление службы после сна (Modern Standby).
 
 ## Отложено
 
-- **Bluetooth RFCOMM (M3)** — `RfcommServiceProvider` + тот же `Session` поверх `ILineTransport`.
 - **Velopack** — установщик и обновления; сейчас exe запускается откуда угодно, автозапуск через `HKCU\Run`.
 - **TMDB / библиотека** (M4) — разбор имён файлов, постеры.
 - **UAC‑помощник для брандмауэра**, TLS с пиннингом, HDMI‑CEC.

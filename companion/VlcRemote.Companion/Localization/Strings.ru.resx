@@ -21,6 +21,11 @@
   <data name="PairingClosing" xml:space="preserve"><value>Окно закроется через несколько секунд</value></data>
   <data name="TrayPhonesConnected" xml:space="preserve"><value>Телефонов подключено: {0}</value></data>
   <data name="TrayTipPhones" xml:space="preserve"><value>Телефонов: {0}</value></data>
+  <data name="TrayBluetoothOn" xml:space="preserve"><value>Bluetooth: включён</value></data>
+  <data name="TrayBluetoothStarting" xml:space="preserve"><value>Bluetooth: запускается…</value></data>
+  <data name="TrayBluetoothRadioOff" xml:space="preserve"><value>Bluetooth: выключен на этом ПК</value></data>
+  <data name="TrayBluetoothUnavailable" xml:space="preserve"><value>Bluetooth: недоступен</value></data>
+  <data name="TrayBluetoothDisabled" xml:space="preserve"><value>Bluetooth: выключен в настройках</value></data>
   <data name="TrayPair" xml:space="preserve"><value>Сопряжение телефона…</value></data>
   <data name="TrayStartVlc" xml:space="preserve"><value>Запустить VLC</value></data>
   <data name="TrayRestartVlc" xml:space="preserve"><value>Перезапустить VLC с управлением с телефона</value></data>

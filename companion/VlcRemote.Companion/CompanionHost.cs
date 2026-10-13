@@ -20,6 +20,8 @@ public sealed class CompanionHost : ISessionHost
     private readonly PowerService _power;
     private readonly AudioService _audio;
     private readonly ILogger _log;
+    private readonly IReadOnlyList<string> _baseCaps;
+    private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, ILogger<CompanionHost> log)
@@ -33,7 +35,7 @@ public sealed class CompanionHost : ISessionHost
         _power = power;
         _audio = audio;
         _log = log;
-        Caps =
+        _baseCaps =
         [
             Core.Protocol.Caps.CurrentTrack,
             Core.Protocol.Caps.ChapterNames,
@@ -45,6 +47,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.SystemVolume,
             Core.Protocol.Caps.Metadata,
         ];
+        _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
         _vlc.SystemInfoProvider = BuildSystemInfo;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -52,7 +55,14 @@ public sealed class CompanionHost : ISessionHost
 
     public string MachineName => Environment.MachineName;
     public string InstallationId => _settings.InstallationId;
-    public IReadOnlyList<string> Caps { get; }
+    /// <summary>Base capabilities plus <c>bluetooth</c> while the RFCOMM service is advertising.</summary>
+    public IReadOnlyList<string> Caps => Bluetooth?.IsAdvertising == true ? _bluetoothCaps : _baseCaps;
+
+    /// <summary>Bluetooth RFCOMM server (set by <c>Program</c> after the session manager exists).</summary>
+    public BluetoothRfcommServer? Bluetooth { get; set; }
+
+    /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
+    public string? BluetoothAddress => Bluetooth?.AdapterAddress;
     public VlcInfo VlcInfo => _vlc.Info;
     public PairingService Pairing { get; }
 
@@ -79,6 +89,7 @@ public sealed class CompanionHost : ISessionHost
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
         PcId = InstallationId,
+        Bt = BluetoothAddress,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -87,6 +98,7 @@ public sealed class CompanionHost : ISessionHost
         Name = MachineName,
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
+        Bt = BluetoothAddress,
     };
 
     private SystemInfo BuildSystemInfo()

@@ -1,6 +1,7 @@
 package dev.vlcremote.app.data.discovery
 
 import android.util.Log
+import dev.vlcremote.protocol.companion.BtAddress
 import dev.vlcremote.protocol.companion.CompanionCodec
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -152,6 +153,7 @@ class DiscoveryRepository(
                     vlcStatus = info.vlc?.effectiveStatus,
                     infoAt = System.currentTimeMillis(),
                     wsPort = info.wsPort,
+                    bt = BtAddress.normalize(info.bt) ?: existing.bt,
                 )
                 )
         }

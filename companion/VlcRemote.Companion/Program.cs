@@ -115,6 +115,8 @@ internal static class Program
         var web = new WebServer(settings, host, sessions, vlc, lf.CreateLogger<WebServer>());
         var beacon = new UdpBeaconResponder(IPAddress.Parse(settings.ListenAddress), settings.BeaconPort, host.BuildBeacon, lf.CreateLogger<UdpBeaconResponder>());
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
+        var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
+        host.Bluetooth = bluetooth;
 
         var startupCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
@@ -129,6 +131,7 @@ internal static class Program
             return 3;
         }
         beacon.Start();
+        bluetooth.Start(); // background; no adapter / radio off is not an error
         if (settings.AdvertiseDnsSd)
             _ = dnssd.RegisterAsync(Environment.MachineName, settings.WsPort, settings.InstallationId, startupCts.Token);
 
@@ -146,6 +149,7 @@ internal static class Program
             power.KeepAwakeEnabled = false;
             dnssd.Dispose();
             await beacon.DisposeAsync();
+            await bluetooth.DisposeAsync();
             await sessions.CloseAllAsync();
             await web.DisposeAsync();
             await vlc.DisposeAsync();
@@ -153,7 +157,7 @@ internal static class Program
         }
 
         using var tray = new TrayContext(ui, paths, settings, settingsStore, vlc, pairing, display, sessions, host, power,
-            ShutdownAsync, lf.CreateLogger<TrayContext>());
+            bluetooth, ShutdownAsync, lf.CreateLogger<TrayContext>());
         var quitWait = ThreadPool.RegisterWaitForSingleObject(quitEvent, (_, _) =>
         {
             log.LogInformation("Shutdown requested by another process (--shutdown)");

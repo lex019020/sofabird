@@ -38,8 +38,14 @@ sealed class ConnectionError {
     /** Companion speaks an incompatible protocol version. */
     data class ProtocolMismatch(val remote: Int?) : ConnectionError()
 
+    /** Companion over Bluetooth: the RFCOMM connection failed (PC not bonded, out of range, companion not running). */
+    data object BluetoothFailed : ConnectionError()
+
     data class Other(val message: String?) : ConnectionError()
 }
+
+/** Which link carries the companion session. Direct VLC is always [WIFI]. */
+enum class TransportKind { WIFI, BLUETOOTH }
 
 /** Connection lifecycle of a backend. Never blocks the UI: degraded states are shown inline. */
 sealed class ConnectionState {
@@ -53,12 +59,25 @@ sealed class ConnectionState {
         /** 0/1 — direct VLC, 2 — companion. */
         val level: Int,
         val latencyMs: Long? = null,
+        val transport: TransportKind = TransportKind.WIFI,
     ) : ConnectionState()
 
     /** Connected before, now several polls failed in a row; commands are buffered briefly. */
-    data class Degraded(val hostName: String, val failures: Int) : ConnectionState()
+    data class Degraded(
+        val hostName: String,
+        val failures: Int,
+        val transport: TransportKind = TransportKind.WIFI,
+    ) : ConnectionState()
 
     data class Failed(val error: ConnectionError) : ConnectionState()
+
+    /** Link of an online session (`null` when not online). */
+    val transportOrNull: TransportKind?
+        get() = when (this) {
+            is Connected -> transport
+            is Degraded -> transport
+            else -> null
+        }
 
     val isConnected: Boolean get() = this is Connected
     val isOnline: Boolean get() = this is Connected || this is Degraded

@@ -1,5 +1,8 @@
 package dev.vlcremote.app.di
 
+import dev.vlcremote.app.data.companion.AndroidCompanionTransports
+import dev.vlcremote.app.data.companion.BluetoothSupport
+import dev.vlcremote.app.data.companion.CompanionTransports
 import dev.vlcremote.app.data.discovery.DiscoveryRepository
 import dev.vlcremote.app.data.discovery.LocalNetwork
 import dev.vlcremote.app.data.discovery.NsdDiscovery
@@ -14,6 +17,7 @@ import dev.vlcremote.app.data.player.ConnectionTester
 import dev.vlcremote.app.data.player.DeviceIdentity
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.secrets.SecretStore
+import dev.vlcremote.app.data.servers.CompanionServerSync
 import dev.vlcremote.app.data.servers.ServerRepository
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.service.ServiceCoordinator
@@ -52,12 +56,16 @@ val appModule = module {
     single { DiscoveryRepository(get(), get(), get(), get(), get(named("appScope"))) }
 
     single { DeviceIdentity(androidContext(), get()) }
-    single { ConnectionTester(get()) }
-    single { PlayerController(get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
-    single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get()) }
+    single { BluetoothSupport(androidContext()) }
+    single<CompanionTransports> { AndroidCompanionTransports(get(), get(), get()) }
+    single { CompanionServerSync(get(), get(), get(named("appScope"))) }
+
+    single { ConnectionTester(get(), get()) }
+    single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
+    single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
-    viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RemoteViewModel(get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { PlaylistViewModel(get()) }

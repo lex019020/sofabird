@@ -15,6 +15,8 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     /** Keep the connection (foreground service + notification) while the app is in the background. */
     val keepConnectionInBackground: Boolean = true,
+    /** Reach the companion over Bluetooth (bonded PC) when the LAN is unavailable. */
+    val bluetoothFallback: Boolean = true,
     val haptics: Boolean = true,
     /** Library: hide non-media files. */
     val libraryMediaOnly: Boolean = true,
