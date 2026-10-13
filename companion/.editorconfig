@@ -1,4 +1,4 @@
-# Code analysis exceptions for the companion (Directory.Build.props turns analysis on at latest-recommended
+# Code analysis exceptions for the companion (Directory.Build.props turns analysis on at 9.0-recommended
 # and treats warnings as errors). Every exception says why.
 
 [*.cs]
