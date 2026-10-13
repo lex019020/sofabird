@@ -107,7 +107,6 @@ public sealed partial class VlcManager : IAsyncDisposable
     public VlcInfo Info { get; }
     public StateMessage? LastState { get; private set; }
     public int? ProcessId { get; private set; }
-    public bool Muted => _muted;
     public bool LuaInstallPending => _luaInstallPending;
     /// <summary>The Lua pages answer (level 1 inside VLC).</summary>
     public bool TracksPageAvailable => !_tracksPageMissing && _tracksPage is not null;
@@ -140,7 +139,7 @@ public sealed partial class VlcManager : IAsyncDisposable
     public void Start()
     {
         if (_loop is not null) return;
-        if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: true);
+        if (_settings.AutoInstallLuaPages) TryInstallLuaPages();
         TryConfigureVlcrc();
         _loop = Task.Run(() => PollLoopAsync(_cts.Token));
     }
@@ -408,10 +407,9 @@ public sealed partial class VlcManager : IAsyncDisposable
             // VLC is closed and will no longer overwrite vlcrc — write the interfaces for the next start.
             TryConfigureVlcrc();
         }
-        if (_luaInstallPending) TryInstallLuaPages(initial: false);
+        if (_luaInstallPending) TryInstallLuaPages();
         // Always rebuild: the system block (preferred display, volume) may change while VLC is closed; duplicates are dropped.
         PublishState(BuildState(null));
-        await Task.CompletedTask;
     }
 
     private Process? FindVlcProcess()

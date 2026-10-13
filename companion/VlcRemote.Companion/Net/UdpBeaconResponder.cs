@@ -28,7 +28,6 @@ public sealed class UdpBeaconResponder : IAsyncDisposable
         _log = log;
     }
 
-    public bool IsRunning => _loop is not null;
 
     public void Start()
     {

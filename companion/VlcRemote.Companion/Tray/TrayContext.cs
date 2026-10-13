@@ -8,7 +8,6 @@ using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Power;
-using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Setup;
 using VlcRemote.Companion.Localization;
 
@@ -19,13 +18,11 @@ public sealed class TrayContext : ApplicationContext
 {
     private readonly AppPaths _paths;
     private readonly Settings _settings;
-    private readonly SettingsStore _settingsStore;
     private readonly VlcManager _vlc;
     private readonly PairingService _pairing;
     private readonly DisplayService _display;
     private readonly SessionManager _sessions;
     private readonly CompanionHost _host;
-    private readonly PowerService _power;
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly SetupBackend _setup;
     private readonly PowerPlanService _powerPlan;
@@ -54,21 +51,19 @@ public sealed class TrayContext : ApplicationContext
     private Action? _balloonClick;
     private bool _exiting;
 
-    public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, SettingsStore settingsStore, VlcManager vlc,
-        PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host, PowerService power,
+    public TrayContext(Control uiMarshaller, AppPaths paths, Settings settings, VlcManager vlc,
+        PairingService pairing, DisplayService display, SessionManager sessions, CompanionHost host,
         BluetoothRfcommServer bluetooth, SetupBackend setup, PowerPlanService powerPlan, Func<Task> shutdown, ILogger<TrayContext> log)
     {
         _powerPlan = powerPlan;
         _ui = uiMarshaller;
         _paths = paths;
         _settings = settings;
-        _settingsStore = settingsStore;
         _vlc = vlc;
         _pairing = pairing;
         _display = display;
         _sessions = sessions;
         _host = host;
-        _power = power;
         _bluetooth = bluetooth;
         _setup = setup;
         _shutdown = shutdown;
@@ -121,11 +116,10 @@ public sealed class TrayContext : ApplicationContext
         };
 
         _vlc.RunStateChanged += () => Invoke(RefreshStatus);
-        _vlc.StateChanged += s => Invoke(() => OnState(s));
+        _vlc.StateChanged += _ => Invoke(RefreshStatus);
         _sessions.CountChanged += () => Invoke(RefreshStatus);
         _bluetooth.StatusChanged += () => Invoke(RefreshStatus);
         _pairing.Paired += d => Invoke(() => OnPaired(d));
-        _pairing.PairingEnded += () => Invoke(OnPairingEnded);
         _vlc.NoControlDetected += _ => Invoke(OnNoControl);
         _host.PairingPromptRequested += p => Invoke(() => OnPairingPrompt(p));
 
@@ -142,12 +136,6 @@ public sealed class TrayContext : ApplicationContext
         }
         catch (ObjectDisposedException) { }
         catch (InvalidOperationException) { }
-    }
-
-    private void OnState(StateMessage state)
-    {
-        _power.OnPlaybackState(state.Playback.State == "playing");
-        RefreshStatus();
     }
 
     private void RefreshStatus()
@@ -411,19 +399,13 @@ public sealed class TrayContext : ApplicationContext
 
     private void OnPaired(PairedDevice device)
     {
-        _sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = device.DeviceName });
         if (_pairingForm is { IsDisposed: false }) _pairingForm.ShowPaired(device.DeviceName);
         ShowBalloon(3000, UiText.BalloonPaired(device.DeviceName ?? "?"), ToolTipIcon.Info);
     }
 
-    private void OnPairingEnded()
-    {
-        // Expired/attempts used up — the window closes by itself on its timer; on success ShowPaired has already been called.
-    }
-
     private void InstallLuaPages()
     {
-        var installed = _vlc.TryInstallLuaPages(initial: false, force: true);
+        var installed = _vlc.TryInstallLuaPages(force: true);
         if (installed)
             ShowBalloon(3000, UiText.BalloonLuaInstalled, ToolTipIcon.Info);
         else if (_vlc.LuaInstallPending)
@@ -445,14 +427,7 @@ public sealed class TrayContext : ApplicationContext
         }
     }
 
-    private void ToggleKeepAwake()
-    {
-        _settings.KeepAwake = !_settings.KeepAwake;
-        _settingsStore.Save(_settings);
-        _power.KeepAwakeEnabled = _settings.KeepAwake;
-        _power.OnPlaybackState(_vlc.LastState?.Playback.State == "playing");
-        _vlc.Poke();
-    }
+    private void ToggleKeepAwake() => _host.SetKeepAwake(!_settings.KeepAwake);
 
     private void OpenLogs() => OpenFolder(_paths.LogsDir);
 

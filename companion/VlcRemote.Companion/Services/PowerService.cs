@@ -14,8 +14,9 @@ public sealed class PowerService
 {
     private readonly ILogger _log;
     private readonly Action<Action> _uiInvoke;
-    private bool _keepAwakeEnabled;
-    private bool _keepAwakeActive;
+    private volatile bool _keepAwakeEnabled;
+    private volatile bool _playing;
+    private bool _keepAwakeActive; // UI thread only
 
     public PowerService(ILogger<PowerService> log, Action<Action> uiInvoke)
     {
@@ -30,21 +31,24 @@ public sealed class PowerService
         set
         {
             _keepAwakeEnabled = value;
-            if (!value) ApplyKeepAwake(false);
+            ApplyKeepAwake();
         }
     }
 
-    public bool KeepAwakeActive => _keepAwakeActive;
-
-    /// <summary>Called by the VLC manager when the playback state changes.</summary>
-    public void OnPlaybackState(bool playing) => ApplyKeepAwake(playing && _keepAwakeEnabled);
-
-    private void ApplyKeepAwake(bool on)
+    /// <summary>The playback state changed (any thread).</summary>
+    public void OnPlaybackState(bool playing)
     {
-        if (_keepAwakeActive == on) return;
-        _keepAwakeActive = on;
+        _playing = playing;
+        ApplyKeepAwake();
+    }
+
+    private void ApplyKeepAwake()
+    {
         _uiInvoke(() =>
         {
+            var on = _keepAwakeEnabled && _playing;
+            if (_keepAwakeActive == on) return;
+            _keepAwakeActive = on;
             var flags = on
                 ? NativeMethods.ES_CONTINUOUS | NativeMethods.ES_DISPLAY_REQUIRED | NativeMethods.ES_SYSTEM_REQUIRED
                 : NativeMethods.ES_CONTINUOUS;

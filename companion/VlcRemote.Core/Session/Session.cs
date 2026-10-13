@@ -31,7 +31,6 @@ public sealed class Session : IAsyncDisposable
     public string Description => _transport.Description;
     public bool IsAuthenticated { get; private set; }
     public DeviceInfo? Device { get; private set; }
-    public DateTimeOffset ConnectedAt { get; } = DateTimeOffset.UtcNow;
 
     /// <summary>The session has completed the handshake — <c>state</c> can be sent.</summary>
     public event Action<Session>? Authenticated;

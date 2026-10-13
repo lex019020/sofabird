@@ -51,9 +51,10 @@ public sealed class CompanionHost : ISessionHost
             .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
-        if (settings.MigratePreferredDisplay(display.GetMonitors()))
+        var migrated = false;
+        settingsStore.Update(s => migrated = s.MigratePreferredDisplay(display.GetMonitors()));
+        if (migrated)
         {
-            settingsStore.Save(settings);
             _log.LogInformation("Migrated the preferred display index to id {Id}", settings.PreferredDisplayId ?? "(none)");
         }
         Displays = new DisplayController(display, new SettingsDisplayPreference(settings, settingsStore), new VlcWindowHost(vlc, display), log)
@@ -71,7 +72,16 @@ public sealed class CompanionHost : ISessionHost
         _vlc.PlaceLaunchedWindowAsync = (pid, target, ct) => Displays.PlaceNewWindowAsync(pid, startedBeforeCompanion: false, target, ct);
         _vlc.SystemInfoProvider = BuildSystemInfo;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
+        _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
+    }
+
+    /// <summary>"Keep the PC awake during a movie": from the phone, the tray menu and the setup window.</summary>
+    public void SetKeepAwake(bool on)
+    {
+        _settingsStore.Update(s => s.KeepAwake = on);
+        _power.KeepAwakeEnabled = on;
+        _vlc.Poke(); // phones see the new value in the state
     }
 
     public string MachineName => Environment.MachineName;
@@ -199,15 +209,8 @@ public sealed class CompanionHost : ISessionHost
         switch (name)
         {
             case "keepAwake":
-            {
-                var on = args.RequireBool("on");
-                _power.KeepAwakeEnabled = on;
-                _settings.KeepAwake = on;
-                _settingsStore.Save(_settings);
-                _power.OnPlaybackState(_vlc.LastState?.Playback.State == "playing");
-                _vlc.Poke();
+                SetKeepAwake(args.RequireBool("on"));
                 return null;
-            }
 
             case "displayPower":
                 _power.SetDisplayPower(args.RequireBool("on"));
@@ -225,8 +228,7 @@ public sealed class CompanionHost : ISessionHost
             {
                 var id = args.GetString("id") ?? "";
                 await _vlc.SetAudioDeviceAsync(id, ct).ConfigureAwait(false);
-                _settings.VlcAudioDevice = id.Length == 0 ? null : id;
-                _settingsStore.Save(_settings);
+                _settingsStore.Update(s => s.VlcAudioDevice = id.Length == 0 ? null : id);
                 return null;
             }
 

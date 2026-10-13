@@ -26,7 +26,6 @@ public sealed class DnsSdAdvertiser : IDisposable
         _callback = OnComplete;
     }
 
-    public bool IsRegistered => _registered;
 
     public async Task<bool> RegisterAsync(string machineName, int port, string installationId, CancellationToken ct)
     {

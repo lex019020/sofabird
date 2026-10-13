@@ -41,25 +41,21 @@ public sealed class VlcWindowHost : IVlcWindowHost
 }
 
 /// <summary><see cref="IDisplayPreferenceStore"/> over the companion settings file.</summary>
-public sealed class SettingsDisplayPreference : IDisplayPreferenceStore
+public sealed class SettingsDisplayPreference(Settings settings, SettingsStore store) : IDisplayPreferenceStore
 {
-    private readonly Settings _settings;
-    private readonly SettingsStore _store;
-
-    public SettingsDisplayPreference(Settings settings, SettingsStore store)
-    {
-        _settings = settings;
-        _store = store;
-    }
+    private readonly Settings _settings = settings;
+    private readonly SettingsStore _store = store;
 
     public string? PreferredId => _settings.PreferredDisplayId;
     public string? PreferredName => _settings.PreferredDisplayName;
 
     public void SetPreferred(string? id, string? name)
     {
-        _settings.PreferredDisplayId = id;
-        _settings.PreferredDisplayName = name;
-        _settings.PreferredDisplay = null;
-        _store.Save(_settings);
+        _store.Update(s =>
+        {
+            s.PreferredDisplayId = id;
+            s.PreferredDisplayName = name;
+            s.PreferredDisplay = null;
+        });
     }
 }

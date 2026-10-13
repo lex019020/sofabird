@@ -34,7 +34,6 @@ public sealed class WebServer : IAsyncDisposable
         _log = log;
     }
 
-    public bool IsRunning => _app is not null;
 
     public async Task StartAsync(CancellationToken ct)
     {

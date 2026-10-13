@@ -83,12 +83,12 @@ public sealed class SetupBackend : ISetupBackend
     private readonly Settings _settings;
     private readonly SettingsStore _store;
     private readonly VlcManager _vlc;
-    private readonly PowerService _power;
+    private readonly CompanionHost _host;
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly PowerPlanService _powerPlan;
     private readonly ILogger _log;
 
-    public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, PowerService power,
+    public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host,
         BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, ILogger<SetupBackend> log)
     {
         _powerPlan = powerPlan;
@@ -96,7 +96,7 @@ public sealed class SetupBackend : ISetupBackend
         _settings = settings;
         _store = store;
         _vlc = vlc;
-        _power = power;
+        _host = host;
         _bluetooth = bluetooth;
         _log = log;
     }
@@ -138,14 +138,7 @@ public sealed class SetupBackend : ISetupBackend
         }
         if (configured is null) return VlcSetupState.NotInstalled;
         if (configured == true && _settings.ConfigureVlc) return VlcSetupState.Configured;
-        return IsVlcRunning() ? VlcSetupState.VlcRunning : VlcSetupState.NotConfigured;
-    }
-
-    private static bool IsVlcRunning()
-    {
-        var procs = VlcLocator.RunningProcesses();
-        foreach (var p in procs) p.Dispose();
-        return procs.Length > 0;
+        return VlcLocator.IsAnyRunning() ? VlcSetupState.VlcRunning : VlcSetupState.NotConfigured;
     }
 
     public async Task<SetupResult> ApplyAsync(SetupChoices choices, CancellationToken ct)
@@ -153,15 +146,20 @@ public sealed class SetupBackend : ISetupBackend
         _log.LogInformation("Setup: applying (firewall {Firewall}, autostart {Autostart}, configure VLC {Vlc}, keep awake {KeepAwake}, media station {MediaStation})",
             choices.Firewall, choices.Autostart, choices.ConfigureVlc, choices.KeepAwake, choices.MediaStation);
 
+        // The settings first: the VLC step reads them (Lua pages are installed only when VLC is configured).
+        _store.Update(s =>
+        {
+            s.ConfigureVlc = choices.ConfigureVlc;
+            s.AutoInstallLuaPages = choices.ConfigureVlc;
+            s.MediaStation = choices.MediaStation;
+            s.ManageFirewall = choices.Firewall;
+            s.SetupCompleted = true;
+            s.SetupVersion = SetupPolicy.CurrentVersion;
+        });
         var autostart = ApplyAutostart(choices.Autostart);
         var vlc = ApplyVlc(choices.ConfigureVlc);
-        ApplyKeepAwake(choices.KeepAwake);
+        _host.SetKeepAwake(choices.KeepAwake);
         var mediaStation = ApplyMediaStation(choices.MediaStation);
-
-        _settings.ManageFirewall = choices.Firewall;
-        _settings.SetupCompleted = true;
-        _settings.SetupVersion = SetupPolicy.CurrentVersion;
-        _store.Save(_settings);
 
         var firewall = choices.Firewall ? await ApplyFirewallAsync(ct) : StepResult.Skipped;
         _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}",
@@ -172,7 +170,6 @@ public sealed class SetupBackend : ISetupBackend
     /// <summary>Unticking only stops the watching: the previous power settings are not known, so they stay.</summary>
     private StepResult ApplyMediaStation(bool on)
     {
-        _settings.MediaStation = on;
         if (!on) return StepResult.Skipped;
         var error = _powerPlan.ApplyMediaStation();
         return error is null ? StepResult.Done : new StepResult(StepOutcome.Failed, error);
@@ -194,29 +191,19 @@ public sealed class SetupBackend : ISetupBackend
 
     private StepResult ApplyVlc(bool on)
     {
-        _settings.ConfigureVlc = on;
-        _settings.AutoInstallLuaPages = on;
         if (!on) return StepResult.Skipped;
         if (_vlc.Installation is null) return StepResult.Skipped;
-        if (IsVlcRunning())
+        if (VlcLocator.IsAnyRunning())
         {
             // Both are retried by VlcManager as soon as VLC closes.
-            _vlc.TryInstallLuaPages(initial: false);
+            _vlc.TryInstallLuaPages();
             return new StepResult(StepOutcome.Pending);
         }
         var rc = _vlc.TryConfigureVlcrc();
-        _vlc.TryInstallLuaPages(initial: false);
+        _vlc.TryInstallLuaPages();
         return rc is null or VlcrcResult.Skipped || _vlc.IsConfiguredForPhone() != true
             ? new StepResult(StepOutcome.Failed)
             : StepResult.Done;
-    }
-
-    private void ApplyKeepAwake(bool on)
-    {
-        _settings.KeepAwake = on;
-        _power.KeepAwakeEnabled = on;
-        _power.OnPlaybackState(_vlc.LastState?.Playback.State == "playing");
-        _vlc.Poke();
     }
 
     private async Task<StepResult> ApplyFirewallAsync(CancellationToken ct)

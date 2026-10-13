@@ -69,4 +69,12 @@ public static class VlcLocator
         try { return Process.GetProcessesByName("vlc"); }
         catch { return []; }
     }
+
+    /// <summary>Whether any <c>vlc.exe</c> is running.</summary>
+    public static bool IsAnyRunning()
+    {
+        var procs = RunningProcesses();
+        foreach (var p in procs) p.Dispose();
+        return procs.Length > 0;
+    }
 }

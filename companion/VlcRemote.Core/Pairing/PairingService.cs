@@ -80,6 +80,7 @@ public sealed class PairingService
     private readonly ITokenStore _store;
     private readonly TimeProvider _time;
     private readonly object _lock = new();
+    private List<PairedDevice>? _devices; // the store's contents, read once: tokens are checked on every connection
     private string? _code;
     private DateTimeOffset _expiresAt;
     private int _attempts;
@@ -95,8 +96,6 @@ public sealed class PairingService
 
     /// <summary>Raised on successful pairing (device name).</summary>
     public event Action<PairedDevice>? Paired;
-    /// <summary>Raised when the code is no longer valid (expired, attempts used up, cancelled).</summary>
-    public event Action? PairingEnded;
 
     public bool IsPairingActive
     {
@@ -114,9 +113,12 @@ public sealed class PairingService
         get { lock (_lock) return _code is null ? null : _expiresAt; }
     }
 
-    public bool HasPairedDevices => _store.Load().Count > 0;
+    public bool HasPairedDevices
+    {
+        get { lock (_lock) return Devices.Count > 0; }
+    }
 
-    public IReadOnlyList<PairedDevice> PairedDevices => _store.Load();
+    private List<PairedDevice> Devices => _devices ??= _store.Load().ToList();
 
     /// <summary>Generate a new code and open a pairing window.</summary>
     public string BeginPairing()
@@ -132,13 +134,7 @@ public sealed class PairingService
 
     public void CancelPairing()
     {
-        bool wasActive;
-        lock (_lock)
-        {
-            wasActive = _code is not null;
-            _code = null;
-        }
-        if (wasActive) PairingEnded?.Invoke();
+        lock (_lock) _code = null;
     }
 
     /// <summary>Check the code; on success issue a token and remember its hash.</summary>
@@ -146,23 +142,16 @@ public sealed class PairingService
     {
         string? token = null;
         PairedDevice? device = null;
-        bool ended = false;
         lock (_lock)
         {
             if (_code is null) return new PairResult(false, null, "pairing not active");
             if (_time.GetUtcNow() >= _expiresAt)
             {
                 _code = null;
-                ended = true;
             }
             else if (string.IsNullOrWhiteSpace(code) || !string.Equals(code.Trim(), _code, StringComparison.Ordinal))
             {
-                _attempts++;
-                if (_attempts >= MaxAttempts)
-                {
-                    _code = null;
-                    ended = true;
-                }
+                if (++_attempts >= MaxAttempts) _code = null;
             }
             else
             {
@@ -174,19 +163,18 @@ public sealed class PairingService
                     DeviceId = deviceId,
                     PairedAt = _time.GetUtcNow(),
                 };
-                var list = _store.Load().ToList();
+                var list = Devices.ToList();
                 // Pairing the same device again replaces the old token.
                 if (!string.IsNullOrEmpty(deviceId))
                     list.RemoveAll(d => d.DeviceId == deviceId);
                 list.Add(device);
                 _store.Save(list);
+                _devices = list;
                 _code = null;
-                ended = true;
             }
         }
 
         if (device is not null) Paired?.Invoke(device);
-        if (ended) PairingEnded?.Invoke();
         return token is null
             ? new PairResult(false, null, "wrong or expired pairing code")
             : new PairResult(true, token, null);
@@ -195,23 +183,17 @@ public sealed class PairingService
     public bool ValidateToken(string? token)
     {
         if (string.IsNullOrEmpty(token)) return false;
-        var hash = Hash(token);
-        foreach (var d in _store.Load())
+        var hash = Encoding.ASCII.GetBytes(Hash(token));
+        lock (_lock)
         {
-            if (CryptographicOperations.FixedTimeEquals(
-                    Encoding.ASCII.GetBytes(d.TokenHash), Encoding.ASCII.GetBytes(hash)))
-                return true;
+            foreach (var d in Devices)
+            {
+                if (CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(d.TokenHash), hash))
+                    return true;
+            }
         }
         return false;
     }
-
-    public void Forget(string tokenHash)
-    {
-        var list = _store.Load().Where(d => d.TokenHash != tokenHash).ToList();
-        _store.Save(list);
-    }
-
-    public void ForgetAll() => _store.Save([]);
 
     public static string GenerateToken()
     {

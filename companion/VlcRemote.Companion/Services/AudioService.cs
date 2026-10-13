@@ -45,24 +45,4 @@ public sealed class AudioService
         dev.AudioEndpointVolume.Mute = mute;
         _log.LogInformation("System mute → {Mute}", mute);
     }
-
-    /// <summary>Active Windows output devices (the IDs match VLC's <c>adev</c> for mmdevice).</summary>
-    public IReadOnlyList<(string Id, string Name)> ListRenderDevices()
-    {
-        var list = new List<(string, string)>();
-        try
-        {
-            using var en = new MMDeviceEnumerator();
-            foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-            {
-                list.Add((d.ID, d.FriendlyName));
-                d.Dispose();
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.LogDebug(ex, "ListRenderDevices failed");
-        }
-        return list;
-    }
 }
