@@ -152,10 +152,11 @@ function Connect-AllowedDevices {
         $done = $null
         if ($dev.lastIp -and $dev.lastPort -and (Test-AdbConnect "$($dev.lastIp):$($dev.lastPort)")) { $done = "$($dev.lastIp):$($dev.lastPort)" }
         if (-not $done) {
-            $svc = & $adb mdns services 2>$null | Where-Object { $_ -match [regex]::Escape($dev.serial) -and $_ -match '_adb-tls-connect' } | Select-Object -First 1
-            if ($svc -and $svc -match '(\d{1,3}(\.\d{1,3}){3}:\d+)') {
-                if (Test-AdbConnect $Matches[1]) { $done = $Matches[1] }
-            }
+            # mDNS может держать и устаревшие записи (прежний порт): пробуем все адреса, новые (последние) первыми.
+            $addrs = @(& $adb mdns services 2>$null | Where-Object { $_ -match [regex]::Escape($dev.serial) -and $_ -match '_adb-tls-connect' } |
+                ForEach-Object { if ($_ -match '(\d{1,3}(?:\.\d{1,3}){3}:\d+)') { $Matches[1] } } | Select-Object -Unique)
+            [array]::Reverse($addrs)
+            foreach ($a in $addrs) { if (Test-AdbConnect $a) { $done = $a; break } }
         }
         if (-not $done) {
             $ip = Find-IpByMac $dev.mac
