@@ -16,7 +16,7 @@
     <VersionPrefix>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</VersionPrefix>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>VLC Remote Companion</Product>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Publish: see README (dotnet publish, win-x64, framework-dependent, single file) -->
     <SelfContained>false</SelfContained>

@@ -27,7 +27,7 @@ public sealed class LocalFileBrowser
         var path = ToLocalPath(uri);
         var dir = new DirectoryInfo(path);
         if (!dir.Exists)
-            throw new DirectoryNotFoundException($"Папка не найдена: {path}");
+            throw new DirectoryNotFoundException($"Folder not found: {path}");
 
         var result = new List<BrowseEntry>();
         foreach (var d in Safe(() => dir.EnumerateDirectories()))

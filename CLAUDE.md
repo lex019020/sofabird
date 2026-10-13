@@ -2,8 +2,17 @@
 
 Android‑пульт для VLC на Windows‑ПК у телевизора + Windows‑компаньон.
 
-**Языки.** Общение с пользователем, документация в `docs/`, README, UI‑строки, сообщения скриптов — по‑русски.
-**Коммиты, заголовки и описания PR (включая release notes) — по‑английски.** Идентификаторы и код — по‑английски.
+**Языки.** Общение с пользователем, документация в `docs/`, README, сообщения скриптов — по‑русски.
+**Коммиты, заголовки и описания PR (включая release notes) — по‑английски.** Идентификаторы, код, журналы — по‑английски.
+
+**Интерфейс приложения и компаньона следует языку системы, запасной язык — английский; сейчас есть перевод на русский.**
+Никаких литералов UI в коде:
+- Android: `res/values/strings.xml` — английский (по умолчанию), `res/values-ru/strings.xml` — русский, наборы ключей
+  одинаковые; языки для настройки «язык приложения» Android 13+ — `res/xml/locales_config.xml`.
+- Компаньон: строки в таблицах `companion/tools/gen_localization.py` (en + ru) → `python companion/tools/gen_localization.py`
+  генерирует `Strings*.resx` + `UiText` (UI на ПК, язык Windows) и `ProtocolText*.resx` + `ProtocolText` (тексты `err.msg`,
+  которые сессия рисует на языке телефона из `hello.device.locale`). Сгенерированные файлы руками не править.
+- Новый язык: столбец в генераторе + `values-<lang>/strings.xml` + строка в `locales_config.xml`.
 
 ## Где что
 
@@ -76,7 +85,8 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
 ## Версии и сборки
 
 - Базовая версия — файл `VERSION` (SemVer `MAJOR.MINOR.PATCH`), из него берут версию компаньон (`VersionPrefix`)
-  и Android (`versionName`). `versionCode` = число коммитов в `main` (`git rev-list --count HEAD`).
+  и Android (`versionName`). `versionCode` = число коммитов в `main` × 10 (CI), у локальных сборок `deploy-android -Local` — коммиты
+  `origin/main` × 10 + 5: новее текущей тестовой, старше следующей.
 - **Тестовая сборка** (pre‑release `v<VERSION>-beta.<N>`) создаётся автоматически на каждый мерж в `main`
   (`.github/workflows/release.yml`). Описание — release notes смёрдженного PR + инструкция по установке.
   Файлы: `VlcRemote.Companion-<версия>-win-x64.zip`, `VlcRemote-<версия>.apk`, `deploy-*.ps1/.cmd`.

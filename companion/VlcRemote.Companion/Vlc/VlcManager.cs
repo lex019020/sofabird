@@ -8,6 +8,7 @@ using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
 using VlcRemote.Core.State;
 using VlcRemote.Core.Vlc;
+using VlcRemote.Core.Localization;
 
 namespace VlcRemote.Companion.Vlc;
 
@@ -504,7 +505,7 @@ public sealed class VlcManager : IAsyncDisposable
     {
         Installation ??= VlcLocator.Find(_settings.VlcPath);
         if (Installation is null)
-            throw ProtocolException.VlcNotRunning("VLC не найден. Установите VLC 3.x или укажите путь в настройках.");
+            throw ProtocolException.VlcNotRunning(ProtocolText.VlcNotFoundInstall);
 
         if (RunState == VlcRunState.Starting)
         {
@@ -535,7 +536,7 @@ public sealed class VlcManager : IAsyncDisposable
 
     private async Task StartProcessAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
-        var installation = Installation ?? throw ProtocolException.VlcNotRunning("VLC не найден");
+        var installation = Installation ?? throw ProtocolException.VlcNotRunning(ProtocolText.VlcNotFoundInstall);
         if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: false);
         TryConfigureVlcrc();
 
@@ -550,7 +551,7 @@ public sealed class VlcManager : IAsyncDisposable
             psi.ArgumentList.Add(a);
 
         _log.LogInformation("Launching VLC: {Exe} {Args}", psi.FileName, RedactArgs(psi.ArgumentList));
-        var process = Process.Start(psi) ?? throw ProtocolException.VlcError("Не удалось запустить vlc.exe");
+        var process = Process.Start(psi) ?? throw ProtocolException.VlcError(ProtocolText.VlcStartFailed);
         _owned = process;
         _ownedStartedAt = DateTimeOffset.UtcNow;
         ProcessId = process.Id;
@@ -562,7 +563,7 @@ public sealed class VlcManager : IAsyncDisposable
         while (DateTimeOffset.UtcNow < deadline && !ct.IsCancellationRequested)
         {
             if (process.HasExited)
-                throw ProtocolException.VlcError($"vlc.exe завершился сразу после запуска (код {process.ExitCode}). Возможно, включён режим одного экземпляра.");
+                throw ProtocolException.VlcError(ProtocolText.VlcExitedImmediately(process.ExitCode));
             if (RunState == VlcRunState.Running) return;
             await Task.Delay(300, ct).ConfigureAwait(false);
             Poke();
@@ -667,7 +668,7 @@ public sealed class VlcManager : IAsyncDisposable
                 p.Dispose();
             }
             if (!await WaitForExitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false))
-                throw ProtocolException.VlcError("Не удалось закрыть VLC");
+                throw ProtocolException.VlcError(ProtocolText.VlcCloseFailed);
         }
 
         // Опрос увидит, что процесса нет (NotRunning), и пропишет vlcrc; затем обычный запуск.
@@ -817,10 +818,10 @@ public sealed class VlcManager : IAsyncDisposable
         if (RunState != VlcRunState.Running)
             throw ProtocolException.VlcNotRunning(RunState switch
             {
-                VlcRunState.NotInstalled => "VLC не установлен",
-                VlcRunState.RunningNoApi => "VLC открыт без управления с телефона — перезапустите его",
-                VlcRunState.Starting => "VLC запускается",
-                _ => "VLC не запущен",
+                VlcRunState.NotInstalled => ProtocolText.VlcNotInstalled,
+                VlcRunState.RunningNoApi => ProtocolText.VlcNoControl,
+                VlcRunState.Starting => ProtocolText.VlcStarting,
+                _ => ProtocolText.VlcNotRunning,
             });
     }
 
@@ -853,13 +854,13 @@ public sealed class VlcManager : IAsyncDisposable
         {
             return await Task.Run(() => browser.Browse(uri), ct).ConfigureAwait(false);
         }
-        catch (DirectoryNotFoundException ex)
+        catch (DirectoryNotFoundException)
         {
-            throw ProtocolException.BadRequest(ex.Message);
+            throw ProtocolException.BadRequest(ProtocolText.FolderNotFound(LocalFileBrowser.ToLocalPath(uri)));
         }
         catch (IOException ex)
         {
-            throw ProtocolException.BadRequest("Папка недоступна: " + ex.Message);
+            throw ProtocolException.BadRequest(ProtocolText.FolderUnavailable(ex.Message));
         }
     }
 

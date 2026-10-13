@@ -107,6 +107,13 @@
             },
             "id": {
               "type": "string"
+            },
+            "locale": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "BCP 47 tag of the phone UI language; err.msg is rendered in it"
             }
           }
         },

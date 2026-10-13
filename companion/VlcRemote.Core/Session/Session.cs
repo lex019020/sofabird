@@ -109,6 +109,7 @@ public sealed class Session : IAsyncDisposable
         }
 
         Device = hello.Device;
+        Culture = Localization.LocalizableText.CultureFromTag(hello.Device?.Locale);
         string? newToken = null;
         var pairing = _host.Pairing;
         if (!string.IsNullOrEmpty(hello.PairCode))
@@ -199,7 +200,7 @@ public sealed class Session : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            var err = MapError(ex, msg.Id);
+            var err = MapError(ex, msg.Id, Culture);
             if (err.Code == ErrorCodes.Internal)
                 _log.LogError(ex, "Request {Type} failed", msg.GetType().Name);
             else
@@ -230,9 +231,12 @@ public sealed class Session : IAsyncDisposable
         return reply;
     }
 
-    public static ErrMessage MapError(Exception ex, string? id) => ex switch
+    /// <summary>Language of the phone (<c>hello.device.locale</c>) for <c>err.msg</c>; null = English.</summary>
+    public System.Globalization.CultureInfo? Culture { get; private set; }
+
+    public static ErrMessage MapError(Exception ex, string? id, System.Globalization.CultureInfo? culture = null) => ex switch
     {
-        ProtocolException pe => new ErrMessage { Id = id, Code = pe.Code, Msg = pe.Message },
+        ProtocolException pe => new ErrMessage { Id = id, Code = pe.Code, Msg = pe.MessageFor(culture) },
         VlcUnavailableException ve => new ErrMessage { Id = id, Code = ErrorCodes.VlcNotRunning, Msg = ve.Message },
         VlcException ve => new ErrMessage { Id = id, Code = ErrorCodes.VlcError, Msg = ve.Message },
         ArgumentException ae => new ErrMessage { Id = id, Code = ErrorCodes.BadRequest, Msg = ae.Message },

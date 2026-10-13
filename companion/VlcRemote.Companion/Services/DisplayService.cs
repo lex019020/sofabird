@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Interop;
 using VlcRemote.Core.Protocol;
+using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion.Services;
 
@@ -54,7 +55,7 @@ public sealed class DisplayService
     private static string FriendlyName(Screen s, int index)
     {
         var name = s.DeviceName.Replace(@"\\.\", "");
-        return s.Primary ? $"{name} (основной, {s.Bounds.Width}×{s.Bounds.Height})" : $"{name} ({s.Bounds.Width}×{s.Bounds.Height})";
+        return s.Primary ? UiText.DisplayPrimary(name, s.Bounds.Width, s.Bounds.Height) : UiText.DisplayNormal(name, s.Bounds.Width, s.Bounds.Height);
     }
 
     /// <summary>

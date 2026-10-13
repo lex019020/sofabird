@@ -13,6 +13,7 @@
 
     <application
         android:name=".VlcRemoteApp"
+        android:localeConfig="@xml/locales_config"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="${appLabel}"
