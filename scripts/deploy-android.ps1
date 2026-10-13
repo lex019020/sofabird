@@ -98,7 +98,7 @@ function Get-TargetDevices {
     if ($targets.Count -eq 0) {
         Write-Note "Разрешённый телефон не подключён ($(($allowed | ForEach-Object { $_.name }) -join ', ')). Wi‑Fi‑отладка: -Connect <ip>:<порт>."
     }
-    return ,$targets
+    return $targets  # callers wrap in @(): empty -> @(), single object -> 1-element array
 }
 
 function Show-Devices {

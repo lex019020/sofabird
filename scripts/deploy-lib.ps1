@@ -49,7 +49,9 @@ function Resolve-ReleaseTag {
     if ($Tag) { return $Tag }
     $json = & gh release list --repo $Repo --limit 50 --json tagName,isPrerelease,isDraft,publishedAt
     if ($LASTEXITCODE -ne 0) { throw "Не удалось получить список релизов $Repo" }
-    $releases = $json | ConvertFrom-Json | Where-Object { -not $_.isDraft }
+    # PS 5.1: ConvertFrom-Json отдаёт JSON-массив одним объектом — разворачиваем его через @() до фильтрации.
+    $all = ($json -join "`n") | ConvertFrom-Json
+    $releases = @($all) | Where-Object { -not $_.isDraft }
     if ($Channel -eq 'stable') { $releases = $releases | Where-Object { -not $_.isPrerelease } }
     $latest = $releases | Sort-Object { [datetime]$_.publishedAt } -Descending | Select-Object -First 1
     if (-not $latest) { throw "В канале '$Channel' нет ни одной сборки" }
