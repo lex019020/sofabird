@@ -7,16 +7,16 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Версия: базовая из файла VERSION в корне репозитория; CI/скрипт развёртывания передают
-// -Pvlcr.versionCode=<монотонный номер> и -Pvlcr.versionSuffix=beta.<N> (для релиза суффикса нет).
+// Version: the base comes from the VERSION file in the repository root; CI/the deploy script pass
+// -Pvlcr.versionCode=<monotonic number> and -Pvlcr.versionSuffix=beta.<N> (a release has no suffix).
 val baseVersion = rootProject.file("../VERSION").readText().trim()
 val versionSuffix = (findProperty("vlcr.versionSuffix") as String?).orEmpty()
 val appVersionCode = (findProperty("vlcr.versionCode") as String?)?.toInt() ?: 1
 val appVersionName = if (versionSuffix.isEmpty()) baseVersion else "$baseVersion-$versionSuffix"
 
-// Подпись релизных сборок (тестовых и релизов): android/keystore.properties (не в git) или
-// переменные окружения VLCR_KEYSTORE_FILE / VLCR_KEYSTORE_PASSWORD / VLCR_KEY_ALIAS / VLCR_KEY_PASSWORD.
-// Один ключ для всех каналов, чтобы обновления ставились поверх. Без ключа release не подписывается.
+// Signing of release builds (test builds and releases): android/keystore.properties (not in git) or
+// the environment variables VLCR_KEYSTORE_FILE / VLCR_KEYSTORE_PASSWORD / VLCR_KEY_ALIAS / VLCR_KEY_PASSWORD.
+// One key for all channels so that updates install over the previous version. Without a key release is not signed.
 val signingProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -51,7 +51,7 @@ android {
 
     buildTypes {
         debug {
-            // Отладочная сборка ставится рядом с тестовой/релизной (другой applicationId и ключ).
+            // The debug build installs side by side with the test/release one (different applicationId and key).
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-dev"
             manifestPlaceholders["appLabel"] = "VLC Remote (dev)"

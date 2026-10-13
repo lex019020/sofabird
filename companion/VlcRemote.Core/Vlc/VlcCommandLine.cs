@@ -1,13 +1,13 @@
 namespace VlcRemote.Core.Vlc;
 
-/// <summary>Разбор командной строки запущенного <c>vlc.exe</c> (для перезапуска с тем же файлом).</summary>
+/// <summary>Parsing the command line of a running <c>vlc.exe</c> (to restart it with the same file).</summary>
 public static class VlcCommandLine
 {
     /// <summary>
-    /// Файл/URI, с которым открыт VLC: последний аргумент, не являющийся опцией и похожий на медиа —
-    /// абсолютный путь или URI со схемой (<c>file:///…</c>, <c>http://…</c>). Значения опций
-    /// (<c>8080</c>, <c>http:rc</c>, <c>127.0.0.1:4212</c>) и флаги вроде <c>--started-from-file</c>
-    /// пропускаются. <paramref name="argv"/>[0] — путь к exe.
+    /// The file/URI VLC was opened with: the last argument that is not an option and looks like media —
+    /// an absolute path or a URI with a scheme (<c>file:///…</c>, <c>http://…</c>). Option values
+    /// (<c>8080</c>, <c>http:rc</c>, <c>127.0.0.1:4212</c>) and flags such as <c>--started-from-file</c>
+    /// are skipped. <paramref name="argv"/>[0] is the exe path.
     /// </summary>
     public static string? ExtractMedia(IReadOnlyList<string> argv)
     {
@@ -25,7 +25,7 @@ public static class VlcCommandLine
         var scheme = a.IndexOf("://", StringComparison.Ordinal);
         if (scheme > 1)
         {
-            // vlc://quit и подобные служебные элементы не восстанавливаем.
+            // vlc://quit and similar service items are not restored.
             return !a.StartsWith("vlc://", StringComparison.OrdinalIgnoreCase);
         }
         // C:\… , C:/… , \\server\share\…

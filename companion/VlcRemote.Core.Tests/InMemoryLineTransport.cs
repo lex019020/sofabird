@@ -3,7 +3,7 @@ using VlcRemote.Core.Session;
 
 namespace VlcRemote.Core.Tests;
 
-/// <summary>Пара каналов: тест пишет «от телефона», читает «от ПК».</summary>
+/// <summary>A pair of channels: the test writes "from the phone", reads "from the PC".</summary>
 internal sealed class InMemoryLineTransport : ILineTransport
 {
     private readonly Channel<string> _toPc = Channel.CreateUnbounded<string>();
@@ -13,7 +13,7 @@ internal sealed class InMemoryLineTransport : ILineTransport
     public bool Closed { get; private set; }
     public string? CloseReason { get; private set; }
 
-    // Сторона телефона
+    // Phone side
     public ValueTask PhoneSendAsync(string line) => _toPc.Writer.WriteAsync(line);
     public void PhoneDisconnect() => _toPc.Writer.TryComplete();
 
@@ -25,7 +25,7 @@ internal sealed class InMemoryLineTransport : ILineTransport
 
     public bool PhoneHasPending => _toPhone.Reader.TryPeek(out _);
 
-    // Сторона ПК (Session)
+    // PC side (Session)
     public async Task<string?> ReadLineAsync(CancellationToken ct)
     {
         try

@@ -4,9 +4,9 @@ using Microsoft.Win32.SafeHandles;
 namespace VlcRemote.Companion.Interop;
 
 /// <summary>
-/// Командная строка чужого процесса того же пользователя: <c>NtQueryInformationProcess</c>
-/// с <c>ProcessCommandLineInformation</c> (Windows 8.1+, достаточно <c>PROCESS_QUERY_LIMITED_INFORMATION</c>) —
-/// то же, что <c>Win32_Process.CommandLine</c> в WMI, но без пакета System.Management.
+/// Command line of another process of the same user: <c>NtQueryInformationProcess</c>
+/// with <c>ProcessCommandLineInformation</c> (Windows 8.1+, <c>PROCESS_QUERY_LIMITED_INFORMATION</c> is enough) —
+/// the same as <c>Win32_Process.CommandLine</c> in WMI, but without the System.Management package.
 /// </summary>
 internal static class ProcessCommandLine
 {
@@ -25,7 +25,7 @@ internal static class ProcessCommandLine
     [DllImport("kernel32.dll")]
     private static extern IntPtr LocalFree(IntPtr mem);
 
-    /// <summary>Командная строка процесса или <c>null</c> (нет доступа, процесс завершился).</summary>
+    /// <summary>Command line of the process or <c>null</c> (no access, the process has exited).</summary>
     public static string? TryGet(int pid)
     {
         using var handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
@@ -36,7 +36,7 @@ internal static class ProcessCommandLine
         try
         {
             if (NtQueryInformationProcess(handle, ProcessCommandLineInformation, buffer, needed, out _) != 0) return null;
-            // UNICODE_STRING { USHORT Length; USHORT MaximumLength; PWSTR Buffer; } — Buffer выровнен по указателю.
+            // UNICODE_STRING { USHORT Length; USHORT MaximumLength; PWSTR Buffer; } — Buffer is pointer-aligned.
             var bytes = (ushort)Marshal.ReadInt16(buffer);
             var text = Marshal.ReadIntPtr(buffer, IntPtr.Size);
             return text == IntPtr.Zero ? null : Marshal.PtrToStringUni(text, bytes / 2);
@@ -47,7 +47,7 @@ internal static class ProcessCommandLine
         }
     }
 
-    /// <summary>Разбить командную строку по правилам Windows (<c>CommandLineToArgvW</c>).</summary>
+    /// <summary>Split a command line by the Windows rules (<c>CommandLineToArgvW</c>).</summary>
     public static IReadOnlyList<string> Split(string commandLine)
     {
         if (string.IsNullOrWhiteSpace(commandLine)) return [];

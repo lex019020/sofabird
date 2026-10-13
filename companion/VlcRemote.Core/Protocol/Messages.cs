@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace VlcRemote.Core.Protocol;
 
 /// <summary>
-/// Базовый класс всех сообщений протокола (protocol/README.md). Тип кодируется полем <c>t</c>.
+/// Base class of all protocol messages (protocol/README.md). The type is encoded in the <c>t</c> field.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t",
     UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization,
@@ -36,7 +36,7 @@ namespace VlcRemote.Core.Protocol;
 [JsonDerivedType(typeof(HistoryClearMessage), "historyClear")]
 public abstract class Message
 {
-    /// <summary>Идентификатор запроса; ответ несёт тот же <c>id</c>.</summary>
+    /// <summary>Request identifier; the response carries the same <c>id</c>.</summary>
     [JsonPropertyOrder(-10)]
     public string? Id { get; set; }
 }
@@ -58,8 +58,8 @@ public sealed class HelloMessage : Message
 }
 
 /// <summary>
-/// Ответ на <c>hello</c>. Поле <c>id</c> здесь — стабильный GUID установки компаньона
-/// (у <c>welcome</c> нет request-id), т.е. базовое <see cref="Message.Id"/> = GUID ПК.
+/// Response to <c>hello</c>. The <c>id</c> field here is the stable installation GUID of the companion
+/// (<c>welcome</c> has no request id), i.e. the base <see cref="Message.Id"/> = the PC GUID.
 /// </summary>
 public sealed class WelcomeMessage : Message
 {
@@ -101,7 +101,7 @@ public sealed class BrowseEntry
 {
     public string Name { get; set; } = "";
     public string Uri { get; set; } = "";
-    /// <summary>"dir" или "file".</summary>
+    /// <summary>"dir" or "file".</summary>
     public string Type { get; set; } = "file";
     public long? Size { get; set; }
     public long? Modified { get; set; }
@@ -219,9 +219,9 @@ public sealed class DisplaysMessage : Message
 public sealed class EventMessage : Message
 {
     public string Name { get; set; } = "";
-    /// <summary>Дополнительно для <c>inputChanged</c>: URI нового элемента.</summary>
+    /// <summary>Additionally for <c>inputChanged</c>: the URI of the new item.</summary>
     public string? Uri { get; set; }
-    /// <summary>Дополнительно для <c>paired</c>: имя устройства.</summary>
+    /// <summary>Additionally for <c>paired</c>: the device name.</summary>
     public string? Device { get; set; }
     /// <summary><c>resumePrompt</c> / <c>nextEpisode</c>: title of the file.</summary>
     public string? Title { get; set; }
@@ -279,7 +279,7 @@ public sealed class PingMessage : Message;
 
 public sealed class PongMessage : Message;
 
-/// <summary>Ответ на UDP-маяк. Поле <c>id</c> (базовое <see cref="Message.Id"/>) — GUID ПК.</summary>
+/// <summary>Response to the UDP beacon. The <c>id</c> field (the base <see cref="Message.Id"/>) is the PC GUID.</summary>
 public sealed class BeaconMessage : Message
 {
     public string Name { get; set; } = "";
@@ -298,7 +298,7 @@ public static class ProtocolConstants
     public const string DnsSdServiceType = "_vlcremote._tcp";
     public const string BeaconRequest = "VLCREMOTE_DISCOVER 1";
 
-    /// <summary>RFCOMM service UUID of the companion (protocol/README.md, «Транспорт»).</summary>
+    /// <summary>RFCOMM service UUID of the companion (protocol/README.md, "Transport").</summary>
     public static readonly Guid BluetoothServiceUuid = new("47fe5bd6-98ad-4d9f-9812-174b3394037d");
     /// <summary>Service name in the SDP record (attribute 0x0100).</summary>
     public const string BluetoothServiceName = "VLC Remote";
@@ -308,7 +308,7 @@ public static class ProtocolConstants
 
 public static class ErrorCodes
 {
-    /// <summary>Телефон не сопряжён и кода в <c>hello</c> нет; компаньон показывает окно с кодом.</summary>
+    /// <summary>The phone is not paired and <c>hello</c> has no code; the companion shows the code window.</summary>
     public const string PairingRequired = "pairing_required";
     public const string Unauthorized = "unauthorized";
     public const string BadRequest = "bad_request";

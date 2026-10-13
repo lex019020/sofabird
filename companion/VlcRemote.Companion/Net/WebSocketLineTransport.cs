@@ -5,7 +5,7 @@ using VlcRemote.Core.Session;
 
 namespace VlcRemote.Companion.Net;
 
-/// <summary>NDJSON поверх WebSocket: одно текстовое сообщение = одна строка.</summary>
+/// <summary>NDJSON over WebSocket: one text message = one line.</summary>
 public sealed class WebSocketLineTransport : ILineTransport
 {
     private readonly WebSocket _ws;
@@ -37,7 +37,7 @@ public sealed class WebSocketLineTransport : ILineTransport
             if (r.MessageType == WebSocketMessageType.Close) return null;
             if (r.MessageType == WebSocketMessageType.Binary)
             {
-                // Бинарные кадры протоколом не предусмотрены — пропускаем сообщение целиком.
+                // The protocol has no binary frames — skip the whole message.
                 if (r.EndOfMessage) { writer.Clear(); continue; }
                 continue;
             }

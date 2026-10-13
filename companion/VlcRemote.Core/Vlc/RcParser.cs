@@ -16,10 +16,10 @@ public enum RcStatusKind
     Quit,
 }
 
-/// <summary>Асинхронная строка RC <c>status change: ( … )</c>.</summary>
+/// <summary>Asynchronous RC line <c>status change: ( … )</c>.</summary>
 public sealed record RcStatusChange(RcStatusKind Kind, string Raw, string? Text, long? Number);
 
-/// <summary>Строка блока <c>| id - text [*]</c>.</summary>
+/// <summary>A block line <c>| id - text [*]</c>.</summary>
 public sealed record RcListEntry(string Id, string Text, bool Current)
 {
     public int? IntId => int.TryParse(Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : null;
@@ -27,7 +27,7 @@ public sealed record RcListEntry(string Id, string Text, bool Current)
 
 public sealed record RcTrackEntry(int Id, string Name, string? Language, bool Current);
 
-/// <summary>Разбор текстового протокола RC-интерфейса VLC (modules/control/oldrc.c).</summary>
+/// <summary>Parser of the text protocol of VLC's RC interface (modules/control/oldrc.c).</summary>
 public static partial class RcParser
 {
     [GeneratedRegex(@"^status change:\s*\(\s*(?<inner>.*?)\s*\)\s*(?::\s*(?<suffix>.*))?$")]
@@ -86,7 +86,7 @@ public static partial class RcParser
         return true;
     }
 
-    /// <summary>Строка <c>cmd: returned N (msg)</c>.</summary>
+    /// <summary>A <c>cmd: returned N (msg)</c> line.</summary>
     public static bool TryParseReturned(string line, out string command, out int code, out string message)
     {
         var m = ReturnedRegex().Match(line);
@@ -112,7 +112,7 @@ public static partial class RcParser
         return m.Success;
     }
 
-    /// <summary>Содержимое первого блока <c>+----[ … ]</c> … <c>+----[ end of … ]</c> (строки без рамки).</summary>
+    /// <summary>Contents of the first <c>+----[ … ]</c> … <c>+----[ end of … ]</c> block (lines without the frame).</summary>
     public static IReadOnlyList<string> ExtractBlockLines(IEnumerable<string> lines)
     {
         var result = new List<string>();
@@ -144,11 +144,11 @@ public static partial class RcParser
         return list;
     }
 
-    /// <summary>Разбор ответа <c>adev</c>: устройства вывода (id "" = по умолчанию).</summary>
+    /// <summary>Parse the <c>adev</c> response: output devices (id "" = default).</summary>
     public static IReadOnlyList<RcListEntry> ParseAudioDevices(IEnumerable<string> responseLines) =>
         ParseListEntries(ExtractBlockLines(responseLines));
 
-    /// <summary>Разбор ответа <c>atrack</c>/<c>strack</c>/<c>vtrack</c>: дорожки с языком и текущей.</summary>
+    /// <summary>Parse the <c>atrack</c>/<c>strack</c>/<c>vtrack</c> response: tracks with the language and the current one.</summary>
     public static IReadOnlyList<RcTrackEntry> ParseTracks(IEnumerable<string> responseLines)
     {
         var result = new List<RcTrackEntry>();

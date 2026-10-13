@@ -6,7 +6,7 @@ using VlcRemote.Core.State;
 
 namespace VlcRemote.Companion;
 
-/// <summary>Активные сессии телефонов; рассылка <c>state</c> (≤ 4/с через коалесцер) и <c>event</c>.</summary>
+/// <summary>Active phone sessions; broadcasting of <c>state</c> (≤ 4/s through the coalescer) and <c>event</c>.</summary>
 public sealed class SessionManager : IDisposable
 {
     private readonly ILogger _log;
@@ -29,7 +29,7 @@ public sealed class SessionManager : IDisposable
 
     public event Action? CountChanged;
 
-    /// <summary>Обслужить транспорт до его закрытия.</summary>
+    /// <summary>Serve the transport until it is closed.</summary>
     public async Task RunSessionAsync(ILineTransport transport, CancellationToken ct)
     {
         var session = new Session(transport, _host, _lf.CreateLogger<Session>());

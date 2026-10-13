@@ -4,10 +4,10 @@ using VlcRemote.Core.Vlc;
 
 namespace VlcRemote.Core.State;
 
-/// <summary>Текущие дорожки, полученные из RC (<c>atrack</c>/<c>strack</c>/<c>vtrack</c> с <c>*</c>).</summary>
+/// <summary>Current tracks obtained from RC (<c>atrack</c>/<c>strack</c>/<c>vtrack</c> with <c>*</c>).</summary>
 public sealed record RcTrackSelection(int? Audio, int? Subtitle, int? Video);
 
-/// <summary>Входные данные для сборки <see cref="StateMessage"/>.</summary>
+/// <summary>Input data for building a <see cref="StateMessage"/>.</summary>
 public sealed class StateInputs
 {
     public required VlcInfo Vlc { get; init; }
@@ -16,7 +16,7 @@ public sealed class StateInputs
     public IReadOnlyList<VlcPlaylistItem>? Playlist { get; init; }
     public RcTrackSelection? RcTracks { get; init; }
     public SystemInfo? System { get; init; }
-    /// <summary>Базовый URL компаньона для <c>artUrl</c>, например <c>http://192.168.1.20:47555</c>.</summary>
+    /// <summary>Base URL of the companion for <c>artUrl</c>, for example <c>http://192.168.1.20:47555</c>.</summary>
     public string? ArtBaseUrl { get; init; }
     public bool Muted { get; init; }
     /// <summary>Pending resume question (<c>state.resume</c>).</summary>
@@ -29,8 +29,8 @@ public sealed class StateInputs
 }
 
 /// <summary>
-/// Собирает полный объект <c>state</c> протокола из HTTP-статуса, страницы <c>tracks.json</c>
-/// и данных RC. Никакого ввода-вывода — чистая функция, удобно тестировать.
+/// Builds the full protocol <c>state</c> object from the HTTP status, the <c>tracks.json</c> page
+/// and the RC data. No I/O — a pure function, easy to test.
 /// </summary>
 public static partial class StateBuilder
 {
@@ -84,7 +84,7 @@ public static partial class StateBuilder
         }
         else if (input.TracksPage is { } page && (page.Audio?.Items.Count > 0 || page.Chapter?.Items.Count > 0))
         {
-            // information отсутствует (например, сразу после старта), но страница уже отвечает.
+            // information is missing (for example, right after the start), but the page already answers.
             state.Tracks = BuildTracksFromPage(page, input.RcTracks);
             state.Chapters = BuildChapters(null, page);
         }
@@ -139,7 +139,7 @@ public static partial class StateBuilder
             else if (s.IsVideo) video.Add(track);
         }
 
-        // Если HTTP почему-то не дал потоков, а страница есть — берём имена оттуда.
+        // If HTTP for some reason gave no streams but the page exists, take the names from there.
         if (audio.Count == 0 && subtitle.Count == 0 && video.Count == 0 && page is not null)
             return BuildTracksFromPage(page, rc);
 
@@ -173,7 +173,7 @@ public static partial class StateBuilder
         var result = new List<TrackInfo>();
         foreach (var it in list.Items)
         {
-            if (it.IntId is not int id || id < 0) continue; // "-1 - Disable" не дорожка
+            if (it.IntId is not int id || id < 0) continue; // "-1 - Disable" is not a track
             var name = it.Name;
             string? lang = null;
             var idx = name.LastIndexOf(" - [", StringComparison.Ordinal);

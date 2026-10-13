@@ -1,6 +1,6 @@
 namespace VlcRemote.Companion.Vlc;
 
-/// <summary>Наши Lua-страницы (companion/lua/requests/*.json), встроенные в сборку как ресурсы.</summary>
+/// <summary>Our Lua pages (companion/lua/requests/*.json), embedded into the assembly as resources.</summary>
 public static class EmbeddedLuaPages
 {
     private static readonly string[] Names = ["tracks.json", "setvar.json"];

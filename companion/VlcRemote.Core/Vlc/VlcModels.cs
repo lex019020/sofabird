@@ -1,6 +1,6 @@
 namespace VlcRemote.Core.Vlc;
 
-/// <summary>Разобранный <c>status.json</c> (apiversion 3), см. protocol/vlc-http.md.</summary>
+/// <summary>Parsed <c>status.json</c> (apiversion 3), see protocol/vlc-http.md.</summary>
 public sealed class VlcStatus
 {
     public string State { get; set; } = "stopped";
@@ -20,7 +20,7 @@ public sealed class VlcStatus
     public int ApiVersion { get; set; }
     public string? Version { get; set; }
     public int SeekSec { get; set; }
-    /// <summary>Отсутствует в состоянии <c>stopped</c>.</summary>
+    /// <summary>Absent in the <c>stopped</c> state.</summary>
     public VlcInformation? Information { get; set; }
 
     public bool IsPlaying => State == "playing";
@@ -37,12 +37,12 @@ public sealed class VlcInformation
     public IReadOnlyList<VlcStream> Streams { get; set; } = [];
 }
 
-/// <summary>Элемент <c>information.category["Stream N"]</c>.</summary>
+/// <summary>An <c>information.category["Stream N"]</c> item.</summary>
 public sealed class VlcStream
 {
-    /// <summary>ID для <c>audio_track</c>/<c>subtitle_track</c>/<c>video_track</c> = <c>Original_ID</c> ?? N.</summary>
+    /// <summary>ID for <c>audio_track</c>/<c>subtitle_track</c>/<c>video_track</c> = <c>Original_ID</c> ?? N.</summary>
     public int Id { get; set; }
-    /// <summary>"Video" | "Audio" | "Subtitle" (как отдаёт VLC; сравнивать без учёта регистра).</summary>
+    /// <summary>"Video" | "Audio" | "Subtitle" (as VLC reports it; compare case-insensitively).</summary>
     public string Type { get; set; } = "";
     public string? Language { get; set; }
     public string? Description { get; set; }
@@ -72,7 +72,7 @@ public sealed class VlcBrowseEntry
     public long? ModificationTime { get; set; }
 }
 
-/// <summary>Элемент списка переменной VLC (<c>tracks.json</c>, уровень 1).</summary>
+/// <summary>An item of a VLC variable's list (<c>tracks.json</c>, level 1).</summary>
 public sealed class VlcVarItem
 {
     public string Id { get; set; } = "";
@@ -87,7 +87,7 @@ public sealed class VlcVarList
     public IReadOnlyList<VlcVarItem> Items { get; set; } = [];
 }
 
-/// <summary>Ответ нашей Lua-страницы <c>requests/tracks.json</c>.</summary>
+/// <summary>Response of our Lua page <c>requests/tracks.json</c>.</summary>
 public sealed class VlcTracksPage
 {
     public int VlcRemote { get; set; }

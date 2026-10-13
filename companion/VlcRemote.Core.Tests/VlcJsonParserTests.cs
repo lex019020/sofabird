@@ -33,7 +33,7 @@ public class VlcJsonParserTests
         Assert.Equal("The Lord of the Rings: The Fellowship of the Ring / 2001 / Warner Bros.", info.Meta["title"]);
         Assert.StartsWith("file:///C:/Users/", info.Meta["artwork_url"]);
 
-        // 13 потоков: 1 видео (0), 6 аудио (1..6), 6 субтитров (7..12); ID = N из "Stream N".
+        // 13 streams: 1 video (0), 6 audio (1..6), 6 subtitles (7..12); ID = N from "Stream N".
         Assert.Equal(13, info.Streams.Count);
         Assert.Equal(Enumerable.Range(0, 13), info.Streams.Select(x => x.Id));
         Assert.Equal(6, info.Streams.Count(x => x.IsAudio));
@@ -78,7 +78,7 @@ public class VlcJsonParserTests
         var streams = s.Information!.Streams;
         Assert.Equal(2, streams.Count);
         Assert.Equal(0, streams[0].Id);
-        Assert.Equal(42, streams[1].Id); // Original_ID имеет приоритет над N
+        Assert.Equal(42, streams[1].Id); // Original_ID takes priority over N
         Assert.True(streams[1].IsAudio);
         Assert.Equal("x.mkv", s.Information.Meta["filename"]);
     }
@@ -122,7 +122,7 @@ public class VlcJsonParserTests
         var page = VlcJsonParser.ParseTracksPage(Fixtures.Read("tracks-custom-page.json"));
 
         Assert.Equal(4, page.Audio!.CurrentInt);
-        Assert.Equal(7, page.Audio.Items.Count); // включая "-1 - Disable"
+        Assert.Equal(7, page.Audio.Items.Count); // including "-1 - Disable"
         Assert.Equal(-1, page.Audio.Items[0].IntId);
         Assert.Equal(10, page.Spu!.CurrentInt);
         Assert.Equal(0, page.Video!.CurrentInt);
@@ -131,7 +131,7 @@ public class VlcJsonParserTests
         Assert.Equal(" The Shire", page.Chapter.Items[1].Name);
         Assert.Equal("", page.Aspect!.Current);
         Assert.Equal("16:9", page.Aspect.Items[1].Id);
-        Assert.Null(page.Zoom!.Items[0].IntId); // 0.25 — не целое
+        Assert.Null(page.Zoom!.Items[0].IntId); // 0.25 is not an integer
         Assert.Equal("0.25", page.Zoom.Items[0].Id);
     }
 

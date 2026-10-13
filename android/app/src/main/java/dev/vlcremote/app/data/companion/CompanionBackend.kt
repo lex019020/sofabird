@@ -55,14 +55,14 @@ data class CompanionEndpoint(
     val pcId: String? = null,
 )
 
-/** Timeouts and intervals of [CompanionBackend] (protocol/README.md «Keep-alive», «Bluetooth»). */
+/** Timeouts and intervals of [CompanionBackend] (protocol/README.md "Keep-alive", "Bluetooth"). */
 data class CompanionTiming(
     val wsPingIntervalMs: Long = 30_000,
     val btPingIntervalMs: Long = 15_000,
     val pongTimeoutMs: Long = 10_000,
     val requestTimeoutMs: Long = 10_000,
     val commandBufferMs: Long = 5_000,
-    /** WebSocket connect timeout before falling back to Bluetooth ("ПК не отвечает ~3 с"). */
+    /** WebSocket connect timeout before falling back to Bluetooth ("the PC does not answer for ~3 s"). */
     val lanConnectTimeoutMs: Long = 3_000,
     /** While on RFCOMM: how often to look whether the LAN is back. */
     val lanProbeIntervalMs: Long = 20_000,

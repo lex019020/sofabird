@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace VlcRemote.Companion;
 
-/// <summary>Версия сборки: <c>0.2.0</c> для релиза, <c>0.2.0-beta.42</c> для тестовой (из файла VERSION + суффикс CI).</summary>
+/// <summary>Build version: <c>0.2.0</c> for a release, <c>0.2.0-beta.42</c> for a test build (from the VERSION file + the CI suffix).</summary>
 internal static class AppVersion
 {
     public static string Informational { get; } =

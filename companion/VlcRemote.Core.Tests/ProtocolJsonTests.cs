@@ -18,7 +18,7 @@ public class ProtocolJsonTests
 
         var json = ProtocolJson.Serialize(msg);
         Assert.StartsWith("{\"t\":\"hello\"", json);
-        Assert.DoesNotContain("token", json); // null не пишется
+        Assert.DoesNotContain("token", json); // null is not written
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class ProtocolJsonTests
         using var info = JsonDocument.Parse(ProtocolJson.SerializeInfo(new InfoResponse { Name = "HTPC", Vlc = vlc }));
         Assert.Equal("noControl", info.RootElement.GetProperty("vlc").GetProperty("status").GetString());
 
-        // Старый компаньон без status — поле просто отсутствует.
+        // An old companion without status — the field is simply absent.
         var old = ProtocolJson.Serialize(new StateMessage { Vlc = new VlcInfo { Running = true } });
         Assert.DoesNotContain("status", old);
         Assert.Equal(

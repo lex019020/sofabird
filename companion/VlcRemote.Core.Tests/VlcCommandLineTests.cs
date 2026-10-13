@@ -10,7 +10,7 @@ public class VlcCommandLineTests
     [Fact]
     public void OpenedFromExplorer_ReturnsFile()
     {
-        // Ассоциация файлов VLC: "vlc.exe" --started-from-file "%1"
+        // VLC file association: "vlc.exe" --started-from-file "%1"
         Assert.Equal(@"D:\Movies\Фильм (2001).mkv",
             VlcCommandLine.ExtractMedia([Exe, "--started-from-file", @"D:\Movies\Фильм (2001).mkv"]));
     }
@@ -35,7 +35,7 @@ public class VlcCommandLineTests
     {
         Assert.Equal(@"\\nas\video\a.mkv", VlcCommandLine.ExtractMedia([Exe, @"\\nas\video\a.mkv"]));
         Assert.Equal("https://example.org/s.m3u8", VlcCommandLine.ExtractMedia([Exe, "https://example.org/s.m3u8"]));
-        // Несколько файлов — последний.
+        // Several files — the last one.
         Assert.Equal(@"D:\b.mkv", VlcCommandLine.ExtractMedia([Exe, @"D:\a.mkv", @"D:\b.mkv"]));
     }
 }

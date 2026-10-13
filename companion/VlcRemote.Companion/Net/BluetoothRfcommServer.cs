@@ -28,8 +28,8 @@ public enum BluetoothServerStatus
 }
 
 /// <summary>
-/// Bluetooth Classic RFCOMM server (protocol/README.md, «Транспорт»): publishes service
-/// <see cref="ProtocolConstants.BluetoothServiceUuid"/> named «VLC Remote» in SDP and turns every accepted socket
+/// Bluetooth Classic RFCOMM server (protocol/README.md, "Transport"): publishes service
+/// <see cref="ProtocolConstants.BluetoothServiceUuid"/> named "VLC Remote" in SDP and turns every accepted socket
 /// into a regular <see cref="SessionManager"/> session over NDJSON (<see cref="RfcommLineTransport"/>).
 /// </summary>
 /// <remarks>

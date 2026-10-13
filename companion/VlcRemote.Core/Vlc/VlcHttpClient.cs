@@ -7,10 +7,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace VlcRemote.Core.Vlc;
 
 /// <summary>
-/// Клиент HTTP-интерфейса VLC 3.0.x (<c>/requests/*.json</c>, <c>/art</c>).
-/// Basic-авторизация с пустым логином; <see cref="HttpClient"/> на HTTP/1.1 не шлёт заголовок
-/// <c>Connection</c>, поэтому keep-alive VLC работает. Сервер VLC однопоточный — все запросы
-/// сериализуются через семафор.
+/// Client of the VLC 3.0.x HTTP interface (<c>/requests/*.json</c>, <c>/art</c>).
+/// Basic auth with an empty user name; <see cref="HttpClient"/> on HTTP/1.1 does not send the
+/// <c>Connection</c> header, so VLC's keep-alive works. The VLC server is single-threaded — all requests
+/// are serialized through a semaphore.
 /// </summary>
 public sealed class VlcHttpClient : IDisposable
 {
@@ -44,8 +44,8 @@ public sealed class VlcHttpClient : IDisposable
         StatusRequestAsync("requests/status.json", ct);
 
     /// <summary>
-    /// Выполнить команду <c>status.json?command=…</c>. Ответ — свежий статус.
-    /// Параметры URL-кодируются (<c>+</c> → <c>%2B</c>).
+    /// Execute a <c>status.json?command=…</c> command. The response is the fresh status.
+    /// Parameters are URL-encoded (<c>+</c> → <c>%2B</c>).
     /// </summary>
     public Task<VlcStatus> CommandAsync(string command, CancellationToken ct = default, params (string Name, string Value)[] args)
     {
@@ -73,7 +73,7 @@ public sealed class VlcHttpClient : IDisposable
         return VlcJsonParser.ParseBrowse(json);
     }
 
-    /// <summary>Наша Lua-страница; <c>null</c>, если не установлена (404 → уровень 0).</summary>
+    /// <summary>Our Lua page; <c>null</c> if it is not installed (404 → level 0).</summary>
     public async Task<VlcTracksPage?> GetTracksAsync(CancellationToken ct = default)
     {
         try
@@ -94,7 +94,7 @@ public sealed class VlcHttpClient : IDisposable
         return VlcJsonParser.ParseSetVar(json);
     }
 
-    /// <summary>Обложка текущего элемента (или элемента <paramref name="plId"/>); <c>null</c>, если её нет.</summary>
+    /// <summary>Artwork of the current item (or of item <paramref name="plId"/>); <c>null</c> if there is none.</summary>
     public async Task<VlcArt?> GetArtAsync(int? plId = null, CancellationToken ct = default)
     {
         var path = plId is int id ? $"art?item={id}" : "art";
@@ -139,7 +139,7 @@ public sealed class VlcHttpClient : IDisposable
             var trimmed = text.AsSpan().TrimStart();
             if (trimmed.Length > 0 && trimmed[0] == '<')
             {
-                // Ошибки Lua приходят как 200 с HTML-телом.
+                // Lua errors arrive as 200 with an HTML body.
                 var idx = text.IndexOf("<title>Error loading", StringComparison.OrdinalIgnoreCase);
                 var message = idx >= 0 ? ExtractLuaError(text) : "VLC returned HTML instead of JSON";
                 throw new VlcLuaException(message);
@@ -170,7 +170,7 @@ public sealed class VlcHttpClient : IDisposable
 
     private static string ExtractLuaError(string html)
     {
-        // Тело вида <pre>...</pre> или просто текст; возьмём первую осмысленную строку после <body>.
+        // The body looks like <pre>...</pre> or is plain text; take the first meaningful line after <body>.
         var bodyIdx = html.IndexOf("<body", StringComparison.OrdinalIgnoreCase);
         var slice = bodyIdx >= 0 ? html[bodyIdx..] : html;
         var sb = new StringBuilder();

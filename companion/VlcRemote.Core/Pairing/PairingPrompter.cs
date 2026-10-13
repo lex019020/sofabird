@@ -2,22 +2,22 @@ namespace VlcRemote.Core.Pairing;
 
 public enum PairingPromptAction
 {
-    /// <summary>Тот же телефон просил недавно — окно не трогаем.</summary>
+    /// <summary>The same phone asked recently — leave the window alone.</summary>
     Throttled,
-    /// <summary>Создан новый код — показать окно.</summary>
+    /// <summary>A new code was created — show the window.</summary>
     ShowNew,
-    /// <summary>Код уже активен — поднять окно поверх (код прежний).</summary>
+    /// <summary>A code is already active — raise the window to the top (the code stays the same).</summary>
     BringToFront,
 }
 
 public sealed record PairingPrompt(PairingPromptAction Action, string? Code, string? DeviceName, string? DeviceId);
 
 /// <summary>
-/// Автоматическое сопряжение: телефон без токена прислал <c>hello</c> без кода → компаньон сам
-/// показывает окно с кодом. Если код уже активен, новый не создаётся (окно только поднимается).
-/// Ограничения: не чаще одного окна в <see cref="PerDeviceInterval"/> на устройство (телефон может
-/// переподключаться в цикле) и не чаще одного нового кода в <see cref="NewCodeInterval"/> вообще
-/// (иначе перебор «5 попыток на код» можно повторять бесконечно).
+/// Automatic pairing: a phone without a token sent <c>hello</c> without a code → the companion itself
+/// shows the code window. If a code is already active, no new one is created (the window is only raised).
+/// Limits: at most one window per <see cref="PerDeviceInterval"/> per device (the phone may
+/// reconnect in a loop) and at most one new code per <see cref="NewCodeInterval"/> overall
+/// (otherwise brute-forcing "5 attempts per code" could be repeated forever).
 /// </summary>
 public sealed class PairingPrompter
 {

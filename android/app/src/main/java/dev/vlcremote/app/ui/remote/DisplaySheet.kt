@@ -50,9 +50,9 @@ import dev.vlcremote.app.ui.common.rememberTick
 import dev.vlcremote.protocol.companion.Display
 
 /**
- * "Экран для VLC": monitors from `listDisplays`; a tap moves VLC there and remembers it
- * (`sys moveToDisplay`), "Не управлять" = `sys preferredDisplay {null}`. Opened from the "Экран" chip
- * on the remote and from the "Ещё" sheet.
+ * "Display for VLC": monitors from `listDisplays`; a tap moves VLC there and remembers it
+ * (`sys moveToDisplay`), "Do not manage" = `sys preferredDisplay {null}`. Opened from the "Display" chip
+ * on the remote and from the "More" sheet.
  */
 @Composable
 fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit) {
@@ -160,7 +160,7 @@ fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () ->
     }
 }
 
-/** Monitor name: EDID friendly name, else "Экран N". */
+/** Monitor name: EDID friendly name, else "Display N". */
 @Composable
 fun displayLabel(display: Display): String =
     display.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.display_n, display.index + 1)

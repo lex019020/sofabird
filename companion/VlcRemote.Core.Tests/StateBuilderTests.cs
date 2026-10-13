@@ -43,7 +43,7 @@ public class StateBuilderTests
         Assert.Equal(6, tracks.Subtitle.Count);
         Assert.Single(tracks.Video);
         var ru = tracks.Audio.Single(t => t.Id == 1);
-        Assert.Equal("Dub Мосфильм / AC3 5.1", ru.Name); // битрейт отрезан
+        Assert.Equal("Dub Мосфильм / AC3 5.1", ru.Name); // the bitrate is cut off
         Assert.Equal("Russian", ru.Lang);
         Assert.Equal("a52", ru.Codec);
         Assert.Equal("hevc", tracks.Video[0].Codec);
@@ -65,7 +65,7 @@ public class StateBuilderTests
         Assert.Equal("default", state.Video.Aspect);
         Assert.Equal(60, state.System!.Volume);
 
-        // Сериализуется через source-generated контекст с дискриминатором.
+        // Serialized through the source-generated context with the discriminator.
         var json = ProtocolJson.Serialize(state);
         Assert.StartsWith("{\"t\":\"state\"", json);
         Assert.Contains("\"currentSubtitle\":10", json);
@@ -86,8 +86,8 @@ public class StateBuilderTests
         Assert.Equal(-1, state.Tracks.CurrentSubtitle);
         Assert.Null(state.Chapters!.Names);
         Assert.Equal(40, state.Chapters.Count);
-        Assert.Null(state.Item!.ArtUrl); // нет базового URL
-        Assert.Contains("Fellowship", state.Item.Title); // из meta.title
+        Assert.Null(state.Item!.ArtUrl); // no base URL
+        Assert.Contains("Fellowship", state.Item.Title); // from meta.title
     }
 
     [Fact]

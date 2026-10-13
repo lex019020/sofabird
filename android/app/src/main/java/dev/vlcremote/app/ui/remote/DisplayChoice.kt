@@ -6,7 +6,7 @@ import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.SystemState
 
 /**
- * Monitor choice for the VLC window ("Экран для VLC"), derived from three sources, newest wins:
+ * Monitor choice for the VLC window ("Display for VLC"), derived from three sources, newest wins:
  * 1. [DisplayMark] — local marking right after a successful action, until the companion pushes a new
  *    `state.system`;
  * 2. the `listDisplays` answer, while `state.system` is the same as when the list arrived;
@@ -51,7 +51,7 @@ data class DisplayChoice(
     /** The radio selection: the preferred monitor, or (old companions) the one with VLC. */
     val selectedKey: String? get() = if (supportsIds) preferredKey else currentKey
 
-    /** "Не управлять" is offered (only companions with monitor ids know it). */
+    /** "Do not manage" is offered (only companions with monitor ids know it). */
     val canUnmanage: Boolean get() = supportsIds
 
     val unmanagedSelected: Boolean get() = supportsIds && preferredKey == null

@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace VlcRemote.Core.Pairing;
 
-/// <summary>Сопряжённое устройство: на ПК хранится только SHA-256 токена.</summary>
+/// <summary>A paired device: the PC stores only the SHA-256 of the token.</summary>
 public sealed class PairedDevice
 {
     public string TokenHash { get; set; } = "";
@@ -31,7 +31,7 @@ public sealed class InMemoryTokenStore : ITokenStore
 [JsonSerializable(typeof(List<PairedDevice>))]
 internal partial class PairingJsonContext : JsonSerializerContext;
 
-/// <summary>Хранилище токенов в JSON-файле (<c>%LocalAppData%\VlcRemote\paired.json</c>).</summary>
+/// <summary>Token store in a JSON file (<c>%LocalAppData%\VlcRemote\paired.json</c>).</summary>
 public sealed class JsonFileTokenStore : ITokenStore
 {
     private readonly string _path;
@@ -72,8 +72,8 @@ public sealed class JsonFileTokenStore : ITokenStore
 public sealed record PairResult(bool Success, string? Token, string? Reason);
 
 /// <summary>
-/// Сопряжение: 6-значный код действует <see cref="CodeLifetime"/> (5 мин), не более
-/// <see cref="MaxAttempts"/> попыток; токен — 32 случайных байта base64url, хранится SHA-256.
+/// Pairing: a 6-digit code is valid for <see cref="CodeLifetime"/> (5 min), at most
+/// <see cref="MaxAttempts"/> attempts; the token is 32 random bytes in base64url, its SHA-256 is stored.
 /// </summary>
 public sealed class PairingService
 {
@@ -93,9 +93,9 @@ public sealed class PairingService
     public TimeSpan CodeLifetime { get; init; } = TimeSpan.FromMinutes(5);
     public int MaxAttempts { get; init; } = 5;
 
-    /// <summary>Вызывается при успешном сопряжении (имя устройства).</summary>
+    /// <summary>Raised on successful pairing (device name).</summary>
     public event Action<PairedDevice>? Paired;
-    /// <summary>Вызывается, когда код перестал действовать (истёк, исчерпаны попытки, отменён).</summary>
+    /// <summary>Raised when the code is no longer valid (expired, attempts used up, cancelled).</summary>
     public event Action? PairingEnded;
 
     public bool IsPairingActive
@@ -103,7 +103,7 @@ public sealed class PairingService
         get { lock (_lock) return _code is not null && _time.GetUtcNow() < _expiresAt; }
     }
 
-    /// <summary>Действующий код или <c>null</c> (нет, истёк).</summary>
+    /// <summary>The active code or <c>null</c> (none, expired).</summary>
     public string? ActiveCode
     {
         get { lock (_lock) return _code is not null && _time.GetUtcNow() < _expiresAt ? _code : null; }
@@ -118,7 +118,7 @@ public sealed class PairingService
 
     public IReadOnlyList<PairedDevice> PairedDevices => _store.Load();
 
-    /// <summary>Сгенерировать новый код и начать окно сопряжения.</summary>
+    /// <summary>Generate a new code and open a pairing window.</summary>
     public string BeginPairing()
     {
         lock (_lock)
@@ -141,7 +141,7 @@ public sealed class PairingService
         if (wasActive) PairingEnded?.Invoke();
     }
 
-    /// <summary>Проверить код; при успехе выдать токен и запомнить его хэш.</summary>
+    /// <summary>Check the code; on success issue a token and remember its hash.</summary>
     public PairResult TryPair(string? code, string? deviceName, string? deviceId)
     {
         string? token = null;
@@ -175,7 +175,7 @@ public sealed class PairingService
                     PairedAt = _time.GetUtcNow(),
                 };
                 var list = _store.Load().ToList();
-                // Повторное сопряжение того же устройства заменяет старый токен.
+                // Pairing the same device again replaces the old token.
                 if (!string.IsNullOrEmpty(deviceId))
                     list.RemoveAll(d => d.DeviceId == deviceId);
                 list.Add(device);

@@ -8,7 +8,7 @@ public sealed record VlcInstallation(string ExePath, string InstallDir, string? 
     public string LuaHttpDir => Path.Combine(InstallDir, "lua", "http");
 }
 
-/// <summary>Поиск установленного VLC: реестр <c>HKLM\SOFTWARE\VideoLAN\VLC</c>, затем Program Files.</summary>
+/// <summary>Finds the installed VLC: the <c>HKLM\SOFTWARE\VideoLAN\VLC</c> registry key, then Program Files.</summary>
 public static class VlcLocator
 {
     public static VlcInstallation? Find(string? overridePath)
@@ -29,7 +29,7 @@ public static class VlcLocator
         }
         catch
         {
-            // нет доступа к реестру — идём дальше
+            // no access to the registry — move on
         }
 
         foreach (var root in new[]
@@ -63,7 +63,7 @@ public static class VlcLocator
         return new VlcInstallation(exe, Path.GetDirectoryName(exe)!, version?.Trim());
     }
 
-    /// <summary>Все процессы <c>vlc.exe</c> (включая чужие экземпляры).</summary>
+    /// <summary>All <c>vlc.exe</c> processes (including other instances).</summary>
     public static Process[] RunningProcesses()
     {
         try { return Process.GetProcessesByName("vlc"); }

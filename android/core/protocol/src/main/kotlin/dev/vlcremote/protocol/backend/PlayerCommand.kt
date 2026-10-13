@@ -3,7 +3,7 @@ package dev.vlcremote.protocol.backend
 import dev.vlcremote.protocol.model.ResumeChoice
 import dev.vlcremote.protocol.model.TrackKind
 
-/** Player commands, transport-agnostic. See protocol/README.md "Команды плеера". */
+/** Player commands, transport-agnostic. See protocol/README.md "Player commands: `cmd`". */
 sealed class PlayerCommand {
     /** Resume, or start the given playlist item. */
     data class Play(val plId: Int? = null) : PlayerCommand()

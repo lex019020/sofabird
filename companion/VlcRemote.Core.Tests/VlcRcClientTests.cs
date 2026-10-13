@@ -7,7 +7,7 @@ namespace VlcRemote.Core.Tests;
 
 public class VlcRcClientTests
 {
-    /// <summary>Два Pipe = двунаправленный поток в памяти; тест играет роль RC-сервера VLC.</summary>
+    /// <summary>Two Pipes = a bidirectional in-memory stream; the test plays the role of VLC's RC server.</summary>
     private sealed class FakeRcServer
     {
         private readonly Pipe _clientToServer = new();
@@ -63,7 +63,7 @@ public class VlcRcClientTests
         client.StatusChanged += events.Add;
 
         await client.ConnectAsync();
-        // VLC при подключении сразу печатает текущее состояние.
+        // On connect VLC immediately prints the current state.
         await server.SendAsync("status change: ( new input: file:///D:/x.mkv )", "status change: ( play state: 3 )");
 
         var task = client.ListAudioDevicesAsync();

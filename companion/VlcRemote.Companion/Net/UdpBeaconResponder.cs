@@ -7,7 +7,7 @@ using VlcRemote.Core.Protocol;
 namespace VlcRemote.Companion.Net;
 
 /// <summary>
-/// UDP-маяк: телефон шлёт broadcast <c>VLCREMOTE_DISCOVER 1</c> на 47556, компаньон отвечает
+/// UDP beacon: the phone broadcasts <c>VLCREMOTE_DISCOVER 1</c> to 47556, the companion answers
 /// unicast JSON <c>{"t":"beacon",…}</c>.
 /// </summary>
 public sealed class UdpBeaconResponder : IAsyncDisposable
@@ -62,7 +62,7 @@ public sealed class UdpBeaconResponder : IAsyncDisposable
             catch (OperationCanceledException) { break; }
             catch (SocketException ex)
             {
-                // ICMP «port unreachable» от предыдущего ответа приходит как ошибка приёма — игнорируем.
+                // An ICMP "port unreachable" for a previous reply arrives as a receive error — ignore it.
                 if (ex.SocketErrorCode == SocketError.ConnectionReset) continue;
                 _log.LogWarning("UDP beacon receive failed: {Error}", ex.Message);
                 await Task.Delay(500, ct).ConfigureAwait(false);

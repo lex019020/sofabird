@@ -35,7 +35,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-/** Manual-entry form ("Другие способы подключения"). */
+/** Manual-entry form ("Other ways to connect"). */
 data class ConnectionForm(
     val host: String = "",
     val port: String = SavedServer.DEFAULT_HTTP_PORT.toString(),
@@ -55,7 +55,7 @@ sealed class TestState {
     data class Failed(val error: ConnectionError) : TestState()
 }
 
-/** «Подключиться по Bluetooth»: what the picker shows. */
+/** "Connect via Bluetooth": what the picker shows. */
 sealed interface BtPickerState {
     data object Hidden : BtPickerState
 
@@ -97,7 +97,7 @@ data class ConnectionUiState(
     val form: ConnectionForm = ConnectionForm(),
     val test: TestState = TestState.Idle,
     val showInstructions: Boolean = false,
-    /** "Другие способы подключения" expanded. */
+    /** "Other ways to connect" expanded. */
     val otherOptionsExpanded: Boolean = false,
     /** Discovery ran for a while without finding a companion. */
     val searchTimedOut: Boolean = false,
@@ -262,7 +262,7 @@ class ConnectionViewModel(
 
     // ---------------------------------------------------------------- Bluetooth
 
-    /** «Подключиться по Bluetooth»: permission → radio on → list of bonded devices. */
+    /** "Connect via Bluetooth": permission → radio on → list of bonded devices. */
     fun openBluetoothPicker() {
         userActed = true
         btPicker.value = when (bluetooth.radioStatus()) {
@@ -352,7 +352,7 @@ class ConnectionViewModel(
         f.copy(mode = mode, port = if (keepPort) f.port else defaultPort.toString())
     }
 
-    /** "Проверить" for the direct VLC mode (companions are checked by connecting). */
+    /** "Test" for the direct VLC mode (companions are checked by connecting). */
     fun testConnection() {
         val f = form.value
         val port = f.port.toIntOrNull() ?: return

@@ -5,13 +5,13 @@ using VlcRemote.Core.Protocol;
 
 namespace VlcRemote.Companion;
 
-/// <summary>Настройки компаньона (<c>%LocalAppData%\VlcRemote\settings.json</c>).</summary>
+/// <summary>Companion settings (<c>%LocalAppData%\VlcRemote\settings.json</c>).</summary>
 public sealed class Settings
 {
-    /// <summary>Стабильный GUID установки (TXT <c>id</c>, <c>welcome.id</c>).</summary>
+    /// <summary>Stable installation GUID (TXT <c>id</c>, <c>welcome.id</c>).</summary>
     public string InstallationId { get; set; } = Guid.NewGuid().ToString();
 
-    /// <summary>Адрес, на котором слушают WebSocket и UDP-маяк. <c>0.0.0.0</c> = все интерфейсы.</summary>
+    /// <summary>Address the WebSocket and the UDP beacon listen on. <c>0.0.0.0</c> = all interfaces.</summary>
     public string ListenAddress { get; set; } = "0.0.0.0";
     public int WsPort { get; set; } = ProtocolConstants.DefaultWsPort;
     public int BeaconPort { get; set; } = ProtocolConstants.DefaultBeaconPort;
@@ -25,20 +25,20 @@ public sealed class Settings
     /// </summary>
     public bool BluetoothRequireAuthentication { get; set; }
 
-    /// <summary>Путь к <c>vlc.exe</c>; <c>null</c> — искать в реестре/Program Files.</summary>
+    /// <summary>Path to <c>vlc.exe</c>; <c>null</c> — look it up in the registry/Program Files.</summary>
     public string? VlcPath { get; set; }
-    /// <summary>Хост HTTP-интерфейса VLC при запуске компаньоном (<c>0.0.0.0</c> — телефон может ходить и напрямую).</summary>
+    /// <summary>Host of the VLC HTTP interface when the companion starts VLC (<c>0.0.0.0</c> — the phone can also talk to it directly).</summary>
     public string VlcHttpHost { get; set; } = "0.0.0.0";
     public int VlcHttpPort { get; set; } = 8080;
-    /// <summary>Пароль HTTP-интерфейса VLC; генерируется при первом запуске.</summary>
+    /// <summary>Password of the VLC HTTP interface; generated on the first start.</summary>
     public string? VlcHttpPassword { get; set; }
     public int VlcRcPort { get; set; } = 4212;
-    /// <summary>Запускать VLC сразу в полноэкранном режиме.</summary>
+    /// <summary>Start VLC in fullscreen mode right away.</summary>
     public bool LaunchFullscreen { get; set; } = true;
-    /// <summary>Дополнительные аргументы командной строки VLC.</summary>
+    /// <summary>Extra VLC command-line arguments.</summary>
     public string? VlcExtraArgs { get; set; }
 
-    /// <summary>Корни медиатеки (информационно; обзор идёт через VLC <c>browse.json</c>).</summary>
+    /// <summary>Media library roots (informational; browsing goes through VLC <c>browse.json</c>).</summary>
     public List<string> MediaRoots { get; set; } = new();
 
     /// <summary>
@@ -53,18 +53,18 @@ public sealed class Settings
     /// to <see cref="PreferredDisplayId"/> (<see cref="MigratePreferredDisplay"/>), then removed from the file.
     /// </summary>
     public int? PreferredDisplay { get; set; }
-    /// <summary>Не давать ПК/экрану уснуть во время воспроизведения.</summary>
+    /// <summary>Keep the PC/display awake during playback.</summary>
     public bool KeepAwake { get; set; } = true;
-    /// <summary>Автоматически обновлять Lua-страницы в <c>%APPDATA%\vlc\lua\http</c>.</summary>
+    /// <summary>Update the Lua pages in <c>%APPDATA%\vlc\lua\http</c> automatically.</summary>
     public bool AutoInstallLuaPages { get; set; } = true;
-    /// <summary>Автоматически запускать VLC при старте компаньона.</summary>
+    /// <summary>Start VLC automatically when the companion starts.</summary>
     public bool AutoLaunchVlc { get; set; }
     /// <summary>
-    /// Прописывать в <c>vlcrc</c> (пока VLC не запущен) веб-интерфейс и RC с паролем компаньона, чтобы VLC,
-    /// открытый из Проводника или меню «Пуск», сразу был управляем с телефона.
+    /// Write the web interface and RC with the companion's password into <c>vlcrc</c> (while VLC is not running), so that VLC
+    /// opened from Explorer or the Start menu can be controlled from the phone right away.
     /// </summary>
     public bool ConfigureVlc { get; set; } = true;
-    /// <summary>Путь к <c>vlcrc</c>; <c>null</c> — <c>%APPDATA%\vlc\vlcrc</c> (другой путь — для тестов).</summary>
+    /// <summary>Path to <c>vlcrc</c>; <c>null</c> — <c>%APPDATA%\vlc\vlcrc</c> (another path is for tests).</summary>
     public string? VlcrcPath { get; set; }
 
     /// <summary>
@@ -144,7 +144,7 @@ public sealed class SettingsStore
                 }
                 catch (JsonException)
                 {
-                    // Битый файл — сохраняем копию и начинаем заново.
+                    // Corrupt file — keep a copy and start over.
                     File.Copy(_path, _path + ".broken", overwrite: true);
                 }
             }

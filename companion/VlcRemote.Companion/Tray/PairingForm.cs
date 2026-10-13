@@ -3,8 +3,8 @@ using VlcRemote.Companion.Localization;
 namespace VlcRemote.Companion.Tray;
 
 /// <summary>
-/// Окно сопряжения на экране ТВ: без рамки, поверх всех окон, крупный 6-значный код и адрес.
-/// Закрывается по истечении срока, по клику/Esc или при успешном сопряжении.
+/// Pairing window on the TV screen: borderless, on top of all windows, a large 6-digit code and the address.
+/// Closes when the code expires, on click/Esc or on successful pairing.
 /// </summary>
 public sealed class PairingForm : Form
 {
@@ -85,13 +85,13 @@ public sealed class PairingForm : Form
     private static string TitleFor(string? device) =>
         string.IsNullOrWhiteSpace(device) ? UiText.PairingHeaderGeneric : UiText.PairingHeaderDevice(device);
 
-    /// <summary>Повторный запрос (возможно, от другого телефона) — обновить заголовок, код прежний.</summary>
+    /// <summary>A repeated request (possibly from another phone) — update the header, the code stays the same.</summary>
     public void SetRequester(string? device)
     {
         if (!string.IsNullOrWhiteSpace(device)) _titleLabel.Text = TitleFor(device);
     }
 
-    /// <summary>Показать поверх всех окон (окно уже открыто или только создано).</summary>
+    /// <summary>Show on top of all windows (the window is already open or has just been created).</summary>
     public void BringToFrontTopMost()
     {
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;

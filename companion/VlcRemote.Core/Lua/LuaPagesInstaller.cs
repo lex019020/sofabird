@@ -5,12 +5,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace VlcRemote.Core.Lua;
 
 /// <summary>
-/// Устанавливает Lua-страницы уровня 1 (см. companion/lua/install.ps1): VLC берёт HTTP-страницы из
-/// ПЕРВОЙ существующей папки (<c>%APPDATA%\vlc\lua\http</c>, затем Program Files), поэтому
-/// пользовательская папка должна содержать копию штатных страниц плюс наши
-/// <c>requests/tracks.json</c> и <c>requests/setvar.json</c>. Пути и содержимое страниц
-/// инжектируются (компаньон берёт их из встроенных ресурсов, тесты — из файлов).
-/// Запускать только при остановленном VLC — страницы регистрируются при старте интерфейса.
+/// Installs the level 1 Lua pages (see companion/lua/install.ps1): VLC takes the HTTP pages from
+/// the FIRST existing folder (<c>%APPDATA%\vlc\lua\http</c>, then Program Files), so
+/// the user folder must contain a copy of the stock pages plus our
+/// <c>requests/tracks.json</c> and <c>requests/setvar.json</c>. The paths and the page contents
+/// are injected (the companion takes them from embedded resources, the tests from files).
+/// Run only while VLC is stopped — the pages are registered when the interface starts.
 /// </summary>
 public sealed class LuaPagesInstaller
 {
@@ -18,9 +18,9 @@ public sealed class LuaPagesInstaller
     private readonly IReadOnlyDictionary<string, byte[]> _pages;
     private readonly ILogger _log;
 
-    /// <param name="stockHttpDir">Штатная папка VLC, например <c>C:\Program Files\VideoLAN\VLC\lua\http</c>.</param>
-    /// <param name="targetHttpDir">Пользовательская папка, например <c>%APPDATA%\vlc\lua\http</c>.</param>
-    /// <param name="pages">Наши страницы: имя файла в <c>requests/</c> → содержимое.</param>
+    /// <param name="stockHttpDir">VLC's stock folder, for example <c>C:\Program Files\VideoLAN\VLC\lua\http</c>.</param>
+    /// <param name="targetHttpDir">The user folder, for example <c>%APPDATA%\vlc\lua\http</c>.</param>
+    /// <param name="pages">Our pages: file name in <c>requests/</c> → contents.</param>
     public LuaPagesInstaller(string stockHttpDir, string targetHttpDir, IReadOnlyDictionary<string, byte[]> pages, ILogger? log = null)
     {
         if (pages.Count == 0) throw new ArgumentException("no pages to install", nameof(pages));
@@ -33,14 +33,14 @@ public sealed class LuaPagesInstaller
 
     public string StockHttpDir { get; }
     public string TargetHttpDir { get; }
-    /// <summary>Хэш содержимого наших страниц — чтобы переустанавливать при их обновлении.</summary>
+    /// <summary>Hash of our pages' contents — to reinstall them when they are updated.</summary>
     public string PagesVersion { get; }
 
-    /// <summary>Папка пользователя по умолчанию: <c>%APPDATA%\vlc\lua\http</c>.</summary>
+    /// <summary>Default user folder: <c>%APPDATA%\vlc\lua\http</c>.</summary>
     public static string DefaultTargetDir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "vlc", "lua", "http");
 
-    /// <summary>Установлены ли наши страницы для данной версии VLC и актуальной версии самих страниц.</summary>
+    /// <summary>Whether our pages are installed for this VLC version and the current version of the pages themselves.</summary>
     public bool IsInstalled(string? vlcVersion)
     {
         var versionFile = Path.Combine(TargetHttpDir, VersionFileName);
@@ -59,7 +59,7 @@ public sealed class LuaPagesInstaller
 
     public bool NeedsInstall(string? vlcVersion) => Directory.Exists(StockHttpDir) && !IsInstalled(vlcVersion);
 
-    /// <summary>Скопировать штатную папку + наши страницы + файл версии. Идемпотентно.</summary>
+    /// <summary>Copy the stock folder + our pages + the version file. Idempotent.</summary>
     public void Install(string? vlcVersion)
     {
         if (!Directory.Exists(StockHttpDir))
@@ -78,7 +78,7 @@ public sealed class LuaPagesInstaller
             $"vlc={vlcVersion}\npages={PagesVersion}\ninstalled={DateTimeOffset.Now:O}\n");
     }
 
-    /// <summary>Удалить пользовательскую папку (VLC вернётся к штатным страницам).</summary>
+    /// <summary>Delete the user folder (VLC falls back to the stock pages).</summary>
     public void Uninstall()
     {
         if (Directory.Exists(TargetHttpDir))

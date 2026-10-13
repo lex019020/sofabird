@@ -3,8 +3,8 @@ using VlcRemote.Core.Protocol;
 namespace VlcRemote.Core.State;
 
 /// <summary>
-/// Ограничивает частоту отправки <c>state</c> (не чаще <see cref="MinInterval"/>, по умолчанию 4/с):
-/// промежуточные состояния схлопываются, последнее доставляется по таймеру.
+/// Limits how often <c>state</c> is sent (at most once per <see cref="MinInterval"/>, 4/s by default):
+/// intermediate states are collapsed, the last one is delivered by a timer.
 /// </summary>
 public sealed class StateCoalescer : IDisposable
 {
@@ -27,7 +27,7 @@ public sealed class StateCoalescer : IDisposable
 
     public TimeSpan MinInterval { get; }
 
-    /// <summary>Поставить состояние в очередь: отправится сразу или по таймеру.</summary>
+    /// <summary>Queue a state: it is sent at once or by the timer.</summary>
     public void Publish(StateMessage state)
     {
         lock (_lock)
@@ -69,7 +69,7 @@ public sealed class StateCoalescer : IDisposable
     private async Task SafeSend(StateMessage state)
     {
         try { await _sink(state).ConfigureAwait(false); }
-        catch { /* отправитель сам логирует */ }
+        catch { /* the sender logs by itself */ }
     }
 
     public void Dispose()

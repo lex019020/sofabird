@@ -5,9 +5,9 @@ using System.Text.RegularExpressions;
 namespace VlcRemote.Core.Vlc;
 
 /// <summary>
-/// Разбор JSON-ответов HTTP-интерфейса VLC 3.0.x с учётом странностей из protocol/vlc-http.md.
-/// Разбирается вручную через <see cref="JsonDocument"/>: типы полей плавают (bool/0, []/{}),
-/// ключи категорий локализованы.
+/// Parser of the JSON responses of the VLC 3.0.x HTTP interface, accounting for the quirks from protocol/vlc-http.md.
+/// Parsed by hand via <see cref="JsonDocument"/>: field types vary (bool/0, []/{}),
+/// category keys are localized.
 /// </summary>
 public static partial class VlcJsonParser
 {
@@ -76,8 +76,8 @@ public static partial class VlcJsonParser
                     continue;
                 }
 
-                // Категория потока распознаётся по наличию поля Type, а не по слову "Stream"
-                // (ключи локализованы).
+                // A stream category is recognized by the presence of the Type field, not by the word "Stream"
+                // (the keys are localized).
                 if (!prop.Value.TryGetProperty("Type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String)
                     continue;
 
@@ -98,7 +98,7 @@ public static partial class VlcJsonParser
                     if (m.Success && int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
                         id = n;
                 }
-                if (id is null) continue; // без ID дорожку выбрать нельзя
+                if (id is null) continue; // a track without an ID cannot be selected
                 stream.Id = id.Value;
                 streams.Add(stream);
             }
@@ -126,7 +126,7 @@ public static partial class VlcJsonParser
         var name = GetString(node, "name") ?? "";
         if (type == "node")
         {
-            // Узел Media Library игнорируем.
+            // Ignore the Media Library node.
             if (!isRoot && name.Equals("Media Library", StringComparison.OrdinalIgnoreCase)) return;
             if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
                 foreach (var child in children.EnumerateArray())
@@ -159,7 +159,7 @@ public static partial class VlcJsonParser
         {
             if (el.ValueKind != JsonValueKind.Object) continue;
             var name = GetString(el, "name") ?? "";
-            if (name == "..") continue; // телефон строит «вверх» сам
+            if (name == "..") continue; // the phone builds "up" itself
             list.Add(new VlcBrowseEntry
             {
                 Type = GetString(el, "type") ?? "file",
@@ -272,7 +272,7 @@ public static partial class VlcJsonParser
         };
     }
 
-    /// <summary><c>fullscreen</c> приходит как bool при воспроизведении и как 0 в stopped.</summary>
+    /// <summary><c>fullscreen</c> comes as a bool during playback and as 0 when stopped.</summary>
     private static bool GetBoolLoose(JsonElement obj, string name)
     {
         if (obj.ValueKind != JsonValueKind.Object || !obj.TryGetProperty(name, out var el)) return false;

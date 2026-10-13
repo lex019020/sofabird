@@ -23,16 +23,16 @@ public class StateCoalescerTests
         c.Publish(S(2));
         c.Publish(S(3));
         c.Publish(S(4));
-        Assert.Equal([1], sent); // ждём таймер
+        Assert.Equal([1], sent); // waiting for the timer
 
         time.Advance(TimeSpan.FromMilliseconds(199));
         Assert.Equal([1], sent);
         time.Advance(TimeSpan.FromMilliseconds(2));
-        Assert.Equal([1, 4], sent); // только последнее
+        Assert.Equal([1, 4], sent); // only the last one
 
         time.Advance(TimeSpan.FromMilliseconds(300));
         c.Publish(S(5));
-        Assert.Equal([1, 4, 5], sent); // интервал прошёл — сразу
+        Assert.Equal([1, 4, 5], sent); // the interval has passed — at once
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class StateCoalescerTests
         for (var i = 0; i < 100; i++)
         {
             c.Publish(S(i));
-            time.Advance(TimeSpan.FromMilliseconds(10)); // 100 публикаций за 1 с
+            time.Advance(TimeSpan.FromMilliseconds(10)); // 100 publications in 1 s
         }
         time.Advance(TimeSpan.FromMilliseconds(250));
         Assert.InRange(count, 4, 5);

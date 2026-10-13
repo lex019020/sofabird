@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace VlcRemote.Core.History;
 
-/// <summary>One watched file (protocol/README.md, «Watch history and resume»).</summary>
+/// <summary>One watched file (protocol/README.md, "Watch history and resume").</summary>
 public sealed class HistoryEntry
 {
     /// <summary>Normalized file URI (<see cref="MediaUri.Normalize"/>): the key.</summary>

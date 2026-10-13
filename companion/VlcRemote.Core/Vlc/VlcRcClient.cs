@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace VlcRemote.Core.Vlc;
 
-/// <summary>Ответ RC на одну команду.</summary>
+/// <summary>RC response to a single command.</summary>
 public sealed class RcResponse
 {
     public string Command { get; init; } = "";
@@ -18,14 +18,14 @@ public sealed class RcResponse
 }
 
 /// <summary>
-/// Единственное TCP-соединение с RC-интерфейсом VLC (<c>--rc-host 127.0.0.1:4212</c>).
-/// Команды выполняются строго по одной; ответ сопоставляется по строке
-/// <c>cmd: returned N (…)</c>, асинхронные <c>status change:</c> поднимаются событием.
-/// Транспорт абстрагирован через фабрику <see cref="Stream"/> для тестов.
+/// The single TCP connection to VLC's RC interface (<c>--rc-host 127.0.0.1:4212</c>).
+/// Commands run strictly one at a time; the response is matched by the line
+/// <c>cmd: returned N (…)</c>, asynchronous <c>status change:</c> lines are raised as an event.
+/// The transport is abstracted through a <see cref="Stream"/> factory for tests.
 /// </summary>
 public sealed class VlcRcClient : IAsyncDisposable
 {
-    /// <summary>Команды, после которых oldrc печатает <c>cmd: returned …</c> (RegisterCallbacks).</summary>
+    /// <summary>Commands after which oldrc prints <c>cmd: returned …</c> (RegisterCallbacks).</summary>
     private static readonly HashSet<string> EchoedCommands = new(StringComparer.Ordinal)
     {
         "quit", "intf", "add", "repeat", "loop", "random", "enqueue", "playlist", "sort", "play",
@@ -70,7 +70,7 @@ public sealed class VlcRcClient : IAsyncDisposable
     public bool IsConnected => _stream is not null;
 
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(3);
-    /// <summary>Пауза тишины, после которой ответ команды без эха считается завершённым.</summary>
+    /// <summary>Silence pause after which the response of a command without an echo is considered complete.</summary>
     public TimeSpan IdleCompletion { get; set; } = TimeSpan.FromMilliseconds(300);
 
     public event Action<RcStatusChange>? StatusChanged;
@@ -129,7 +129,7 @@ public sealed class VlcRcClient : IAsyncDisposable
         cts?.Dispose();
     }
 
-    /// <summary>Отправить команду и дождаться ответа. Имя команды должно быть точным (любая команда на «f» = fullscreen).</summary>
+    /// <summary>Send a command and wait for the response. The command name must be exact (any command starting with "f" = fullscreen).</summary>
     public async Task<RcResponse> SendAsync(string command, CancellationToken ct = default, TimeSpan? timeout = null)
     {
         if (string.IsNullOrWhiteSpace(command)) throw new ArgumentException("empty command", nameof(command));
@@ -165,7 +165,7 @@ public sealed class VlcRcClient : IAsyncDisposable
                     ct.ThrowIfCancellationRequested();
                     if (pending.Lines.Count > 0 || !expectEcho)
                     {
-                        // Ответ без эха или без терминатора — возвращаем то, что собрали.
+                        // A response without an echo or without a terminator — return what we have collected.
                         return pending.Snapshot();
                     }
                     throw new VlcRcException($"RC: no response to '{word}' within timeout");
@@ -198,7 +198,7 @@ public sealed class VlcRcClient : IAsyncDisposable
         if (r.IsError) throw new VlcRcException($"adev failed: {r.ReturnMessage}");
     }
 
-    /// <summary>Список дорожек с маркером текущей; <c>null</c>, если VLC на паузе и RC отказал.</summary>
+    /// <summary>Track list with the current one marked; <c>null</c> if VLC is paused and RC refused.</summary>
     public async Task<IReadOnlyList<RcTrackEntry>?> ListTracksAsync(VlcTrackKind kind, CancellationToken ct = default)
     {
         var cmd = kind switch
@@ -213,7 +213,7 @@ public sealed class VlcRcClient : IAsyncDisposable
         return RcParser.ParseTracks(r.Lines);
     }
 
-    /// <summary>Закрыть VLC. Эхо может не прийти — соединение просто рвётся.</summary>
+    /// <summary>Close VLC. The echo may not arrive — the connection simply drops.</summary>
     public async Task QuitAsync(CancellationToken ct = default)
     {
         try
@@ -222,7 +222,7 @@ public sealed class VlcRcClient : IAsyncDisposable
         }
         catch (VlcRcException)
         {
-            // VLC закрылся, не ответив — это нормально.
+            // VLC closed without answering — that is normal.
         }
         catch (VlcUnavailableException)
         {

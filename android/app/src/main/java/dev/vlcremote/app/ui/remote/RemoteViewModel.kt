@@ -47,7 +47,7 @@ data class RemoteUiState(
     /** Companion `getAudioDevices`; loaded when the "More" sheet opens. */
     val audioDevices: List<AudioDevice> = emptyList(),
     val pcInfoLoading: Boolean = false,
-    /** Monitor for the VLC window (`windowControl`): chip on the remote + "Экран для VLC" sheet. */
+    /** Monitor for the VLC window (`windowControl`): chip on the remote + "Display for VLC" sheet. */
     val displayChoice: DisplayChoice = DisplayChoice(),
     val displaysLoading: Boolean = false,
     /** [Display.key] (or [UNMANAGED_KEY]) of the action in flight. */
@@ -56,7 +56,7 @@ data class RemoteUiState(
     val displayError: Throwable? = null,
     /** The active server is a companion (known before the first `welcome`). */
     val companionMode: Boolean = false,
-    /** "Запустить VLC" / "Перезапустить" was pressed and VLC has not changed state yet. */
+    /** "Launch VLC" / "Restart with control" was pressed and VLC has not changed state yet. */
     val launching: Boolean = false,
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
@@ -67,11 +67,11 @@ data class RemoteUiState(
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
 
-    /** "Экран: …" chip and the "Экран для VLC" sheet. */
+    /** "Display: …" chip and the "Display for VLC" sheet. */
     val showDisplayChoice: Boolean get() = isCompanion && capabilities.windowControl
 
     companion object {
-        /** [displayPending] value for "Не управлять" (never a monitor key). */
+        /** [displayPending] value for "Do not manage" (never a monitor key). */
         const val UNMANAGED_KEY = "unmanaged:"
     }
 }
@@ -105,7 +105,7 @@ class RemoteViewModel(
     private val launching = MutableStateFlow(false)
     private var launchJob: Job? = null
 
-    /** "Не сейчас" on the Bluetooth card: hidden while this screen lives. */
+    /** "Not now" on the Bluetooth card: hidden while this screen lives. */
     private val bluetoothDismissed = MutableStateFlow(false)
 
     private data class PcInfo(
@@ -173,7 +173,7 @@ class RemoteViewModel(
                 delay(if (s.isPlaying) 250 else 1_000)
             }
         }
-        // Monitor names for the "Экран" chip: load once a companion with `windowControl` is online.
+        // Monitor names for the "Display" chip: load once a companion with `windowControl` is online.
         viewModelScope.launch {
             combine(controller.capabilities, controller.connection) { caps, c -> caps.windowControl && c.isOnline }
                 .distinctUntilChanged()
@@ -314,7 +314,7 @@ class RemoteViewModel(
         runDisplayAction(display.key, choice.commandFor(display)) { system -> choice.markAfterMove(display, system) }
     }
 
-    /** "Не управлять": the companion leaves the VLC window alone. */
+    /** "Do not manage": the companion leaves the VLC window alone. */
     fun unmanageDisplay() {
         val choice = currentDisplayChoice()
         if (!choice.canUnmanage) return

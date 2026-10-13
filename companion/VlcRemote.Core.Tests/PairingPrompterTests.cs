@@ -34,7 +34,7 @@ public class PairingPrompterTests
         Assert.Equal(first.Code, second.Code);
         Assert.Equal(first.Code, pairing.ActiveCode);
 
-        // Тот же телефон после паузы: код ещё действует — окно только поднимается.
+        // The same phone after a pause: the code is still valid — the window is only raised.
         time.Advance(TimeSpan.FromSeconds(11));
         var again = prompter.Request("Pixel 8", "dev-1");
         Assert.Equal(PairingPromptAction.BringToFront, again.Action);
@@ -46,7 +46,7 @@ public class PairingPrompterTests
     {
         var (pairing, prompter, time) = Create();
         prompter.Request("Pixel 8", "dev-1");
-        pairing.CancelPairing(); // пользователь закрыл окно, телефон продолжает стучаться
+        pairing.CancelPairing(); // the user closed the window, the phone keeps knocking
 
         time.Advance(TimeSpan.FromSeconds(3));
         Assert.Equal(PairingPromptAction.Throttled, prompter.Request("Pixel 8", "dev-1").Action);
@@ -65,7 +65,7 @@ public class PairingPrompterTests
         prompter.Request("A", "a");
         pairing.CancelPairing();
         time.Advance(TimeSpan.FromSeconds(1));
-        // Другой «телефон» сразу после — новый код не создаётся (защита от перебора).
+        // Another "phone" right after — no new code is created (brute-force protection).
         Assert.Equal(PairingPromptAction.Throttled, prompter.Request("B", "b").Action);
         Assert.Null(pairing.ActiveCode);
         time.Advance(TimeSpan.FromSeconds(10));

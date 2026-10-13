@@ -45,7 +45,7 @@ import dev.vlcremote.app.data.player.PairingState
 import kotlinx.coroutines.delay
 
 /**
- * "Введите код с экрана компьютера": six big digit cells, numeric keyboard opens by itself, the code
+ * "Enter the code from the computer screen": six big digit cells, numeric keyboard opens by itself, the code
  * is sent as soon as the sixth digit is typed. A rejected code clears the field and keeps the dialog.
  */
 @Composable

@@ -185,7 +185,7 @@ fun ResumePromptDialog(prompt: ResumePrompt, onChoice: (ResumeChoice) -> Unit) {
 
 // ------------------------------------------------------------------ next episode (Remote screen)
 
-/** «Next episode: <title>» with "Play" (`cmd open`) and "Dismiss" (`cmd dismissNext`). Never plays by itself. */
+/** "Next episode: <title>" with "Play" (`cmd open`) and "Dismiss" (`cmd dismissNext`). Never plays by itself. */
 @Composable
 fun NextEpisodeCard(next: NextEpisode, haptics: Boolean, onPlay: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val haptic = rememberConfirmHaptic(haptics)

@@ -41,7 +41,7 @@ public sealed record HistoryAction(HistoryActionKind Kind, long Seconds = 0, str
 }
 
 /// <summary>
-/// Turns VLC polls into watch history (protocol/README.md, «Watch history and resume»): creates the entry when a file
+/// Turns VLC polls into watch history (protocol/README.md, "Watch history and resume"): creates the entry when a file
 /// starts, saves the position every <see cref="SaveInterval"/> while playing and on pause/stop/input change/VLC exit,
 /// holds a resumable file paused until a phone answers (<see cref="Answer"/>) or Play is pressed in VLC, offers the next
 /// episode when a file is finished, and applies/records the per-folder audio and subtitle choices.

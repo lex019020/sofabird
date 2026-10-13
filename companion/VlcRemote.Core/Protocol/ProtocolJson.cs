@@ -5,11 +5,11 @@ using System.Text.Json.Serialization;
 namespace VlcRemote.Core.Protocol;
 
 /// <summary>
-/// Source-generated контекст сериализации протокола. Все сообщения сериализуются через
-/// базовый тип <see cref="Message"/>, чтобы в JSON попал дискриминатор <c>t</c>.
-/// Реальный экземпляр (<see cref="ProtocolJson"/>) создаётся с теми же настройками плюс
-/// <see cref="JavaScriptEncoder.UnsafeRelaxedJsonEscaping"/>: кириллица в названиях дорожек
-/// и файлов уходит как есть, а не как <c>М</c>.
+/// Source-generated serialization context of the protocol. All messages are serialized through
+/// the base type <see cref="Message"/>, so that the <c>t</c> discriminator ends up in the JSON.
+/// The actual instance (<see cref="ProtocolJson"/>) is created with the same options plus
+/// <see cref="JavaScriptEncoder.UnsafeRelaxedJsonEscaping"/>: Cyrillic in track and file names
+/// is sent as is, not as <c>\u041C</c>.
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -48,7 +48,7 @@ public partial class ProtocolJsonContext : JsonSerializerContext
 {
 }
 
-/// <summary>Ответ <c>GET /info</c>.</summary>
+/// <summary>Response to <c>GET /info</c>.</summary>
 public sealed class InfoResponse
 {
     public string Name { get; set; } = "";
@@ -65,7 +65,7 @@ public sealed class InfoResponse
 
 public static class ProtocolJson
 {
-    /// <summary>Контекст с настройками атрибута плюс relaxed-экранирование (не для HTML).</summary>
+    /// <summary>Context with the attribute options plus relaxed escaping (not for HTML).</summary>
     public static ProtocolJsonContext Context { get; } = new(new JsonSerializerOptions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -81,7 +81,7 @@ public static class ProtocolJson
     public static string SerializeInfo(InfoResponse info) =>
         JsonSerializer.Serialize(info, Context.InfoResponse);
 
-    /// <summary>Разобрать строку; любая ошибка формата (включая отсутствие <c>t</c>) — <see cref="JsonException"/>.</summary>
+    /// <summary>Parse a line; any format error (including a missing <c>t</c>) is a <see cref="JsonException"/>.</summary>
     public static Message? Deserialize(string line)
     {
         try
@@ -90,7 +90,7 @@ public static class ProtocolJson
         }
         catch (NotSupportedException ex)
         {
-            // STJ бросает NotSupportedException, если нет дискриминатора "t".
+            // STJ throws NotSupportedException when the "t" discriminator is missing.
             throw new JsonException("missing or invalid message type 't'", ex);
         }
     }

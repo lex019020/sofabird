@@ -3,10 +3,10 @@ using System.Text;
 
 namespace VlcRemote.Companion.Interop;
 
-/// <summary>Win32 P/Invoke, используемый компаньоном (окна, питание, DNS-SD).</summary>
+/// <summary>Win32 P/Invoke used by the companion (windows, power, DNS-SD).</summary>
 internal static partial class NativeMethods
 {
-    // ---- user32: окна ----
+    // ---- user32: windows ----
 
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -136,7 +136,7 @@ internal static partial class NativeMethods
     public const uint INPUT_MOUSE = 0;
     public const uint MOUSEEVENTF_MOVE = 0x0001;
 
-    // ---- kernel32 / powrprof: питание ----
+    // ---- kernel32 / powrprof: power ----
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern uint SetThreadExecutionState(uint esFlags);
@@ -148,7 +148,7 @@ internal static partial class NativeMethods
     [DllImport("powrprof.dll", SetLastError = true)]
     public static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
 
-    // ---- dnsapi: DNS-SD (проверено в transport-and-companion.md §2a) ----
+    // ---- dnsapi: DNS-SD (verified in transport-and-companion.md §2a) ----
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     public delegate void DnsServiceRegisterComplete(uint status, IntPtr pQueryContext, IntPtr pInstance);
@@ -157,7 +157,7 @@ internal static partial class NativeMethods
     public struct DNS_SERVICE_REGISTER_REQUEST
     {
         public uint Version;                  // DNS_QUERY_REQUEST_VERSION1 = 1
-        public uint InterfaceIndex;           // 0 = все интерфейсы
+        public uint InterfaceIndex;           // 0 = all interfaces
         public IntPtr pServiceInstance;
         public IntPtr pRegisterCompletionCallback;
         public IntPtr pQueryContext;
