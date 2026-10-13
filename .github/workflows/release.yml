@@ -51,7 +51,7 @@ jobs:
           else
             suffix="beta.${GITHUB_RUN_NUMBER}"; version="$base-$suffix"
           fi
-          code=$(git rev-list --count HEAD)
+          code=$(( $(git rev-list --count HEAD) * 10 ))  # local builds use main*10+5 (deploy-lib.ps1)
           {
             echo "channel=$channel"; echo "version=$version"; echo "suffix=$suffix"
             echo "tag=v$version"; echo "code=$code"

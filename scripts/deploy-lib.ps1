@@ -101,7 +101,11 @@ function Build-LocalApk([string]$Dest) {
         $env:JAVA_HOME = $jdk
         Write-Note "JAVA_HOME = $jdk"
     }
-    $code = [int](& git -C $v.Root rev-list --count HEAD)
+    # versionCode: CI = коммиты в main × 10; локальная = коммиты в origin/main × 10 + 5 — новее текущей
+    # тестовой сборки, но старше следующей (число коммитов ветки после squash-мержа не сохраняется).
+    $mainCount = & git -C $v.Root rev-list --count origin/main 2>$null
+    if (-not $mainCount) { $mainCount = & git -C $v.Root rev-list --count HEAD }
+    $code = [int]$mainCount * 10 + 5
     Push-Location (Join-Path $v.Root 'android')
     try {
         # Без демонов: иначе Gradle/Kotlin-демон наследует stdout и вызывающий процесс ждёт закрытия вывода.

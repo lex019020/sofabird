@@ -85,7 +85,8 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
 ## Версии и сборки
 
 - Базовая версия — файл `VERSION` (SemVer `MAJOR.MINOR.PATCH`), из него берут версию компаньон (`VersionPrefix`)
-  и Android (`versionName`). `versionCode` = число коммитов в `main` (`git rev-list --count HEAD`).
+  и Android (`versionName`). `versionCode` = число коммитов в `main` × 10 (CI), у локальных сборок `deploy-android -Local` — коммиты
+  `origin/main` × 10 + 5: новее текущей тестовой, старше следующей.
 - **Тестовая сборка** (pre‑release `v<VERSION>-beta.<N>`) создаётся автоматически на каждый мерж в `main`
   (`.github/workflows/release.yml`). Описание — release notes смёрдженного PR + инструкция по установке.
   Файлы: `VlcRemote.Companion-<версия>-win-x64.zip`, `VlcRemote-<версия>.apk`, `deploy-*.ps1/.cmd`.
