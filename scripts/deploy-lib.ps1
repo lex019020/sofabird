@@ -118,6 +118,19 @@ function Build-LocalApk([string]$Dest) {
 }
 
 function Find-Adb {
+    $adb = Find-AdbPath
+    if (-not $script:AdbServerStarted) {
+        # Сервер adb запускаем отдельным процессом без наследования наших stdout/stderr: иначе демон,
+        # стартовавший из `adb devices`, держит канал вывода открытым и вызывающий процесс ждёт вечно.
+        # Без -Wait: в Windows PowerShell он ждёт и потомков, а демон adb живёт дальше.
+        $p = Start-Process -FilePath $adb -ArgumentList 'start-server' -WindowStyle Hidden -PassThru
+        [void]$p.WaitForExit(15000)
+        $script:AdbServerStarted = $true
+    }
+    return $adb
+}
+
+function Find-AdbPath {
     $cmd = Get-Command adb -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
     $candidates = @()
