@@ -17,7 +17,6 @@
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>VLC Remote Companion</Product>
     <SatelliteResourceLanguages>en;ru</SatelliteResourceLanguages>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Publish: see README (dotnet publish, win-x64, framework-dependent, single file) -->
     <SelfContained>false</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

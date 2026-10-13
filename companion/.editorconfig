@@ -7,6 +7,12 @@
 dotnet_diagnostic.CA1848.severity = none
 # The same for argument evaluation in log calls (.NET 10 analyzers).
 dotnet_diagnostic.CA1873.severity = none
+# Unnecessary usings fail the build (they pile up when code moves between files).
+dotnet_diagnostic.IDE0005.severity = warning
+# The documentation file exists only for IDE0005: a doc comment on every public member is not required.
+dotnet_diagnostic.CS1591.severity = none
+# Only the parameters that need explaining get a <param> tag.
+dotnet_diagnostic.CS1573.severity = none
 
 [VlcRemote.Core.Tests/**.cs]
 # xUnit test names read as sentences: Method_Condition_Result.
