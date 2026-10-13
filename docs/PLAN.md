@@ -315,6 +315,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       `TreatWarningsAsErrors` for the companion, PSScriptAnalyzer for the scripts) and run them in CI; no
       behaviour changes, covered by the existing tests. Screens get a stateless content composable
       (`RemoteContent(ui, actions)` etc.), so whole screens can be screenshot-tested with fake state.
+      Done: .NET analysers (warnings as errors, unused usings), `VlcManager` split and its command mapping/command
+      line in Core with tests; detekt with zero findings in CI (shared backoff, VLC volume scale, constants);
+      stateless Remote and Connection screens split into files, with whole-screen screenshot tests.
+      Left: stateless Library/History/Playlist/Settings, PSScriptAnalyzer for the scripts.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
 - [ ] Installer and auto-update for the companion (Velopack).

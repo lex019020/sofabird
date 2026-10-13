@@ -58,7 +58,8 @@ complexity:
     thresholdInFiles: 20
     # A ViewModel has one public function per UI action of its screen.
     thresholdInClasses: 30
-    thresholdInInterfaces: 15
+    # Screen action interfaces (RemoteActions, ConnectionActions) list one function per UI event.
+    thresholdInInterfaces: 20
     thresholdInObjects: 20
     ignorePrivate: true
 
