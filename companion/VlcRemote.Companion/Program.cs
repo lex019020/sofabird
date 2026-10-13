@@ -13,6 +13,7 @@ using VlcRemote.Core.Lua;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Setup;
+using VlcRemote.Core.Updates;
 using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion;
@@ -236,6 +237,8 @@ internal static class Program
         var previousVersion = settings.LastRunVersion;
         var updated = previousVersion is not null && previousVersion != AppVersion.Informational;
         if (previousVersion != AppVersion.Informational) settingsStore.Update(s => s.LastRunVersion = AppVersion.Informational);
+        if (UpdatePolicy.ChannelToRemember(settings.UpdateChannel, AppVersion.Informational) is { } channel)
+            settingsStore.Update(s => s.UpdateChannel = channel);
         try { AutostartService.RepairPath(); }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
         {

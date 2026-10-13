@@ -24,6 +24,15 @@ public static class UpdatePolicy
         _ => currentVersion.Contains("-beta", StringComparison.OrdinalIgnoreCase),
     };
 
+    /// <summary>
+    /// The channel to store at the first start when none is set: the kind of build that was installed. Stored, so a test
+    /// build that updates to a release (which is newer than its test builds) keeps getting test builds afterwards.
+    /// <c>null</c> — nothing to store (already set, or a local build that does not update).
+    /// </summary>
+    public static string? ChannelToRemember(string? channel, string currentVersion) =>
+        channel is not null || !UpdatesItself(currentVersion) ? null
+        : IncludesTestBuilds(null, currentVersion) ? Beta : Stable;
+
     /// <summary>A downloaded update is applied (the companion restarts) only while VLC is not playing.</summary>
     public static bool CanApplyNow(bool vlcPlaying) => !vlcPlaying;
 }
