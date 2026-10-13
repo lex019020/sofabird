@@ -100,7 +100,8 @@ function Get-OpenPorts([string]$Ip, [int]$From = 30000, [int]$To = 49999, [int]$
             $c = New-Object System.Net.Sockets.TcpClient
             $pending += [pscustomobject]@{ Port = $port; Client = $c; Task = $c.ConnectAsync($Ip, $port) }
         }
-        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]($pending | ForEach-Object { $_.Task }), $TimeoutMs) } catch {}
+        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]($pending | ForEach-Object { $_.Task }), $TimeoutMs) }
+        catch { Write-Verbose "Port scan: some connections failed ($($_.Exception.Message)); the open ports are read below" }
         foreach ($x in $pending) {
             if ($x.Task.Status -eq 'RanToCompletion' -and $x.Client.Connected) { $open.Add($x.Port) }
             $x.Client.Dispose()
@@ -119,7 +120,8 @@ function Find-IpByMac([string]$Mac) {
     foreach ($o in $own) {
         $prefix = $o.IPAddress.Substring(0, $o.IPAddress.LastIndexOf('.') + 1)
         $pings = 1..254 | ForEach-Object { (New-Object System.Net.NetworkInformation.Ping).SendPingAsync("$prefix$_", 600) }
-        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$pings, 2500) } catch {}
+        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$pings, 2500) }
+        catch { Write-Verbose "Ping sweep: some hosts did not answer ($($_.Exception.Message)); it only fills the ARP table" }
     }
     $hit = Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { ($_.LinkLayerAddress -replace '[:\-]', '').ToUpperInvariant() -eq $norm -and $_.State -ne 'Unreachable' } | Select-Object -First 1
     if ($hit) { return $hit.IPAddress }
@@ -278,10 +280,10 @@ try {
     if ($Local) {
         $targets = @(Get-TargetDevices)
         if ($targets.Count -eq 0 -and -not $CheckOnly) { return }
-        $build = Build-LocalApk $work
+        $build = Invoke-LocalApkBuild $work
         $target = $build.Version
     } else {
-        $tagName = Resolve-ReleaseTag
+        $tagName = Resolve-ReleaseTag -Repo $Repo -Channel $Channel -Tag $Tag
         $target = $tagName.TrimStart('v')
         $targets = @(Get-TargetDevices)
     }
@@ -298,7 +300,7 @@ try {
     }
     if ($targets.Count -gt 0 -and $pending.Count -eq 0) { Write-Ok 'This version is already installed (-Force to reinstall)'; return }
 
-    $apk = if ($Local) { $build.File } else { Get-ReleaseAsset $tagName 'VlcRemote-*.apk' $work }
+    $apk = if ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName 'VlcRemote-*.apk' $work }
     if ($pending.Count -eq 0) {
         if (-not (Test-Path $ApkKeepDir)) { New-Item -ItemType Directory -Path $ApkKeepDir -Force | Out-Null }
         Copy-Item $apk $ApkKeepDir -Force

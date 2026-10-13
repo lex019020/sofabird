@@ -109,7 +109,7 @@ function Find-Vlc {
         try {
             $dir = (Get-ItemProperty $key -ErrorAction Stop).InstallDir
             if ($dir -and (Test-Path (Join-Path $dir 'vlc.exe'))) { return (Join-Path $dir 'vlc.exe') }
-        } catch {}
+        } catch { Write-Verbose "No VLC registration under $key" }
     }
     foreach ($dir in @("$env:ProgramFiles\VideoLAN\VLC", "${env:ProgramFiles(x86)}\VideoLAN\VLC")) {
         if ($dir -and (Test-Path (Join-Path $dir 'vlc.exe'))) { return (Join-Path $dir 'vlc.exe') }
@@ -177,7 +177,8 @@ function Update-Autostart([string]$Exe) {
 
 function Add-FirewallRules([string]$Exe) {
     $vlc = $null
-    try { $vlc = Join-Path (Get-ItemProperty 'HKLM:\SOFTWARE\VideoLAN\VLC' -ErrorAction Stop).InstallDir 'vlc.exe' } catch {}
+    try { $vlc = Join-Path (Get-ItemProperty 'HKLM:\SOFTWARE\VideoLAN\VLC' -ErrorAction Stop).InstallDir 'vlc.exe' }
+    catch { Write-Verbose 'VLC is not installed: only the companion gets a firewall rule' }
     $cmds = @(
         "netsh advfirewall firewall delete rule name=`"VLC Remote Companion`"",
         "netsh advfirewall firewall add rule name=`"VLC Remote Companion`" dir=in action=allow profile=private program=`"$Exe`" enable=yes"
@@ -194,7 +195,8 @@ function Add-FirewallRules([string]$Exe) {
 function Get-CompanionPort {
     $settings = Join-Path $InstallRoot 'settings.json'
     if (Test-Path $settings) {
-        try { $s = Get-Content $settings -Raw | ConvertFrom-Json; if ($s.wsPort) { return [int]$s.wsPort } } catch {}
+        try { $s = Get-Content $settings -Raw | ConvertFrom-Json; if ($s.wsPort) { return [int]$s.wsPort } }
+        catch { Write-Verbose "Unreadable $settings; the default port is used" }
     }
     return 47555
 }
@@ -279,10 +281,10 @@ try {
         if ((Split-Path $Package -Leaf) -notmatch '^VlcRemote\.Companion-(.+)-win-x64\.zip$') { throw 'Expected an archive VlcRemote.Companion-<version>-win-x64.zip' }
         $target = $Matches[1]
     } elseif ($Local) {
-        $build = Build-LocalCompanion $work
+        $build = Invoke-LocalCompanionBuild $work
         $target = $build.Version
     } else {
-        $tagName = Resolve-ReleaseTag
+        $tagName = Resolve-ReleaseTag -Repo $Repo -Channel $Channel -Tag $Tag
         $target = $tagName.TrimStart('v')
     }
     Write-Step "Companion: $target (installed: $(if ($installed) { $installed } else { 'none' }))"
@@ -295,7 +297,7 @@ try {
         if ($Firewall) { Add-FirewallRules (Join-Path $AppDir $ExeName) }
         return
     }
-    $zip = if ($Package) { (Resolve-Path $Package).Path } elseif ($Local) { $build.File } else { Get-ReleaseAsset $tagName 'VlcRemote.Companion-*-win-x64.zip' $work }
+    $zip = if ($Package) { (Resolve-Path $Package).Path } elseif ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName 'VlcRemote.Companion-*-win-x64.zip' $work }
     Install-Companion $zip $target
 } finally {
     Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue

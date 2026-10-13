@@ -1,6 +1,6 @@
 ﻿# Shared functions for deploy-windows.ps1 and deploy-android.ps1. Loaded by dot-sourcing:
 #   . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
-# Compatible with Windows PowerShell 5.1. Uses the calling script's variables: $Repo, $Channel, $Tag.
+# Compatible with Windows PowerShell 5.1.
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -47,7 +47,7 @@ function Test-GhReady {
     return $LASTEXITCODE -eq 0
 }
 
-function Invoke-ReleasesApi([string]$Path) {
+function Invoke-ReleasesApi([string]$Repo, [string]$Path) {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $headers = @{ 'User-Agent' = 'vlc-remote-deploy'; 'Accept' = 'application/vnd.github+json' }
@@ -67,9 +67,9 @@ function Invoke-ReleasesApi([string]$Path) {
     return [pscustomobject]@{ Data = (($json -join "`n") | ConvertFrom-Json); ViaGh = $true }
 }
 
-function Resolve-ReleaseTag {
+function Resolve-ReleaseTag([string]$Repo, [string]$Channel, [string]$Tag) {
     if ($Tag) { return $Tag }
-    $all = (Invoke-ReleasesApi 'releases?per_page=50').Data
+    $all = (Invoke-ReleasesApi $Repo 'releases?per_page=50').Data
     $releases = @($all) | ForEach-Object { $_ } | Where-Object { -not $_.draft }
     if ($Channel -eq 'stable') { $releases = $releases | Where-Object { -not $_.prerelease } }
     $latest = $releases | Sort-Object { [datetime]$_.published_at } -Descending | Select-Object -First 1
@@ -77,8 +77,8 @@ function Resolve-ReleaseTag {
     return $latest.tag_name
 }
 
-function Get-ReleaseAsset([string]$ReleaseTag, [string]$Pattern, [string]$Dest) {
-    $release = Invoke-ReleasesApi "releases/tags/$ReleaseTag"
+function Get-ReleaseAsset([string]$Repo, [string]$ReleaseTag, [string]$Pattern, [string]$Dest) {
+    $release = Invoke-ReleasesApi $Repo "releases/tags/$ReleaseTag"
     $asset = @($release.Data.assets) | Where-Object { $_.name -like $Pattern } | Select-Object -First 1
     if (-not $asset) { throw "Release $ReleaseTag has no file $Pattern" }
     $file = Join-Path $Dest $asset.name
@@ -96,7 +96,7 @@ function Get-ReleaseAsset([string]$ReleaseTag, [string]$Pattern, [string]$Dest) 
 
 # ---------------------------------------------------------------- companion (Windows)
 
-function Build-LocalCompanion([string]$Dest) {
+function Invoke-LocalCompanionBuild([string]$Dest) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
     $v = New-LocalVersion
     Write-Step "Building the companion $($v.Version)"
@@ -112,7 +112,7 @@ function Build-LocalCompanion([string]$Dest) {
 
 # ---------------------------------------------------------------- Android
 
-function Build-LocalApk([string]$Dest) {
+function Invoke-LocalApkBuild([string]$Dest) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
     $v = New-LocalVersion
     Write-Step "Building the APK $($v.Version)"
