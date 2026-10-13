@@ -56,6 +56,7 @@ fun LabelText(
 
 /**
  * File names like `The.Movie.2001.2160p.mkv` have no spaces, so a line can only break inside a word.
- * A zero-width space after dots and underscores gives the text layout clean break points.
+ * A zero-width space after dots, underscores and colons gives the text layout clean break points (also for
+ * addresses such as `192.168.1.30:47555`).
  */
-fun String.withNameBreaks(): String = replace(".", ".​").replace("_", "_​")
+fun String.withNameBreaks(): String = replace(".", ".\u200B").replace("_", "_\u200B").replace(":", ":\u200B")
