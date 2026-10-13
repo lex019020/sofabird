@@ -1,8 +1,8 @@
-# Живая проверка интерфейсов VLC 3.0.23 (Windows 11)
+# Live check of the VLC 3.0.23 interfaces (Windows 11)
 
-Дата: 2026-10-12. Проверялось на этом ПК: VLC 3.0.23 Vetinari, файл —
-UHD BDRemux `.mkv` (1 видео, 6 аудиодорожек, 6 субтитров, 40 глав).
-VLC запускался отдельным экземпляром без GUI, интерфейсы слушали только localhost:
+Date: 2026-10-12. Checked on this PC: VLC 3.0.23 Vetinari, file —
+a UHD BDRemux `.mkv` (1 video, 6 audio tracks, 6 subtitle tracks, 40 chapters).
+VLC was started as a separate instance without a GUI; the interfaces listened on localhost only:
 
 ```
 vlc.exe --no-one-instance -I dummy --dummy-quiet ^
@@ -11,151 +11,151 @@ vlc.exe --no-one-instance -I dummy --dummy-quiet ^
   --start-time 900 "D:\shared\<file>.mkv"
 ```
 
-Сырые ответы лежат в [samples/](samples/). Исходник `httprequests.lua` ветки 3.0.x —
+The raw responses are in [samples/](samples/). The source of `httprequests.lua` from the 3.0.x branch is
 [samples/httprequests-3.0.x.lua](samples/httprequests-3.0.x.lua).
 
-## Главный результат: ID дорожек
+## Main result: track IDs
 
-`status.json` не отдаёт ID дорожек, а команды `audio_track`, `subtitle_track`, `video_track`
-требуют ID (`vlc.var.set(input, "audio-es", val)`). Проверено экспериментально, что
-**номер `N` в ключе `"Stream N"` внутри `information.category` и есть этот ID**:
+`status.json` does not return track IDs, while the `audio_track`, `subtitle_track`, `video_track` commands
+require an ID (`vlc.var.set(input, "audio-es", val)`). It was verified experimentally that
+**the number `N` in the `"Stream N"` key inside `information.category` is exactly that ID**:
 
-| Действие по HTTP | Результат по RC `atrack`/`strack` |
+| HTTP action | Result according to RC `atrack`/`strack` |
 |---|---|
-| `command=audio_track&val=2` | звёздочка переехала на `2 - MVO Позитив-Мультимедиа … [Russian]` |
-| `command=subtitle_track&val=7` | выбрана `7 - Мосфильм / SRT - [Russian]` |
-| `command=subtitle_track&val=-1` | субтитры выключены (`-1 - Disable *`) |
+| `command=audio_track&val=2` | the asterisk moved to `2 - MVO Позитив-Мультимедиа … [Russian]` (a Russian dub track name) |
+| `command=subtitle_track&val=7` | `7 - Мосфильм / SRT - [Russian]` (a Russian "Mosfilm" subtitle track) selected |
+| `command=subtitle_track&val=-1` | subtitles disabled (`-1 - Disable *`) |
 
-Нумерация сквозная по всем типам: `Stream 0` — видео, `Stream 1..6` — аудио, `Stream 7..12` —
-субтитры. То есть **список дорожек с ID и языками можно получить из чистого HTTP**, разобрав
-`information.category` (ключи `Type`, `Language`, `Description`, `Codec`).
+Numbering is continuous across all types: `Stream 0` is video, `Stream 1..6` audio, `Stream 7..12`
+subtitles. That is, **the list of tracks with IDs and languages can be obtained from plain HTTP** by parsing
+`information.category` (keys `Type`, `Language`, `Description`, `Codec`).
 
-Чего HTTP не отдаёт: **какая дорожка выбрана сейчас**. Это знает только RC (`atrack` без
-аргумента помечает текущую `*`). Варианты: вести выбор на стороне клиента (оптимистично),
-либо получать через компаньон/собственную Lua-страницу.
+What HTTP does not return: **which track is currently selected**. Only RC knows that (`atrack` without
+an argument marks the current one with `*`). Options: track the selection on the client side (optimistically),
+or get it via the companion / our own Lua page.
 
-## Транспортные детали HTTP-интерфейса
+## Transport details of the HTTP interface
 
-- Ответ `200` идёт как `HTTP/1.1`, `Content-type: text/plain` (даже для JSON),
-  `Cache-Control: no-cache`. Keep-alive работает: curl переиспользовал соединение.
-- Ошибка авторизации — `HTTP/1.0 401`, `WWW-Authenticate: Basic realm="VLC stream"`.
-  Логин пустой, пароль — `http-password`. Без пароля интерфейс не отвечает (это
-  поведение VLC ≥ 2.1, здесь не перепроверялось отдельно).
-- Задержка `status.json` на localhost: ~21 мс стабильно (5 замеров). Опрос раз в
-  500–1000 мс по Wi‑Fi выглядит реалистичным.
-- Неизвестная команда и неизвестное имя хоткея (`key=bogus-key`) возвращают `200`
-  без признака ошибки. Клиент не может узнать, что команда не принята — только по
-  изменению состояния.
-- Первый запрос сразу после старта VLC вернул пустой ответ (интерфейс ещё поднимался).
-  Нужен ретрай при старте.
+- A `200` response comes as `HTTP/1.1`, `Content-type: text/plain` (even for JSON),
+  `Cache-Control: no-cache`. Keep-alive works: curl reused the connection.
+- An authorization error is `HTTP/1.0 401`, `WWW-Authenticate: Basic realm="VLC stream"`.
+  The user name is empty, the password is `http-password`. Without a password the interface does not respond (this
+  is VLC ≥ 2.1 behaviour, not re-checked separately here).
+- `status.json` latency on localhost: a stable ~21 ms (5 measurements). Polling every
+  500–1000 ms over Wi-Fi looks realistic.
+- An unknown command and an unknown hotkey name (`key=bogus-key`) return `200`
+  with no sign of an error. The client cannot tell that a command was not accepted — only from
+  a change in state.
+- The first request right after VLC started returned an empty response (the interface was still coming up).
+  A retry on startup is needed.
 
-## Поля `status.json` и их странности
+## `status.json` fields and their quirks
 
-- `volume`: шкала 0..512, `256` = 100 %. `volume&val=256` → `256`; `val=%2B10` → `266`.
-  Форма `val=50%25` (проценты из README) **не сработала** — значение не изменилось.
-  Не проверено, почему; на проценты не полагаться.
-- `rate&val=1.5` читается обратно как `1.5015015602112` (VLC квантует rate). Сравнивать
-  с допуском, не точно.
-- `fullscreen`: при воспроизведении `true/false` (boolean), в состоянии `stopped` — `0`
-  (number). Парсер должен принимать оба типа.
-- В состоянии `stopped` исчезают `information` и `stats`, `currentplid = -1`,
+- `volume`: scale 0..512, `256` = 100 %. `volume&val=256` → `256`; `val=%2B10` → `266`.
+  The `val=50%25` form (percent, from the README) **did not work** — the value did not change.
+  Not checked why; do not rely on percentages.
+- `rate&val=1.5` reads back as `1.5015015602112` (VLC quantizes the rate). Compare
+  with a tolerance, not exactly.
+- `fullscreen`: during playback `true/false` (boolean), in the `stopped` state `0`
+  (number). The parser must accept both types.
+- In the `stopped` state `information` and `stats` disappear, `currentplid = -1`,
   `length = 0`, `time = 0`, `position = 0`.
-- `time` — целые секунды, `position` — доля 0..1, `length` — целые секунды.
-- `audiodelay`/`subtitledelay` — секунды (внутри умножаются на 1 000 000).
-- `information.chapters` — массив индексов `[0..39]`, `information.chapter` — текущая,
-  `titles`/`title` — аналогично. Названий и таймкодов глав нет.
-- `information.category.meta` — теги контейнера (`title`, `filename`, `artwork_url`,
-  MKV‑статистика). `/art` вернул `image/jpeg` 1.5 МБ (обложка из кэша VLC).
-- `stats` — счётчики демуксера/декодера; для пульта бесполезны, можно игнорировать.
-- `equalizer` — пустой массив `[]`, если эквалайзер выключен (а не объект).
-- `seek_sec` — размер короткого прыжка из настроек VLC (`short-jump-size`, здесь 10).
+- `time` is whole seconds, `position` a fraction 0..1, `length` whole seconds.
+- `audiodelay`/`subtitledelay` are seconds (internally multiplied by 1 000 000).
+- `information.chapters` is an array of indexes `[0..39]`, `information.chapter` the current one,
+  `titles`/`title` likewise. There are no chapter names or timecodes.
+- `information.category.meta` holds the container tags (`title`, `filename`, `artwork_url`,
+  MKV statistics). `/art` returned a 1.5 MB `image/jpeg` (cover art from the VLC cache).
+- `stats` are demuxer/decoder counters; useless for a remote, can be ignored.
+- `equalizer` is an empty array `[]` when the equalizer is off (not an object).
+- `seek_sec` is the short-jump size from the VLC settings (`short-jump-size`, 10 here).
 
-## Команды, проверенные по HTTP
+## Commands checked over HTTP
 
-| Команда | Эффект |
+| Command | Effect |
 |---|---|
-| `pl_forcepause` / `pl_forceresume` | `state` → `paused` / `playing`, идемпотентно |
-| `pl_pause` из `stopped` | запускает последний элемент (с учётом `--start-time`) |
-| `pl_stop` | `state: stopped`, поля очищаются (см. выше) |
-| `seek&val=%2B30` | +30 с |
-| `rate&val=1.5`, `rate&val=1` | работает, см. квантование |
-| `fullscreen` | toggle; работает даже на `--vout dummy` |
-| `key&val=subtitle-toggle` и др. | `200`; эффект не проверялся |
-| `in_enqueue&input=<uri>&name=…` | добавлен элемент `id=4`; параметр `name` проигнорирован (взято название из метаданных) |
-| `browse.json?uri=file:///` | список дисков `C:\`, `D:\` с `uri`, `type: dir` |
-| `browse.json?uri=file:///D:/shared/` | `..` + файлы; поля `type` (`dir`/`file`), `path`, `uri`, `name`, `size`, `modification_time` (unix), `mode` |
+| `pl_forcepause` / `pl_forceresume` | `state` → `paused` / `playing`, idempotent |
+| `pl_pause` from `stopped` | starts the last item (honouring `--start-time`) |
+| `pl_stop` | `state: stopped`, fields are cleared (see above) |
+| `seek&val=%2B30` | +30 s |
+| `rate&val=1.5`, `rate&val=1` | works, see quantization |
+| `fullscreen` | toggle; works even with `--vout dummy` |
+| `key&val=subtitle-toggle` etc. | `200`; effect not checked |
+| `in_enqueue&input=<uri>&name=…` | item `id=4` added; the `name` parameter was ignored (the title was taken from the metadata) |
+| `browse.json?uri=file:///` | list of drives `C:\`, `D:\` with `uri`, `type: dir` |
+| `browse.json?uri=file:///D:/shared/` | `..` + files; fields `type` (`dir`/`file`), `path`, `uri`, `name`, `size`, `modification_time` (unix), `mode` |
 
-## RC‑интерфейс (`--extraintf rc --rc-host`)
+## RC interface (`--extraintf rc --rc-host`)
 
-Полный список команд — [samples/rc-help.txt](samples/rc-help.txt). Что умеет RC и не умеет HTTP:
+Full list of commands — [samples/rc-help.txt](samples/rc-help.txt). What RC can do and HTTP cannot:
 
-- `atrack`/`strack`/`vtrack` без аргумента: **список дорожек с ID, названиями, языком и
-  маркером текущей `*`**.
-- `adev` без аргумента: **список аудиоустройств Windows** с ID вида
-  `{0.0.0.00000000}.{GUID}` и текущим `*`; `adev <id>` переключает. С `--aout dummy`
-  список пуст, с реальным `mmdevice` — все устройства (колонки, HDMI монитора и т. д.).
-  Это ровно то, что нужно для переключения «динамики ноутбука ↔ HDMI телевизора».
+- `atrack`/`strack`/`vtrack` without an argument: **a list of tracks with IDs, names, language and
+  the current-track marker `*`**.
+- `adev` without an argument: **a list of Windows audio devices** with IDs of the form
+  `{0.0.0.00000000}.{GUID}` and the current one marked `*`; `adev <id>` switches. With `--aout dummy`
+  the list is empty, with the real `mmdevice` — all devices (speakers, the monitor's HDMI, etc.).
+  This is exactly what is needed for switching "laptop speakers ↔ TV HDMI".
 - `achan`: Mono/Stereo/Original/Headphones.
-- `vratio`, `vcrop`, `vzoom` — set/get соотношения сторон, кропа и зума.
-- `quit` — корректно закрывает VLC (проверено).
-- RC шлёт асинхронные строки `status change: ( play state: 3 )`, `( audio volume: 266 )`,
-  `( new input: … )` — это push‑события, которых нет в HTTP. Формат текстовый, парсится
-  регулярками: блоки `+----[ Name ]` … `+----[ end of Name ]`, строки `| id - text - [Lang] *`.
-- RC принимает одно TCP‑соединение за раз (не проверено строго, но обычно так); несколько
-  клиентов одновременно — проблема. Компаньон должен держать одно соединение и
-  мультиплексировать.
+- `vratio`, `vcrop`, `vzoom` — set/get the aspect ratio, crop and zoom.
+- `quit` — closes VLC cleanly (checked).
+- RC sends asynchronous lines `status change: ( play state: 3 )`, `( audio volume: 266 )`,
+  `( new input: … )` — these are push events that HTTP does not have. The format is text, parsed with
+  regexes: blocks `+----[ Name ]` … `+----[ end of Name ]`, lines `| id - text - [Lang] *`.
+- RC accepts one TCP connection at a time (not checked rigorously, but that is usually the case); several
+  clients at once are a problem. The companion must hold a single connection and
+  multiplex it.
 
-## Выводы для архитектуры
+## Conclusions for the architecture
 
-1. **Режим «без компаньона» (чистый HTTP) покрывает 90 % пульта**: play/pause/seek/volume,
-   главы, скорость, задержки, полный экран, список и выбор дорожек (через `Stream N`),
-   обзор файлов и запуск, плейлист, обложка.
-2. Чего не хватает без компаньона: текущая выбранная дорожка, аудиоустройство,
-   push‑события, управление окном/монитором, запуск VLC, если он не запущен, Bluetooth.
-3. Компаньон закрывает всё это через RC (дорожки с `*`, `adev`, события) плюс Win32
-   (окно, мониторы, сон). Либо часть этого можно получить без компаньона собственной
-   Lua‑страницей в HTTP‑интерфейсе — проверяется отдельно (см. `vlc-protocols.md`).
+1. **The "no companion" mode (plain HTTP) covers 90 % of the remote**: play/pause/seek/volume,
+   chapters, speed, delays, fullscreen, track list and selection (via `Stream N`),
+   file browsing and starting playback, playlist, cover art.
+2. What is missing without the companion: the currently selected track, the audio device,
+   push events, window/monitor control, starting VLC if it is not running, Bluetooth.
+3. The companion covers all of this via RC (tracks with `*`, `adev`, events) plus Win32
+   (window, monitors, sleep). Alternatively, part of it can be obtained without the companion with our own
+   Lua page in the HTTP interface — checked separately (see `vlc-protocols.md`).
 
-## Эксперимент: собственная Lua‑страница в HTTP‑интерфейсе
+## Experiment: our own Lua page in the HTTP interface
 
-Файл `tracks.json` (Lua‑шаблон `<?vlc … ?>`) был положен в
-`%APPDATA%\vlc\lua\http\requests\` — **без изменений в Program Files и без правки vlcrc**.
-VLC 3.0.23 отдал его по `GET /requests/tracks.json` наравне со штатными страницами
-Результат — [samples/tracks-custom-page.json](samples/tracks-custom-page.json).
+A `tracks.json` file (a Lua template `<?vlc … ?>`) was placed in
+`%APPDATA%\vlc\lua\http\requests\` — **with no changes to Program Files and no editing of vlcrc**.
+VLC 3.0.23 served it at `GET /requests/tracks.json` on a par with the built-in pages.
+Result — [samples/tracks-custom-page.json](samples/tracks-custom-page.json).
 
-> **Поправка.** Пользовательская папка **заменяет** системную, а не дополняет её: `http.lua`
-> берёт первую существующую папку из `datadir_list("http")` и обслуживает только её
-> (см. [vlc-protocols.md § 7](vlc-protocols.md)). В этом эксперименте штатный
-> `/requests/status.json` отвечал `404`, что и объясняет «не сработавший» `key=quit` ниже.
-> Для уровня 1 в пользовательскую папку нужно копировать и штатные `requests/*.json`
-> (это обычные текстовые Lua‑шаблоны), а VLC — перезапускать: URL регистрируются при загрузке.
+> **Correction.** The user folder **replaces** the system one rather than supplementing it: `http.lua`
+> takes the first existing folder from `datadir_list("http")` and serves only that one
+> (see [vlc-protocols.md § 7](vlc-protocols.md)). In this experiment the built-in
+> `/requests/status.json` answered `404`, which explains the "failed" `key=quit` below.
+> For level 1 the built-in `requests/*.json` must also be copied into the user folder
+> (they are ordinary text Lua templates), and VLC must be restarted: URLs are registered at load time.
 
-Что даёт `vlc.var.get_list(obj, name)` + `vlc.var.get(obj, name)`:
+What `vlc.var.get_list(obj, name)` + `vlc.var.get(obj, name)` give:
 
-| Объект / переменная | Результат |
+| Object / variable | Result |
 |---|---|
-| `input` / `audio-es`, `spu-es`, `video-es` | список `{id, name}` с `-1 - Disable` и **текущий выбранный ID** (`current`). Имена вида `Dub Мосфильм / AC3 5.1 @ 448 kbps - [Russian]` |
-| `input` / `chapter` | **названия глав** (`" The Shire"`, …) — их нет в `status.json` |
+| `input` / `audio-es`, `spu-es`, `video-es` | a list of `{id, name}` with `-1 - Disable` and **the currently selected ID** (`current`). Names like `Dub Мосфильм / AC3 5.1 @ 448 kbps - [Russian]` ("Mosfilm" dub) |
+| `input` / `chapter` | **chapter names** (`" The Shire"`, …) — these are not in `status.json` |
 | `input` / `title` | `Segment 0 [2:58:25]` |
 | `aout` / `stereo-mode` | Mono / Original / Stereo / Headphones |
-| `vout` / `aspect-ratio`, `crop` | списки допустимых значений с подписями |
+| `vout` / `aspect-ratio`, `crop` | lists of allowed values with labels |
 | `vout` / `deinterlace` | Off / Automatic / On |
-| `aout` / `device` | **пусто** — список аудиоустройств через Lua‑переменную не доступен (RC использует C‑API `aout_DeviceEnum`) |
+| `aout` / `device` | **empty** — the list of audio devices is not available through a Lua variable (RC uses the C API `aout_DeviceEnum`) |
 
-Вторая страница `setvar.json?obj=input&name=audio-es&val=5` через `vlc.var.set` переключила
-дорожку и вернула `current: 5`. То есть собственными страницами можно и читать, и писать.
+A second page, `setvar.json?obj=input&name=audio-es&val=5`, switched the track via `vlc.var.set`
+and returned `current: 5`. So our own pages can both read and write.
 
-Прочее:
-- `command=key&val=quit` по HTTP VLC не закрыл — но запрос шёл на `status.json`, который в тот
-  момент отдавал `404` (см. поправку выше), так что хоткей не проверен. Надёжный способ закрыть
-  VLC через HTTP — `in_play&input=vlc://quit` (специальный элемент плейлиста, см. vlc-protocols § 6);
-  RC `quit` тоже закрывает.
-- После экспериментов `vlcrc` не изменился (`mmdevice-audio-device` не записан).
+Other:
+- `command=key&val=quit` over HTTP did not close VLC — but the request went to `status.json`, which at that
+  moment returned `404` (see the correction above), so the hotkey was not tested. A reliable way to close
+  VLC over HTTP is `in_play&input=vlc://quit` (a special playlist item, see vlc-protocols § 6);
+  RC `quit` also closes it.
+- After the experiments `vlcrc` did not change (`mmdevice-audio-device` was not written).
 
-### Следствие для архитектуры
+### Implication for the architecture
 
-Появляется промежуточный уровень между «чистый HTTP» и «полный компаньон»:
-**«лёгкий компаньон» = копия штатной папки `lua\http` плюс наши Lua‑файлы в
-`%APPDATA%\vlc\lua\http\`**, которую ставит установочный скрипт или компаньон (с перезапуском VLC). Это закрывает текущую дорожку, названия глав,
-кроп/аспект/деинтерлейс, но **не** аудиоустройства, окно/монитор, Bluetooth и запуск VLC —
-для них нужен полноценный процесс‑компаньон.
+An intermediate level appears between "plain HTTP" and "full companion":
+**"light companion" = a copy of the built-in `lua\http` folder plus our Lua files in
+`%APPDATA%\vlc\lua\http\`**, installed by the setup script or the companion (with a VLC restart). This covers the current track, chapter names,
+crop/aspect/deinterlace, but **not** audio devices, window/monitor, Bluetooth or starting VLC —
+those need a full companion process.

@@ -1,147 +1,147 @@
-# Протокол vlc-remote
+# vlc-remote protocol
 
-Версия протокола: **1**. Этот документ — источник истины для Android‑приложения и компаньона.
+Protocol version: **1**. This document is the source of truth for the Android app and the companion.
 
-Два уровня:
+Two levels:
 
-1. **Прямой режим (уровни 0/1)** — приложение само ходит в HTTP‑интерфейс VLC. Описание в
+1. **Direct mode (levels 0/1)** — the app talks to the VLC HTTP interface itself. Described in
    [vlc-http.md](vlc-http.md).
-2. **Режим компаньона (уровень 2)** — приложение разговаривает с компаньоном по NDJSON поверх
-   WebSocket (LAN) или RFCOMM (Bluetooth, этап M3). Описание ниже и в [messages.schema.json](messages.schema.json).
+2. **Companion mode (level 2)** — the app talks to the companion using NDJSON over
+   WebSocket (LAN) or RFCOMM (Bluetooth, milestone M3). Described below and in [messages.schema.json](messages.schema.json).
 
-## Транспорт
+## Transport
 
-- WebSocket: `ws://<host>:47555/ws`. Текстовые фреймы, один JSON‑объект на фрейм. Тот же NDJSON
-  (`\n` в конце) допустим и игнорируется при разборе.
-- RFCOMM (Bluetooth Classic): служба с UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, имя в SDP — `VLC Remote`.
-  Поток байт UTF‑8, одна JSON‑строка на сообщение, разделитель `\n`, не больше 1 МиБ на строку. Те же сообщения,
-  рукопожатие и токен, что по WebSocket. Канал шифруется сопряжением Bluetooth, токен всё равно обязателен.
-- Диагностика без WebSocket: `GET http://<host>:47555/info` → `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool}` (без авторизации, только для отображения в списке найденных ПК).
+- WebSocket: `ws://<host>:47555/ws`. Text frames, one JSON object per frame. The same NDJSON
+  (a trailing `\n`) is allowed and ignored when parsing.
+- RFCOMM (Bluetooth Classic): service with UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, SDP name `VLC Remote`.
+  A UTF-8 byte stream, one JSON line per message, `\n` as the separator, at most 1 MiB per line. The same messages,
+  handshake and token as over WebSocket. The channel is encrypted by Bluetooth pairing; the token is still required.
+- Diagnostics without WebSocket: `GET http://<host>:47555/info` → `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool}` (no authorization, only for display in the list of discovered PCs).
 
-## Обнаружение
+## Discovery
 
-- DNS‑SD: тип службы `_vlcremote._tcp`, имя = имя ПК, порт 47555, TXT: `v=1`, `name=<имя ПК>`, `id=<стабильный GUID установки>`.
-- UDP‑маяк: приложение шлёт broadcast на `255.255.255.255:47556` текст `VLCREMOTE_DISCOVER 1`;
-  компаньон отвечает unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
+- DNS-SD: service type `_vlcremote._tcp`, name = PC name, port 47555, TXT: `v=1`, `name=<PC name>`, `id=<stable installation GUID>`.
+- UDP beacon: the app broadcasts the text `VLCREMOTE_DISCOVER 1` to `255.255.255.255:47556`;
+  the companion replies with unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
 
 ### Bluetooth
 
-- Компаньон сообщает адрес своего Bluetooth‑адаптера в поле `bt` (`"AA:BB:CC:DD:EE:FF"`, заглавные, через `:`)
-  в `/info`, `beacon` и `welcome`. Нет адаптера или Bluetooth выключен — поля нет.
-- Телефон, подключавшийся к ПК по LAN, запоминает `bt` вместе с токеном. Если LAN недоступна (нет Wi‑Fi или ПК не
-  отвечает ~3 с), а адрес известен и ПК есть среди сопряжённых Bluetooth‑устройств телефона, телефон подключается
-  по RFCOMM к UUID службы с тем же токеном. Когда LAN снова доступна, возвращается на WebSocket (по RFCOMM выше
-  задержка).
-- Первое подключение только по Bluetooth: пользователь выбирает ПК из сопряжённых устройств телефона
-  («Подключиться по Bluetooth»), дальше обычное `hello` → `pairing_required` → код на экране ПК → токен.
-- Сопряжение Bluetooth‑устройств (телефон ↔ ноутбук) делают Windows и Android; компаньон его не инициирует.
+- The companion reports its Bluetooth adapter address in the `bt` field (`"AA:BB:CC:DD:EE:FF"`, upper case, `:`-separated)
+  in `/info`, `beacon` and `welcome`. No adapter or Bluetooth turned off — the field is absent.
+- A phone that has connected to the PC over LAN remembers `bt` together with the token. If the LAN is unavailable (no Wi-Fi or the PC
+  does not respond for ~3 s), and the address is known and the PC is among the phone's paired Bluetooth devices, the phone connects
+  over RFCOMM to the service UUID with the same token. When the LAN is available again, it returns to WebSocket (RFCOMM has higher
+  latency).
+- First connection over Bluetooth only: the user picks the PC from the phone's paired devices
+  ("Connect via Bluetooth"), then the usual `hello` → `pairing_required` → code on the PC screen → token.
+- Pairing of the Bluetooth devices (phone ↔ laptop) is done by Windows and Android; the companion does not initiate it.
 
-## Общая форма сообщения
+## General message shape
 
 ```json
-{"t":"<тип>", "id":"<строка, опционально, для сопоставления ответа>", ...поля}
+{"t":"<type>", "id":"<string, optional, for matching the response>", ...fields}
 ```
 
-Ответы на запросы несут тот же `id`. Ошибки: `{"t":"err","id":"...","code":"<код>","msg":"..."}`.
-Коды: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vlc_error`, `unsupported`, `internal`.
+Responses to requests carry the same `id`. Errors: `{"t":"err","id":"...","code":"<code>","msg":"..."}`.
+Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vlc_error`, `unsupported`, `internal`.
 
-## Рукопожатие и сопряжение
+## Handshake and pairing
 
-1. Телефон → `{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"<uuid>","locale":"ru-RU"},"token":"<токен или null>","pairCode":"<6 цифр или null>"}`
-   `device.locale` (необязательно) — язык интерфейса телефона (BCP 47); на нём компаньон пишет `err.msg`.
-   Без него — по‑английски. Интерфейс самого компаньона на ПК следует языку Windows.
-2. ПК → `{"t":"welcome","v":1,"name":"<имя ПК>","id":"<GUID>","caps":[...],"token":"<новый токен, только при успешном pairCode>","vlc":{...как в state.vlc}}`
-   либо ошибка и закрытие соединения:
-   - `{"t":"err","code":"pairing_required","msg":"..."}` — телефон не сопряжён (нет токена или токен неизвестен) и кода
-     в `hello` нет. **Компаньон сам открывает окно с кодом** на экране ТВ/ноутбука (поверх всех окон, с именем
-     телефона из `device.name`), если активного кода ещё нет; телефон показывает поле «Введите код с экрана ПК»
-     и переподключается с `pairCode`.
-   - `{"t":"err","code":"unauthorized","msg":"..."}` — код неверный или истёк (окно с кодом остаётся/обновляется),
-     либо исчерпаны попытки.
-3. Код живёт 5 минут и 5 попыток; при успешном сопряжении окно закрывается. Окно можно открыть и вручную из меню
-   в трее («Сопряжение телефона…»). Токен — 32 байта base64url, ПК хранит SHA‑256. Повторное `pairing_required`
-   от того же телефона, пока код активен, окно заново не создаёт (только поднимает поверх).
+1. Phone → `{"t":"hello","v":1,"device":{"name":"Pixel 8","id":"<uuid>","locale":"ru-RU"},"token":"<token or null>","pairCode":"<6 digits or null>"}`
+   `device.locale` (optional) — the phone's UI language (BCP 47); the companion writes `err.msg` in it.
+   Without it — in English. The companion's own UI on the PC follows the Windows language.
+2. PC → `{"t":"welcome","v":1,"name":"<PC name>","id":"<GUID>","caps":[...],"token":"<new token, only on a successful pairCode>","vlc":{...as in state.vlc}}`
+   or an error and the connection is closed:
+   - `{"t":"err","code":"pairing_required","msg":"..."}` — the phone is not paired (no token or the token is unknown) and there is no code
+     in `hello`. **The companion itself opens a window with the code** on the TV/laptop screen (on top of all windows, with the phone
+     name from `device.name`) if there is no active code yet; the phone shows an "Enter the code from the computer screen" field
+     and reconnects with `pairCode`.
+   - `{"t":"err","code":"unauthorized","msg":"..."}` — the code is wrong or expired (the code window stays/refreshes),
+     or the attempts are exhausted.
+3. A code lives 5 minutes and 5 attempts; on successful pairing the window closes. The window can also be opened manually from the
+   tray menu ("Pair a phone…"). The token is 32 bytes base64url; the PC stores its SHA-256. A repeated `pairing_required`
+   from the same phone while the code is active does not create the window again (it only brings it to the front).
 
-Совместимость: старые клиенты, получив `pairing_required`, ведут себя как при `unauthorized`.
+Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
 
-`caps` — строки: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
+`caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
 `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`.
 
-## Команды плеера: `cmd`
+## Player commands: `cmd`
 
-`{"t":"cmd","id":"7","name":"<имя>","args":{...}}` → ответ `{"t":"ok","id":"7"}` (или `err`),
-а изменения состояния приходят отдельным `state`.
+`{"t":"cmd","id":"7","name":"<name>","args":{...}}` → response `{"t":"ok","id":"7"}` (or `err`),
+and state changes arrive in a separate `state`.
 
-| name | args | Соответствие в VLC |
+| name | args | VLC equivalent |
 |---|---|---|
 | `play` | `{"plId": int?}` | `pl_play&id=` / `pl_forceresume` |
 | `pause` | — | `pl_forcepause` |
 | `togglePause` | — | `pl_pause` |
 | `stop` | — | `pl_stop` |
 | `next` / `prev` | — | `pl_next` / `pl_previous` |
-| `seek` | `{"seconds": int}` абсолют или `{"delta": int}` | `seek&val=` |
-| `volume` | `{"value": 0..512}` или `{"delta": int}` | `volume&val=` |
-| `mute` | `{"on": bool}` | компаньон запоминает уровень, ставит 0 / возвращает |
+| `seek` | `{"seconds": int}` absolute or `{"delta": int}` | `seek&val=` |
+| `volume` | `{"value": 0..512}` or `{"delta": int}` | `volume&val=` |
+| `mute` | `{"on": bool}` | the companion remembers the level, sets 0 / restores it |
 | `rate` | `{"value": float}` | `rate&val=` |
-| `track` | `{"kind":"audio"|"subtitle"|"video","id": int}` (`-1` = выключить) | `audio_track`/`subtitle_track`/`video_track` |
-| `chapter` | `{"index": int}` или `{"delta": ±1}` | `chapter&val=` |
+| `track` | `{"kind":"audio"|"subtitle"|"video","id": int}` (`-1` = turn off) | `audio_track`/`subtitle_track`/`video_track` |
+| `chapter` | `{"index": int}` or `{"delta": ±1}` | `chapter&val=` |
 | `title` | `{"index": int}` | `title&val=` |
 | `delay` | `{"kind":"audio"|"subtitle","seconds": float}` | `audiodelay`/`subdelay` |
-| `fullscreen` | `{"on": bool?}` (без аргумента — toggle) | `fullscreen` (компаньон сверяет состояние) |
+| `fullscreen` | `{"on": bool?}` (no argument — toggle) | `fullscreen` (the companion verifies the state) |
 | `aspect` | `{"value": "16:9"|"default"...}` | `aspectratio&val=` |
-| `open` | `{"uri": string, "enqueue": bool?, "subtitle": string?, "audioTrack": int?, "subtitleTrack": int?}` | `in_play`/`in_enqueue` (+ `addsubtitle`, выбор дорожек после старта) |
-| `playlistRemove` | `{"plId": int}` | `pl_delete` (ненадёжно, компаньон перепроверяет) |
+| `open` | `{"uri": string, "enqueue": bool?, "subtitle": string?, "audioTrack": int?, "subtitleTrack": int?}` | `in_play`/`in_enqueue` (+ `addsubtitle`, track selection after start) |
+| `playlistRemove` | `{"plId": int}` | `pl_delete` (unreliable, the companion re-checks) |
 | `playlistClear` | — | `pl_empty` |
-| `random` / `loop` / `repeat` | `{"on": bool}` | `pl_random`/`pl_loop`/`pl_repeat` (toggle, компаньон сверяет) |
-| `launch` | `{"uri": string?, "display": int?}` | запуск `vlc.exe` с нужными параметрами |
-| `quit` | — | RC `quit` или `in_play&input=vlc://quit` |
+| `random` / `loop` / `repeat` | `{"on": bool}` | `pl_random`/`pl_loop`/`pl_repeat` (toggle, the companion verifies) |
+| `launch` | `{"uri": string?, "display": int?}` | starts `vlc.exe` with the required parameters |
+| `quit` | — | RC `quit` or `in_play&input=vlc://quit` |
 
-## Системные команды: `sys` (нужны соответствующие `caps`)
+## System commands: `sys` (require the corresponding `caps`)
 
 | name | args | cap |
 |---|---|---|
 | `listDisplays` | — → `{"t":"displays","id":..,"items":[{"index","id","name","kind","primary","current","preferred","bounds"}],"preferredId":string?}` | `windowControl` |
-| `moveToDisplay` | `{"displayId": string}` (старое `{"display": int}` тоже принимается) | `windowControl` |
+| `moveToDisplay` | `{"displayId": string}` (the old `{"display": int}` is also accepted) | `windowControl` |
 | `preferredDisplay` | `{"displayId": string \| null}` | `windowControl` |
-
-Мониторы (`listDisplays`):
-- `id` — **устойчивый** идентификатор монитора (путь устройства монитора из `DisplayConfigGetDeviceInfo` /
-  `monitorDevicePath`; если его нет — имя GDI‑устройства `\\.\DISPLAYn`). Не меняется, когда ТВ выключают и
-  включают, в отличие от `index`. Все новые команды работают по `id`.
-- `name` — понятное имя из EDID (`monitorFriendlyDeviceName`, например «LG TV SSCR2»), если пусто — модель/
-  «Экран N»; `kind` — `internal` (встроенная панель ноутбука) или `external` (HDMI/DP/…); `primary` — основной.
-- `current` — сейчас здесь окно VLC; `preferred` — здесь VLC открывается по умолчанию (`preferredId` дублирует).
-
-Поведение компаньона:
-- `moveToDisplay` переносит окно VLC (снять полный экран → переместить → вернуть полный экран, если был) **и
-  запоминает монитор как предпочтительный**. Если VLC не запущен — только запоминает, без ошибки.
-- `preferredDisplay` — только запомнить (`null` — «не управлять»: компаньон не трогает окно VLC).
-- Когда появляется новое окно VLC (запущенное компаньоном **или вручную**, например двойным кликом по фильму),
-  компаньон переносит его на предпочтительный монитор, если он подключён (один раз на окно; если пользователь
-  потом сам перетащит окно — компаньон его не возвращает). Если при запуске компаньоном включён `launchFullscreen`,
-  окно разворачивается на весь экран уже на нужном мониторе.
-- Предпочтительный монитор не подключён (ТВ выключен) — окно не трогается.
-- В `state.system`: `display` (индекс, где сейчас VLC), `displayId` (id монитора, где сейчас VLC),
-  `preferredDisplayId`.
 | `keepAwake` | `{"on": bool}` | `power` |
 | `displayPower` | `{"on": bool}` | `power` |
 | `sleep` / `shutdown` | — | `power` |
-| `audioDevice` | `{"id": string}` (`""` = по умолчанию) | `audioDevices` |
-| `systemVolume` | `{"value": 0..100}` или `{"delta": int}` или `{"mute": bool}` | `systemVolume` |
+| `audioDevice` | `{"id": string}` (`""` = default) | `audioDevices` |
+| `systemVolume` | `{"value": 0..100}` or `{"delta": int}` or `{"mute": bool}` | `systemVolume` |
 
-## Запросы данных
+Monitors (`listDisplays`):
+- `id` — a **stable** monitor identifier (the monitor device path from `DisplayConfigGetDeviceInfo` /
+  `monitorDevicePath`; if absent — the GDI device name `\\.\DISPLAYn`). Does not change when the TV is turned off and
+  on, unlike `index`. All new commands work by `id`.
+- `name` — a friendly name from EDID (`monitorFriendlyDeviceName`, e.g. "LG TV SSCR2"); if empty — the model/
+  "Screen N"; `kind` — `internal` (the laptop's built-in panel) or `external` (HDMI/DP/…); `primary` — the primary one.
+- `current` — the VLC window is here now; `preferred` — VLC opens here by default (`preferredId` duplicates it).
+
+Companion behaviour:
+- `moveToDisplay` moves the VLC window (leave fullscreen → move → restore fullscreen if it was on) **and
+  remembers the monitor as preferred**. If VLC is not running — it only remembers, without an error.
+- `preferredDisplay` — only remember (`null` — "do not manage": the companion does not touch the VLC window).
+- When a new VLC window appears (started by the companion **or manually**, e.g. by double-clicking a movie),
+  the companion moves it to the preferred monitor if that monitor is connected (once per window; if the user
+  later drags the window themselves, the companion does not move it back). If `launchFullscreen` is on when the companion starts VLC,
+  the window goes fullscreen already on the right monitor.
+- The preferred monitor is not connected (TV turned off) — the window is left alone.
+- In `state.system`: `display` (index of where VLC is now), `displayId` (id of the monitor where VLC is now),
+  `preferredDisplayId`.
+
+## Data requests
 
 - `{"t":"browse","id":"3","uri":"file:///D:/shared/"}` → `{"t":"entries","id":"3","uri":"...","items":[{"name","uri","type":"dir"|"file","size":long?,"modified":unixSec?}]}`.
-  `uri` = `"file:///"` → список дисков. Элемент `..` не возвращается (телефон сам строит «вверх»).
-- `{"t":"getState","id":"4"}` → полный `state`.
+  `uri` = `"file:///"` → list of drives. The `..` element is not returned (the phone builds "up" itself).
+- `{"t":"getState","id":"4"}` → the full `state`.
 - `{"t":"getPlaylist","id":"5"}` → `{"t":"playlist","id":"5","items":[{"plId","name","uri","durationSec","current":bool}]}`.
-- `{"t":"getTracks","id":"6"}` → `{"t":"tracks","id":"6", ...как в state.tracks}`.
+- `{"t":"getTracks","id":"6"}` → `{"t":"tracks","id":"6", ...as in state.tracks}`.
 - `{"t":"getAudioDevices","id":"8"}` → `{"t":"audioDevices","id":"8","items":[{"id","name","current":bool}]}`.
 
-## Состояние: `state`
+## State: `state`
 
-Компаньон шлёт `state` при изменениях (не чаще 4 раз в секунду; при воспроизведении минимум раз
-в секунду с обновлённым `time`). Всегда полный объект (не diff) — проще и надёжнее при потере пакетов.
+The companion sends `state` on changes (no more than 4 times per second; during playback at least once
+per second with an updated `time`). Always the full object (not a diff) — simpler and more robust when packets are lost.
 
 ```json
 {
@@ -165,28 +165,30 @@
 }
 ```
 
-`vlc.status` — состояние VLC на ПК (появилось в протоколе 1, необязательное; старые компаньоны его не шлют):
+(The track names above are real media metadata, "Mosfilm" in Russian; track names are passed through as-is.)
 
-| status | Значение | `running` | Что показывает телефон |
+`vlc.status` — the state of VLC on the PC (added within protocol 1, optional; old companions do not send it):
+
+| status | Meaning | `running` | What the phone shows |
 |---|---|---|---|
-| `notInstalled` | VLC не найден на ПК | false | «VLC не установлен на ПК» |
-| `notRunning` | процесса нет | false | «VLC не запущен» + кнопка «Запустить» (`cmd launch`) |
-| `starting` | запускается компаньоном | false | индикатор «VLC запускается…» |
-| `noControl` | процесс есть, но веб‑интерфейс не отвечает с паролем компаньона (VLC открыт вручную до того, как компаньон его настроил) | false | «VLC открыт без управления» + кнопка «Перезапустить с управлением» (`cmd launch`) |
-| `running` | полный контроль | true | пульт |
+| `notInstalled` | VLC not found on the PC | false | "VLC was not found on the computer" |
+| `notRunning` | no process | false | "VLC is not running" + a "Launch VLC" button (`cmd launch`) |
+| `starting` | being started by the companion | false | a "VLC is starting…" indicator |
+| `noControl` | the process exists, but the web interface does not respond with the companion's password (VLC was opened manually before the companion configured it) | false | "VLC is open without phone control" + a "Restart with control" button (`cmd launch`) |
+| `running` | full control | true | the remote |
 
-`running` по‑прежнему означает «можно управлять». Компаньон старается, чтобы `noControl` не возникал: пока VLC не
-запущен, он прописывает в `%APPDATA%\vlc\vlcrc` веб‑интерфейс и RC со своим паролем, так что VLC, открытый
-как угодно, сразу управляем. `cmd launch` при `noControl` перезапускает VLC с тем же файлом (позиция теряется).
+`running` still means "can be controlled". The companion tries to keep `noControl` from happening: while VLC is not
+running, it writes the web interface and RC with its own password into `%APPDATA%\vlc\vlcrc`, so VLC opened
+in any way is controllable right away. `cmd launch` in `noControl` restarts VLC with the same file (the position is lost).
 
-Поля `tracks.current*`, `chapters.names`, `system` могут отсутствовать, если уровень/`caps` их не дают.
-`artUrl` отдаёт компаньон (проксирует `/art` VLC), авторизация — заголовок `Authorization: Bearer <token>`.
+The fields `tracks.current*`, `chapters.names`, `system` may be absent if the level/`caps` do not provide them.
+`artUrl` is served by the companion (it proxies VLC's `/art`); authorization is the `Authorization: Bearer <token>` header.
 
-## События: `event`
+## Events: `event`
 
 `{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired", ...}`.
 
-## Keep‑alive
+## Keep-alive
 
-`{"t":"ping"}` ↔ `{"t":"pong"}`; телефон шлёт каждые 30 с по WS и каждые 15 с по RFCOMM. Нет `pong`
-за 10 с → переподключение.
+`{"t":"ping"}` ↔ `{"t":"pong"}`; the phone sends it every 30 s over WS and every 15 s over RFCOMM. No `pong`
+within 10 s → reconnect.
