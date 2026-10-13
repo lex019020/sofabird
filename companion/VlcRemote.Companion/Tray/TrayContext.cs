@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Setup;
+using VlcRemote.Core.Vlc;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;

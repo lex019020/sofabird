@@ -308,8 +308,8 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       font scales 1.0/1.3/2.0 → fixes: labels of tabs, buttons, chips and badges stay on one line, chips wrap as a
       whole, file names break at dots, the playback controls are pinned on the Remote screen, a single row of
       quick tiles (audio / subtitles / display / more). Roborazzi screenshot tests of the shared controls.
-      Left: landscape and tablet check; full-screen screenshot tests (need the refactoring below).
-- [ ] **Refactoring and code cleanliness** (user request): split the large files and classes (the Remote screen,
+      Left: landscape and tablet check.
+- [x] **Refactoring and code cleanliness** (user request): split the large files and classes (the Remote screen,
       the companion host, the deploy scripts), remove duplication and dead code, consistent naming and
       error handling, enable and fix the analysers (detekt/ktlint for Kotlin, .NET analyzers and
       `TreatWarningsAsErrors` for the companion, PSScriptAnalyzer for the scripts) and run them in CI; no
@@ -317,8 +317,13 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       (`RemoteContent(ui, actions)` etc.), so whole screens can be screenshot-tested with fake state.
       Done: .NET analysers (warnings as errors, unused usings), `VlcManager` split and its command mapping/command
       line in Core with tests; detekt with zero findings in CI (shared backoff, VLC volume scale, constants);
-      stateless Remote and Connection screens split into files, with whole-screen screenshot tests.
-      Left: stateless Library/History/Playlist/Settings, PSScriptAnalyzer for the scripts.
+      stateless Remote and Connection screens split into files, with whole-screen screenshot tests;
+      PSScriptAnalyzer in CI. Then an architecture review (ADR-0005: the simplest code that is correct, no
+      framework for its own sake): one owner per piece of state (settings writes, keep-awake, pairing cache,
+      immutable shared state), one VLC lifecycle operation at a time, cancellation never swallowed, background
+      work tied to the companion's lifetime, the polling decisions as tested pure functions; on Android every
+      screen is `XxxScreen` + stateless `XxxContent(ui, actions)` with screenshot tests, one local state flow per
+      ViewModel, the position ticker in the scrub bar; dead code removed on both sides.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
 - [ ] Installer and auto-update for the companion (Velopack).
@@ -391,11 +396,9 @@ vlc-remote/
 
 ## 10. Next steps
 
-1. **Refactoring and code cleanliness**: large files split, duplication and dead code removed, analysers in CI,
-   stateless screen contents with full-screen screenshot tests.
-2. **UI in landscape and on tablets**: the remaining part of the layout polish.
-3. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
-4. **Installer and auto-update for the companion** (Velopack).
-5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+1. **UI in landscape and on tablets**: the remaining part of the layout polish.
+2. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
+3. **Installer and auto-update for the companion** (Velopack).
+4. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.
