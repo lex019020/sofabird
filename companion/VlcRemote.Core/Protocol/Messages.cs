@@ -174,15 +174,38 @@ public sealed class DisplayBounds
 
 public sealed class DisplayEntry
 {
+    /// <summary>Position in the list (ordered by GDI device name); changes when monitors are (re)connected.</summary>
     public int Index { get; set; }
+    /// <summary>Stable monitor id (<c>monitorDevicePath</c>, or the GDI device name when it is unknown).</summary>
+    public string Id { get; set; } = "";
+    /// <summary>Friendly name from EDID, or a fallback ("Display 2"). See <see cref="NameText"/>.</summary>
     public string Name { get; set; } = "";
+    /// <summary><c>internal</c> (laptop panel), <c>external</c> (HDMI/DP/…) or <c>unknown</c>.</summary>
+    public string? Kind { get; set; }
     public bool Primary { get; set; }
+    /// <summary>The VLC window is on this monitor now.</summary>
+    public bool Current { get; set; }
+    /// <summary>VLC opens on this monitor (the preferred one).</summary>
+    public bool Preferred { get; set; }
     public DisplayBounds Bounds { get; set; } = new();
+
+    /// <summary>Localizable fallback name; the session renders it into <see cref="Name"/> in the phone's language.</summary>
+    [JsonIgnore]
+    public Localization.LocalizableText? NameText { get; set; }
 }
 
 public sealed class DisplaysMessage : Message
 {
     public IReadOnlyList<DisplayEntry> Items { get; set; } = [];
+    /// <summary>Id of the preferred monitor (may be not connected right now); <c>null</c> — the companion does not manage the VLC window.</summary>
+    public string? PreferredId { get; set; }
+
+    /// <summary>Render localizable names (<see cref="DisplayEntry.NameText"/>) in <paramref name="culture"/>.</summary>
+    public void Localize(System.Globalization.CultureInfo? culture)
+    {
+        foreach (var item in Items)
+            if (item.NameText is { } text) item.Name = text.Render(culture);
+    }
 }
 
 public sealed class EventMessage : Message

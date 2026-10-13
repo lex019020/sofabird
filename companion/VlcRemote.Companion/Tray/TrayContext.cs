@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Vlc;
+using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Companion.Localization;
@@ -69,7 +71,7 @@ public sealed class TrayContext : ApplicationContext
         _phonesItem = new ToolStripMenuItem(UiText.TrayPhonesConnected(0)) { Enabled = false };
         _bluetoothItem = new ToolStripMenuItem(BluetoothText()) { Enabled = false };
         _pairItem = new ToolStripMenuItem(UiText.TrayPair, null, (_, _) => BeginPairing());
-        _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, _settings.PreferredDisplay, ct)));
+        _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, null, ct)));
         _restartItem = new ToolStripMenuItem(UiText.TrayRestartVlc, null, (_, _) => RestartVlc());
         _quitVlcItem = new ToolStripMenuItem(UiText.TrayQuitVlc, null, (_, _) => RunAsync(_vlc.QuitAsync));
         _displaysItem = new ToolStripMenuItem(UiText.TrayMoveToDisplay);
@@ -179,24 +181,54 @@ public sealed class TrayContext : ApplicationContext
     private void RefreshMenu()
     {
         RefreshStatus();
-        var running = _vlc.RunState == VlcRunState.Running;
         _launchItem.Enabled = _vlc.RunState is VlcRunState.NotRunning;
         _restartItem.Visible = _vlc.RunState is VlcRunState.RunningNoApi or VlcRunState.Running;
         _quitVlcItem.Enabled = _vlc.IsProcessRunning;
-        _displaysItem.Enabled = running;
-        _displaysItem.DropDownItems.Clear();
-        foreach (var d in _display.ListDisplays())
-        {
-            var item = new ToolStripMenuItem(d.Name) { Checked = _settings.PreferredDisplay == d.Index, Tag = d.Index };
-            var index = d.Index;
-            item.Click += (_, _) => RunAsync(ct => _host.MoveToDisplayAsync(index, ct));
-            _displaysItem.DropDownItems.Add(item);
-        }
+        RefreshDisplaysMenu();
         _luaItem.Text = _vlc.LuaInstallPending ? UiText.TrayInstallLuaPending : UiText.TrayInstallLua;
         _luaItem.Enabled = _vlc.Installation is not null;
         _autostartItem.Checked = AutostartService.IsEnabled();
         _keepAwakeItem.Checked = _settings.KeepAwake;
         _pairItem.Enabled = _pairingForm is null;
+    }
+
+    /// <summary>
+    /// "Move VLC to display ▸": a click on a monitor moves VLC there (if running) and remembers it — every new VLC
+    /// window opens there (same as the phone). The check mark is the preferred monitor; "Don't manage" clears it.
+    /// </summary>
+    private void RefreshDisplaysMenu()
+    {
+        _displaysItem.DropDownItems.Clear();
+        _displaysItem.DropDownItems.Add(new ToolStripMenuItem(UiText.TrayDisplayHint) { Enabled = false });
+        IReadOnlyList<MonitorInfo> monitors;
+        try { monitors = _display.GetMonitors(); }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Listing monitors failed");
+            monitors = [];
+        }
+        var preferred = _host.Displays.PreferredId;
+        var preferredConnected = false;
+        foreach (var m in monitors)
+        {
+            var name = m.DisplayName(CultureInfo.CurrentUICulture);
+            if (m.Kind == MonitorKind.Internal && m.NameText is null) name = UiText.TrayDisplayBuiltIn(name);
+            var isPreferred = preferred is not null && string.Equals(preferred, m.Id, StringComparison.OrdinalIgnoreCase);
+            preferredConnected |= isPreferred;
+            var item = new ToolStripMenuItem(name) { Checked = isPreferred };
+            var id = m.Id;
+            item.Click += (_, _) => RunAsync(ct => _host.Displays.MoveToDisplayAsync(id, null, ct));
+            _displaysItem.DropDownItems.Add(item);
+        }
+        if (preferred is not null && !preferredConnected)
+        {
+            var name = _settings.PreferredDisplayName ?? preferred;
+            _displaysItem.DropDownItems.Add(new ToolStripMenuItem(UiText.TrayDisplayDisconnected(name)) { Checked = true, Enabled = false });
+        }
+        _displaysItem.DropDownItems.Add(new ToolStripSeparator());
+        var unmanaged = new ToolStripMenuItem(UiText.TrayDisplayUnmanaged) { Checked = preferred is null };
+        unmanaged.Click += (_, _) => _host.Displays.SetPreferred(null);
+        _displaysItem.DropDownItems.Add(unmanaged);
     }
 
     private void BeginPairing()
@@ -252,22 +284,20 @@ public sealed class TrayContext : ApplicationContext
             address, screen.DeviceName, requestingDevice ?? "tray");
     }
 
-    /// <summary>Экран для окна с кодом: где сейчас окно VLC, иначе предпочитаемый (ТВ), иначе основной.</summary>
+    /// <summary>Screen for the pairing code window: where the VLC window is, else the preferred monitor (TV), else the primary.</summary>
     private Screen PickPairingScreen()
     {
         Screen? screen = null;
-        if (_vlc.ProcessId is int pid && _vlc.IsProcessRunning)
+        try
         {
-            try
-            {
-                if (_display.FindDisplayOfProcess(pid) is int vlcDisplay) screen = _display.GetScreen(vlcDisplay);
-            }
-            catch (Exception ex)
-            {
-                _log.LogDebug(ex, "Display of VLC window not found");
-            }
+            var monitors = _display.GetMonitors();
+            screen = DisplayService.GetScreen(_host.Displays.FindVlcMonitor(monitors))
+                ?? DisplayService.GetScreen(MonitorTopology.FindById(monitors, _host.Displays.PreferredId));
         }
-        screen ??= _settings.PreferredDisplay is int idx ? _display.GetScreen(idx) : null;
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "Monitor for the pairing window not found");
+        }
         return screen ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
     }
 

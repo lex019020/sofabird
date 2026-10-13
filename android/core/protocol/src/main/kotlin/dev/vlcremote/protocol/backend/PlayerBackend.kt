@@ -1,7 +1,7 @@
 package dev.vlcremote.protocol.backend
 
 import dev.vlcremote.protocol.companion.AudioDevice
-import dev.vlcremote.protocol.companion.Display
+import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
@@ -43,7 +43,7 @@ interface PlayerBackend {
         Result.failure(UnsupportedOperationException("audio devices need the companion"))
 
     /** Companion `sys listDisplays` (needs `windowControl` capability). */
-    suspend fun listDisplays(): Result<List<Display>> =
+    suspend fun listDisplays(): Result<DisplayList> =
         Result.failure(UnsupportedOperationException("displays need the companion"))
 
     /** Ask the backend to re-fetch state now (e.g. after returning to the foreground). */

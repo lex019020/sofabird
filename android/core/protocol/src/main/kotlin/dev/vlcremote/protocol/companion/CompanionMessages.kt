@@ -198,7 +198,11 @@ sealed class CompanionMessage {
     data class Displays(
         override val id: String? = null,
         val items: List<Display> = emptyList(),
-    ) : CompanionMessage()
+        /** Monitor VLC opens on; `null` = not managed (or an old companion). */
+        val preferredId: String? = null,
+    ) : CompanionMessage() {
+        fun toList() = DisplayList(items, preferredId)
+    }
 
     @Serializable
     @SerialName("pong")
@@ -231,13 +235,47 @@ data class DeviceInfo(
 @Serializable
 data class AudioDevice(val id: String, val name: String, val current: Boolean = false)
 
+/**
+ * One monitor from `sys listDisplays`. Everything except [index] is optional: old companions send only
+ * `index`/`name`/`primary`/`bounds`.
+ */
 @Serializable
 data class Display(
+    /** Windows enumeration order; changes when a monitor is switched off. */
     val index: Int,
+    /** Stable monitor id (survives the TV being switched off and on). */
+    val id: String? = null,
+    /** Friendly name from EDID ("LG TV SSCR2"). */
     val name: String? = null,
+    /** [KIND_INTERNAL] (laptop panel) or [KIND_EXTERNAL] (HDMI/DP/…); unknown values are kept as-is. */
+    val kind: String? = null,
     val primary: Boolean = false,
+    /** The VLC window is on this monitor now. */
+    val current: Boolean? = null,
+    /** VLC opens on this monitor. */
+    val preferred: Boolean? = null,
     val bounds: Bounds? = null,
-)
+) {
+    val isInternal: Boolean get() = kind == KIND_INTERNAL
+    val isExternal: Boolean get() = kind == KIND_EXTERNAL
+
+    companion object {
+        const val KIND_INTERNAL = "internal"
+        const val KIND_EXTERNAL = "external"
+    }
+}
+
+/** `listDisplays` result. */
+data class DisplayList(
+    val items: List<Display> = emptyList(),
+    val preferredId: String? = null,
+) {
+    /**
+     * The companion identifies monitors by stable ids: it remembers a preferred monitor and accepts
+     * `moveToDisplay {displayId}` / `preferredDisplay`. Old companions: index-only moves.
+     */
+    val supportsIds: Boolean get() = items.isNotEmpty() && items.all { !it.id.isNullOrEmpty() }
+}
 
 @Serializable
 data class Bounds(val x: Int = 0, val y: Int = 0, val width: Int = 0, val height: Int = 0)

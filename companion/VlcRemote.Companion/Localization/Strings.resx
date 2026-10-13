@@ -10,8 +10,6 @@
 {0}</value></data>
   <data name="PortFailed" xml:space="preserve"><value>Could not open port {0}: {1}
 Change wsPort in {2}.</value></data>
-  <data name="DisplayPrimary" xml:space="preserve"><value>{0} (primary, {1}×{2})</value></data>
-  <data name="DisplayNormal" xml:space="preserve"><value>{0} ({1}×{2})</value></data>
   <data name="PairingTitle" xml:space="preserve"><value>Pair a phone</value></data>
   <data name="PairingAddress" xml:space="preserve"><value>Enter this code in the app on your phone. PC address: {0}</value></data>
   <data name="PairingHeaderGeneric" xml:space="preserve"><value>VLC Remote pairing code</value></data>
@@ -31,6 +29,10 @@ Change wsPort in {2}.</value></data>
   <data name="TrayRestartVlc" xml:space="preserve"><value>Restart VLC with phone control</value></data>
   <data name="TrayQuitVlc" xml:space="preserve"><value>Close VLC</value></data>
   <data name="TrayMoveToDisplay" xml:space="preserve"><value>Move VLC to display</value></data>
+  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC opens on the checked display</value></data>
+  <data name="TrayDisplayBuiltIn" xml:space="preserve"><value>{0} (built-in)</value></data>
+  <data name="TrayDisplayDisconnected" xml:space="preserve"><value>{0} (not connected)</value></data>
+  <data name="TrayDisplayUnmanaged" xml:space="preserve"><value>Don't manage the display</value></data>
   <data name="TrayInstallLua" xml:space="preserve"><value>Install Lua pages</value></data>
   <data name="TrayInstallLuaPending" xml:space="preserve"><value>Install Lua pages (after VLC closes)</value></data>
   <data name="TrayAutostart" xml:space="preserve"><value>Start with Windows</value></data>

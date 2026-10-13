@@ -44,6 +44,41 @@ internal static partial class NativeMethods
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     public const int SW_RESTORE = 9;
+    public const int SW_MAXIMIZE = 3;
+    public const int SW_SHOWNOACTIVATE = 4;
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
+    [DllImport("user32.dll")]
+    public static extern bool IsZoomed(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    public static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+    public const int GWL_STYLE = -16;
+    public const long WS_CAPTION = 0x00C00000;
+    public const long WS_THICKFRAME = 0x00040000;
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    public const uint MONITOR_DEFAULTTONULL = 0;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct MONITORINFOEX
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string szDevice;
+    }
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);

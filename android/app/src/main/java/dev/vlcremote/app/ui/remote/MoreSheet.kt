@@ -1,11 +1,11 @@
 package dev.vlcremote.app.ui.remote
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,7 @@ private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2
 
 /** "More": chapters, rate, aspect, fullscreen, companion-only system actions. */
 @Composable
-fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit) {
+fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit, onOpenDisplays: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tick = rememberTick(ui.settings.haptics)
     val online = ui.connection.isOnline
@@ -166,9 +167,9 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 AudioDeviceSection(ui, viewModel)
             }
-            if (caps.windowControl) {
+            if (ui.showDisplayChoice) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                DisplaysSection(ui, viewModel)
+                DisplayEntry(ui, onOpenDisplays)
             }
             if (caps.power) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -263,62 +264,32 @@ private fun AudioDeviceSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
     }
 }
 
-/** `windowControl`: displays from `listDisplays`, "move VLC here". */
+/** `windowControl`: where the VLC window is / opens; the choice itself lives in [DisplaySheet]. */
 @Composable
-private fun DisplaysSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
-    val tick = rememberTick(ui.settings.haptics)
-    val online = ui.connection.isOnline
-    val current = ui.state.system?.display
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SectionTitle(stringResource(R.string.section_display))
-        Spacer(Modifier.weight(1f))
-        if (ui.pcInfoLoading) CircularProgressIndicator(Modifier.width(16.dp), strokeWidth = 2.dp)
-        IconButton(onClick = { viewModel.loadPcInfo() }, enabled = online) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
-    }
-    if (ui.displays.isEmpty() && !ui.pcInfoLoading) {
-        Text(stringResource(R.string.displays_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    ui.displays.forEach { display ->
-        val isCurrent = current == display.index
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        display.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.display_n, display.index + 1),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (display.primary) {
-                        Text(
-                            stringResource(R.string.display_primary),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
-                }
-                display.bounds?.let { b ->
-                    Text(
-                        "${b.width}×${b.height} @ ${b.x},${b.y}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            OutlinedButton(
-                onClick = { tick(); viewModel.moveToDisplay(display.index) },
-                enabled = online && !isCurrent,
-            ) { Text(stringResource(if (isCurrent) R.string.display_vlc_here else R.string.action_move_vlc_here)) }
+private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
+    val shown = ui.displayChoice.chipDisplay
+    SectionTitle(stringResource(R.string.section_display))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onOpen)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(displayIcon(shown), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.sheet_display_title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                shown?.let { displayLabel(it) } ?: stringResource(R.string.display_choose_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
     }
 }
 

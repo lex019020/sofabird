@@ -6,6 +6,12 @@ public static class ProtocolText
 {
     /// <summary>VLC window not found</summary>
     public static LocalizableText VlcWindowNotFound => new("VlcWindowNotFound");
+    /// <summary>Display {0}</summary>
+    public static LocalizableText DisplayFallbackName(object a0) => new("DisplayFallbackName", a0);
+    /// <summary>Built-in display</summary>
+    public static LocalizableText DisplayBuiltIn => new("DisplayBuiltIn");
+    /// <summary>This display is not connected</summary>
+    public static LocalizableText DisplayNotConnected => new("DisplayNotConnected");
     /// <summary>VLC was not found on the PC. Install VLC 3.x or set its path in the companion settings.</summary>
     public static LocalizableText VlcNotFoundInstall => new("VlcNotFoundInstall");
     /// <summary>Could not start VLC</summary>

@@ -113,7 +113,12 @@ public sealed class SystemInfo
     public bool? Muted { get; set; }
     /// <summary>ID устройства вывода VLC (<c>{0.0.0.00000000}.{guid}</c>), "" = по умолчанию.</summary>
     public string? AudioDevice { get; set; }
+    /// <summary>Index (in <c>listDisplays</c>) of the monitor with the VLC window; <c>null</c> — no window.</summary>
     public int? Display { get; set; }
+    /// <summary>Stable id of the monitor with the VLC window; <c>null</c> — no window.</summary>
+    public string? DisplayId { get; set; }
+    /// <summary>Stable id of the preferred monitor; <c>null</c> — the companion does not manage the VLC window.</summary>
+    public string? PreferredDisplayId { get; set; }
     public bool? KeepAwake { get; set; }
 }
 

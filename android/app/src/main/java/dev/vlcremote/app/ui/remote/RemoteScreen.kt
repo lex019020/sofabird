@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,6 +82,7 @@ fun RemoteScreen(
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     var tracksSheet by remember { mutableStateOf<TrackKind?>(null) }
     var moreSheet by remember { mutableStateOf(false) }
+    var displaySheet by remember { mutableStateOf(false) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
@@ -115,7 +118,7 @@ fun RemoteScreen(
                         TransportRow(ui, viewModel)
                         VolumeRow(ui, viewModel)
                     }
-                    QuickChips(ui, onTracks = { tracksSheet = it }, onMore = { moreSheet = true })
+                    QuickChips(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
                 }
             }
         } else {
@@ -134,7 +137,7 @@ fun RemoteScreen(
                 OfflineCard(ui, onOpenConnection)
                 BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
                 if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
-                QuickChips(ui, onTracks = { tracksSheet = it }, onMore = { moreSheet = true })
+                QuickChips(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
                 Spacer(Modifier.weight(1f))
                 if (block == null) {
                     ScrubBar(ui, viewModel)
@@ -152,7 +155,18 @@ fun RemoteScreen(
         TracksSheet(kind = kind, ui = ui, viewModel = viewModel, onDismiss = { tracksSheet = null })
     }
     if (moreSheet) {
-        MoreSheet(ui = ui, viewModel = viewModel, onDismiss = { moreSheet = false })
+        MoreSheet(
+            ui = ui,
+            viewModel = viewModel,
+            onDismiss = { moreSheet = false },
+            onOpenDisplays = {
+                moreSheet = false
+                displaySheet = true
+            },
+        )
+    }
+    if (displaySheet && ui.showDisplayChoice) {
+        DisplaySheet(ui = ui, viewModel = viewModel, onDismiss = { displaySheet = false })
     }
 }
 
@@ -443,12 +457,14 @@ private fun VolumeRow(ui: RemoteUiState, viewModel: RemoteViewModel) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onMore: () -> Unit) {
+private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDisplays: () -> Unit, onMore: () -> Unit) {
     val tracks = ui.state.tracks
     val audioLabel = trackChipLabel(tracks.audio.firstOrNull { it.id == tracks.currentAudio }?.let { it.lang ?: it.name }, tracks.currentAudio, tracks.audio.size)
     val subLabel = trackChipLabel(tracks.subtitle.firstOrNull { it.id == tracks.currentSubtitle }?.let { it.lang ?: it.name }, tracks.currentSubtitle, tracks.subtitle.size)
-    Row(
+    // Wraps to a second line on narrow screens (the "Экран" chip makes four).
+    FlowRow(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
@@ -459,15 +475,32 @@ private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onMore:
             label = { Text(stringResource(R.string.chip_audio, audioLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Default.Audiotrack, null) },
             enabled = ui.connection.isOnline && ui.vlcBlock == null,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.widthIn(max = 220.dp),
         )
         AssistChip(
             onClick = { onTracks(TrackKind.SUBTITLE) },
             label = { Text(stringResource(R.string.chip_subtitles, subLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             leadingIcon = { Icon(Icons.Default.Subtitles, null) },
             enabled = ui.connection.isOnline && ui.vlcBlock == null,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.widthIn(max = 220.dp),
         )
+        if (ui.showDisplayChoice) {
+            // Where VLC is now, or (VLC closed) where it will open. Usable while VLC is closed too.
+            val shown = ui.displayChoice.chipDisplay
+            AssistChip(
+                onClick = onDisplays,
+                label = {
+                    Text(
+                        shown?.let { stringResource(R.string.chip_display, displayLabel(it)) } ?: stringResource(R.string.section_display),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                leadingIcon = { Icon(displayIcon(shown), null) },
+                enabled = ui.connection.isOnline,
+                modifier = Modifier.widthIn(max = 240.dp),
+            )
+        }
         AssistChip(
             onClick = onMore,
             label = { Text(stringResource(R.string.chip_more)) },

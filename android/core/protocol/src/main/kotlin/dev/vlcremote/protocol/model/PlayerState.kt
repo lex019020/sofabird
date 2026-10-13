@@ -212,7 +212,12 @@ data class SystemState(
     val volume: Int? = null,
     val muted: Boolean? = null,
     val audioDevice: String? = null,
+    /** Index of the monitor with the VLC window (old and new companions). */
     val display: Int? = null,
+    /** Stable id of the monitor with the VLC window; `null` = no window (or an old companion). */
+    val displayId: String? = null,
+    /** Monitor VLC opens on; `null` = not managed (or an old companion). */
+    val preferredDisplayId: String? = null,
     val keepAwake: Boolean? = null,
 )
 

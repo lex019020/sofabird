@@ -18,10 +18,6 @@ internal static class UiText
     public static string FatalError(object a0) => F("FatalError", a0);
     /// <summary>Could not open port {0}: {1} Change wsPort in {2}.</summary>
     public static string PortFailed(object a0, object a1, object a2) => F("PortFailed", a0, a1, a2);
-    /// <summary>{0} (primary, {1}×{2})</summary>
-    public static string DisplayPrimary(object a0, object a1, object a2) => F("DisplayPrimary", a0, a1, a2);
-    /// <summary>{0} ({1}×{2})</summary>
-    public static string DisplayNormal(object a0, object a1, object a2) => F("DisplayNormal", a0, a1, a2);
     /// <summary>Pair a phone</summary>
     public static string PairingTitle => S("PairingTitle");
     /// <summary>Enter this code in the app on your phone. PC address: {0}</summary>
@@ -60,6 +56,14 @@ internal static class UiText
     public static string TrayQuitVlc => S("TrayQuitVlc");
     /// <summary>Move VLC to display</summary>
     public static string TrayMoveToDisplay => S("TrayMoveToDisplay");
+    /// <summary>VLC opens on the checked display</summary>
+    public static string TrayDisplayHint => S("TrayDisplayHint");
+    /// <summary>{0} (built-in)</summary>
+    public static string TrayDisplayBuiltIn(object a0) => F("TrayDisplayBuiltIn", a0);
+    /// <summary>{0} (not connected)</summary>
+    public static string TrayDisplayDisconnected(object a0) => F("TrayDisplayDisconnected", a0);
+    /// <summary>Don't manage the display</summary>
+    public static string TrayDisplayUnmanaged => S("TrayDisplayUnmanaged");
     /// <summary>Install Lua pages</summary>
     public static string TrayInstallLua => S("TrayInstallLua");
     /// <summary>Install Lua pages (after VLC closes)</summary>

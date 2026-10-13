@@ -10,8 +10,6 @@
 {0}</value></data>
   <data name="PortFailed" xml:space="preserve"><value>Не удалось открыть порт {0}: {1}
 Измените wsPort в {2}.</value></data>
-  <data name="DisplayPrimary" xml:space="preserve"><value>{0} (основной, {1}×{2})</value></data>
-  <data name="DisplayNormal" xml:space="preserve"><value>{0} ({1}×{2})</value></data>
   <data name="PairingTitle" xml:space="preserve"><value>Сопряжение телефона</value></data>
   <data name="PairingAddress" xml:space="preserve"><value>Введите код в приложении на телефоне. Адрес ПК: {0}</value></data>
   <data name="PairingHeaderGeneric" xml:space="preserve"><value>Код сопряжения VLC Remote</value></data>
@@ -31,6 +29,10 @@
   <data name="TrayRestartVlc" xml:space="preserve"><value>Перезапустить VLC с управлением с телефона</value></data>
   <data name="TrayQuitVlc" xml:space="preserve"><value>Закрыть VLC</value></data>
   <data name="TrayMoveToDisplay" xml:space="preserve"><value>Перенести VLC на экран</value></data>
+  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC открывается на отмеченном экране</value></data>
+  <data name="TrayDisplayBuiltIn" xml:space="preserve"><value>{0} (встроенный)</value></data>
+  <data name="TrayDisplayDisconnected" xml:space="preserve"><value>{0} (не подключён)</value></data>
+  <data name="TrayDisplayUnmanaged" xml:space="preserve"><value>Не управлять экраном</value></data>
   <data name="TrayInstallLua" xml:space="preserve"><value>Установить Lua-страницы</value></data>
   <data name="TrayInstallLuaPending" xml:space="preserve"><value>Установить Lua-страницы (после закрытия VLC)</value></data>
   <data name="TrayAutostart" xml:space="preserve"><value>Автозапуск</value></data>

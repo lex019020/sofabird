@@ -12,6 +12,12 @@ using VlcRemote.Core.Localization;
 
 namespace VlcRemote.Companion.Vlc;
 
+/// <summary>A VLC process seen for the first time (<see cref="VlcManager.ProcessAppeared"/>).</summary>
+/// <param name="Pid">Process id.</param>
+/// <param name="Owned">Started by the companion (its window is placed by the launch itself).</param>
+/// <param name="StartedBeforeCompanion">The process is older than the companion (left where the user put it).</param>
+public sealed record VlcProcessAppeared(int Pid, bool Owned, bool StartedBeforeCompanion);
+
 public enum VlcRunState
 {
     /// <summary>vlc.exe не найден на диске.</summary>
@@ -64,6 +70,9 @@ public sealed class VlcManager : IAsyncDisposable
     private string? _lastAudioDevice;
     private readonly VlcrcConfigurator? _vlcrc;
     private int? _noControlNotifiedPid;
+    private int? _announcedPid;
+    private volatile bool _launchInProgress;
+    private readonly DateTime _companionStartedAt = Process.GetCurrentProcess().StartTime;
 
     public VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf)
     {
@@ -112,6 +121,16 @@ public sealed class VlcManager : IAsyncDisposable
     public event Action? RunStateChanged;
     /// <summary>VLC открыт без управления (не отвечает HTTP с нашим паролем); раз на процесс, аргумент — PID.</summary>
     public event Action<int>? NoControlDetected;
+    /// <summary>A VLC process is seen for the first time (launched by the companion or manually). Raised on the poll thread.</summary>
+    public event Action<VlcProcessAppeared>? ProcessAppeared;
+
+    /// <summary>
+    /// Monitor id a companion-launched VLC window will be moved to (argument: the legacy one-off <c>display</c> index
+    /// of <c>launch</c>/<c>open</c>, or <c>null</c> for the preferred monitor); <c>null</c> — the window is not managed.
+    /// </summary>
+    public Func<int?, string?>? LaunchTargetResolver { get; set; }
+    /// <summary>Places the window of a companion-launched process (pid, target monitor id); completes when it is done.</summary>
+    public Func<int, string, CancellationToken, Task>? PlaceLaunchedWindowAsync { get; set; }
 
     public void Start()
     {
@@ -170,6 +189,7 @@ public sealed class VlcManager : IAsyncDisposable
             }
 
             ProcessId = process.Id;
+            AnnounceProcess(process);
             VlcStatus status;
             try
             {
@@ -293,9 +313,23 @@ public sealed class VlcManager : IAsyncDisposable
         }
     }
 
+    /// <summary>Raise <see cref="ProcessAppeared"/> once per new VLC process (not while the companion is launching one).</summary>
+    private void AnnounceProcess(Process process)
+    {
+        if (_announcedPid == process.Id || _launchInProgress) return;
+        _announcedPid = process.Id;
+        var owned = _owned is not null && _owned.Id == process.Id;
+        bool startedBefore;
+        try { startedBefore = process.StartTime < _companionStartedAt; }
+        catch { startedBefore = false; }
+        try { ProcessAppeared?.Invoke(new VlcProcessAppeared(process.Id, owned, startedBefore)); }
+        catch (Exception ex) { _log.LogWarning(ex, "ProcessAppeared handler failed"); }
+    }
+
     private async Task OnNoProcessAsync(CancellationToken ct)
     {
         ProcessId = null;
+        _announcedPid = null;
         if (_owned is not null)
         {
             try { _owned.Dispose(); } catch { }
@@ -317,8 +351,8 @@ public sealed class VlcManager : IAsyncDisposable
             TryConfigureVlcrc();
         }
         if (_luaInstallPending) TryInstallLuaPages(initial: false);
-        if (_lastStateJson is null || wasRunning)
-            PublishState(BuildState(null));
+        // Always rebuild: the system block (preferred display, volume) may change while VLC is closed; duplicates are dropped.
+        PublishState(BuildState(null));
         await Task.CompletedTask;
     }
 
@@ -540,6 +574,13 @@ public sealed class VlcManager : IAsyncDisposable
         if (_settings.AutoInstallLuaPages) TryInstallLuaPages(initial: false);
         TryConfigureVlcrc();
 
+        // Window placement: the media is opened only after the window is on the target monitor, so the video
+        // (fullscreen with LaunchFullscreen) starts there instead of flashing on another screen first.
+        string? target = null;
+        try { target = LaunchTargetResolver?.Invoke(displayIndex); }
+        catch (Exception ex) { _log.LogWarning(ex, "Resolving the launch display failed"); }
+        var deferredUri = target is not null && PlaceLaunchedWindowAsync is not null && !string.IsNullOrEmpty(uri) ? uri : null;
+
         var psi = new ProcessStartInfo
         {
             FileName = installation.ExePath,
@@ -547,14 +588,27 @@ public sealed class VlcManager : IAsyncDisposable
             CreateNoWindow = true,
             WorkingDirectory = installation.InstallDir,
         };
-        foreach (var a in BuildLaunchArgs(uri, displayIndex ?? _settings.PreferredDisplay))
+        foreach (var a in BuildLaunchArgs(deferredUri is null ? uri : null, fullscreenFollowsWindow: target is not null))
             psi.ArgumentList.Add(a);
 
-        _log.LogInformation("Launching VLC: {Exe} {Args}", psi.FileName, RedactArgs(psi.ArgumentList));
-        var process = Process.Start(psi) ?? throw ProtocolException.VlcError(ProtocolText.VlcStartFailed);
-        _owned = process;
-        _ownedStartedAt = DateTimeOffset.UtcNow;
-        ProcessId = process.Id;
+        _log.LogInformation("Launching VLC: {Exe} {Args}{Target}", psi.FileName, RedactArgs(psi.ArgumentList),
+            target is null ? "" : $" (window -> {target}{(deferredUri is null ? "" : ", media after placement")})");
+        Process process;
+        Task? placement = null;
+        _launchInProgress = true;
+        try
+        {
+            process = Process.Start(psi) ?? throw ProtocolException.VlcError(ProtocolText.VlcStartFailed);
+            _owned = process;
+            _ownedStartedAt = DateTimeOffset.UtcNow;
+            ProcessId = process.Id;
+            if (target is not null && PlaceLaunchedWindowAsync is { } place)
+                placement = place(process.Id, target, ct);
+        }
+        finally
+        {
+            _launchInProgress = false;
+        }
         SetRunState(VlcRunState.Starting);
         Poke();
 
@@ -564,15 +618,33 @@ public sealed class VlcManager : IAsyncDisposable
         {
             if (process.HasExited)
                 throw ProtocolException.VlcError(ProtocolText.VlcExitedImmediately(process.ExitCode));
-            if (RunState == VlcRunState.Running) return;
+            if (RunState == VlcRunState.Running) break;
             await Task.Delay(300, ct).ConfigureAwait(false);
             Poke();
         }
         if (RunState != VlcRunState.Running)
             _log.LogWarning("VLC started but HTTP interface did not answer within 20 s");
+
+        if (placement is not null)
+        {
+            try { await placement.ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogWarning(ex, "Placing the VLC window failed"); }
+        }
+        if (deferredUri is not null)
+        {
+            if (RunState == VlcRunState.Running)
+                await OpenAsync(deferredUri, enqueue: false, subtitle: null, audioTrack: null, subtitleTrack: null, ct).ConfigureAwait(false);
+            else
+                _log.LogWarning("Cannot open {Uri}: VLC HTTP interface is not available", deferredUri);
+        }
     }
 
-    internal IEnumerable<string> BuildLaunchArgs(string? uri, int? displayIndex)
+    /// <param name="uri">Media to open (or <c>null</c>).</param>
+    /// <param name="fullscreenFollowsWindow">
+    /// The companion places the window itself: <c>--qt-fullscreen-screennumber=-1</c> overrides a screen number from
+    /// <c>vlcrc</c>, so fullscreen video opens on the monitor with the main window (Qt's screen order differs from ours).
+    /// </param>
+    internal IEnumerable<string> BuildLaunchArgs(string? uri, bool fullscreenFollowsWindow)
     {
         yield return "--extraintf";
         yield return "http:rc";
@@ -585,8 +657,8 @@ public sealed class VlcManager : IAsyncDisposable
         yield return "--rc-host";
         yield return $"127.0.0.1:{_settings.VlcRcPort}";
         yield return "--rc-quiet";
-        if (displayIndex is int d && d >= 0)
-            yield return $"--qt-fullscreen-screennumber={d}";
+        if (fullscreenFollowsWindow)
+            yield return "--qt-fullscreen-screennumber=-1";
         if (_settings.LaunchFullscreen)
             yield return "--fullscreen";
         if (!string.IsNullOrWhiteSpace(_settings.VlcExtraArgs))
@@ -1054,6 +1126,22 @@ public sealed class VlcManager : IAsyncDisposable
         }
 
         if (result is not null) _lastStatus = result;
+        Poke();
+    }
+
+    /// <summary>Fullscreen state of the video output; <c>null</c> — VLC is not under control.</summary>
+    public async Task<bool?> GetFullscreenAsync(CancellationToken ct)
+    {
+        if (RunState != VlcRunState.Running) return null;
+        var status = await _http.GetStatusAsync(ct).ConfigureAwait(false);
+        return status.Fullscreen;
+    }
+
+    public async Task SetFullscreenAsync(bool on, CancellationToken ct)
+    {
+        if (RunState != VlcRunState.Running) return;
+        var fresh = await _http.GetStatusAsync(ct).ConfigureAwait(false);
+        if (fresh.Fullscreen != on) _lastStatus = await Cmd("fullscreen", ct).ConfigureAwait(false);
         Poke();
     }
 

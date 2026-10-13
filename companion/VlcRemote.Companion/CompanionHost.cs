@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Vlc;
+using VlcRemote.Core.Displays;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
@@ -48,6 +49,17 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Metadata,
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
+        if (settings.MigratePreferredDisplay(display.GetMonitors()))
+        {
+            settingsStore.Save(settings);
+            _log.LogInformation("Migrated the preferred display index to id {Id}", settings.PreferredDisplayId ?? "(none)");
+        }
+        Displays = new DisplayController(display, new SettingsDisplayPreference(settings, settingsStore), new VlcWindowHost(vlc, display), log);
+        Displays.Changed += _vlc.Poke;
+        display.TopologyChanged += _vlc.Poke;
+        _vlc.ProcessAppeared += OnVlcProcessAppeared;
+        _vlc.LaunchTargetResolver = ResolveLaunchTarget;
+        _vlc.PlaceLaunchedWindowAsync = (pid, target, ct) => Displays.PlaceNewWindowAsync(pid, startedBeforeCompanion: false, target, ct);
         _vlc.SystemInfoProvider = BuildSystemInfo;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -64,6 +76,9 @@ public sealed class CompanionHost : ISessionHost
     /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
     public VlcInfo VlcInfo => _vlc.Info;
+
+    /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
+    public DisplayController Displays { get; }
     public PairingService Pairing { get; }
 
     /// <summary>Решения об автоматическом окне сопряжения (ограничение частоты, «не создавать второй код»).</summary>
@@ -104,19 +119,42 @@ public sealed class CompanionHost : ISessionHost
     private SystemInfo BuildSystemInfo()
     {
         var vol = _audio.GetSystemVolume();
-        int? display = null;
-        if (_vlc.ProcessId is int pid && _vlc.RunState == VlcRunState.Running)
-        {
-            try { display = _display.FindDisplayOfProcess(pid); } catch { }
-        }
+        MonitorInfo? display = null;
+        try { display = Displays.FindVlcMonitor(); }
+        catch (Exception ex) { _log.LogDebug(ex, "Monitor of the VLC window not found"); }
         return new SystemInfo
         {
             Volume = vol?.Percent,
             Muted = vol?.Muted,
             AudioDevice = _vlc.LastAudioDevice,
-            Display = display ?? _settings.PreferredDisplay,
+            Display = display?.Index,
+            DisplayId = display?.Id,
+            PreferredDisplayId = Displays.PreferredId,
             KeepAwake = _power.KeepAwakeEnabled,
         };
+    }
+
+    /// <summary>A VLC opened outside the companion (e.g. a double-click on a movie): place its window once.</summary>
+    private void OnVlcProcessAppeared(VlcProcessAppeared appeared)
+    {
+        if (appeared.Owned) return; // the launch places its own window
+        _ = Task.Run(async () =>
+        {
+            try { await Displays.PlaceNewWindowAsync(appeared.Pid, appeared.StartedBeforeCompanion, targetId: null, CancellationToken.None).ConfigureAwait(false); }
+            catch (Exception ex) { _log.LogWarning(ex, "Placing the window of VLC {Pid} failed", appeared.Pid); }
+        });
+    }
+
+    /// <summary>
+    /// Monitor for a companion-launched VLC window: the one-off legacy <c>display</c> index or the preferred monitor,
+    /// if connected; <c>null</c> with a single monitor (nothing to choose) or when the window is not managed.
+    /// </summary>
+    private string? ResolveLaunchTarget(int? displayIndex)
+    {
+        var monitors = _display.GetMonitors();
+        if (monitors.Count < 2) return null;
+        var target = displayIndex is int i ? MonitorTopology.FindByIndex(monitors, i) : MonitorTopology.FindById(monitors, Displays.PreferredId);
+        return target?.Id;
     }
 
     public Task<StateMessage> GetStateAsync(CancellationToken ct) => _vlc.GetStateAsync(ct);
@@ -125,18 +163,11 @@ public sealed class CompanionHost : ISessionHost
 
     public async Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
     {
+        if (DisplayController.Handles(name))
+            return await Displays.ExecuteAsync(name, args, ct).ConfigureAwait(false);
+
         switch (name)
         {
-            case "listDisplays":
-                return new DisplaysMessage { Items = _display.ListDisplays() };
-
-            case "moveToDisplay":
-            {
-                var index = args.RequireInt("display");
-                await MoveToDisplayAsync(index, ct).ConfigureAwait(false);
-                return null;
-            }
-
             case "keepAwake":
             {
                 var on = args.RequireBool("on");
@@ -181,34 +212,6 @@ public sealed class CompanionHost : ISessionHost
             default:
                 throw ProtocolException.Unsupported($"unknown sys command '{name}'");
         }
-    }
-
-    /// <summary>Перенести окно VLC на экран: снять полный экран → SetWindowPos → полный экран.</summary>
-    public async Task MoveToDisplayAsync(int index, CancellationToken ct)
-    {
-        if (_display.GetScreen(index) is null) throw ProtocolException.BadRequest($"no display with index {index}");
-        _settings.PreferredDisplay = index;
-        _settingsStore.Save(_settings);
-
-        if (_vlc.RunState != VlcRunState.Running || _vlc.ProcessId is not int pid)
-            throw ProtocolException.VlcNotRunning();
-
-        var state = await _vlc.GetStateAsync(ct).ConfigureAwait(false);
-        if (state.Video.Fullscreen)
-        {
-            await _vlc.ExecuteCommandAsync("fullscreen", new CommandArgs(ParseArgs("""{"on":false}""")), ct).ConfigureAwait(false);
-            await Task.Delay(400, ct).ConfigureAwait(false);
-        }
-        var moved = _display.MoveWindowToDisplay(pid, index);
-        if (!moved) throw ProtocolException.VlcError(ProtocolText.VlcWindowNotFound);
-        await Task.Delay(300, ct).ConfigureAwait(false);
-        await _vlc.ExecuteCommandAsync("fullscreen", new CommandArgs(ParseArgs("""{"on":true}""")), ct).ConfigureAwait(false);
-    }
-
-    private static System.Text.Json.JsonElement ParseArgs(string json)
-    {
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        return doc.RootElement.Clone();
     }
 
     public Task<IReadOnlyList<BrowseEntry>> BrowseAsync(string uri, CancellationToken ct) => _vlc.BrowseAsync(uri, ct);
