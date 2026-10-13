@@ -1,7 +1,9 @@
 # vlc-remote — правила проекта
 
-Android‑пульт для VLC на Windows‑ПК у телевизора + Windows‑компаньон. Общение с пользователем,
-документация, UI‑строки, заголовки и описания PR — **по‑русски**; идентификаторы и код — по‑английски.
+Android‑пульт для VLC на Windows‑ПК у телевизора + Windows‑компаньон.
+
+**Языки.** Общение с пользователем, документация в `docs/`, README, UI‑строки, сообщения скриптов — по‑русски.
+**Коммиты, заголовки и описания PR (включая release notes) — по‑английски.** Идентификаторы и код — по‑английски.
 
 ## Где что
 
@@ -11,8 +13,8 @@ Android‑пульт для VLC на Windows‑ПК у телевизора + Wi
   `protocol/vlc-http.md` — прямой HTTP‑режим VLC и все его причуды.
 - `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 9 (`VlcRemote.Core`,
   `VlcRemote.Companion`, тесты), `companion/lua/` — Lua‑страницы для VLC.
-- `scripts/deploy.ps1` — установка/обновление сборок на Windows, `scripts/release_notes.py` — проверка PR и
-  сборка release notes.
+- `scripts/deploy-windows.ps1` — компаньон на Windows, `scripts/deploy-android.ps1` — приложение на телефон,
+  `scripts/deploy-lib.ps1` — их общий код; `scripts/release_notes.py` — проверка PR и сборка release notes.
 
 ## Сборка и тесты
 
@@ -34,81 +36,93 @@ Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 — привязаны к
 
 - В `main` — только через PR со **squash‑мержем** (настроено в репозитории: заголовок коммита = заголовок PR,
   тело = описание PR, ветка удаляется после мержа). Прямые пуши в `main` не делать.
-- Ветка: `<тип>/<коротко-через-дефис>`, например `feat/bt-transport`, `fix/companion-port`.
-- Коммиты внутри ветки — произвольные, но осмысленные; в историю `main` попадает заголовок PR.
+- Ветка: `<type>/<short-kebab-case>`, например `feat/bt-transport`, `fix/companion-port`.
+- Сообщения коммитов — по‑английски, в стиле заголовка PR (`fix(android): handle empty playlist`);
+  в историю `main` попадает заголовок PR.
 
-## Pull request'ы и release notes
+## Pull requests and release notes
 
-**Заголовок**: `<тип>(<область>): <что сделано>` — по‑русски, с маленькой буквы, без точки, ≤ 72 символов.
+**Title** (English): `<type>(<scope>): <summary>` — lower case, imperative mood, no trailing period, ≤ 72 chars.
 
-| Тип | Когда | Раздел в релизе |
+| Type | When | Release section |
 |---|---|---|
-| `feat` | новая возможность для пользователя | Новое |
-| `fix` | исправление ошибки | Исправления |
-| `perf`, `refactor` | ускорение, переработка без смены поведения | Улучшения |
-| `docs`, `test`, `build`, `ci`, `chore`, `revert` | всё остальное | Прочее (если есть заметки) |
-| `<тип>!` (например `feat(protocol)!:`) | ломающее изменение: несовместимый протокол, нужна переустановка | ⚠️ Важно |
+| `feat` | new user-facing capability | New |
+| `fix` | bug fix | Fixes |
+| `perf`, `refactor` | faster / reworked without behaviour change | Improvements |
+| `docs`, `test`, `build`, `ci`, `chore`, `revert` | everything else | Other (only if it has notes) |
+| `<type>!` (e.g. `feat(protocol)!:`) | breaking: incompatible protocol, reinstall needed | ⚠️ Breaking changes |
 
-Области: `android`, `companion`, `protocol`, `lua`, `deploy`, `docs`, `ci`, `deps` (несколько — через запятую).
+Scopes: `android`, `companion`, `protocol`, `lua`, `deploy`, `docs`, `ci`, `deps` (comma-separated if several).
 
-**Описание** — по шаблону `.github/pull_request_template.md`:
+**Description** (English), following `.github/pull_request_template.md`:
 
-- `## Что сделано` — для ревьюера: что и почему поменялось.
-- `## Release notes` — **для пользователя пульта**, попадает в релиз дословно: пункты `- …`, по одному на
-  заметное изменение, без имён классов и файлов («Пульт показывает дорожки с языками», «Компаньон больше не
-  падает, если VLC закрыли во время перемотки»). Если изменение пользователю не видно — одно слово `нет`.
-  Для `feat`/`fix` секция обязана быть непустой.
-- `## Как проверено` — команды тестов, ручные проверки.
-- `## Проверить на устройстве` — что осталось проверить на телефоне / ноутбуке у ТВ, или `—`.
+- `## Summary` — for the reviewer: what changed and why.
+- `## Release notes` — **for the remote's user**, copied verbatim into the release: `- …` bullets, one per
+  visible change, no class or file names ("The remote shows audio tracks with their languages", "The companion
+  no longer crashes when VLC is closed during seeking"). If users won't notice anything — the single word `none`.
+  Must not be `none` for `feat`/`fix`.
+- `## Testing` — test commands, manual checks.
+- `## Device checks pending` — what still needs checking on the phone / the TV laptop, or `—`.
 
-Workflow **PR** (`.github/workflows/pr.yml`) проверяет заголовок и секцию release notes
-(`scripts/release_notes.py check`); **CI** собирает и тестирует обе части. Проверить локально:
+The **PR** workflow (`.github/workflows/pr.yml`) validates the title format, English language and the release
+notes section (`scripts/release_notes.py check`); **CI** builds and tests both parts. Local check:
 
 ```powershell
 $env:PR_TITLE='feat(android): …'; $env:PR_BODY=Get-Content body.md -Raw; python scripts\release_notes.py check
 ```
 
-Создание PR из консоли: `gh pr create --title "<заголовок>" --body-file <файл>`; мерж: `gh pr merge --squash`.
+Create from the console: `gh pr create --title "<title>" --body-file <file>`; merge: `gh pr merge --squash`.
 
 ## Версии и сборки
 
 - Базовая версия — файл `VERSION` (SemVer `MAJOR.MINOR.PATCH`), из него берут версию компаньон (`VersionPrefix`)
   и Android (`versionName`). `versionCode` = число коммитов в `main` (`git rev-list --count HEAD`).
 - **Тестовая сборка** (pre‑release `v<VERSION>-beta.<N>`) создаётся автоматически на каждый мерж в `main`
-  (`.github/workflows/release.yml`). Её описание — release notes смёрдженного PR + инструкция по установке.
-  Файлы: `VlcRemote.Companion-<версия>-win-x64.zip`, `VlcRemote-<версия>.apk`, `deploy.ps1`, `deploy.cmd`.
+  (`.github/workflows/release.yml`). Описание — release notes смёрдженного PR + инструкция по установке.
+  Файлы: `VlcRemote.Companion-<версия>-win-x64.zip`, `VlcRemote-<версия>.apk`, `deploy-*.ps1/.cmd`.
 - **Релиз** `v<VERSION>`: Actions → Release → Run workflow → `stable` (или
   `gh workflow run release.yml -f channel=stable`). Заметки собираются из всех PR, смёрдженных после
-  предыдущего релиза, сгруппированные по разделам. Если тег уже есть — workflow падает.
+  предыдущего релиза, по разделам. Если тег уже есть — workflow падает.
 - **После релиза** первый PR поднимает `VERSION`: `feat` → MINOR, только `fix` → PATCH, `!` → MAJOR
   (пока версия `0.x` — MINOR). Можно поднимать и в PR с самой фичей.
 
-## Развёртывание на Windows
+## Развёртывание: Windows
 
-`scripts\deploy.ps1` (или двойной клик по `scripts\deploy.cmd`):
+`scripts\deploy-windows.ps1` (или двойной клик по `deploy-windows.cmd`):
 
 | Команда | Что делает |
 |---|---|
-| `deploy.ps1` | последняя тестовая сборка компаньона из GitHub Releases (нужен `gh auth login`) |
-| `deploy.ps1 -Apk` / `-ApkOnly` | + APK по adb (USB или `adb connect <ip>:<порт>`) — **только на разрешённые устройства** |
-| `deploy.ps1 -ListDevices` | подключённые по adb устройства и список разрешённых |
-| `deploy.ps1 -AllowDevice <serial>` / `-DisallowDevice <serial>` | добавить/убрать устройство (серийный номер `ro.serialno`) |
-| `deploy.ps1 -Channel stable` / `-Tag v0.2.0-beta.12` | последний релиз / конкретная сборка |
-| `deploy.ps1 -Local [-Apk]` | собрать из рабочей копии и поставить |
-| `deploy.ps1 -CheckOnly` | сравнить установленную версию с последней |
-| `deploy.ps1 -Firewall` | правила брандмауэра для компаньона и VLC (частная сеть, один запрос UAC) |
-| `deploy.ps1 -Autostart` | автозапуск при входе в Windows |
-| `deploy.ps1 -Rollback` | вернуть предыдущую версию (`app.prev`) |
-| `deploy.ps1 -Uninstall [-Purge]` | удалить компаньон (с `-Purge` — и настройки, сопряжения, журналы) |
+| `deploy-windows.ps1` | последняя тестовая сборка компаньона из GitHub Releases (нужен `gh auth login`) |
+| `-Channel stable` / `-Tag v0.2.0-beta.12` | последний релиз / конкретная сборка |
+| `-Local` | собрать из рабочей копии и поставить |
+| `-CheckOnly` | сравнить установленную версию с последней |
+| `-Firewall` / `-Autostart` | правила брандмауэра для компаньона и VLC (частная сеть, один UAC) / автозапуск |
+| `-Rollback` | вернуть предыдущую версию (`app.prev`) |
+| `-Uninstall [-Purge]` | удалить (с `-Purge` — и настройки, сопряжения, журналы) |
 
 Компаньон ставится в `%LOCALAPPDATA%\VlcRemote\app` без прав администратора; перед заменой файлов старый
 экземпляр закрывается штатно (`VlcRemote.Companion.exe --shutdown`). При нехватке .NET 9 Desktop/ASP.NET Core
-Runtime скрипт ставит их через winget. На ноутбуке без клона репозитория — команда из описания любого релиза.
+Runtime скрипт ставит их через winget.
 
-APK ставится только на устройства из `%USERPROFILE%\.vlc-remote\devices.json` (вне git): остальные подключённые
-по adb устройства — например, велокомпьютер Karoo из соседнего проекта — пропускаются с сообщением. Пустой список =
-отказ. Сейчас разрешён один телефон: Samsung Galaxy S24 (`RFCWC0SSKZK`). Wi‑Fi‑отладка: сопряжение один раз
-(`adb pair <ip>:<порт> <код>`), после перезагрузки телефона или смены сети — `adb connect <ip>:<новый порт>`.
+## Развёртывание: Android
+
+`scripts\deploy-android.ps1` (или `deploy-android.cmd`) ставит APK по adb **только на разрешённые устройства**
+из `%USERPROFILE%\.vlc-remote\devices.json` (вне git, по серийному номеру `ro.serialno`). Остальные подключённые
+устройства — например, велокомпьютер Karoo из соседнего проекта — пропускаются с сообщением; пустой список =
+отказ. Сейчас разрешён Samsung Galaxy S24 (`RFCWC0SSKZK`).
+
+| Команда | Что делает |
+|---|---|
+| `deploy-android.ps1` | последняя тестовая сборка на разрешённые подключённые телефоны (та же версия — пропуск) |
+| `-Connect 192.168.0.16:36457` | сначала `adb connect` (Wi‑Fi‑отладка), потом установка |
+| `-Channel stable` / `-Tag …` / `-Local` | релиз / конкретная сборка / сборка из исходников (нужен `keystore.properties`) |
+| `-CheckOnly` / `-Force` | показать версии на телефонах / переустановить ту же версию |
+| `-ListDevices` | подключённые и разрешённые устройства |
+| `-AllowDevice <serial>` / `-DisallowDevice <serial>` | добавить / убрать устройство |
+
+Wi‑Fi‑отладка (Android 11+): «Для разработчиков» → «Отладка по Wi‑Fi». Сопряжение один раз
+(`adb pair <ip>:<порт сопряжения> <код>`), после перезагрузки телефона или смены сети — `-Connect <ip>:<новый порт>`.
+Если разрешённого телефона нет, APK сохраняется в `%LOCALAPPDATA%\VlcRemote\apk`.
 
 ## Подпись APK
 

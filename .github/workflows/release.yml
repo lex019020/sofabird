@@ -1,7 +1,7 @@
 name: Release
 
-# Каждый мерж в main → тестовая сборка (pre-release v<VERSION>-beta.<N>) с release notes из PR.
-# Ручной запуск (channel=stable) → релиз v<VERSION> с заметками всех PR после прошлого релиза.
+# Every merge into main -> test build (pre-release v<VERSION>-beta.<N>) with the PR's release notes.
+# Manual run (channel=stable) -> release v<VERSION> with the notes of all PRs since the previous release.
 on:
   push:
     branches: [main]
@@ -158,14 +158,15 @@ jobs:
           python3 - <<'PY' >> notes.md
           import os
           tag, repo = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"]
-          print(f"""
+          print(rf"""
           ---
-          **Установка и обновление на Windows** (нужен [gh](https://cli.github.com) с доступом к репозиторию):
+          **Install or update** (needs [gh](https://cli.github.com) with access to the repository):
           ```powershell
-          gh release download {tag} --repo {repo} --pattern 'deploy.*' --dir $env:TEMP\\vlcremote --clobber
-          & $env:TEMP\\vlcremote\\deploy.ps1 -Tag {tag} -Apk
+          gh release download {tag} --repo {repo} --pattern 'deploy-*' --dir $env:TEMP\vlcremote --clobber
+          & $env:TEMP\vlcremote\deploy-windows.ps1 -Tag {tag}    # companion on the Windows PC
+          & $env:TEMP\vlcremote\deploy-android.ps1 -Tag {tag}    # app on allowed phones via adb
           ```
-          Или скачайте `deploy.cmd` и `deploy.ps1` из этого релиза и запустите `deploy.cmd`. APK можно поставить и вручную.""".replace("\n          ", "\n"))
+          Or download the `deploy-*` files from this release and double-click `deploy-windows.cmd` / `deploy-android.cmd`. The APK can also be installed manually.""".replace("\n          ", "\n"))
           PY
           cat notes.md >> "$GITHUB_STEP_SUMMARY"
       - name: Create release
@@ -175,9 +176,9 @@ jobs:
           TAG: ${{ needs.meta.outputs.tag }}
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
-          cp scripts/deploy.ps1 scripts/deploy.cmd dist/
+          cp scripts/deploy-lib.ps1 scripts/deploy-windows.ps1 scripts/deploy-windows.cmd scripts/deploy-android.ps1 scripts/deploy-android.cmd dist/
           if [ "$CHANNEL" = "stable" ]; then
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "VLC Remote $VERSION" --notes-file notes.md --latest
           else
-            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$VERSION (тестовая)" --notes-file notes.md --prerelease
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$VERSION (test build)" --notes-file notes.md --prerelease
           fi
