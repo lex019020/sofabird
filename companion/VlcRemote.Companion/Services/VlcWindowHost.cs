@@ -1,3 +1,4 @@
+using VlcRemote.Core.Vlc;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
 

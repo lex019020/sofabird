@@ -125,7 +125,9 @@ internal static class Program
         var audio = new AudioService(lf.CreateLogger<AudioService>());
         var audioWatcher = new AudioDeviceWatcher(lf.CreateLogger<AudioDeviceWatcher>());
         var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
-        var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, lf.CreateLogger<CompanionHost>());
+        using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
+        var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
+            lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
@@ -201,15 +203,12 @@ internal static class Program
         vlc.Start();
         audioWatcher.Start();
         if (settings.AutoLaunchVlc && installation is not null)
-            _ = Task.Run(async () =>
-            {
-                try { await vlc.LaunchAsync(null, null, CancellationToken.None); }
-                catch (Exception ex) { log.LogWarning(ex, "Auto-launch of VLC failed"); }
-            });
+            background.Run("Auto-launch of VLC", ct => vlc.LaunchAsync(null, null, ct));
 
         async Task ShutdownAsync()
         {
             log.LogInformation("Shutting down");
+            background.Stop();
             power.KeepAwakeEnabled = false;
             audioWatcher.Dispose();
             dnssd.Dispose();

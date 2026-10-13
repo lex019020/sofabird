@@ -21,12 +21,14 @@ public sealed class CompanionHost : ISessionHost
     private readonly DisplayService _display;
     private readonly PowerService _power;
     private readonly AudioService _audio;
+    private readonly BackgroundWork _background;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
-        DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, ILogger<CompanionHost> log)
+        DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
+        ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -36,6 +38,7 @@ public sealed class CompanionHost : ISessionHost
         _display = display;
         _power = power;
         _audio = audio;
+        _background = background;
         _log = log;
         _baseCaps =
         [
@@ -161,16 +164,12 @@ public sealed class CompanionHost : ISessionHost
     {
         var wanted = _settings.VlcAudioDevice;
         if (string.IsNullOrEmpty(wanted) || !string.Equals(wanted, id, StringComparison.OrdinalIgnoreCase)) return;
-        _ = Task.Run(async () =>
+        _background.Run("Switching VLC back to the returned audio device", async ct =>
         {
-            try
-            {
-                // Windows reports the endpoint before audio can be opened on it.
-                await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-                if (await _vlc.RestoreAudioDeviceAsync(id, CancellationToken.None).ConfigureAwait(false))
-                    _log.LogInformation("Audio device {Id} is back: VLC switched back to it", id);
-            }
-            catch (Exception ex) { _log.LogWarning(ex, "Switching VLC back to audio device {Id} failed", id); }
+            // Windows reports the endpoint before audio can be opened on it.
+            await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
+            if (await _vlc.RestoreAudioDeviceAsync(id, ct).ConfigureAwait(false))
+                _log.LogInformation("Audio device {Id} is back: VLC switched back to it", id);
         });
     }
 
@@ -178,11 +177,8 @@ public sealed class CompanionHost : ISessionHost
     private void OnVlcProcessAppeared(VlcProcessAppeared appeared)
     {
         if (appeared.Owned) return; // the launch places its own window
-        _ = Task.Run(async () =>
-        {
-            try { await Displays.PlaceNewWindowAsync(appeared.Pid, appeared.StartedBeforeCompanion, targetId: null, CancellationToken.None).ConfigureAwait(false); }
-            catch (Exception ex) { _log.LogWarning(ex, "Placing the window of VLC {Pid} failed", appeared.Pid); }
-        });
+        _background.Run($"Placing the window of VLC {appeared.Pid}",
+            ct => Displays.PlaceNewWindowAsync(appeared.Pid, appeared.StartedBeforeCompanion, targetId: null, ct));
     }
 
     /// <summary>

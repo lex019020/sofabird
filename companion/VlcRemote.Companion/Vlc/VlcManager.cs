@@ -14,20 +14,6 @@ namespace VlcRemote.Companion.Vlc;
 /// <param name="StartedBeforeCompanion">The process is older than the companion (left where the user put it).</param>
 public sealed record VlcProcessAppeared(int Pid, bool Owned, bool StartedBeforeCompanion);
 
-public enum VlcRunState
-{
-    /// <summary>vlc.exe was not found on disk.</summary>
-    NotInstalled,
-    /// <summary>There is no vlc.exe process.</summary>
-    NotRunning,
-    /// <summary>The process was started by the companion, the interfaces are still coming up.</summary>
-    Starting,
-    /// <summary>vlc.exe is running, but the HTTP interface does not answer with our password.</summary>
-    RunningNoApi,
-    /// <summary>Full control: HTTP (+RC).</summary>
-    Running,
-}
-
 /// <summary>
 /// Owns the VLC lifecycle: finds/starts the process, polls HTTP (500 ms during
 /// playback / 2 s otherwise), keeps the RC socket for events, <c>adev</c> and the current tracks,
@@ -160,9 +146,7 @@ public sealed partial class VlcManager : IAsyncDisposable
                 _log.LogError(ex, "Poll failed");
             }
 
-            var delay = RunState == VlcRunState.Running && _lastStatus?.IsPlaying == true
-                ? TimeSpan.FromMilliseconds(500)
-                : RunState == VlcRunState.Starting ? TimeSpan.FromMilliseconds(500) : TimeSpan.FromSeconds(2);
+            var delay = VlcRunStatePolicy.PollDelay(RunState, _lastStatus?.IsPlaying == true);
             try
             {
                 await _wake.WaitAsync(delay, ct).ConfigureAwait(false);
@@ -203,15 +187,13 @@ public sealed partial class VlcManager : IAsyncDisposable
             catch (VlcException ex)
             {
                 _consecutiveHttpFailures++;
-                // A one-off failure (VLC busy opening a file) does not count as a loss of control.
-                if (RunState == VlcRunState.Running && _consecutiveHttpFailures < 3)
+                var startedRecently = (_owned is not null && !_owned.HasExited && DateTimeOffset.UtcNow - _ownedStartedAt < VlcRunStatePolicy.StartupGrace)
+                    || StartedRecently(process, VlcRunStatePolicy.StartupGrace); // opened by hand, HTTP is still coming up
+                if (VlcRunStatePolicy.AfterHttpFailure(RunState, _consecutiveHttpFailures, startedRecently) is not { } newState)
                 {
                     _log.LogDebug("VLC HTTP request failed ({Count} in a row): {Error}", _consecutiveHttpFailures, ex.Message);
                     return;
                 }
-                var starting = (_owned is not null && !_owned.HasExited && DateTimeOffset.UtcNow - _ownedStartedAt < TimeSpan.FromSeconds(20))
-                    || StartedRecently(process, TimeSpan.FromSeconds(20)); // opened by hand, HTTP is still coming up (the first start with a "stale plugins cache" takes ~12 s)
-                var newState = starting ? VlcRunState.Starting : VlcRunState.RunningNoApi;
                 if (RunState != newState)
                 {
                     _log.LogInformation("VLC process {Pid} is running but HTTP is not available: {Error}", process.Id, ex.Message);
