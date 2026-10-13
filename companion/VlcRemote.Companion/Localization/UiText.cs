@@ -74,6 +74,10 @@ internal static class UiText
     public static string TrayKeepAwake => S("TrayKeepAwake");
     /// <summary>Get test builds</summary>
     public static string TrayTestBuilds => S("TrayTestBuilds");
+    /// <summary>About VLC Remote…</summary>
+    public static string TrayAbout => S("TrayAbout");
+    /// <summary>VLC Remote Companion {0}  Free software under the GNU General Public License v3 or later, without any warranty. Source code: https://github.com/lex019020/vlc-remote  Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</summary>
+    public static string AboutText(object a0) => F("AboutText", a0);
     /// <summary>Open log</summary>
     public static string TrayOpenLog => S("TrayOpenLog");
     /// <summary>Open settings folder</summary>

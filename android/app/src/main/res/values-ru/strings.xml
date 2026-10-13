@@ -177,6 +177,8 @@
     <string name="settings_keep_connection">Держать соединение в фоне</string>
     <string name="settings_keep_connection_hint">Уведомление с кнопками, пока на ПК идёт воспроизведение; снимается через 10 минут после остановки.</string>
     <string name="settings_about">О программе</string>
+    <string name="about_license">VLC Remote — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
+    <string name="about_source">Исходный код</string>
     <string name="about_text">VLC Remote — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
 
     <!-- Notification -->

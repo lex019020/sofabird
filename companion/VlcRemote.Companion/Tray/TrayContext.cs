@@ -95,6 +95,7 @@ public sealed class TrayContext : ApplicationContext
         var setupItem = new ToolStripMenuItem(UiText.TraySetup, null, (_, _) => ShowSetup(firstRun: false));
         var logItem = new ToolStripMenuItem(UiText.TrayOpenLog, null, (_, _) => OpenLogs());
         var settingsItem = new ToolStripMenuItem(UiText.TrayOpenSettings, null, (_, _) => OpenFolder(_paths.DataDir));
+        var aboutItem = new ToolStripMenuItem(UiText.TrayAbout, null, (_, _) => ShowAbout());
         var exitItem = new ToolStripMenuItem(UiText.TrayExit, null, (_, _) => Exit());
 
         _menu = new ContextMenuStrip();
@@ -104,7 +105,7 @@ public sealed class TrayContext : ApplicationContext
             _pairItem, new ToolStripSeparator(),
             _launchItem, _restartItem, _quitVlcItem, _displaysItem, new ToolStripSeparator(),
             setupItem, _luaItem, _autostartItem, _keepAwakeItem, _testBuildsItem, new ToolStripSeparator(),
-            logItem, settingsItem, new ToolStripSeparator(),
+            logItem, settingsItem, aboutItem, new ToolStripSeparator(),
             exitItem,
         ]);
         _menu.Opening += (_, _) => RefreshMenu();
@@ -406,6 +407,10 @@ public sealed class TrayContext : ApplicationContext
         _balloonClick = onClick;
         _icon.ShowBalloonTip(timeoutMs, "VLC Remote", text, icon);
     }
+
+    /// <summary>GPL-3.0 §5(d): the license, no warranty and where the source is (and the TMDB attribution).</summary>
+    private static void ShowAbout() =>
+        MessageBox.Show(UiText.AboutText(AppVersion.Informational), "VLC Remote", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
     /// <summary>This start is the first one of a new version (an automatic update or a reinstall).</summary>
     public void ShowUpdated() => ShowBalloon(4000, UiText.BalloonUpdated(AppVersion.Informational), ToolTipIcon.Info);
