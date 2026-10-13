@@ -8,8 +8,10 @@ import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.HistoryChange
 import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryPage
+import dev.vlcremote.protocol.model.Library
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.ShowDetails
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -60,6 +62,14 @@ interface PlayerBackend {
     /** Companion `historyClear`. */
     suspend fun clearHistory(): Result<Unit> =
         Result.failure(UnsupportedOperationException("watch history needs the companion"))
+
+    /** Companion `getLibrary` (needs `library` capability). */
+    suspend fun library(): Result<Library> =
+        Result.failure(UnsupportedOperationException("the library needs the companion"))
+
+    /** Companion `getShow`: one series with its episodes. */
+    suspend fun show(key: String): Result<ShowDetails> =
+        Result.failure(UnsupportedOperationException("the library needs the companion"))
 
     /** Ask the backend to re-fetch state now (e.g. after returning to the foreground). */
     suspend fun refresh()

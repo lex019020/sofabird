@@ -319,4 +319,25 @@
     <string name="notif_resume_text">Continue from %1$s?</string>
     <string name="notif_next_text">Next: %1$s</string>
     <string name="notif_play_next">Play next</string>
+    <string name="media_view_posters">Posters</string>
+    <string name="media_view_folders">Folders</string>
+    <string name="media_filter_all">All</string>
+    <string name="media_movies">Movies</string>
+    <string name="media_shows">Series</string>
+    <string name="media_scanning">The PC is looking through the media folders…</string>
+    <string name="media_empty">No movies or series yet. Choose the media folders on the PC: tray icon → Setup and permissions → Media folders.</string>
+    <string name="media_tmdb">Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
+    <string name="media_rating">★ %1$s</string>
+    <string name="media_versions">Versions</string>
+    <string name="media_season">Season %1$d</string>
+    <string name="media_episode">Episode %1$d</string>
+    <string name="media_episode_code">S%1$d · E%2$d</string>
+    <plurals name="media_episodes">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
+    <plurals name="media_unwatched">
+        <item quantity="one">%d new</item>
+        <item quantity="other">%d new</item>
+    </plurals>
 </resources>

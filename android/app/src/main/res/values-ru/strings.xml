@@ -332,4 +332,29 @@
     <string name="notif_resume_text">Продолжить с %1$s?</string>
     <string name="notif_next_text">Далее: %1$s</string>
     <string name="notif_play_next">Смотреть следующую</string>
+    <string name="media_view_posters">Постеры</string>
+    <string name="media_view_folders">Папки</string>
+    <string name="media_filter_all">Все</string>
+    <string name="media_movies">Фильмы</string>
+    <string name="media_shows">Сериалы</string>
+    <string name="media_scanning">ПК просматривает медиапапки…</string>
+    <string name="media_empty">Фильмов и сериалов пока нет. Выберите медиапапки на ПК: значок в трее → Настройка и разрешения → Медиапапки.</string>
+    <string name="media_tmdb">Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.</string>
+    <string name="media_rating">★ %1$s</string>
+    <string name="media_versions">Версии</string>
+    <string name="media_season">Сезон %1$d</string>
+    <string name="media_episode">Серия %1$d</string>
+    <string name="media_episode_code">S%1$d · E%2$d</string>
+    <plurals name="media_episodes">
+        <item quantity="one">%d серия</item>
+        <item quantity="few">%d серии</item>
+        <item quantity="many">%d серий</item>
+        <item quantity="other">%d серии</item>
+    </plurals>
+    <plurals name="media_unwatched">
+        <item quantity="one">%d новая</item>
+        <item quantity="few">%d новые</item>
+        <item quantity="many">%d новых</item>
+        <item quantity="other">%d новой</item>
+    </plurals>
 </resources>

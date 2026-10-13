@@ -28,8 +28,10 @@ import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.HistoryChange
 import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryPage
+import dev.vlcremote.protocol.model.Library
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.ShowDetails
 import dev.vlcremote.protocol.model.VlcVolume
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -285,6 +287,12 @@ class PlayerController(
     /** Failures are reported through [events]. */
     suspend fun clearHistory(): Result<Unit> =
         withBackend { it.clearHistory() }.onFailure { _events.tryEmit(PlayerEvent.RequestFailed(it)) }
+
+    // ------------------------------------------------------------------ library (`library` capability)
+
+    suspend fun library(): Result<Library> = withBackend { it.library() }
+
+    suspend fun show(key: String): Result<ShowDetails> = withBackend { it.show(key) }
 
     /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */
     fun retryNow() {

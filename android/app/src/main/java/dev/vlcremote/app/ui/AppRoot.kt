@@ -69,6 +69,7 @@ import dev.vlcremote.app.ui.connection.ConnectionScreen
 import dev.vlcremote.app.ui.history.HistoryScreen
 import dev.vlcremote.app.ui.history.ResumePromptHost
 import dev.vlcremote.app.ui.library.LibraryScreen
+import dev.vlcremote.app.ui.media.ShowScreen
 import dev.vlcremote.app.ui.permissions.PermissionsScreen
 import dev.vlcremote.app.ui.permissions.isGranted
 import dev.vlcremote.app.ui.playlist.PlaylistScreen
@@ -88,6 +89,8 @@ object Routes {
     const val CONNECTION = "connection"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
+    const val SHOW = "show/{key}"
+    fun show(key: String) = "show/" + android.net.Uri.encode(key)
     val tabs = listOf(REMOTE, LIBRARY, PLAYLIST)
 }
 
@@ -262,12 +265,23 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                 LibraryScreen(
                     onPlayed = { navController.navigate(Routes.REMOTE) },
                     onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                    onOpenShow = { key -> navController.navigate(Routes.show(key)) { launchSingleTop = true } },
                 )
             }
             composable(Routes.HISTORY) {
                 HistoryScreen(
                     onBack = { navController.popBackStack() },
                     // Like a tap in the Library: back to the remote (History closes).
+                    onPlayed = {
+                        navController.popBackStack()
+                        navController.navigate(Routes.REMOTE)
+                    },
+                )
+            }
+            composable(Routes.SHOW) { entry ->
+                ShowScreen(
+                    key = entry.arguments?.getString("key").orEmpty(),
+                    onBack = { navController.popBackStack() },
                     onPlayed = {
                         navController.popBackStack()
                         navController.navigate(Routes.REMOTE)

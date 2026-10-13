@@ -25,6 +25,8 @@ import dev.vlcremote.app.service.ServiceCoordinator
 import dev.vlcremote.app.ui.connection.ConnectionViewModel
 import dev.vlcremote.app.ui.history.HistoryViewModel
 import dev.vlcremote.app.ui.library.LibraryViewModel
+import dev.vlcremote.app.ui.media.MediaViewModel
+import dev.vlcremote.app.ui.media.ShowViewModel
 import dev.vlcremote.app.ui.playlist.PlaylistViewModel
 import dev.vlcremote.app.ui.remote.RemoteViewModel
 import dev.vlcremote.app.ui.settings.SettingsViewModel
@@ -73,5 +75,7 @@ val appModule = module {
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { PlaylistViewModel(get(), get()) }
     viewModel { HistoryViewModel(get(), get()) }
+    viewModel { MediaViewModel(get(), get()) }
+    viewModel { params -> ShowViewModel(params.get(), get(), get()) }
     viewModel { SettingsViewModel(get()) }
 }

@@ -24,6 +24,14 @@ import dev.vlcremote.app.ui.library.Crumb
 import dev.vlcremote.app.ui.library.LibraryActions
 import dev.vlcremote.app.ui.library.LibraryContent
 import dev.vlcremote.app.ui.library.LibraryUiState
+import dev.vlcremote.app.ui.media.LibraryViewSwitch
+import dev.vlcremote.app.ui.media.MediaActions
+import dev.vlcremote.app.ui.media.MediaContent
+import dev.vlcremote.app.ui.media.MediaUiState
+import dev.vlcremote.app.ui.media.MovieDetails
+import dev.vlcremote.app.ui.media.ShowActions
+import dev.vlcremote.app.ui.media.ShowContent
+import dev.vlcremote.app.ui.media.ShowUiState
 import dev.vlcremote.app.ui.playlist.PlaylistActions
 import dev.vlcremote.app.ui.playlist.PlaylistContent
 import dev.vlcremote.app.ui.playlist.PlaylistUiState
@@ -40,12 +48,17 @@ import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.EntryType
 import dev.vlcremote.protocol.model.HistoryItem
+import dev.vlcremote.protocol.model.LibraryEpisode
+import dev.vlcremote.protocol.model.LibraryMovie
+import dev.vlcremote.protocol.model.LibraryShow
+import dev.vlcremote.protocol.model.MediaFile
 import dev.vlcremote.protocol.model.NextEpisode
 import dev.vlcremote.protocol.model.Playback
 import dev.vlcremote.protocol.model.PlaybackStatus
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlayingItem
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.ShowDetails
 import dev.vlcremote.protocol.model.Track
 import dev.vlcremote.protocol.model.Tracks
 import dev.vlcremote.protocol.model.VlcInfo
@@ -140,6 +153,23 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
         SettingsContent(AppSettings(), update = {}, onBack = {}, versionName = "0.4.0", versionCode = 250)
     }
 
+    @Test
+    fun posters() = snapshot("posters") {
+        MediaContent(posters, object : MediaActions {}, onOpenShow = {}, onPlayed = {}) {
+            LibraryViewSwitch(posters = true, onChange = {})
+        }
+    }
+
+    @Test
+    fun movie() = snapshot("movie") {
+        MovieDetails(posters.movies[0], onPlay = {})
+    }
+
+    @Test
+    fun show() = snapshot("show") {
+        ShowContent(show, object : ShowActions {}, onBack = {}, onPlayed = {})
+    }
+
     private fun snapshot(name: String, content: @Composable () -> Unit) {
         compose.setContent {
             VlcRemoteTheme(AppSettings()) { Surface { content() } }
@@ -204,6 +234,46 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             items = listOf(lotr, episode),
             groups = listOf(HistoryGroup(DateGroup.TODAY, listOf(lotr)), HistoryGroup(DateGroup.THIS_WEEK, listOf(episode))),
             total = 2,
+        )
+
+        private fun file(name: String, progress: Double? = null, finished: Boolean? = null) =
+            MediaFile("file:///D:/Media/$name", name, size = 4_500_000_000, progress = progress, finished = finished)
+
+        private val posters = MediaUiState(
+            available = true,
+            loaded = true,
+            movies = listOf(
+                LibraryMovie(
+                    "lotr|2001", "The Lord of the Rings: The Fellowship of the Ring", 2001,
+                    overview = "Young hobbit Frodo Baggins, after inheriting a mysterious ring from his uncle Bilbo, must leave " +
+                        "his home in order to keep it from falling into the hands of its evil creator.",
+                    rating = 8.4,
+                    files = listOf(file("lotr.2160p.mkv", progress = 0.21), file("lotr.1080p.mkv")),
+                ),
+                LibraryMovie("matrix|1999", "The Matrix", 1999, files = listOf(file("matrix.mkv", finished = true))),
+                LibraryMovie("unknown film|2020", "Unknown.Film.2020.WEB-DL", 2020, files = listOf(file("unknown.mkv"))),
+            ),
+            shows = listOf(
+                LibraryShow("severance", "Severance", 2022, episodes = 9, unwatched = 7),
+                LibraryShow("expanse", "The Expanse", 2015, episodes = 10, unwatched = 0),
+            ),
+        )
+
+        private val show = ShowUiState(
+            title = "Severance",
+            details = ShowDetails(
+                LibraryShow(
+                    "severance", "Severance", 2022,
+                    overview = "Mark leads a team of office workers whose memories have been surgically divided between " +
+                        "their work and personal lives.",
+                    episodes = 3, unwatched = 2,
+                ),
+                listOf(
+                    LibraryEpisode(1, 1, "Good News About Hell", file = file("S01E01.mkv", progress = 1.0, finished = true)),
+                    LibraryEpisode(1, 2, "Half Loop", file = file("S01E02.mkv", progress = 0.4)),
+                    LibraryEpisode(2, 1, null, file = file("Severance.S02E01.1080p.WEB-DL.mkv")),
+                ),
+            ),
         )
 
         private val savedPc = SavedServer(

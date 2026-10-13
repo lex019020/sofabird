@@ -67,6 +67,9 @@ import dev.vlcremote.app.ui.history.WatchProgressBar
 import dev.vlcremote.app.ui.history.WatchedMark
 import dev.vlcremote.app.ui.history.displayTitle
 import dev.vlcremote.app.ui.history.historyBadge
+import dev.vlcremote.app.ui.media.LibraryViewSwitch
+import dev.vlcremote.app.ui.media.MediaContent
+import dev.vlcremote.app.ui.media.MediaViewModel
 import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.HistoryItem
 import org.koin.androidx.compose.koinViewModel
@@ -88,17 +91,76 @@ interface LibraryActions {
     fun removeFromHistory(item: HistoryItem) {}
 }
 
+/**
+ * The Library tab: with a companion library, the posters ([MediaContent]) or the folders ([LibraryContent]), chosen
+ * with a switch on top; "Continue watching" heads both.
+ */
 @Composable
-fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: LibraryViewModel = koinViewModel()) {
+fun LibraryScreen(
+    onPlayed: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenShow: (String) -> Unit,
+    viewModel: LibraryViewModel = koinViewModel(),
+    media: MediaViewModel = koinViewModel(),
+) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    val mediaUi by media.uiState.collectAsStateWithLifecycle()
     // The PC reports a changed history: refresh "Continue watching" and the progress marks (only while shown).
     val revision by viewModel.historyRevision.collectAsStateWithLifecycle(initialValue = null)
     LaunchedEffect(revision) { viewModel.onHistoryRevision(revision) }
-    LibraryContent(ui, viewModel, onPlayed, onOpenHistory)
+    val viewSwitch: @Composable () -> Unit = {
+        if (mediaUi.available) LibraryViewSwitch(mediaUi.postersView, media::setPostersView)
+    }
+    if (mediaUi.available && mediaUi.postersView) {
+        val tick = rememberTick(ui.haptics)
+        MediaContent(mediaUi, media, onOpenShow = { onOpenShow(it.key) }, onPlayed = onPlayed) {
+            viewSwitch()
+            ContinueSection(ui, viewModel, tick, onPlayed, onOpenHistory)
+        }
+        ContinueMenu(ui, viewModel, tick, onPlayed)
+    } else {
+        LibraryContent(ui, viewModel, onPlayed, onOpenHistory, header = viewSwitch)
+    }
+}
+
+/** "Continue watching" (or, with nothing to continue, a "History" link) when the companion keeps a history. */
+@Composable
+private fun ContinueSection(
+    ui: LibraryUiState,
+    actions: LibraryActions,
+    tick: () -> Unit,
+    onPlayed: () -> Unit,
+    onOpenHistory: () -> Unit,
+) {
+    if (!ui.historyEnabled) return
+    if (ui.continueCards.isEmpty()) {
+        HistoryLink(onOpenHistory)
+        return
+    }
+    ContinueWatchingRow(
+        cards = ui.continueCards,
+        onOpen = { card ->
+            tick()
+            actions.playHistory(card.item)
+            onPlayed()
+        },
+        onMenu = { card ->
+            tick()
+            actions.showContinueMenu(card.item)
+        },
+        onHistory = onOpenHistory,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
 }
 
 @Composable
-fun LibraryContent(ui: LibraryUiState, actions: LibraryActions, onPlayed: () -> Unit, onOpenHistory: () -> Unit) {
+fun LibraryContent(
+    ui: LibraryUiState,
+    actions: LibraryActions,
+    onPlayed: () -> Unit,
+    onOpenHistory: () -> Unit,
+    header: @Composable () -> Unit = {},
+) {
     val context = LocalContext.current
     val tick = rememberTick(ui.haptics)
 
@@ -107,10 +169,9 @@ fun LibraryContent(ui: LibraryUiState, actions: LibraryActions, onPlayed: () -> 
     // With a history the tab starts with "Continue watching" (or, with nothing to continue, a "History" link).
     val showContinue = ui.historyEnabled
     val listState = rememberLazyListState()
-    // Another folder opens at its top; a "Continue watching" row scrolled away stays away.
-    val headerIndex = if (showContinue) 1 else 0
+    // Another folder opens at its top (the toolbar, item 1); a header scrolled away stays away.
     LaunchedEffect(ui.uri) {
-        if (listState.firstVisibleItemIndex > headerIndex) listState.scrollToItem(headerIndex)
+        if (listState.firstVisibleItemIndex > 1) listState.scrollToItem(1)
     }
 
     if (!ui.online) {
@@ -124,25 +185,11 @@ fun LibraryContent(ui: LibraryUiState, actions: LibraryActions, onPlayed: () -> 
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            // "Continue watching" on top of the tab; it scrolls away, the folder toolbar then sticks.
-            if (showContinue && ui.continueCards.isEmpty()) {
-                item(key = "continue") { HistoryLink(onOpenHistory) }
-            } else if (showContinue) {
-                item(key = "continue") {
-                    ContinueWatchingRow(
-                        cards = ui.continueCards,
-                        onOpen = { card ->
-                            tick()
-                            actions.playHistory(card.item)
-                            onPlayed()
-                        },
-                        onMenu = { card ->
-                            tick()
-                            actions.showContinueMenu(card.item)
-                        },
-                        onHistory = onOpenHistory,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
+            // The view switch and "Continue watching" on top of the tab; they scroll away, the folder toolbar then sticks.
+            item(key = "continue") {
+                Column {
+                    header()
+                    ContinueSection(ui, actions, tick, onPlayed, onOpenHistory)
                 }
             }
             stickyHeader(key = "toolbar") {
@@ -218,6 +265,11 @@ fun LibraryContent(ui: LibraryUiState, actions: LibraryActions, onPlayed: () -> 
         }
     }
 
+    ContinueMenu(ui, actions, tick, onPlayed)
+}
+
+@Composable
+private fun ContinueMenu(ui: LibraryUiState, actions: LibraryActions, tick: () -> Unit, onPlayed: () -> Unit) {
     ui.continueMenuFor?.let { item ->
         ModalBottomSheet(onDismissRequest = { actions.showContinueMenu(null) }) {
             Text(
