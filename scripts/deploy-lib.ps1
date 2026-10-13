@@ -123,6 +123,8 @@ function Find-Adb {
         # Сервер adb запускаем отдельным процессом без наследования наших stdout/stderr: иначе демон,
         # стартовавший из `adb devices`, держит канал вывода открытым и вызывающий процесс ждёт вечно.
         # Без -Wait: в Windows PowerShell он ждёт и потомков, а демон adb живёт дальше.
+        # Встроенный mDNS-обнаружитель adb (Openscreen): сопряжённые по Wi-Fi телефоны находятся без порта.
+        $env:ADB_MDNS_OPENSCREEN = '1'
         $p = Start-Process -FilePath $adb -ArgumentList 'start-server' -WindowStyle Hidden -PassThru
         [void]$p.WaitForExit(15000)
         $script:AdbServerStarted = $true

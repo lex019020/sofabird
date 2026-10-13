@@ -15,7 +15,7 @@
 
 .EXAMPLE
   .\deploy-android.ps1                              # последняя тестовая сборка на разрешённые телефоны
-  .\deploy-android.ps1 -Connect 192.168.0.16:36457  # сначала adb connect, потом установка
+  .\deploy-android.ps1 -Connect 192.168.0.16:36457  # явно указать адрес (обычно не нужно: телефон ищется сам)
   .\deploy-android.ps1 -Channel stable              # последний релиз
   .\deploy-android.ps1 -Local                       # собрать из исходников и поставить
   .\deploy-android.ps1 -CheckOnly                   # какие версии стоят на телефонах
@@ -33,6 +33,7 @@ param(
     [switch]$CheckOnly,
     [switch]$Force,
     [switch]$ListDevices,
+    [switch]$NoAutoConnect,
     [string]$AllowDevice,
     [string]$DisallowDevice,
     [string]$DevicesFile = (Join-Path $env:USERPROFILE '.vlc-remote\devices.json'),
@@ -75,6 +76,109 @@ function Get-ConnectedDevices {
         }
     }
     return $result
+}
+
+function Update-AllowedDevice([string]$Serial, [hashtable]$Values) {
+    $list = @(Get-AllowedDevices)
+    foreach ($d in $list) {
+        if ($d.serial -ne $Serial) { continue }
+        foreach ($k in $Values.Keys) {
+            if ($null -eq $Values[$k]) { continue }
+            if ($d.PSObject.Properties[$k]) { $d.$k = $Values[$k] } else { $d | Add-Member -NotePropertyName $k -NotePropertyValue $Values[$k] }
+        }
+    }
+    Save-AllowedDevices $list
+}
+
+function Get-OpenPorts([string]$Ip, [int]$From = 30000, [int]$To = 49999, [int]$TimeoutMs = 300, [int]$Batch = 1500) {
+    # Порт отладки по Wi-Fi случайный (на практике 30000–49999); быстрый параллельный TCP-скан одного адреса.
+    $open = New-Object System.Collections.Generic.List[int]
+    for ($start = $From; $start -le $To; $start += $Batch) {
+        $end = [Math]::Min($To, $start + $Batch - 1)
+        $pending = @()
+        for ($port = $start; $port -le $end; $port++) {
+            $c = New-Object System.Net.Sockets.TcpClient
+            $pending += [pscustomobject]@{ Port = $port; Client = $c; Task = $c.ConnectAsync($Ip, $port) }
+        }
+        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]($pending | ForEach-Object { $_.Task }), $TimeoutMs) } catch {}
+        foreach ($x in $pending) {
+            if ($x.Task.Status -eq 'RanToCompletion' -and $x.Client.Connected) { $open.Add($x.Port) }
+            $x.Client.Dispose()
+        }
+    }
+    return $open.ToArray()
+}
+
+function Find-IpByMac([string]$Mac) {
+    if (-not $Mac) { return $null }
+    $norm = ($Mac -replace '[:\-]', '').ToUpperInvariant()
+    $hit = Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { ($_.LinkLayerAddress -replace '[:\-]', '').ToUpperInvariant() -eq $norm -and $_.State -ne 'Unreachable' } | Select-Object -First 1
+    if ($hit) { return $hit.IPAddress }
+    # Освежить ARP: пинг всей /24 своей сети (параллельно), затем ещё раз посмотреть таблицу.
+    $own = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.PrefixLength -eq 24 -and $_.IPAddress -notlike '169.254*' -and $_.IPAddress -ne '127.0.0.1' -and $_.InterfaceAlias -notmatch 'vEthernet|Loopback|Local Area Connection\*' }
+    foreach ($o in $own) {
+        $prefix = $o.IPAddress.Substring(0, $o.IPAddress.LastIndexOf('.') + 1)
+        $pings = 1..254 | ForEach-Object { (New-Object System.Net.NetworkInformation.Ping).SendPingAsync("$prefix$_", 600) }
+        try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$pings, 2500) } catch {}
+    }
+    $hit = Get-NetNeighbor -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { ($_.LinkLayerAddress -replace '[:\-]', '').ToUpperInvariant() -eq $norm -and $_.State -ne 'Unreachable' } | Select-Object -First 1
+    if ($hit) { return $hit.IPAddress }
+    return $null
+}
+
+function Test-AdbConnect([string]$Address) {
+    $ErrorActionPreference = 'Continue'
+    $adb = Find-Adb
+    $out = & $adb connect $Address 2>&1 | Out-String
+    if ($out -notmatch 'connected to') { return $false }
+    Start-Sleep -Milliseconds 600
+    $state = (& $adb -s $Address get-state 2>&1 | Out-String).Trim()
+    if ($state -eq 'device') { return $true }
+    & $adb disconnect $Address 2>&1 | Out-Null
+    return $false
+}
+
+function Connect-AllowedDevices {
+    # Найти и подключить разрешённые телефоны без ручного ввода порта:
+    # 1) уже подключён; 2) последний удачный адрес; 3) mDNS adb; 4) IP по MAC (ARP) или прежний IP + скан портов.
+    $ErrorActionPreference = 'Continue'
+    $adb = Find-Adb
+    $allowed = @(Get-AllowedDevices)
+    $connected = @(Get-ConnectedDevices)
+    foreach ($dev in $allowed) {
+        if ($connected | Where-Object { $_.Serial -eq $dev.serial }) { continue }
+        $name = if ($dev.name) { $dev.name } else { $dev.serial }
+        Write-Step "Ищу телефон $name"
+        $done = $null
+        if ($dev.lastIp -and $dev.lastPort -and (Test-AdbConnect "$($dev.lastIp):$($dev.lastPort)")) { $done = "$($dev.lastIp):$($dev.lastPort)" }
+        if (-not $done) {
+            # mDNS может держать и устаревшие записи (прежний порт): пробуем все адреса, новые (последние) первыми.
+            $addrs = @(& $adb mdns services 2>$null | Where-Object { $_ -match [regex]::Escape($dev.serial) -and $_ -match '_adb-tls-connect' } |
+                ForEach-Object { if ($_ -match '(\d{1,3}(?:\.\d{1,3}){3}:\d+)') { $Matches[1] } } | Select-Object -Unique)
+            [array]::Reverse($addrs)
+            foreach ($a in $addrs) { if (Test-AdbConnect $a) { $done = $a; break } }
+        }
+        if (-not $done) {
+            $ip = Find-IpByMac $dev.mac
+            if (-not $ip) { $ip = $dev.lastIp }
+            if ($ip) {
+                Write-Note "Проверяю порты отладки на $ip…"
+                foreach ($port in (Get-OpenPorts $ip)) {
+                    if (Test-AdbConnect "${ip}:$port") { $done = "${ip}:$port"; break }
+                }
+            }
+        }
+        if ($done) {
+            $parts = $done.Split(':')
+            $mac = $null
+            $line = & $adb -s $done shell 'ip link show wlan0' 2>$null | Where-Object { $_ -match 'link/ether ([0-9a-f:]{17})' } | Select-Object -First 1
+            if ($line -match 'link/ether ([0-9a-f:]{17})') { $mac = $Matches[1] }
+            Update-AllowedDevice $dev.serial @{ lastIp = $parts[0]; lastPort = [int]$parts[1]; mac = $mac }
+            Write-Ok "Подключено: $done"
+        } else {
+            Write-Note "Телефон $name не найден в сети. Проверьте, что он не спит, в той же сети и «Отладка по Wi‑Fi» включена."
+        }
+    }
 }
 
 function Get-InstalledApkVersion([string]$Id) {
@@ -143,7 +247,11 @@ if ($Connect) {
     $ErrorActionPreference = 'Stop'
     if ($out -notmatch 'connected to') { throw "Не удалось подключиться: $($out.Trim()). Проверьте адрес и порт на экране «Отладка по Wi‑Fi»; при первом подключении сначала adb pair." }
     Write-Ok $out.Trim()
+    $serial = (& $adb -s $Connect shell getprop ro.serialno 2>$null | Out-String).Trim()
+    if ($serial -and $Connect -match '^(\d{1,3}(?:\.\d{1,3}){3}):(\d+)$') { Update-AllowedDevice $serial @{ lastIp = $Matches[1]; lastPort = [int]$Matches[2] } }
 }
+
+if (-not $NoAutoConnect -and -not ($AllowDevice -or $DisallowDevice)) { Connect-AllowedDevices }
 
 if ($AllowDevice -or $DisallowDevice) {
     $list = @(Get-AllowedDevices)
