@@ -4,7 +4,7 @@ using Xunit;
 
 namespace VlcRemote.Core.Tests;
 
-public class LuaPagesInstallerTests : IDisposable
+public sealed class LuaPagesInstallerTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "vlcremote-tests", Guid.NewGuid().ToString("N"));
     private readonly string _stock;

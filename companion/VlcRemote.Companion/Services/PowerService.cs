@@ -63,7 +63,7 @@ public sealed class PowerService
             {
                 new() { type = NativeMethods.INPUT_MOUSE, U = new NativeMethods.InputUnion { mi = new NativeMethods.MOUSEINPUT { dwFlags = NativeMethods.MOUSEEVENTF_MOVE } } },
             };
-            NativeMethods.SendInput(1, input, Marshal.SizeOf<NativeMethods.INPUT>());
+            _ = NativeMethods.SendInput(1, input, Marshal.SizeOf<NativeMethods.INPUT>()); // best effort: SC_MONITORPOWER follows
             NativeMethods.SendMessageTimeout(NativeMethods.HWND_BROADCAST, NativeMethods.WM_SYSCOMMAND,
                 new IntPtr(NativeMethods.SC_MONITORPOWER), new IntPtr(-1), NativeMethods.SMTO_ABORTIFHUNG, 1000, out _);
         }

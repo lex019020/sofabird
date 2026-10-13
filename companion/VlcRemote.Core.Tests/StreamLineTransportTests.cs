@@ -61,7 +61,7 @@ public sealed class StreamLineTransportTests
 
         public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
         {
-            if (Disposed) throw new ObjectDisposedException(nameof(ChunkStream));
+            ObjectDisposedException.ThrowIf(Disposed, this);
             for (var i = 0; i < buffer.Length; i++)
             {
                 lock (_writeLock) _written.WriteByte(buffer.Span[i]);

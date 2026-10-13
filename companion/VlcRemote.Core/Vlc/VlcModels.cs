@@ -34,11 +34,11 @@ public sealed class VlcInformation
     public int Title { get; set; } = -1;
     public int TitleCount { get; set; }
     public IReadOnlyDictionary<string, string> Meta { get; set; } = new Dictionary<string, string>();
-    public IReadOnlyList<VlcStream> Streams { get; set; } = [];
+    public IReadOnlyList<VlcStreamInfo> Streams { get; set; } = [];
 }
 
 /// <summary>An <c>information.category["Stream N"]</c> item.</summary>
-public sealed class VlcStream
+public sealed class VlcStreamInfo
 {
     /// <summary>ID for <c>audio_track</c>/<c>subtitle_track</c>/<c>video_track</c> = <c>Original_ID</c> ?? N.</summary>
     public int Id { get; set; }

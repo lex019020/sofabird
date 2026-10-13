@@ -48,7 +48,7 @@ public class PairingServiceTests
     [Fact]
     public void Pair_ExpiresAfterFiveMinutes()
     {
-        var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-12T20:00:00Z"));
+        var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-12T20:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
         var svc = new PairingService(new InMemoryTokenStore(), time);
         var code = svc.BeginPairing();
         time.Advance(TimeSpan.FromMinutes(4).Add(TimeSpan.FromSeconds(59)));

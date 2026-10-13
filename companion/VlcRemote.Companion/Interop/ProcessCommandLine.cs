@@ -30,7 +30,8 @@ internal static class ProcessCommandLine
     {
         using var handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
         if (handle.IsInvalid) return null;
-        NtQueryInformationProcess(handle, ProcessCommandLineInformation, IntPtr.Zero, 0, out var needed);
+        // The probe fails with STATUS_INFO_LENGTH_MISMATCH by design; only the required size is used.
+        _ = NtQueryInformationProcess(handle, ProcessCommandLineInformation, IntPtr.Zero, 0, out var needed);
         if (needed <= 0 || needed > 1 << 20) return null;
         var buffer = Marshal.AllocHGlobal(needed);
         try

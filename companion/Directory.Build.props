@@ -1,0 +1,9 @@
+<Project>
+  <!-- Shared by all companion projects. -->
+  <PropertyGroup>
+    <!-- .NET code analysis at the "recommended" level; exceptions with reasons are in .editorconfig. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

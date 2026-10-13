@@ -8,7 +8,7 @@ public interface IHistoryFileSystem
     /// <summary>Write via a temporary file and an atomic replace, so a crash never leaves a half-written file.</summary>
     void WriteAllTextAtomic(string path, string content);
     /// <summary>Rename a file (overwriting the target); used to keep a corrupt history aside.</summary>
-    void Move(string from, string to);
+    void Move(string source, string destination);
     /// <summary>Size of a media file in bytes; <c>null</c> when unknown or not reachable.</summary>
     long? TryGetFileSize(string path);
     /// <summary>File names (not paths) of a folder; <c>null</c> when it is not reachable.</summary>
@@ -37,7 +37,7 @@ public sealed class PhysicalHistoryFileSystem : IHistoryFileSystem
         File.Move(tmp, path, overwrite: true);
     }
 
-    public void Move(string from, string to) => File.Move(from, to, overwrite: true);
+    public void Move(string source, string destination) => File.Move(source, destination, overwrite: true);
 
     public long? TryGetFileSize(string path)
     {

@@ -66,21 +66,21 @@ public sealed class ComFirewallRuleSource : IFirewallRuleSource
         _policy.Rules.Remove(unique);
     }
 
-    public void Add(FirewallRuleSpec spec)
+    public void Add(FirewallRuleSpec rule)
     {
         var type = Type.GetTypeFromProgID("HNetCfg.FWRule", throwOnError: true)!;
-        dynamic rule = Activator.CreateInstance(type)!;
-        rule.Name = spec.Name;
-        rule.Description = spec.Description;
-        rule.ApplicationName = spec.Program;
-        rule.Protocol = spec.Protocol; // must be set before ports (none here)
-        rule.Direction = (int)spec.Direction;
-        rule.Action = (int)spec.Action;
-        rule.Profiles = (int)spec.Profiles;
-        rule.InterfaceTypes = "All";
-        if (spec.Grouping is not null) rule.Grouping = spec.Grouping;
-        rule.Enabled = true;
-        _policy.Rules.Add(rule);
+        dynamic native = Activator.CreateInstance(type)!;
+        native.Name = rule.Name;
+        native.Description = rule.Description;
+        native.ApplicationName = rule.Program;
+        native.Protocol = rule.Protocol; // must be set before ports (none here)
+        native.Direction = (int)rule.Direction;
+        native.Action = (int)rule.Action;
+        native.Profiles = (int)rule.Profiles;
+        native.InterfaceTypes = "All";
+        if (rule.Grouping is not null) native.Grouping = rule.Grouping;
+        native.Enabled = true;
+        _policy.Rules.Add(native);
     }
 
     private static string SafeFileName(string path)
