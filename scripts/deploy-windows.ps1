@@ -1,26 +1,26 @@
 ﻿<#
 .SYNOPSIS
-  Установка и обновление компаньона VLC Remote на Windows.
+  Installs and updates the VLC Remote companion on Windows.
 
 .DESCRIPTION
-  Источник: GitHub Releases (по умолчанию; нужен gh с доступом к репозиторию) или -Local — сборка из рабочей
-  копии. Канал beta — самая свежая сборка (тестовые + релизы), stable — последний релиз.
+  Source: GitHub Releases (default; requires gh with access to the repository) or -Local - a build from the working
+  copy. The beta channel is the newest build (test builds + releases), stable is the latest release.
 
-  Компаньон ставится в %LOCALAPPDATA%\VlcRemote\app без прав администратора. Перед заменой файлов запущенный
-  экземпляр закрывается штатно (--shutdown). Предыдущая версия хранится в app.prev (-Rollback). Настройки,
-  сопряжённые телефоны и журналы лежат в %LOCALAPPDATA%\VlcRemote и при обновлении не трогаются.
-  Телефон — отдельным скриптом deploy-android.ps1.
+  The companion is installed to %LOCALAPPDATA%\VlcRemote\app without administrator rights. Before the files are
+  replaced, the running instance is shut down gracefully (--shutdown). The previous version is kept in app.prev
+  (-Rollback). Settings, paired phones and logs live in %LOCALAPPDATA%\VlcRemote and are not touched by an update.
+  The phone is handled by a separate script, deploy-android.ps1.
 
 .EXAMPLE
-  .\deploy-windows.ps1                       # последняя тестовая сборка
-  .\deploy-windows.ps1 -Channel stable       # последний релиз
-  .\deploy-windows.ps1 -Tag v0.2.0-beta.12   # конкретная сборка
-  .\deploy-windows.ps1 -Local                # собрать из исходников и поставить
-  .\deploy-windows.ps1 -Package <zip>        # поставить из готового архива (так ставит dev-laptop.ps1 по SSH)
-  .\deploy-windows.ps1 -CheckOnly            # только сравнить версии
-  .\deploy-windows.ps1 -Firewall -Autostart  # + правила брандмауэра (один запрос UAC) и автозапуск
-  .\deploy-windows.ps1 -Rollback             # вернуть предыдущую версию
-  .\deploy-windows.ps1 -Uninstall [-Purge]   # удалить (с -Purge — и настройки, сопряжения, журналы)
+  .\deploy-windows.ps1                       # latest test build
+  .\deploy-windows.ps1 -Channel stable       # latest release
+  .\deploy-windows.ps1 -Tag v0.2.0-beta.12   # a specific build
+  .\deploy-windows.ps1 -Local                # build from source and install
+  .\deploy-windows.ps1 -Package <zip>        # install from a ready-made archive (this is how dev-laptop.ps1 installs over SSH)
+  .\deploy-windows.ps1 -CheckOnly            # only compare versions
+  .\deploy-windows.ps1 -Firewall -Autostart  # + firewall rules (one UAC prompt) and autostart
+  .\deploy-windows.ps1 -Rollback             # restore the previous version
+  .\deploy-windows.ps1 -Uninstall [-Purge]   # uninstall (with -Purge - also settings, pairings, logs)
 #>
 [CmdletBinding()]
 param(
@@ -50,15 +50,15 @@ $RunKey       = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $RunValue     = 'VlcRemoteCompanion'
 $ShortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'VLC Remote Companion.lnk'
 
-# Каталог данных компаньона = InstallRoot; для нестандартного пути передаём его явно.
+# The companion's data directory = InstallRoot; for a non-default path we pass it explicitly.
 $DataArgs = @()
 if ([IO.Path]::GetFullPath($InstallRoot).TrimEnd('\') -ne [IO.Path]::GetFullPath($VlcrDataRoot).TrimEnd('\')) {
     $DataArgs = @('--data-dir', $InstallRoot)
 }
 $DataArgString = ($DataArgs | ForEach-Object { '"' + $_ + '"' }) -join ' '
 
-# По SSH процессы запускаются вне рабочего стола пользователя: трей-иконки не будет, окно сопряжения не
-# появится. Поэтому компаньон запускаем/останавливаем через задачу планировщика в интерактивном сеансе.
+# Over SSH, processes run outside the user's desktop: there would be no tray icon and the pairing window would not
+# appear. So the companion is started/stopped through a scheduled task in the interactive session.
 $InSsh = [bool]($env:SSH_CLIENT -or $env:SSH_CONNECTION)
 
 function Invoke-InUserSession([string]$Exe, [string]$Arguments, [string]$Purpose, [switch]$Wait) {
@@ -76,7 +76,7 @@ function Invoke-InUserSession([string]$Exe, [string]$Arguments, [string]$Purpose
     $info = Get-ScheduledTaskInfo -TaskName $name
     Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
     if ($info.LastTaskResult -eq 0x41303 -or $info.LastTaskResult -eq 0x8004130F) {
-        Write-Note 'Пользователь не вошёл в Windows на этом компьютере — компаньон запустится при входе (если включён автозапуск).'
+        Write-Note 'The user is not signed in to Windows on this computer - the companion will start at sign-in (if autostart is enabled).'
     }
 }
 
@@ -92,13 +92,13 @@ function Test-Runtimes {
     if (-not ($list | Where-Object { $_ -match '^Microsoft\.WindowsDesktop\.App 9\.' })) { $missing += 'Microsoft.DotNet.DesktopRuntime.9' }
     if (-not ($list | Where-Object { $_ -match '^Microsoft\.AspNetCore\.App 9\.' }))      { $missing += 'Microsoft.DotNet.AspNetCore.9' }
     if ($missing.Count -eq 0) { return }
-    Write-Step 'Установка .NET 9 Runtime (нужен компаньону)'
+    Write-Step 'Installing .NET 9 Runtime (required by the companion)'
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        throw "Не хватает: $($missing -join ', '). Установите .NET 9 Desktop Runtime и ASP.NET Core Runtime с https://dotnet.microsoft.com/download/dotnet/9.0"
+        throw "Missing: $($missing -join ', '). Install .NET 9 Desktop Runtime and ASP.NET Core Runtime from https://dotnet.microsoft.com/download/dotnet/9.0"
     }
     foreach ($id in $missing) {
         & winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements
-        if ($LASTEXITCODE -ne 0) { throw "winget не смог установить $id" }
+        if ($LASTEXITCODE -ne 0) { throw "winget could not install $id" }
     }
 }
 
@@ -115,7 +115,7 @@ function Stop-Companion {
         if (-not $procs) { return }
         Start-Sleep -Milliseconds 300
     } while ((Get-Date) -lt $deadline)
-    Write-Note 'Компаньон не завершился сам, останавливаю принудительно'
+    Write-Note 'The companion did not exit on its own, stopping it forcibly'
     $procs | Stop-Process -Force
     Start-Sleep -Milliseconds 500
 }
@@ -134,7 +134,7 @@ function Update-Autostart([string]$Exe) {
     $current = (Get-ItemProperty -Path $RunKey -Name $RunValue -ErrorAction SilentlyContinue).$RunValue
     if ($Autostart -or $current) {
         Set-ItemProperty -Path $RunKey -Name $RunValue -Value ("`"$Exe`" --autostart " + $DataArgString).Trim()
-        Write-Ok 'Автозапуск при входе в Windows включён'
+        Write-Ok 'Autostart at Windows sign-in is enabled'
     }
 }
 
@@ -149,9 +149,9 @@ function Add-FirewallRules([string]$Exe) {
         $cmds += "netsh advfirewall firewall delete rule name=`"VLC (VLC Remote)`""
         $cmds += "netsh advfirewall firewall add rule name=`"VLC (VLC Remote)`" dir=in action=allow profile=private program=`"$vlc`" enable=yes"
     }
-    Write-Step 'Правила брандмауэра (частная сеть) — Windows запросит права администратора'
+    Write-Step 'Firewall rules (private network) - Windows will ask for administrator rights'
     $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', ($cmds -join ' & ') -Verb RunAs -Wait -PassThru -WindowStyle Hidden
-    if ($p.ExitCode -eq 0) { Write-Ok 'Правила добавлены' } else { Write-Note "netsh вернул код $($p.ExitCode)" }
+    if ($p.ExitCode -eq 0) { Write-Ok 'Rules added' } else { Write-Note "netsh returned code $($p.ExitCode)" }
 }
 
 function Get-CompanionPort {
@@ -171,20 +171,20 @@ function Start-Companion([string]$Exe) {
     while ((Get-Date) -lt $deadline) {
         try {
             $info = Invoke-RestMethod -Uri "http://127.0.0.1:$port/info" -TimeoutSec 2
-            Write-Ok "Компаньон $($info.version) запущен, порт $port; VLC: $(if ($info.vlc.running) { $info.vlc.version } else { 'не запущен' })"
+            Write-Ok "Companion $($info.version) is running, port $port; VLC: $(if ($info.vlc.running) { $info.vlc.version } else { 'not running' })"
             return
         } catch { Start-Sleep -Milliseconds 500 }
     }
-    Write-Note "Компаньон не ответил на http://127.0.0.1:$port/info за 15 с — см. журнал в $InstallRoot\logs"
+    Write-Note "The companion did not answer at http://127.0.0.1:$port/info within 15 s - see the log in $InstallRoot\logs"
 }
 
 function Install-Companion([string]$Zip, [string]$Version) {
     Test-Runtimes
-    Write-Step "Установка компаньона $Version в $AppDir"
+    Write-Step "Installing the companion $Version to $AppDir"
     $staging = Join-Path $InstallRoot 'app.new'
     if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
     Expand-Archive -Path $Zip -DestinationPath $staging -Force
-    if (-not (Test-Path (Join-Path $staging $ExeName))) { throw "В архиве нет $ExeName" }
+    if (-not (Test-Path (Join-Path $staging $ExeName))) { throw "The archive has no $ExeName" }
     Set-Content -Path (Join-Path $staging 'version.txt') -Value $Version -Encoding ascii
 
     Stop-Companion
@@ -197,35 +197,35 @@ function Install-Companion([string]$Zip, [string]$Version) {
     Update-Autostart $exe
     if ($Firewall) { Add-FirewallRules $exe }
     elseif (-not (Get-NetFirewallApplicationFilter -Program $exe -ErrorAction SilentlyContinue)) {
-        Write-Note 'Правила брандмауэра для компаньона нет. При первом запуске Windows спросит доступ — разрешите для частных сетей (или запустите с -Firewall).'
+        Write-Note 'There is no firewall rule for the companion. On the first start Windows will ask for access - allow it for private networks (or run with -Firewall).'
     }
     if (-not $NoStart) { Start-Companion $exe }
 }
 
-# ---------------------------------------------------------------- основное
+# ---------------------------------------------------------------- main
 
 if (-not (Test-Path $InstallRoot)) { New-Item -ItemType Directory -Path $InstallRoot | Out-Null }
 
 if ($Uninstall) {
-    Write-Step 'Удаление компаньона'
+    Write-Step 'Uninstalling the companion'
     Stop-Companion
     foreach ($d in @($AppDir, $PrevDir)) { if (Test-Path $d) { Remove-Item $d -Recurse -Force } }
     if (Test-Path $ShortcutPath) { Remove-Item $ShortcutPath -Force }
     Remove-ItemProperty -Path $RunKey -Name $RunValue -ErrorAction SilentlyContinue
-    if ($Purge -and (Test-Path $InstallRoot)) { Remove-Item $InstallRoot -Recurse -Force; Write-Ok 'Настройки и журналы удалены' }
-    Write-Ok 'Готово'
+    if ($Purge -and (Test-Path $InstallRoot)) { Remove-Item $InstallRoot -Recurse -Force; Write-Ok 'Settings and logs removed' }
+    Write-Ok 'Done'
     return
 }
 
 if ($Rollback) {
-    if (-not (Test-Path $PrevDir)) { throw 'Нет предыдущей версии (app.prev)' }
-    Write-Step 'Откат на предыдущую версию'
+    if (-not (Test-Path $PrevDir)) { throw 'There is no previous version (app.prev)' }
+    Write-Step 'Rolling back to the previous version'
     Stop-Companion
     $tmp = Join-Path $InstallRoot 'app.swap'
     if (Test-Path $AppDir) { Move-Item $AppDir $tmp }
     Move-Item $PrevDir $AppDir
     if (Test-Path $tmp) { Move-Item $tmp $PrevDir }
-    Write-Ok "Текущая версия: $(Get-InstalledVersion)"
+    Write-Ok "Current version: $(Get-InstalledVersion)"
     $exe = Join-Path $AppDir $ExeName
     Set-Shortcut $exe
     Update-Autostart $exe
@@ -237,8 +237,8 @@ $installed = Get-InstalledVersion
 $work = New-WorkDir
 try {
     if ($Package) {
-        if (-not (Test-Path $Package)) { throw "Нет файла $Package" }
-        if ((Split-Path $Package -Leaf) -notmatch '^VlcRemote\.Companion-(.+)-win-x64\.zip$') { throw 'Ожидается архив VlcRemote.Companion-<версия>-win-x64.zip' }
+        if (-not (Test-Path $Package)) { throw "File $Package not found" }
+        if ((Split-Path $Package -Leaf) -notmatch '^VlcRemote\.Companion-(.+)-win-x64\.zip$') { throw 'Expected an archive VlcRemote.Companion-<version>-win-x64.zip' }
         $target = $Matches[1]
     } elseif ($Local) {
         $build = Build-LocalCompanion $work
@@ -248,13 +248,13 @@ try {
         $tagName = Resolve-ReleaseTag
         $target = $tagName.TrimStart('v')
     }
-    Write-Step "Компаньон: $target (установлено: $(if ($installed) { $installed } else { 'нет' }))"
+    Write-Step "Companion: $target (installed: $(if ($installed) { $installed } else { 'none' }))"
     if ($CheckOnly) {
-        if ($installed -eq $target) { Write-Ok 'Установлена последняя версия' } else { Write-Note 'Есть обновление' }
+        if ($installed -eq $target) { Write-Ok 'The latest version is installed' } else { Write-Note 'An update is available' }
         return
     }
     if ($installed -eq $target -and -not $Local -and -not $Package) {
-        Write-Ok "Компаньон $target уже установлен"
+        Write-Ok "Companion $target is already installed"
         if ($Firewall) { Add-FirewallRules (Join-Path $AppDir $ExeName) }
         return
     }

@@ -1,7 +1,7 @@
 <?vlc --[[
-  tracks.json — vlc-remote: списки дорожек/глав/видео-параметров с текущим выбором.
-  Кладётся в %APPDATA%\vlc\lua\http\requests\ вместе с копией штатных страниц VLC.
-  Ответ: JSON. Поля отсутствуют (null), если объекта нет (например, ничего не играет).
+  tracks.json — vlc-remote: lists of tracks/chapters/video parameters with the current selection.
+  Goes into %APPDATA%\vlc\lua\http\requests\ together with a copy of the stock VLC pages.
+  Response: JSON. Fields are absent (null) if the object does not exist (e.g. nothing is playing).
 ]]?>
 <?vlc
 local dkjson = require("dkjson")
@@ -22,7 +22,7 @@ local aout  = vlc.object.aout()
 local vout  = vlc.object.vout()
 
 local out = {
-  vlcremote = 1,                 -- маркер: страница установлена
+  vlcremote = 1,                 -- marker: the page is installed
   audio       = lst(input, "audio-es"),
   spu         = lst(input, "spu-es"),
   video       = lst(input, "video-es"),

@@ -1,49 +1,49 @@
-# ADR-0001. Пути управления VLC: три уровня
+# ADR-0001. Ways to control VLC: three levels
 
-Статус: принято (2026-10-12). Основание: [research/live-probe.md](../research/live-probe.md).
+Status: accepted (2026-10-12). Basis: [research/live-probe.md](../research/live-probe.md).
 
-## Контекст
+## Context
 
-VLC 3.0.x на Windows даёт три способа управления извне: Lua HTTP‑интерфейс (запрос/ответ,
-JSON), RC‑интерфейс (текстовый TCP, есть push‑события и команды, которых нет в HTTP:
-список аудиоустройств `adev`, текущая дорожка, `vratio/vcrop/vzoom`) и libvlc (встроить
-плеер в свой процесс). Bluetooth VLC не поддерживает вовсе. Пользователь хочет, чтобы
-компонент на ПК был **опциональным**.
+VLC 3.0.x on Windows offers three ways to control it from outside: the Lua HTTP interface (request/response,
+JSON), the RC interface (text over TCP, with push events and commands that HTTP lacks:
+the list of audio devices `adev`, the current track, `vratio/vcrop/vzoom`) and libvlc (embedding the
+player in our own process). VLC does not support Bluetooth at all. The user wants the
+component on the PC to be **optional**.
 
-## Решение
+## Decision
 
-Приложение поддерживает три уровня возможностей, определяемых автоматически при подключении:
+The app supports three capability levels, detected automatically on connection:
 
-1. **Уровень 0 — только VLC (HTTP).** Требует включённого веб‑интерфейса и пароля.
-   Даёт: play/pause/stop/seek/скорость, громкость VLC, плейлист, обзор файлов и запуск,
-   полный экран, главы (по номерам), задержки аудио/субтитров, аспект, эквалайзер,
-   **выбор аудио/субтитров/видео дорожек** (ID = номер `Stream N` из `status.json`),
-   обложку `/art`. Не даёт: текущую выбранную дорожку (ведём оптимистично на клиенте),
-   названия глав, аудиоустройство, события, запуск VLC, Bluetooth.
-2. **Уровень 1 — VLC + наши Lua‑страницы** в `%APPDATA%\vlc\lua\http\`
-   (`requests/tracks.json`, `requests/setvar.json` и т. п.). Добавляет: текущую дорожку,
-   названия глав, списки аспект/кроп/деинтерлейс/стерео‑режим, произвольные `vlc.var` операции.
-   Важно: пользовательская папка **заменяет** системную `lua\http`, поэтому установщик копирует
-   туда и штатные страницы (`requests/*.json`, `index.html` и т. д.), а VLC нужно перезапустить
-   (URL регистрируются при загрузке интерфейса). После обновления VLC копию штатных страниц
-   надо обновить. Аудиоустройства этим уровнем недоступны (aout‑переменная `device` в Lua не
-   даёт списка и не переключает).
-3. **Уровень 2 — компаньон на ПК (.NET, трей).** Добавляет: Bluetooth RFCOMM‑транспорт,
-   обнаружение в сети (mDNS/UDP‑маяк), push‑события и список аудиоустройств через RC,
-   запуск/перезапуск VLC с нужными параметрами, перенос окна VLC на монитор‑телевизор,
-   системную громкость и устройство вывода Windows, «не спать во время фильма»,
-   сон/выключение ПК, миниатюры/метаданные библиотеки.
+1. **Level 0 — VLC only (HTTP).** Requires the web interface to be enabled and a password.
+   Provides: play/pause/stop/seek/rate, VLC volume, playlist, file browsing and launching,
+   fullscreen, chapters (by number), audio/subtitle delays, aspect ratio, equalizer,
+   **audio/subtitle/video track selection** (ID = the `Stream N` number from `status.json`),
+   cover art `/art`. Does not provide: the currently selected track (tracked optimistically on the client),
+   chapter names, audio device, events, launching VLC, Bluetooth.
+2. **Level 1 — VLC + our Lua pages** in `%APPDATA%\vlc\lua\http\`
+   (`requests/tracks.json`, `requests/setvar.json`, etc.). Adds: the current track,
+   chapter names, aspect/crop/deinterlace/stereo-mode lists, arbitrary `vlc.var` operations.
+   Important: the user folder **replaces** the system `lua\http`, so the installer also copies
+   the stock pages there (`requests/*.json`, `index.html`, etc.), and VLC has to be restarted
+   (URLs are registered when the interface loads). After a VLC update the copy of the stock pages
+   has to be refreshed. Audio devices are not available at this level (the aout variable `device` in Lua
+   neither returns a list nor switches).
+3. **Level 2 — a companion on the PC (.NET, tray).** Adds: Bluetooth RFCOMM transport,
+   network discovery (mDNS/UDP beacon), push events and the list of audio devices via RC,
+   starting/restarting VLC with the right parameters, moving the VLC window to the TV monitor,
+   Windows system volume and output device, "don't sleep during a movie",
+   PC sleep/shutdown, library thumbnails/metadata.
 
-Приложение всегда разговаривает с VLC через один абстрактный интерфейс `PlayerBackend`;
-реализации: `VlcHttpBackend` (уровни 0–1) и `CompanionBackend` (уровень 2, который сам
-внутри использует HTTP+RC+Win32). Недоступные возможности скрываются в UI, а не ломаются.
+The app always talks to VLC through a single abstract interface `PlayerBackend`;
+implementations: `VlcHttpBackend` (levels 0–1) and `CompanionBackend` (level 2, which itself
+uses HTTP+RC+Win32 internally). Unavailable capabilities are hidden in the UI rather than broken.
 
-## Отвергнутые варианты
+## Rejected options
 
-- **Только компаньон (обязательный).** Противоречит требованию опциональности; без
-  компаньона приложение бесполезно.
-- **Только RC вместо HTTP.** RC однопоточный (одно соединение), текстовый формат без
-  версии, нет обзора файлов и обложек; HTTP устойчивее как базовый слой.
-- **libvlc‑плеер внутри компаньона вместо настоящего VLC.** Полный контроль, но
-  дублирует плеер, теряет настройки/плагины пользователя, усложняет компаньон. Оставлено
-  как возможное будущее «встроенного режима».
+- **Companion only (mandatory).** Contradicts the optionality requirement; without the
+  companion the app would be useless.
+- **RC only instead of HTTP.** RC is single-threaded (one connection), an unversioned text format,
+  no file browsing or cover art; HTTP is more robust as the base layer.
+- **A libvlc player inside the companion instead of the real VLC.** Full control, but it
+  duplicates the player, loses the user's settings/plugins and complicates the companion. Kept
+  as a possible future "embedded mode".

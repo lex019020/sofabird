@@ -1,60 +1,60 @@
-# Транспорт и Windows‑компаньон для пульта VLC: исследование
+# Transport and the Windows companion for the VLC remote: research
 
-Дата: 2026-10-12. Контекст: Android‑пульт (Kotlin/Compose) для VLC 3.0.x на ноутбуке с
-Windows 11, подключённом к телевизору. Компаньон на ПК — опциональный (см.
-[ADR‑0001](../adr/0001-control-paths.md), уровень 2). Разработчик знает C#/.NET и Kotlin;
-на ПК установлены .NET SDK 9.0.310 и 10.0.102.
+Date: 2026-10-12. Context: an Android remote (Kotlin/Compose) for VLC 3.0.x on a Windows 11 laptop
+connected to a TV. The companion on the PC is optional (see
+[ADR-0001](../adr/0001-control-paths.md), level 2). The developer knows C#/.NET and Kotlin;
+.NET SDK 9.0.310 and 10.0.102 are installed on the PC.
 
-Легенда:
-- **проверено локально** — выполнено на этом ПК (Windows 11 Pro 10.0.26200, адаптер
-  «MediaTek Bluetooth Adapter», VLC 3.0.23, пользователь без прав администратора);
-- **не проверено** — утверждение из документации/сообщества или вывод, который следует
-  подтвердить экспериментом.
+Legend:
+- **verified locally** — done on this PC (Windows 11 Pro 10.0.26200, adapter
+  "MediaTek Bluetooth Adapter", VLC 3.0.23, user without administrator rights);
+- **not verified** — a claim from documentation/the community, or a conclusion that should be
+  confirmed by an experiment.
 
-Исходники проверочных программ (`BtProbe`, `DnsSdProbe`, замеры размеров) лежали в
-scratch‑папке сессии; ключевые фрагменты повторены в тексте.
+The sources of the probe programs (`BtProbe`, `DnsSdProbe`, size measurements) were kept in the
+session's scratch folder; the key fragments are repeated in the text.
 
 ---
 
-## 0. Краткая сводка
+## 0. Short summary
 
-| Вопрос | Ответ |
+| Question | Answer |
 |---|---|
-| Bluetooth без LAN | **Classic RFCOMM** через WinRT `RfcommServiceProvider` + `StreamSocketListener`. Работает из обычного unpackaged .NET 9 приложения без прав администратора — **проверено локально**. Android: `createRfcommSocketToServiceRecord(uuid)` + `BLUETOOTH_CONNECT`, сопряжение показывает сама система при `connect()`. |
-| BLE вместо RFCOMM | Возможно (`GattServiceProvider`, адаптер этого ПК поддерживает peripheral‑роль — проверено), но хуже: короткие сообщения, своя фрагментация, нет потока. Не рекомендуется как основной. |
-| Bluetooth без кода | Bluetooth PAN (телефон раздаёт сеть по Bluetooth, Windows 11 «Join» в настройках) даёт обычный IP‑канал; ПК получает адрес из 192.168.44.x (код Android). Нюанс: Windows отнесёт эту сеть к профилю «Общедоступная» — нужны правила брандмауэра на Public (не проверено). |
-| Обнаружение в LAN | mDNS/DNS‑SD через **встроенный responder Windows**: Win32 `DnsServiceRegister` (P/Invoke, без библиотек) или WinRT `DnssdServiceInstance` — оба **проверены локально**. Сторонние .NET‑библиотеки: Makaretu — мёртвая с 2019, Zeroconf и Tmds.MDns — только поиск (не умеют объявлять). На Android — `NsdManager` с защитой от его багов + запасной UDP‑маяк + ручной ввод. |
-| Чистый VLC без компаньона | Не объявляет себя ни по mDNS, ни как‑либо ещё (проверено по исходникам `http.lua` веток 3.0.x и master). Остаётся: скан /24 по порту 8080 (401 с `realm="VLC stream"`), либо имя `<ПК>.local` (Windows отвечает на mDNS‑имя, Android умеет резолвить `.local`). |
-| Сервер протокола | **Kestrel minimal API + WebSocket** (без HTTP.sys и `urlacl`). Цена: +25,6 МБ self‑contained (+11,2 МБ в сжатом single‑file) — измерено. Альтернатива «ноль зависимостей»: `TcpListener` + `WebSocket.CreateFromStream`. `HttpListener` не подходит (нужен `netsh http add urlacl` с правами администратора для не‑localhost). |
-| Кадрирование | NDJSON (одна JSON‑строка на сообщение) одинаково поверх RFCOMM и WebSocket. |
-| VLC ↔ компаньон | HTTP (как телефон) + один RC‑сокет на `127.0.0.1` для событий/`adev`/`atrack`. Запуск `vlc.exe` с аргументами; правка `vlcrc` только при остановленном VLC и с сохранением формата `#key=value`. |
-| Экран/ТВ | `Screen.AllScreens` + `SetWindowPos` окна VLC на монитор‑ТВ, затем `fullscreen`; `SetDisplayConfig(SDC_TOPOLOGY_*)`; `SC_MONITORPOWER`; `SetThreadExecutionState`; `SetSuspendState`/`shutdown.exe`. HDMI‑CEC только с USB‑адаптером Pulse‑Eight. WoL по Wi‑Fi — ненадёжен. |
-| Звук | Сначала — переключение устройства **внутри VLC** (RC `adev`), системное устройство по умолчанию — через недокументированный `IPolicyConfig` (как SoundSwitch/Sunshine). Громкость Windows — `IAudioEndpointVolume` (NAudio). |
-| Форма компаньона | WinForms‑трей (`NotifyIcon`) + Kestrel в одном `WinExe`; автозапуск через `HKCU\...\Run`; установка/обновление **Velopack** в `%LocalAppData%` без UAC; single‑file self‑contained ≈ 59 МБ (измерено). |
+| Bluetooth without a LAN | **Classic RFCOMM** via WinRT `RfcommServiceProvider` + `StreamSocketListener`. Works from an ordinary unpackaged .NET 9 application without administrator rights — **verified locally**. Android: `createRfcommSocketToServiceRecord(uuid)` + `BLUETOOTH_CONNECT`; the system itself shows the pairing prompt on `connect()`. |
+| BLE instead of RFCOMM | Possible (`GattServiceProvider`; this PC's adapter supports the peripheral role — verified), but worse: short messages, own fragmentation, no stream. Not recommended as the primary channel. |
+| Bluetooth without code | Bluetooth PAN (the phone shares its network over Bluetooth, Windows 11 "Join" in the settings) gives an ordinary IP channel; the PC gets an address from 192.168.44.x (Android code). Caveat: Windows will assign this network to the "Public" profile — firewall rules for Public are needed (not verified). |
+| Discovery in the LAN | mDNS/DNS-SD via the **built-in Windows responder**: Win32 `DnsServiceRegister` (P/Invoke, no libraries) or WinRT `DnssdServiceInstance` — both **verified locally**. Third-party .NET libraries: Makaretu — dead since 2019, Zeroconf and Tmds.MDns — browsing only (cannot advertise). On Android — `NsdManager` with protection against its bugs + a fallback UDP beacon + manual entry. |
+| Plain VLC without the companion | Does not announce itself via mDNS or in any other way (verified in the `http.lua` sources of the 3.0.x and master branches). What remains: a /24 scan on port 8080 (401 with `realm="VLC stream"`), or the name `<PC>.local` (Windows answers to its mDNS name, Android can resolve `.local`). |
+| Protocol server | **Kestrel minimal API + WebSocket** (no HTTP.sys and no `urlacl`). Cost: +25.6 MB self-contained (+11.2 MB in a compressed single-file) — measured. "Zero dependencies" alternative: `TcpListener` + `WebSocket.CreateFromStream`. `HttpListener` is unsuitable (needs `netsh http add urlacl` with administrator rights for non-localhost). |
+| Framing | NDJSON (one JSON line per message), the same over RFCOMM and WebSocket. |
+| VLC ↔ companion | HTTP (like the phone) + one RC socket on `127.0.0.1` for events/`adev`/`atrack`. Launching `vlc.exe` with arguments; editing `vlcrc` only while VLC is stopped and preserving the `#key=value` format. |
+| Screen/TV | `Screen.AllScreens` + `SetWindowPos` of the VLC window onto the TV monitor, then `fullscreen`; `SetDisplayConfig(SDC_TOPOLOGY_*)`; `SC_MONITORPOWER`; `SetThreadExecutionState`; `SetSuspendState`/`shutdown.exe`. HDMI-CEC only with the Pulse-Eight USB adapter. WoL over Wi-Fi is unreliable. |
+| Sound | First — switching the device **inside VLC** (RC `adev`); the system default device — via the undocumented `IPolicyConfig` (like SoundSwitch/Sunshine). Windows volume — `IAudioEndpointVolume` (NAudio). |
+| Companion form | WinForms tray (`NotifyIcon`) + Kestrel in a single `WinExe`; autostart via `HKCU\...\Run`; install/update with **Velopack** into `%LocalAppData%` without UAC; single-file self-contained ≈ 59 MB (measured). |
 
 ---
 
-## 1. Bluetooth без локальной сети
+## 1. Bluetooth without a local network
 
-### 1a. Classic Bluetooth RFCOMM (SPP) — сервер на Windows из .NET
+### 1a. Classic Bluetooth RFCOMM (SPP) — a server on Windows from .NET
 
-**API.** Пространство `Windows.Devices.Bluetooth.Rfcomm` (WinRT): `RfcommServiceProvider.CreateAsync(RfcommServiceId)`
-создаёт локальный сервис, `StreamSocketListener.BindServiceNameAsync(serviceId, protectionLevel)`
-привязывает слушатель к сервису, `provider.SdpRawAttributes` — доп. атрибуты SDP‑записи,
-`provider.StartAdvertising(listener, radioDiscoverable)` публикует запись
+**API.** The `Windows.Devices.Bluetooth.Rfcomm` namespace (WinRT): `RfcommServiceProvider.CreateAsync(RfcommServiceId)`
+creates a local service, `StreamSocketListener.BindServiceNameAsync(serviceId, protectionLevel)`
+binds the listener to the service, `provider.SdpRawAttributes` — extra attributes of the SDP record,
+`provider.StartAdvertising(listener, radioDiscoverable)` publishes the record
 ([CreateAsync](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.rfcomm.rfcommserviceprovider.createasync),
 [StartAdvertising](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.rfcomm.rfcommserviceprovider.startadvertising),
 [BindServiceNameAsync](https://learn.microsoft.com/en-us/uwp/api/windows.networking.sockets.streamsocketlistener.bindservicenameasync),
-гайд [Send or receive files with RFCOMM](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/send-or-receive-files-with-rfcomm),
-образец [BluetoothRfcommChat](https://github.com/microsoft/Windows-universal-samples/tree/main/Samples/BluetoothRfcommChat)).
-Из .NET всё доступно без NuGet при `TargetFramework` `net9.0-windows10.0.19041.0` или выше
-(встроенные C#/WinRT‑проекции).
+guide [Send or receive files with RFCOMM](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/send-or-receive-files-with-rfcomm),
+sample [BluetoothRfcommChat](https://github.com/microsoft/Windows-universal-samples/tree/main/Samples/BluetoothRfcommChat)).
+From .NET everything is available without NuGet with `TargetFramework` `net9.0-windows10.0.19041.0` or higher
+(built-in C#/WinRT projections).
 
-**Работает ли из обычного desktop‑приложения без манифеста и без администратора — проверено
-локально: да.** Документация требует capability `bluetooth` (это про packaged/UWP), но консольный
-`net9.0-windows10.0.19041.0` exe, запущенный как `DESKTOP-9SO2EON\Alexey` без повышения
-(`packaged=False`), успешно выполнил `CreateAsync` → `BindServiceNameAsync` → `SdpRawAttributes.Add`
-→ `StartAdvertising(listener, false)` → `StopAdvertising`. Вывод пробы:
+**Does it work from an ordinary desktop application without a manifest and without administrator rights — verified
+locally: yes.** The documentation requires the `bluetooth` capability (that is about packaged/UWP), but a console
+`net9.0-windows10.0.19041.0` exe, run as `DESKTOP-9SO2EON\Alexey` without elevation
+(`packaged=False`), successfully performed `CreateAsync` → `BindServiceNameAsync` → `SdpRawAttributes.Add`
+→ `StartAdvertising(listener, false)` → `StopAdvertising`. Probe output:
 
 ```
 User: DESKTOP-9SO2EON\Alexey, elevated(admin)=False
@@ -64,29 +64,29 @@ RFCOMM: advertising OK, serviceId={C0F1B7A2-5C0E-4B3E-9A0E-1F2D3C4B5A69}
 RFCOMM: stopped
 ```
 
-Минимальный сервер (C#, net9.0-windows10.0.19041.0):
+Minimal server (C#, net9.0-windows10.0.19041.0):
 
 ```csharp
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Networking.Sockets;
 using Windows.Storage.Streams;
 
-static readonly Guid ServiceUuid = Guid.Parse("c0f1b7a2-5c0e-4b3e-9a0e-1f2d3c4b5a69"); // свой 128-бит UUID
+static readonly Guid ServiceUuid = Guid.Parse("c0f1b7a2-5c0e-4b3e-9a0e-1f2d3c4b5a69"); // our own 128-bit UUID
 
 var provider = await RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(ServiceUuid));
 var listener = new StreamSocketListener();
 listener.ConnectionReceived += async (_, e) =>
 {
-    // один клиент за раз; поток байт — поверх него NDJSON (см. раздел 3d)
+    // one client at a time; a byte stream — NDJSON on top of it (see section 3d)
     using var socket = e.Socket;
     using var input  = socket.InputStream.AsStreamForRead();
     using var output = socket.OutputStream.AsStreamForWrite();
-    await session.RunAsync(input, output);           // общий код с WebSocket-транспортом
+    await session.RunAsync(input, output);           // code shared with the WebSocket transport
 };
 await listener.BindServiceNameAsync(provider.ServiceId.AsString(),
-    SocketProtectionLevel.BluetoothEncryptionWithAuthentication);      // требовать сопряжение+шифрование
+    SocketProtectionLevel.BluetoothEncryptionWithAuthentication);      // require pairing+encryption
 
-// SDP-атрибут 0x0100 = ServiceName (строка, 8-битная длина)
+// SDP attribute 0x0100 = ServiceName (string, 8-bit length)
 var w = new DataWriter { UnicodeEncoding = UnicodeEncoding.Utf8 };
 w.WriteByte(0x25); w.WriteByte((byte)"VLC Remote".Length); w.WriteString("VLC Remote");
 provider.SdpRawAttributes.Add(0x0100, w.DetachBuffer());
@@ -94,117 +94,117 @@ provider.SdpRawAttributes.Add(0x0100, w.DetachBuffer());
 provider.StartAdvertising(listener, radioDiscoverable: false);
 ```
 
-Замечания к коду:
-- В пробе использовался `BluetoothEncryptionAllowNullAuthentication` (так в образце Microsoft);
-  `BluetoothEncryptionWithAuthentication` для принуждения к сопряжению — **не проверено** в связке с
-  Android, проверить при реализации.
-- Канал RFCOMM Windows выдаёт динамически; клиент обязан искать его по UUID через SDP (Android
-  это делает в `connect()`), поэтому фиксированный номер канала не нужен.
-- После `StopAdvertising`/выхода из сна слушатель лучше пересоздавать (не проверено, но
-  дешевле, чем ловить «зависший» listener).
+Notes on the code:
+- The probe used `BluetoothEncryptionAllowNullAuthentication` (as in the Microsoft sample);
+  `BluetoothEncryptionWithAuthentication` to force pairing is **not verified** together with
+  Android; check during implementation.
+- Windows assigns the RFCOMM channel dynamically; the client must look it up by UUID via SDP (Android
+  does this in `connect()`), so a fixed channel number is not needed.
+- After `StopAdvertising`/resume from sleep it is better to recreate the listener (not verified, but
+  cheaper than hunting down a "hung" listener).
 
-**SDP‑запись и UUID.** Свой 128‑битный UUID — обязательно (не SPP `00001101-…`), чтобы телефон
-не путал компаньон с COM‑портами. ServiceName (0x0100) полезен для отладочных сканеров.
+**SDP record and UUID.** An own 128-bit UUID is mandatory (not SPP `00001101-…`), so that the phone
+does not confuse the companion with COM ports. ServiceName (0x0100) is useful for debugging scanners.
 
-**Нужно ли сопряжение и кто его инициирует.**
-- Android‑клиент с «secure» сокетом требует bonded‑устройство; если пары нет, «the Android
+**Is pairing needed and who initiates it.**
+- An Android client with a "secure" socket requires a bonded device; if there is no pairing, "the Android
   framework automatically shows a pairing request notification or dialog to the user during
-  the connection procedure» и `connect()` блокируется до завершения сопряжения
+  the connection procedure" and `connect()` blocks until pairing completes
   ([Connect Bluetooth devices](https://developer.android.com/develop/connectivity/bluetooth/connect-bluetooth-devices)).
-- На стороне Windows входящий запрос на сопряжение по умолчанию показывается уведомлением
-  «Add a device» (по описанию [ElevenForum](https://www.elevenforum.com/t/enable-or-disable-notification-for-new-bluetooth-device-connection-in-windows-11.44957/);
-  **не проверено** на этом ПК). Это и есть самый простой сценарий: пользователь один раз
-  сопрягает телефон с ПК из настроек Windows или Android.
-- Из компаньона сопряжение можно инициировать программно:
-  `DeviceInformation.Pairing.Custom.PairAsync(DevicePairingKinds.ConfirmPinMatch|…)` с обработчиком
-  `PairingRequested` ([DeviceInformationPairing](https://learn.microsoft.com/en-us/uwp/api/windows.devices.enumeration.deviceinformationpairing),
+- On the Windows side an incoming pairing request is shown by default as an
+  "Add a device" notification (as described on [ElevenForum](https://www.elevenforum.com/t/enable-or-disable-notification-for-new-bluetooth-device-connection-in-windows-11.44957/);
+  **not verified** on this PC). This is the simplest scenario: the user pairs the phone with the PC
+  once from the Windows or Android settings.
+- Pairing can be initiated programmatically from the companion:
+  `DeviceInformation.Pairing.Custom.PairAsync(DevicePairingKinds.ConfirmPinMatch|…)` with a
+  `PairingRequested` handler ([DeviceInformationPairing](https://learn.microsoft.com/en-us/uwp/api/windows.devices.enumeration.deviceinformationpairing),
   [DeviceInformationCustomPairing](https://learn.microsoft.com/en-us/uwp/api/windows.devices.enumeration.deviceinformationcustompairing)).
-  Тогда телефон должен быть «видимым» (на Android — открыт экран настроек Bluetooth). Работа из
-  unpackaged‑приложения — **не проверено** (в пробе не вызывалось), но API того же семейства, что и
-  проверенный RFCOMM.
+  Then the phone must be "discoverable" (on Android — the Bluetooth settings screen is open). Working from an
+  unpackaged application — **not verified** (not called in the probe), but the API is from the same family as the
+  verified RFCOMM.
 
-**Должен ли ПК быть «видимым».** Только для сопряжения, инициируемого с телефона. Для подключения
-уже сопряжённого телефона достаточно, чтобы радио было включено (обычное поведение Bluetooth —
-paging по известному адресу; **не проверено** именно на этой связке, но так работает любая
-гарнитура). Переключатели:
-- программно — `StartAdvertising(listener, radioDiscoverable: true)` («Indicates whether the radio
-  is discoverable») — на время сопряжения, затем перезапустить с `false`;
-- вручную — Settings → Bluetooth & devices → Devices → More Bluetooth settings → «Allow Bluetooth
-  devices to find this PC» ([описание](https://geekrewind.com/how-to-turn-allow-bluetooth-devices-to-find-this-pc-on-or-off-in-windows-11/)).
+**Must the PC be "discoverable".** Only for pairing initiated from the phone. To connect an
+already paired phone it is enough for the radio to be on (ordinary Bluetooth behaviour —
+paging by a known address; **not verified** for this exact combination, but that is how any
+headset works). Switches:
+- programmatically — `StartAdvertising(listener, radioDiscoverable: true)` ("Indicates whether the radio
+  is discoverable") — for the duration of pairing, then restart with `false`;
+- manually — Settings → Bluetooth & devices → Devices → More Bluetooth settings → "Allow Bluetooth
+  devices to find this PC" ([description](https://geekrewind.com/how-to-turn-allow-bluetooth-devices-to-find-this-pc-on-or-off-in-windows-11/)).
 
-**Права.** Администратор не нужен — проверено локально.
+**Rights.** Administrator not needed — verified locally.
 
-**Пропускная способность / задержка.** Classic BR/EDR: 1 Мбит/с (BR), 2/3 Мбит/с (EDR); на уровне
-приложения ~720 кбит/с (BR) и ~2,1 Мбит/с (EDR) ([ib‑lenhardt](https://ib-lenhardt.com/kb/glossary/bluetooth-classic-br-edr));
-практические SPP‑оценки 0,7–2,1 Мбит/с ([студенческий отчёт GT](https://ece4012y201902.ece.gatech.edu/spring/sd19p49/trpethanvargas.docx)).
-Для команд пульта (сотни байт) этого с запасом; обложки/миниатюры по Bluetooth не гонять
-(или гонять сжатые ≤ 50 КБ). Задержку округления не нашёл в источниках; ожидаемо десятки мс —
-**не проверено**, замерить в прототипе.
+**Throughput / latency.** Classic BR/EDR: 1 Mbit/s (BR), 2/3 Mbit/s (EDR); at the
+application level ~720 kbit/s (BR) and ~2.1 Mbit/s (EDR) ([ib-lenhardt](https://ib-lenhardt.com/kb/glossary/bluetooth-classic-br-edr));
+practical SPP estimates 0.7–2.1 Mbit/s ([GT student report](https://ece4012y201902.ece.gatech.edu/spring/sd19p49/trpethanvargas.docx)).
+For remote commands (hundreds of bytes) this is more than enough; do not push cover art/thumbnails over Bluetooth
+(or push compressed ones ≤ 50 KB). I did not find round-trip latency in the sources; tens of ms are expected —
+**not verified**, measure in the prototype.
 
-**Известные грабли.**
-- Энергосбережение Bluetooth‑адаптера: Microsoft советует снять «Allow the computer to turn off
-  this device to save power» ([Bluetooth keeps disconnecting](https://support.microsoft.com/windows/bluetooth-keeps-disconnecting-in-windows-81a9cb1e-d15c-4e72-b025-cc0d992dca9f));
-  Dell пишет, что с Windows 10 2004 этого флага на самом адаптере нет, он остался на HID‑устройствах
-  ([Dell KB](https://dell.com/support/kbdoc/en-us/000122996)). Для RFCOMM‑сессии компаньона это
-  означает: рассчитывать на обрывы после простоя/сна и переподключаться с телефона.
-- Modern Standby: при засыпании ноутбука RFCOMM‑сокет умрёт; компаньон должен пересоздавать
-  listener после `SystemEvents.PowerModeChanged`/`Resume` (не проверено).
-- Android кэширует SDP‑записи; при смене UUID/канала помогает `device.fetchUuidsWithSdp()`
-  (общее знание, не проверено).
-- Одновременно один клиент: второй `ConnectionReceived` — отклонять или вытеснять первого.
+**Known pitfalls.**
+- Bluetooth adapter power saving: Microsoft advises unchecking "Allow the computer to turn off
+  this device to save power" ([Bluetooth keeps disconnecting](https://support.microsoft.com/windows/bluetooth-keeps-disconnecting-in-windows-81a9cb1e-d15c-4e72-b025-cc0d992dca9f));
+  Dell writes that since Windows 10 2004 this flag no longer exists on the adapter itself, it remains on HID devices
+  ([Dell KB](https://dell.com/support/kbdoc/en-us/000122996)). For the companion's RFCOMM session this
+  means: expect drops after idle/sleep and reconnect from the phone.
+- Modern Standby: when the laptop goes to sleep the RFCOMM socket dies; the companion must recreate the
+  listener after `SystemEvents.PowerModeChanged`/`Resume` (not verified).
+- Android caches SDP records; when the UUID/channel changes, `device.fetchUuidsWithSdp()` helps
+  (common knowledge, not verified).
+- One client at a time: a second `ConnectionReceived` — reject it or evict the first one.
 
-**32feet.NET (InTheHand.Net.Bluetooth).** Жив: 4.2.x, релизы в 2025–2026 (4.2.2 — 06/2025, 4.2.3 —
-02/2026, 4.2.4 — 04/2026 по профилю NuGet; версии ≥ 4.2.3 — вывод по профилю издателя, **не
-проверено** по странице пакета), MIT, цели .NET 9/.NET Standard 2.0/.NET Framework
+**32feet.NET (InTheHand.Net.Bluetooth).** Alive: 4.2.x, releases in 2025–2026 (4.2.2 — 06/2025, 4.2.3 —
+02/2026, 4.2.4 — 04/2026 per the NuGet profile; versions ≥ 4.2.3 — inferred from the publisher profile, **not
+verified** on the package page), MIT, targets .NET 9/.NET Standard 2.0/.NET Framework
 ([NuGet](https://www.nuget.org/packages/InTheHand.Net.Bluetooth), [GitHub](https://github.com/inthehand/32feet)).
-На Windows заявлены RFCOMM client и server, discovery, пикеры; GATT‑сервер — «planned»
-([wiki](https://github.com/inthehand/32feet/wiki)). Какой API использует под капотом на Windows
-(Win32 Winsock или WinRT), в документации не сказано — **не проверено**. Поскольку чистый WinRT
-проверен и работает, 32feet нужен только если понадобится API‑стиль `BluetoothListener`/
-`BluetoothClient` или сопряжение через `BluetoothSecurity.PairRequest`. Рекомендация: без 32feet.
+On Windows it claims RFCOMM client and server, discovery, pickers; GATT server — "planned"
+([wiki](https://github.com/inthehand/32feet/wiki)). Which API it uses under the hood on Windows
+(Win32 Winsock or WinRT) is not stated in the documentation — **not verified**. Since plain WinRT
+is verified and works, 32feet is only needed if the `BluetoothListener`/
+`BluetoothClient` API style or pairing via `BluetoothSecurity.PairRequest` is needed. Recommendation: no 32feet.
 
-### 1b. Android‑клиент
+### 1b. Android client
 
-**Сокет.** `BluetoothDevice.createRfcommSocketToServiceRecord(uuid)` — «secure outgoing connection
-… using SDP lookup of uuid», удалённая сторона аутентифицируется, канал шифруется; защита от MITM
-есть только у аутентифицированного link key. `createInsecureRfcommSocketToServiceRecord(uuid)` —
-«will not have an authenticated link key», уязвим к MITM; на устройствах ≥ 2.1 канал всё равно
-шифруется (encryption mandatory), на pre‑2.1 — нет
+**Socket.** `BluetoothDevice.createRfcommSocketToServiceRecord(uuid)` — "secure outgoing connection
+… using SDP lookup of uuid", the remote side is authenticated, the channel is encrypted; MITM protection
+exists only with an authenticated link key. `createInsecureRfcommSocketToServiceRecord(uuid)` —
+"will not have an authenticated link key", vulnerable to MITM; on devices ≥ 2.1 the channel is encrypted anyway
+(encryption mandatory), on pre-2.1 — not
 ([BluetoothDevice](https://developer.android.com/reference/android/bluetooth/BluetoothDevice),
-[исходник javadoc](https://android.googlesource.com/platform/packages/modules/Bluetooth/+/refs/heads/main/framework/java/android/bluetooth/BluetoothDevice.java)).
-Использовать **secure**‑вариант. `connect()` блокирующий (таймаут ~12 с), выполнять не в UI‑потоке;
-перед ним всегда `adapter.cancelDiscovery()`
+[javadoc source](https://android.googlesource.com/platform/packages/modules/Bluetooth/+/refs/heads/main/framework/java/android/bluetooth/BluetoothDevice.java)).
+Use the **secure** variant. `connect()` is blocking (timeout ~12 s), run it off the UI thread;
+always call `adapter.cancelDiscovery()` before it
 ([Connect Bluetooth devices](https://developer.android.com/develop/connectivity/bluetooth/connect-bluetooth-devices)).
 
-**Разрешения (API 31+).** Из [Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions):
+**Permissions (API 31+).** From [Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions):
 
 ```xml
-<!-- Нужно только если приложение само ищет устройства (startDiscovery). -->
+<!-- Needed only if the app searches for devices itself (startDiscovery). -->
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
                  android:usesPermissionFlags="neverForLocation" />
-<!-- Общение с уже сопряжёнными устройствами. -->
+<!-- Talking to already paired devices. -->
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-<!-- Старые версии -->
+<!-- Old versions -->
 <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
 <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 ```
 
-Все три новых — runtime‑разрешения. Если устройство выбирается из `getBondedDevices()` или через
-CDM, достаточно `BLUETOOTH_CONNECT`; `BLUETOOTH_SCAN` нужен лишь для собственного `startDiscovery()`
-(с `neverForLocation` — без `ACCESS_FINE_LOCATION`; CDM «doesn't require location permissions»).
+All three new ones are runtime permissions. If the device is picked from `getBondedDevices()` or via
+CDM, `BLUETOOTH_CONNECT` is enough; `BLUETOOTH_SCAN` is only needed for our own `startDiscovery()`
+(with `neverForLocation` — without `ACCESS_FINE_LOCATION`; CDM "doesn't require location permissions").
 
-**Companion Device Manager** — более приятный UX выбора/сопряжения: системный диалог, скан
-выполняет система, без location‑разрешения; после ассоциации можно просить
+**Companion Device Manager** — a nicer selection/pairing UX: a system dialog, the system performs the
+scan, no location permission; after association one can request
 `REQUEST_COMPANION_RUN_IN_BACKGROUND`, `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND`
-и наблюдать присутствие устройства (`startObservingDevicePresence`, с API 36 — вариант с
-`ObservingDevicePresenceRequest` и привязкой `CompanionDeviceService`, пока устройство «within BLE
-range or connected using Bluetooth»). CDM «doesn't create connections on its own» — сокет
-открывать самим ([Companion device pairing](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing)).
+and observe device presence (`startObservingDevicePresence`, since API 36 — a variant with
+`ObservingDevicePresenceRequest` and binding a `CompanionDeviceService` while the device is "within BLE
+range or connected using Bluetooth"). CDM "doesn't create connections on its own" — the socket
+has to be opened by ourselves ([Companion device pairing](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing)).
 
 ```kotlin
 // API 33+
 val filter = BluetoothDeviceFilter.Builder()
-    .addServiceUuid(ParcelUuid(SERVICE_UUID), null)   // только ПК с нашим RFCOMM-сервисом
+    .addServiceUuid(ParcelUuid(SERVICE_UUID), null)   // only PCs with our RFCOMM service
     .build()
 val request = AssociationRequest.Builder()
     .addDeviceFilter(filter)
@@ -215,17 +215,17 @@ cdm.associate(request, mainExecutor, object : CompanionDeviceManager.Callback() 
     override fun onAssociationPending(intentSender: IntentSender) =
         chooserLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
     override fun onAssociationCreated(info: AssociationInfo) {
-        // info.deviceMacAddress -> сохранить, далее getRemoteDevice(mac) + createBond() при необходимости
+        // info.deviceMacAddress -> save it, then getRemoteDevice(mac) + createBond() if needed
     }
-    override fun onFailure(error: CharSequence?) { /* показать ошибку */ }
+    override fun onFailure(error: CharSequence?) { /* show the error */ }
 })
 ```
 
-Оговорка: фильтр по service UUID в CDM опирается на SDP/EIR‑данные ПК; что Windows‑RFCOMM
-сервис виден этим фильтром при скане — **не проверено**; запасной вариант — `setNamePattern`
-по имени ПК либо выбор из `getBondedDevices()`.
+Caveat: the service UUID filter in CDM relies on the PC's SDP/EIR data; whether the Windows RFCOMM
+service is visible to this filter during a scan is **not verified**; the fallback is `setNamePattern`
+by the PC name or picking from `getBondedDevices()`.
 
-**Подключение и чтение (Kotlin, NDJSON):**
+**Connecting and reading (Kotlin, NDJSON):**
 
 ```kotlin
 class BtLink(private val device: BluetoothDevice, private val adapter: BluetoothAdapter) {
@@ -235,7 +235,7 @@ class BtLink(private val device: BluetoothDevice, private val adapter: Bluetooth
     suspend fun connect() = withContext(Dispatchers.IO) {
         adapter.cancelDiscovery()
         val s = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
-        s.connect()                       // блокирует; при отсутствии пары система покажет диалог
+        s.connect()                       // blocks; if not paired the system shows a dialog
         socket = s
     }
 
@@ -253,117 +253,117 @@ class BtLink(private val device: BluetoothDevice, private val adapter: Bluetooth
 }
 ```
 
-**Переподключение.** Подключаться при выходе приложения на передний план; при `IOException` —
-экспоненциальная пауза 1→2→4→8 с (до ~30 с) и повтор, параллельно показывая «ищу ПК…»; слушать
-`BluetoothDevice.ACTION_ACL_CONNECTED/DISCONNECTED` и `BluetoothAdapter.ACTION_STATE_CHANGED`,
-чтобы не долбить выключенное радио. Если за N попыток не вышло — предложить LAN/ручной IP.
+**Reconnecting.** Connect when the app comes to the foreground; on `IOException` —
+exponential pause 1→2→4→8 s (up to ~30 s) and retry, meanwhile showing "looking for the PC…"; listen to
+`BluetoothDevice.ACTION_ACL_CONNECTED/DISCONNECTED` and `BluetoothAdapter.ACTION_STATE_CHANGED`
+so as not to hammer a switched-off radio. If N attempts fail — offer LAN/manual IP.
 
-**Фон.** Для пульта удерживать сокет в фоне не обязательно: закрывать через ~1 мин после ухода в
-фон. Если нужна «идёт воспроизведение»‑нотификация с кнопками — foreground service с типом
-`connectedDevice` (`FOREGROUND_SERVICE_CONNECTED_DEVICE`, обязательный тип с Android 14;
-Google советует для длительных связей предпочитать CDM presence API)
+**Background.** For a remote it is not necessary to keep the socket in the background: close it ~1 min after going to the
+background. If a "now playing" notification with buttons is needed — a foreground service of type
+`connectedDevice` (`FOREGROUND_SERVICE_CONNECTED_DEVICE`, a mandatory type since Android 14;
+Google advises preferring the CDM presence API for long-lived connections)
 ([FGS types](https://developer.android.com/develop/background-work/services/fgs/service-types)).
 
-### 1c. BLE‑альтернатива: Windows как GATT‑периферия
+### 1c. BLE alternative: Windows as a GATT peripheral
 
-`GattServiceProvider` (с 10.0.15063) позволяет Windows объявлять сервис и характеристики; нужен
-адаптер с peripheral‑ролью (`BluetoothAdapter.IsPeripheralRoleSupported`; на этом ПК `True` —
-проверено локально; есть отчёты адаптеров без поддержки
+`GattServiceProvider` (since 10.0.15063) lets Windows advertise a service and characteristics; it needs an
+adapter with the peripheral role (`BluetoothAdapter.IsPeripheralRoleSupported`; `True` on this PC —
+verified locally; there are reports of adapters without support
 ([SO](https://windows-hexerror.linestarve.com/q/so48956229-gattserviceproviderstartadvertising-fails-bluetooth-device-issue))).
-Ограничения: «there is no explicit functionality associated with this API to disconnect» — разрыв
-только со стороны центрального; Windows «usually operates in the client role»
+Limitations: "there is no explicit functionality associated with this API to disconnect" — disconnecting
+only from the central side; Windows "usually operates in the client role"
 ([GattServiceProvider](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattserviceprovider),
 [GATT server guide](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/gatt-server)).
-Практически: ATT‑MTU по умолчанию 23 байта (полезных 20), с `requestMtu` до 512 — нужна своя
-фрагментация JSON; нет потоковой семантики, уведомления ограничены; зато не обязательно
-сопряжение и ниже энергопотребление (общие свойства BLE, **не проверено** в этой связке).
+In practice: the default ATT MTU is 23 bytes (20 of payload), up to 512 with `requestMtu` — own
+JSON fragmentation is needed; no stream semantics, notifications are limited; on the other hand pairing is not
+mandatory and power consumption is lower (general BLE properties, **not verified** in this combination).
 
-Сравнение: RFCOMM — поток, ~1–2 Мбит/с, одно сопряжение, `readLine()`; BLE — сообщения ≤ 512 Б,
-свой протокол фрагментации, два стека (GATT‑сервер на Windows + GATT‑клиент на Android), больше
-кода и больше «особенностей» на разных телефонах. **Рекомендация: RFCOMM**; BLE оставить как
-план Б, если выяснится, что у части телефонов SDP/RFCOMM к Windows работает нестабильно.
+Comparison: RFCOMM — a stream, ~1–2 Mbit/s, one pairing, `readLine()`; BLE — messages ≤ 512 B,
+an own fragmentation protocol, two stacks (GATT server on Windows + GATT client on Android), more
+code and more "quirks" on different phones. **Recommendation: RFCOMM**; keep BLE as
+plan B in case it turns out that SDP/RFCOMM to Windows is unstable on some phones.
 
-### 1d. Fallback без кода: Bluetooth PAN (tethering)
+### 1d. Fallback without code: Bluetooth PAN (tethering)
 
-- Windows 11 умеет присоединяться к Bluetooth PAN из настроек: Settings → Bluetooth & devices →
-  Devices → раскрыть телефон → «Personal Area Network (PAN)» → Join → «Access Point» → Connect;
-  отключение — «Disconnect PAN» ([Microsoft Support](https://support.microsoft.com/en-us/windows/connect-to-a-bluetooth-network-in-windows-0d371763-6297-4eef-9d39-f8c469d181c2)).
-  Требования: устройства сопряжены, на телефоне включена раздача по Bluetooth. По сообщениям
-  сообщества, кнопка появилась в сборке 22631.1906 ([ElevenForum](https://elevenforum.com/t/connect-to-bluetooth-personal-area-network-btpan-in-windows-11.20046/)); на этом ПК сборка 26200.
-- На Android: Settings → Network & internet → Hotspot & tethering → Bluetooth tethering (путь
-  зависит от оболочки; **не проверено**). Возможна ли раздача, когда у телефона нет интернета —
-  зависит от прошивки (**не проверено**; на многих устройствах переключатель доступен).
-- Адресация (из кода Android `TetheringConfiguration.java`): «BT is limited to max default of 5
-  connections. 192.168.44.1 to 192.168.48.1»; legacy DHCP‑диапазон для BT `192.168.44.2–254`
-  (USB — 192.168.42.x, Wi‑Fi — 192.168.43.x) ([исходник](https://android.googlesource.com/platform/packages/modules/Connectivity/+/refs/heads/main/Tethering/src/com/android/networkstack/tethering/TetheringConfiguration.java)).
-  Массив назван `LEGACY_…` — в новых версиях префикс может выбираться иначе, поэтому **не
-  зашивать 192.168.44.x**: телефон — шлюз, ПК получает адрес по DHCP. Как телефону найти ПК: ПК
-  объявляет себя (mDNS регистрируется на всех интерфейсах, UDP‑маяк), либо телефон сканирует
-  свой PAN‑/24 (254 адреса — быстро). Работа `NsdManager` поверх интерфейса `bt-pan` — **не
-  проверено**.
-- Главный нюанс: Windows отнесёт PAN к профилю «Общедоступная сеть», где входящие соединения
-  блокируются строже; правило брандмауэра компаньона и VLC должно включать профиль Public
-  (ожидаемо, **не проверено**).
-- Плюс: поверх PAN работает всё «LAN‑ное», включая уровень 0 (прямой VLC HTTP), без компаньона.
-  Минус: ручные клики с обеих сторон при каждом сеансе (автоподключение PAN в Windows — **не
-  проверено**), и телефон при этом должен держать tethering включённым.
+- Windows 11 can join a Bluetooth PAN from the settings: Settings → Bluetooth & devices →
+  Devices → expand the phone → "Personal Area Network (PAN)" → Join → "Access Point" → Connect;
+  disconnecting — "Disconnect PAN" ([Microsoft Support](https://support.microsoft.com/en-us/windows/connect-to-a-bluetooth-network-in-windows-0d371763-6297-4eef-9d39-f8c469d181c2)).
+  Requirements: the devices are paired, Bluetooth tethering is enabled on the phone. According to
+  community reports, the button appeared in build 22631.1906 ([ElevenForum](https://elevenforum.com/t/connect-to-bluetooth-personal-area-network-btpan-in-windows-11.20046/)); this PC has build 26200.
+- On Android: Settings → Network & internet → Hotspot & tethering → Bluetooth tethering (the path
+  depends on the vendor skin; **not verified**). Whether tethering is possible when the phone has no internet
+  depends on the firmware (**not verified**; on many devices the switch is available).
+- Addressing (from the Android code `TetheringConfiguration.java`): "BT is limited to max default of 5
+  connections. 192.168.44.1 to 192.168.48.1"; the legacy DHCP range for BT is `192.168.44.2–254`
+  (USB — 192.168.42.x, Wi-Fi — 192.168.43.x) ([source](https://android.googlesource.com/platform/packages/modules/Connectivity/+/refs/heads/main/Tethering/src/com/android/networkstack/tethering/TetheringConfiguration.java)).
+  The array is named `LEGACY_…` — in newer versions the prefix may be chosen differently, so **do not
+  hard-code 192.168.44.x**: the phone is the gateway, the PC gets an address via DHCP. How the phone finds the PC: the PC
+  announces itself (mDNS registers on all interfaces, UDP beacon), or the phone scans
+  its PAN /24 (254 addresses — fast). `NsdManager` working over the `bt-pan` interface — **not
+  verified**.
+- The main caveat: Windows will assign the PAN to the "Public network" profile, where incoming connections
+  are blocked more strictly; the firewall rule for the companion and VLC must include the Public profile
+  (expected, **not verified**).
+- Plus: everything "LAN-based" works over PAN, including level 0 (direct VLC HTTP), without the companion.
+  Minus: manual clicks on both sides for every session (PAN auto-connect in Windows — **not
+  verified**), and the phone has to keep tethering on meanwhile.
 
-### 1e. Wi‑Fi Direct / точка доступа на телефоне — кратко
+### 1e. Wi-Fi Direct / hotspot on the phone — briefly
 
-- **Хотспот телефона**: ПК подключается к Wi‑Fi‑точке телефона, получает IP (исторически
-  192.168.43.x), дальше всё как в LAN. Самый надёжный «без роутера» вариант, но ПК теряет свой
-  Wi‑Fi‑интернет (если нет Ethernet), а телефон расходует батарею.
-- **Хотспот Windows («Mobile hotspot»)**: телефон подключается к ноутбуку. Работает только если у
-  ПК есть соединение, которым он «делится» (ограничение Windows; **не проверено** для случая без
-  интернета).
-- **Wi‑Fi Direct**: Windows API `Windows.Devices.WiFiDirect` (`WiFiDirectAdvertisementPublisher`,
-  `WiFiDirectConnectionListener`) живо, а `Windows.Devices.WiFiDirect.Services` помечено deprecated
-  ([namespace](https://learn.microsoft.com/en-us/uwp/api/windows.devices.wifidirect.services)); на
-  Android — `WifiP2pManager`. Совместимость Windows↔Android P2P исторически капризна, код с двух
-  сторон нетривиальный — **не рекомендуется**.
+- **Phone hotspot**: the PC connects to the phone's Wi-Fi access point, gets an IP (historically
+  192.168.43.x), then everything works as in a LAN. The most reliable "no router" option, but the PC loses its
+  Wi-Fi internet (if there is no Ethernet), and the phone drains its battery.
+- **Windows hotspot ("Mobile hotspot")**: the phone connects to the laptop. Works only if the
+  PC has a connection that it "shares" (a Windows limitation; **not verified** for the case without
+  internet).
+- **Wi-Fi Direct**: the Windows API `Windows.Devices.WiFiDirect` (`WiFiDirectAdvertisementPublisher`,
+  `WiFiDirectConnectionListener`) is alive, while `Windows.Devices.WiFiDirect.Services` is marked deprecated
+  ([namespace](https://learn.microsoft.com/en-us/uwp/api/windows.devices.wifidirect.services)); on
+  Android — `WifiP2pManager`. Windows↔Android P2P compatibility has historically been fickle, the code on both
+  sides is non-trivial — **not recommended**.
 
 ---
 
-## 2. Обнаружение ПК из телефона в LAN
+## 2. Discovering the PC from the phone in the LAN
 
-### 2a. mDNS / DNS‑SD
+### 2a. mDNS / DNS-SD
 
-**Android, `NsdManager`.** Долгая история багов: пустые TXT‑записи, «onServiceLost → сразу
-onServiceFound» (флаппинг), капризы при нескольких одновременных discovery
+**Android, `NsdManager`.** A long history of bugs: empty TXT records, "onServiceLost → immediately
+onServiceFound" (flapping), quirks with several simultaneous discoveries
 ([TinyDNSSD](https://github.com/youviewtv/tinydnssd), [RxBonjour → jmDNS](https://github.com/Ennova-IT/RxBonjour),
-[Guardian Project](https://dev.guardianproject.info/issues/2900)). Что изменилось:
-- API 34: `registerServiceInfoCallback(…)` вместо `resolveService` (последний deprecated —
-  в документации встречаются и API 34, и API 36), `NsdServiceInfo.getHostAddresses()` вместо
+[Guardian Project](https://dev.guardianproject.info/issues/2900)). What has changed:
+- API 34: `registerServiceInfoCallback(…)` instead of `resolveService` (the latter is deprecated —
+  the documentation mentions both API 34 and API 36), `NsdServiceInfo.getHostAddresses()` instead of
   `getHost()` ([NsdManager](https://developer.android.com/reference/android/net/nsd/NsdManager),
   [NsdServiceInfo](https://developer.android.com/reference/android/net/nsd/NsdServiceInfo)).
-- Начиная с «T extensions 7» система сама управляет приёмом multicast для foreground‑приложений;
-  раньше требовался `WifiManager.MulticastLock` + `CHANGE_WIFI_MULTICAST_STATE`
+- Starting with "T extensions 7" the system itself manages multicast reception for foreground apps;
+  previously `WifiManager.MulticastLock` + `CHANGE_WIFI_MULTICAST_STATE` were required
   ([NsdManager](https://developer.android.com/reference/android/net/nsd/NsdManager),
   [MulticastLock](https://developer.android.com/reference/android/net/wifi/WifiManager.MulticastLock)).
-- После Android 12 нативный демон не обязан быть живым; использовать только `NsdManager`.
+- After Android 12 the native daemon does not have to be alive; use only `NsdManager`.
 
-Рекомендуемый подход на телефоне:
-1. Одно активное `discoverServices("_vlcremote._tcp", PROTOCOL_DNS_SD, …)` за раз; стоп в `onStop`.
-2. На API 34+ — `registerServiceInfoCallback` для найденной записи; ниже — `resolveService` с
-   очередью (не более одного resolve одновременно).
-3. Дебаунс `onServiceLost` (2–3 с) перед удалением из списка.
-4. Держать `MulticastLock` на время поиска на API < 34 (и на всякий случай вообще).
-5. Параллельно слать UDP‑маяк (2b) и предлагать ручной ввод `host:port`/QR.
-6. Не полагаться на TXT: всё нужное (имя ПК, версия протокола, отпечаток) отдавать по HTTP
-   `GET /info` после обнаружения.
+Recommended approach on the phone:
+1. One active `discoverServices("_vlcremote._tcp", PROTOCOL_DNS_SD, …)` at a time; stop in `onStop`.
+2. On API 34+ — `registerServiceInfoCallback` for the found record; below that — `resolveService` with a
+   queue (no more than one resolve at a time).
+3. Debounce `onServiceLost` (2–3 s) before removing from the list.
+4. Hold a `MulticastLock` during discovery on API < 34 (and just in case, in general).
+5. In parallel send the UDP beacon (2b) and offer manual entry of `host:port`/QR.
+6. Do not rely on TXT: return everything needed (PC name, protocol version, fingerprint) over HTTP
+   `GET /info` after discovery.
 
-**Windows — чем объявлять сервис.**
+**Windows — what to advertise the service with.**
 
-| Вариант | Объявляет (advertise)? | Статус | Вердикт |
+| Option | Advertises? | Status | Verdict |
 |---|---|---|---|
-| Win32 `DnsServiceRegister` (dnsapi.dll, windns.h), встроенный responder Windows | да | документирован, Windows 10+, «registration is tied to the lifetime of the calling process» ([DnsServiceRegister](https://learn.microsoft.com/en-us/windows/win32/api/windns/nf-windns-dnsserviceregister), [DnsServiceConstructInstance](https://learn.microsoft.com/en-us/windows/win32/api/windns/nf-windns-dnsserviceconstructinstance)) | **рекомендуется**; **проверено локально** — регистрация и дерегистрация `VlcRemoteProbe._vlcremote._tcp.local` вернули status 0 |
-| WinRT `Windows.Networking.ServiceDiscovery.Dnssd.DnssdServiceInstance` | да | работает, но `RegisterStreamSocketListenerAsync` привязан к WinRT `StreamSocketListener`; `DnssdServiceWatcher` помечен «not supported» ([namespace](https://learn.microsoft.com/en-us/uwp/api/windows.networking.servicediscovery.dnssd)) | **проверено локально** (`status=Success`), но неудобно рядом с Kestrel — порт занят не WinRT‑слушателем |
-| Makaretu.Dns.Multicast (net‑mdns) | да (`ServiceDiscovery.Advertise`) | 0.27.0 от 05.11.2019, с тех пор релизов нет ([NuGet](https://www.nuget.org/packages/Makaretu.Dns.Multicast), [GitHub](https://github.com/richardschneider/net-mdns)); свой responder на 5353 рядом со встроенным (конфликты описаны для других стеков: [Gajim #9245](https://dev.gajim.org/gajim/gajim/-/issues/9245)) | нет |
-| Zeroconf (novotnyllc) 3.7.16 | **нет**, только browse/resolve ([README](https://github.com/novotnyllc/Zeroconf)) | жив (push 10/2025) | не подходит для стороны ПК |
-| Tmds.MDns 0.8.0 | **нет**, только `ServiceBrowser` ([README](https://github.com/tmds/Tmds.MDns)) | 04/2023 | не подходит |
-| Mono.Zeroconf 0.9.0 | да | архив 2011 г., требует Bonjour/Avahi ([mono‑project](https://www.mono-project.com/archived/monozeroconf/)) | нет |
+| Win32 `DnsServiceRegister` (dnsapi.dll, windns.h), the built-in Windows responder | yes | documented, Windows 10+, "registration is tied to the lifetime of the calling process" ([DnsServiceRegister](https://learn.microsoft.com/en-us/windows/win32/api/windns/nf-windns-dnsserviceregister), [DnsServiceConstructInstance](https://learn.microsoft.com/en-us/windows/win32/api/windns/nf-windns-dnsserviceconstructinstance)) | **recommended**; **verified locally** — registering and deregistering `VlcRemoteProbe._vlcremote._tcp.local` returned status 0 |
+| WinRT `Windows.Networking.ServiceDiscovery.Dnssd.DnssdServiceInstance` | yes | works, but `RegisterStreamSocketListenerAsync` is tied to a WinRT `StreamSocketListener`; `DnssdServiceWatcher` is marked "not supported" ([namespace](https://learn.microsoft.com/en-us/uwp/api/windows.networking.servicediscovery.dnssd)) | **verified locally** (`status=Success`), but awkward next to Kestrel — the port is not held by a WinRT listener |
+| Makaretu.Dns.Multicast (net-mdns) | yes (`ServiceDiscovery.Advertise`) | 0.27.0 of 05.11.2019, no releases since ([NuGet](https://www.nuget.org/packages/Makaretu.Dns.Multicast), [GitHub](https://github.com/richardschneider/net-mdns)); its own responder on 5353 next to the built-in one (conflicts are described for other stacks: [Gajim #9245](https://dev.gajim.org/gajim/gajim/-/issues/9245)) | no |
+| Zeroconf (novotnyllc) 3.7.16 | **no**, browse/resolve only ([README](https://github.com/novotnyllc/Zeroconf)) | alive (push 10/2025) | unsuitable for the PC side |
+| Tmds.MDns 0.8.0 | **no**, `ServiceBrowser` only ([README](https://github.com/tmds/Tmds.MDns)) | 04/2023 | unsuitable |
+| Mono.Zeroconf 0.9.0 | yes | archived 2011, requires Bonjour/Avahi ([mono-project](https://www.mono-project.com/archived/monozeroconf/)) | no |
 
-Проверенный P/Invoke (достаточно `net9.0-windows`, без WinRT):
+Verified P/Invoke (`net9.0-windows` is enough, no WinRT):
 
 ```csharp
 static class DnsSd
@@ -375,7 +375,7 @@ static class DnsSd
     public struct DNS_SERVICE_REGISTER_REQUEST
     {
         public uint Version;                 // 1
-        public uint InterfaceIndex;          // 0 = все интерфейсы
+        public uint InterfaceIndex;          // 0 = all interfaces
         public IntPtr pServiceInstance;
         public IntPtr pRegisterCompletionCallback;
         public IntPtr pQueryContext;
@@ -393,101 +393,101 @@ static class DnsSd
     [DllImport("dnsapi.dll")] public static extern uint DnsServiceDeRegister(ref DNS_SERVICE_REGISTER_REQUEST r, IntPtr cancel);
 }
 
-// использование (DNS_REQUEST_PENDING = 9506, в callback status 0 = успех)
+// usage (DNS_REQUEST_PENDING = 9506, in the callback status 0 = success)
 var inst = DnsSd.DnsServiceConstructInstance(
     $"{Environment.MachineName}._vlcremote._tcp.local", $"{Environment.MachineName}.local",
     IntPtr.Zero, IntPtr.Zero, 47555, 0, 0, 2, new[] { "v", "id" }, new[] { "1", pcId });
 var req = new DnsSd.DNS_SERVICE_REGISTER_REQUEST { Version = 1, pServiceInstance = inst,
     pRegisterCompletionCallback = Marshal.GetFunctionPointerForDelegate(callback) };
-uint rc = DnsSd.DnsServiceRegister(ref req, IntPtr.Zero);   // 9506 → ждать callback
+uint rc = DnsSd.DnsServiceRegister(ref req, IntPtr.Zero);   // 9506 → wait for the callback
 ```
 
-Делегат `callback` держать в поле (GC), при выходе — `DnsServiceDeRegister` (тоже асинхронно) и
-`DnsServiceFreeInstance`. На выход процесса Windows снимает запись сама.
+Keep the `callback` delegate in a field (GC); on exit — `DnsServiceDeRegister` (also asynchronous) and
+`DnsServiceFreeInstance`. When the process exits, Windows removes the record itself.
 
-Дополнительно: Windows 10 1703+ отвечает на `<имя-ПК>.local` встроенным responder’ом
-([technote](https://slightfuture.com/technote/windows-mdns-dnssd/), **не проверено** локально), а
-резолвер Android с ноября 2021 (модуль DnsResolver) прозрачно резолвит `*.local` через
-`getaddrinfo()` (кроме VPN и mobile data) ([AOSP DNS Resolver](https://source.android.com/docs/core/ota/modular-system/dns-resolver)).
-То есть пользователь может ввести `DESKTOP-9SO2EON.local` вместо IP — удобный fallback даже без
-компаньона.
+In addition: Windows 10 1703+ answers to `<PC-name>.local` with the built-in responder
+([technote](https://slightfuture.com/technote/windows-mdns-dnssd/), **not verified** locally), and
+the Android resolver since November 2021 (the DnsResolver module) transparently resolves `*.local` via
+`getaddrinfo()` (except over VPN and mobile data) ([AOSP DNS Resolver](https://source.android.com/docs/core/ota/modular-system/dns-resolver)).
+That is, the user can enter `DESKTOP-9SO2EON.local` instead of an IP — a handy fallback even without
+the companion.
 
-### 2b. UDP‑маяк
+### 2b. UDP beacon
 
-Схема: телефон шлёт `{"q":"vlcremote","v":1}` на `255.255.255.255:47556` и на directed‑broadcast
-своей подсети; компаньон отвечает unicast `{"name":"DESKTOP-…","port":47555,"id":"…","v":1}`.
-Альтернатива — компаньон сам бикает раз в 2 с (хуже: шум в сети, телефон должен слушать).
-Плюсы: 40 строк кода с обеих сторон, не зависит от mDNS‑стеков. Минусы: некоторые роутеры режут
-broadcast, при **AP/client isolation** между беспроводными клиентами не ходит ничего (ни unicast,
-ни broadcast — тогда и VLC HTTP недоступен); проводной ПК ↔ беспроводной телефон обычно работает
-(«communications between wireless and wired clients are allowed» — [batman‑adv](https://www.open-mesh.org/doc/batman-adv/Ap-isolation.html);
-Meraki в bridge‑режиме блокирует всё, кроме шлюза — [Meraki](https://documentation.meraki.com/Wireless/Operate_and_Maintain/How_Tos/Firewall_and_Traffic_Shaping/Wireless_Client_Isolation);
-у TP‑Link изоляция «does not stop the flow of the multicast and broadcast traffic» — [форум](https://community.tp-link.com/en/smart-home/forum/topic/661906)).
-На Android приём broadcast на некоторых устройствах тоже требует `MulticastLock` (не проверено).
-Вывод: маяк — дешёвое дополнение к mDNS, не замена ручному вводу.
+Scheme: the phone sends `{"q":"vlcremote","v":1}` to `255.255.255.255:47556` and to the directed broadcast
+of its subnet; the companion replies with unicast `{"name":"DESKTOP-…","port":47555,"id":"…","v":1}`.
+An alternative is for the companion to beacon by itself every 2 s (worse: network noise, the phone must listen).
+Pros: 40 lines of code on both sides, independent of mDNS stacks. Cons: some routers drop
+broadcast; with **AP/client isolation** nothing passes between wireless clients (neither unicast
+nor broadcast — then VLC HTTP is unreachable too); wired PC ↔ wireless phone usually works
+("communications between wireless and wired clients are allowed" — [batman-adv](https://www.open-mesh.org/doc/batman-adv/Ap-isolation.html);
+Meraki in bridge mode blocks everything except the gateway — [Meraki](https://documentation.meraki.com/Wireless/Operate_and_Maintain/How_Tos/Firewall_and_Traffic_Shaping/Wireless_Client_Isolation);
+on TP-Link, isolation "does not stop the flow of the multicast and broadcast traffic" — [forum](https://community.tp-link.com/en/smart-home/forum/topic/661906)).
+On Android, receiving broadcast on some devices also requires a `MulticastLock` (not verified).
+Conclusion: the beacon is a cheap addition to mDNS, not a replacement for manual entry.
 
-### 2c. Скан /24 по порту 8080 — что делают существующие пульты
+### 2c. /24 scan on port 8080 — what existing remotes do
 
-- VlcFreemote заявляет «will automatically detect» VLC, метод не раскрыт
-  ([F‑Droid](https://f-droid.org/en/packages/com.nicolasbrailo.vlcfreemote/), [GitHub](https://github.com/nicolasbrailo/VlcFreemote));
-  VLC Direct требует ввести IP вручную; «Remote for VLC» ([samicemalone](https://github.com/samicemalone/android-vlc-remote)) —
-  ручной ввод. Утверждать, что они сканируют подсеть, по источникам нельзя (**не проверено**); на
-  практике «автодетект» без компаньона может быть только сканом.
-- Реализация скана: TCP‑connect на `x.y.z.1–254:8080` с таймаутом 200–300 мс, параллельно 32–64
-  потока → 2–5 с; подтверждение — `GET /requests/status.json` без пароля должен вернуть
-  `401` с `WWW-Authenticate: Basic realm="VLC stream"` (строка realm подтверждена в
-  [live‑probe](live-probe.md)). Нестандартный порт — поле в настройках.
-- **Можно ли обнаружить чистый VLC иначе — нет.** `share/lua/intf/http.lua` в ветках 3.0.x и master
-  не содержит ни `vlc.sa`, ни `_http._tcp`, ни bonjour/announce (проверено по исходникам:
+- VlcFreemote claims it "will automatically detect" VLC, the method is not disclosed
+  ([F-Droid](https://f-droid.org/en/packages/com.nicolasbrailo.vlcfreemote/), [GitHub](https://github.com/nicolasbrailo/VlcFreemote));
+  VLC Direct requires entering the IP manually; "Remote for VLC" ([samicemalone](https://github.com/samicemalone/android-vlc-remote)) —
+  manual entry. The sources do not allow claiming that they scan the subnet (**not verified**); in
+  practice "auto-detection" without a companion can only be a scan.
+- Scan implementation: TCP connect to `x.y.z.1–254:8080` with a 200–300 ms timeout, 32–64 parallel
+  threads → 2–5 s; confirmation — `GET /requests/status.json` without a password must return
+  `401` with `WWW-Authenticate: Basic realm="VLC stream"` (the realm string is confirmed in the
+  [live probe](live-probe.md)). A non-standard port — a field in the settings.
+- **Can plain VLC be discovered any other way — no.** `share/lua/intf/http.lua` in the 3.0.x and master branches
+  contains neither `vlc.sa`, nor `_http._tcp`, nor bonjour/announce (verified in the sources:
   [3.0.x](https://github.com/videolan/vlc/blob/3.0.x/share/lua/intf/http.lua),
-  [master](https://github.com/videolan/vlc/blob/master/share/lua/intf/http.lua)). Патч 2020 г.
-  «lua: http: Announce the web interface over mdns» ([vlc‑devel](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137015.html))
-  получил возражения («should not be advertised until it is secured» —
-  [ответ](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137017.html);
-  [вопрос про localhost](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137021.html))
-  и в код не попал. UPnP/SSDP‑сервера у VLC тоже нет (модули service discovery — клиентские).
+  [master](https://github.com/videolan/vlc/blob/master/share/lua/intf/http.lua)). The 2020 patch
+  "lua: http: Announce the web interface over mdns" ([vlc-devel](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137015.html))
+  received objections ("should not be advertised until it is secured" —
+  [reply](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137017.html);
+  [question about localhost](https://mailman.videolan.org/pipermail/vlc-devel/2020-September/137021.html))
+  and did not make it into the code. VLC has no UPnP/SSDP server either (the service discovery modules are client-side).
 
-### 2d. Брандмауэр Windows
+### 2d. Windows Firewall
 
-- По умолчанию входящие заблокированы в профилях Private/Public. При первом `listen` Windows
-  показывает «Windows Security Alert»; нажатие **Cancel** молча создаёт блокирующие правила TCP+UDP
-  для exe, и диалог больше не появляется ([Rebex](https://blog.rebex.net/beware-pressing-cancel-on-windows-firewall-security-alert)).
-  Разблокировать из диалога может пользователь с правами администратора/network operator
+- By default incoming connections are blocked in the Private/Public profiles. On the first `listen` Windows
+  shows a "Windows Security Alert"; pressing **Cancel** silently creates blocking TCP+UDP rules
+  for the exe, and the dialog never appears again ([Rebex](https://blog.rebex.net/beware-pressing-cancel-on-windows-firewall-security-alert)).
+  A user with administrator/network operator rights can unblock from the dialog
   ([MS docs](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/cc766312(v=ws.10)));
-  поведение для стандартного пользователя (запрос UAC‑учётки) — **не проверено**. На этом ПК
-  правил для `vlc.exe` сейчас нет (проверено `Get-NetFirewallRule`), т. е. включение HTTP‑интерфейса
-  VLC здесь вызовет такой диалог.
-- Добавление правила требует администратора в обоих API:
+  the behaviour for a standard user (a prompt for UAC credentials) — **not verified**. On this PC
+  there are currently no rules for `vlc.exe` (verified with `Get-NetFirewallRule`), i.e. enabling VLC's HTTP interface
+  here will trigger such a dialog.
+- Adding a rule requires administrator rights in both APIs:
   `netsh advfirewall firewall add rule name="VLC Remote Companion" dir=in action=allow program="<exe>" protocol=TCP localport=47555 profile=private,public`
   ([netsh advfirewall](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-R2-and-2008/dd734783(v=ws.10)))
-  и COM `INetFwRules::Add` через `HNetCfg.FwPolicy2` (ошибка прав, если не elevated;
+  and COM `INetFwRules::Add` via `HNetCfg.FwPolicy2` (an access error if not elevated;
   [INetFwRules::Add](https://learn.microsoft.com/en-us/windows/win32/api/netfw/nf-netfw-inetfwrules-add)).
-  Без администратора способа нет.
-- Стратегия: установка per‑user без UAC (Velopack), а при первом запуске компаньон проверяет
-  наличие своего правила (`INetFwPolicy2.Rules` или `netsh … show rule name=…`) и предлагает кнопку
-  «Разрешить в брандмауэре», которая запускает `netsh` через `ProcessStartInfo { Verb = "runas" }`
-  (одно UAC‑окно). Тем же действием добавить правило для `vlc.exe` (путь из
-  `HKLM\SOFTWARE\VideoLAN\VLC\InstallDir` — на этом ПК ключ есть, значение
-  `C:\Program Files\VideoLAN\VLC`, `Version=3.0.23`; проверено). Правило по программе переживает
-  обновления, потому что Velopack всегда держит exe в `%LocalAppData%\<AppId>\current\`
-  («avoids problems with firewall rules» — [Velopack: migrating from Squirrel](https://docs.velopack.io/migrating/squirrel)).
-- Ограничить правило `remoteip=localsubnet` — дешёвая защита от случайного проброса.
+  There is no way without an administrator.
+- Strategy: per-user installation without UAC (Velopack), and on first launch the companion checks
+  whether its rule exists (`INetFwPolicy2.Rules` or `netsh … show rule name=…`) and offers an
+  "Allow in firewall" button, which runs `netsh` via `ProcessStartInfo { Verb = "runas" }`
+  (one UAC window). With the same action add a rule for `vlc.exe` (the path from
+  `HKLM\SOFTWARE\VideoLAN\VLC\InstallDir` — on this PC the key exists, value
+  `C:\Program Files\VideoLAN\VLC`, `Version=3.0.23`; verified). A program-based rule survives
+  updates because Velopack always keeps the exe in `%LocalAppData%\<AppId>\current\`
+  ("avoids problems with firewall rules" — [Velopack: migrating from Squirrel](https://docs.velopack.io/migrating/squirrel)).
+- Restricting the rule with `remoteip=localsubnet` is cheap protection against accidental port forwarding.
 
 ---
 
-## 3. Протокол компаньон ↔ телефон по LAN
+## 3. Companion ↔ phone protocol over the LAN
 
-### 3a. WebSocket‑сервер в .NET
+### 3a. WebSocket server in .NET
 
-| Вариант | Размер/зависимости | Нужен ли `urlacl`/админ | Оценка |
+| Option | Size/dependencies | Needs `urlacl`/admin? | Assessment |
 |---|---|---|---|
-| **Kestrel, minimal API** (`FrameworkReference Microsoft.AspNetCore.App`, `CreateSlimBuilder`, `UseWebSockets`) | измерено: WinForms‑трей self‑contained single‑file 107,7 МБ → с Kestrel 133,3 МБ (+25,6); со сжатием 48,1 → 59,3 МБ (+11,2); framework‑dependent 0,2 МБ, но тогда у пользователя должен стоять и ASP.NET Core Runtime | нет: Kestrel — собственные сокеты, не HTTP.sys | **рекомендуется**: заодно HTTP‑эндпоинты (`/info`, `/pair`, `/art`), TLS при желании, WebSockets из коробки ([docs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/websockets)) |
-| `HttpListener` + `HttpListenerContext.AcceptWebSocketAsync` | в BCL, 0 МБ | **да**: не‑localhost префиксы требуют `netsh http add urlacl` от администратора ([HttpListener](https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-net-httplistener), [URL ACL](https://www.awise.us/2006/04/10/httplistener-and-url-acls.html)) | нет |
-| `TcpListener` + ручной HTTP‑upgrade + `WebSocket.CreateFromStream(stream, isServer:true, …)` | в BCL, 0 МБ, ~120 строк своего кода ([CreateFromStream](https://learn.microsoft.com/en-us/dotnet/api/system.net.websockets.websocket.createfromstream)) | нет | план Б, если размер критичен |
-| WatsonWebsocket 4.1.8 (02/2026) | 0 зависимостей ([NuGet](https://www.nuget.org/packages/WatsonWebsocket)) | внутри `HttpListener` → та же проблема `urlacl` (**не проверено**) | нет |
-| Fleck 1.2.0 | raw sockets, последний релиз 2016 ([сравнение](https://www.esegece.com/products/websockets/comparison-net/)) | нет | мёртв |
+| **Kestrel, minimal API** (`FrameworkReference Microsoft.AspNetCore.App`, `CreateSlimBuilder`, `UseWebSockets`) | measured: WinForms tray self-contained single-file 107.7 MB → with Kestrel 133.3 MB (+25.6); with compression 48.1 → 59.3 MB (+11.2); framework-dependent 0.2 MB, but then the user must also have the ASP.NET Core Runtime installed | no: Kestrel uses its own sockets, not HTTP.sys | **recommended**: HTTP endpoints too (`/info`, `/pair`, `/art`), TLS if desired, WebSockets out of the box ([docs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/websockets)) |
+| `HttpListener` + `HttpListenerContext.AcceptWebSocketAsync` | in the BCL, 0 MB | **yes**: non-localhost prefixes require `netsh http add urlacl` from an administrator ([HttpListener](https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-net-httplistener), [URL ACL](https://www.awise.us/2006/04/10/httplistener-and-url-acls.html)) | no |
+| `TcpListener` + manual HTTP upgrade + `WebSocket.CreateFromStream(stream, isServer:true, …)` | in the BCL, 0 MB, ~120 lines of own code ([CreateFromStream](https://learn.microsoft.com/en-us/dotnet/api/system.net.websockets.websocket.createfromstream)) | no | plan B if size is critical |
+| WatsonWebsocket 4.1.8 (02/2026) | 0 dependencies ([NuGet](https://www.nuget.org/packages/WatsonWebsocket)) | `HttpListener` inside → the same `urlacl` problem (**not verified**) | no |
+| Fleck 1.2.0 | raw sockets, last release 2016 ([comparison](https://www.esegece.com/products/websockets/comparison-net/)) | no | dead |
 
-Минимальный Kestrel‑сервер (собран и опубликован в пробе):
+Minimal Kestrel server (built and published in the probe):
 
 ```csharp
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -499,46 +499,46 @@ app.Map("/ws", async (HttpContext ctx) =>
 {
     if (!ctx.WebSockets.IsWebSocketRequest) { ctx.Response.StatusCode = 400; return; }
     using WebSocket ws = await ctx.WebSockets.AcceptWebSocketAsync();
-    await session.RunAsync(new WebSocketLineTransport(ws));   // тот же NDJSON, что и по RFCOMM
+    await session.RunAsync(new WebSocketLineTransport(ws));   // the same NDJSON as over RFCOMM
 });
-_ = app.RunAsync();           // рядом Application.Run() трея
+_ = app.RunAsync();           // next to the tray's Application.Run()
 ```
 
-На Android — OkHttp `WebSocket` (есть в `okhttp3`, [docs](https://square.github.io/okhttp/)) или Ktor
-client; оба — один класс кода.
+On Android — OkHttp `WebSocket` (available in `okhttp3`, [docs](https://square.github.io/okhttp/)) or the Ktor
+client; either is a single class of code.
 
-### 3b. TLS или нет
+### 3b. TLS or not
 
-В домашней WPA2‑сети трафик между устройствами может прочитать тот, кто знает пароль Wi‑Fi (то есть
-домочадцы). Угроза — утечка токена пульта → чужой может ставить фильмы на паузу. Для v1 разумно:
-**без TLS**, но с версионированным протоколом и полем `fp` (отпечаток сертификата) в QR,
-зарезервированным под будущий self‑signed TLS с пиннингом (Kestrel: `UseHttps(cert)`; Android:
-OkHttp `CertificatePinner`). Это дешевле, чем сразу тащить сертификаты, и ничего не ломает потом.
-`ws://` в Android требует `usesCleartextTraffic`/network security config для LAN — помнить.
+In a home WPA2 network, traffic between devices can be read by anyone who knows the Wi-Fi password (that is,
+household members). The threat is a leak of the remote's token → a stranger can pause movies. For v1 it is reasonable to go
+**without TLS**, but with a versioned protocol and an `fp` field (certificate fingerprint) in the QR,
+reserved for future self-signed TLS with pinning (Kestrel: `UseHttps(cert)`; Android:
+OkHttp `CertificatePinner`). This is cheaper than dragging in certificates right away, and breaks nothing later.
+`ws://` on Android requires `usesCleartextTraffic`/a network security config for the LAN — keep that in mind.
 
-### 3c. Сопряжение и аутентификация
+### 3c. Pairing and authentication
 
-1. Пользователь в трее нажимает «Подключить телефон». Компаньон генерирует 6‑значный код (TTL 2 мин,
-   5 попыток), показывает окно с QR **на мониторе‑телевизоре** (его видно с дивана) и тем же кодом.
+1. In the tray the user clicks "Connect a phone". The companion generates a 6-digit code (TTL 2 min,
+   5 attempts), shows a window with a QR code **on the TV monitor** (visible from the couch) and the same code.
    QR: `vlcremote://pair?host=192.168.1.20&port=47555&id=<pcId>&code=123456&v=1&fp=`.
-2. Телефон открывает WS и шлёт `{"t":"pair","code":"123456","device":"Pixel 8"}`.
-3. Компаньон возвращает `{"t":"paired","token":"<32 случайных байта base64url>"}`; у себя хранит
-   SHA‑256 токена и имя устройства; телефон — в EncryptedSharedPreferences/DataStore.
-4. Далее первая строка каждой сессии: `{"t":"auth","token":"…"}`; без неё — только `/info`.
-5. По Bluetooth — тот же токен (канал уже аутентифицирован сопряжением, но единый код проще).
-6. Отзыв: список устройств в трее → «Забыть».
+2. The phone opens the WS and sends `{"t":"pair","code":"123456","device":"Pixel 8"}`.
+3. The companion returns `{"t":"paired","token":"<32 random bytes base64url>"}`; on its side it stores the
+   SHA-256 of the token and the device name; the phone — in EncryptedSharedPreferences/DataStore.
+4. After that the first line of every session is `{"t":"auth","token":"…"}`; without it — only `/info`.
+5. Over Bluetooth — the same token (the channel is already authenticated by pairing, but a single code is simpler).
+6. Revocation: device list in the tray → "Forget".
 
-### 3d. Кадрирование, общее для Bluetooth и WebSocket
+### 3d. Framing shared by Bluetooth and WebSocket
 
-**NDJSON**: одно JSON‑значение на строку, `\n` — разделитель, UTF‑8, внутри строки переводов строк
-нет ([ndjson spec](https://github.com/ndjson/ndjson-spec)). По RFCOMM — буквально байты потока;
-по WebSocket — одно текстовое сообщение = одна строка (символ `\n` в конце допустим). Плюсы:
-`BufferedReader.readLine()` / `StreamReader.ReadLineAsync()`, читается в логах. Ограничения:
-максимум 64 КБ на строку, бинарные данные (обложки) — только через HTTP `/art` по LAN (по Bluetooth —
-не передавать или base64‑миниатюра ≤ 20 КБ). Length‑prefix даёт выигрыш только для бинарных кадров —
-здесь не нужен.
+**NDJSON**: one JSON value per line, `\n` is the separator, UTF-8, no line breaks inside a line
+([ndjson spec](https://github.com/ndjson/ndjson-spec)). Over RFCOMM — literally the bytes of the stream;
+over WebSocket — one text message = one line (a trailing `\n` is allowed). Pros:
+`BufferedReader.readLine()` / `StreamReader.ReadLineAsync()`, readable in logs. Limits:
+at most 64 KB per line; binary data (cover art) — only via HTTP `/art` over the LAN (over Bluetooth —
+do not transfer, or a base64 thumbnail ≤ 20 KB). A length prefix only pays off for binary frames —
+not needed here.
 
-Конверт:
+Envelope:
 
 ```json
 {"t":"cmd","id":7,"m":"seek","a":{"rel":30}}
@@ -547,58 +547,58 @@ OkHttp `CertificatePinner`). Это дешевле, чем сразу тащит
 {"t":"ping"}  /  {"t":"pong"}
 ```
 
-### 3e. Push против опроса
+### 3e. Push versus polling
 
-Компаньон держит один RC‑сокет к VLC (push‑строки `status change: (…)`, см. [live‑probe](live-probe.md))
-и опрашивает `status.json` каждые 500–1000 мс (локальная задержка ~21 мс), считает diff и шлёт
-телефону только изменения. Телефон не опрашивает вообще — только подписка и команды. Heartbeat
-`ping/pong` раз в 20 с на уровне приложения (работает одинаково по BT и WS; у Kestrel свой
-`KeepAliveInterval`, по умолчанию 2 мин — уменьшить). Отсутствие `pong` 2 раза подряд →
-переподключение.
+The companion holds one RC socket to VLC (push lines `status change: (…)`, see the [live probe](live-probe.md))
+and polls `status.json` every 500–1000 ms (local latency ~21 ms), computes a diff and sends
+only the changes to the phone. The phone does not poll at all — only subscription and commands. Heartbeat
+`ping/pong` every 20 s at the application level (works the same over BT and WS; Kestrel has its own
+`KeepAliveInterval`, 2 min by default — reduce it). Two missing `pong`s in a row →
+reconnect.
 
 ---
 
-## 4. Компаньон ↔ VLC
+## 4. Companion ↔ VLC
 
-### 4a. HTTP‑интерфейс VLC
+### 4a. VLC's HTTP interface
 
-Тот же API, что и у телефона на уровне 0: `requests/status.json?command=…`, `playlist.json`,
-`browse.json?uri=…`, `/art`; команды `pl_play/pl_pause/pl_stop/pl_next/pl_previous`, `seek`,
+The same API as the phone uses at level 0: `requests/status.json?command=…`, `playlist.json`,
+`browse.json?uri=…`, `/art`; commands `pl_play/pl_pause/pl_stop/pl_next/pl_previous`, `seek`,
 `volume`, `rate`, `fullscreen`, `audio_track/subtitle_track/video_track`, `audiodelay/subdelay`,
 `aspectratio`, `in_play/in_enqueue` ([README requests](https://github.com/videolan/vlc/blob/3.0.x/share/lua/http/requests/README.txt);
-подробности и странности — [live‑probe](live-probe.md)). Аутентификация — Basic, пустой логин,
-пароль `--http-password`; без пароля `http.lua` в 3.0.x отдаёт `403` на всё и пишет «Password unset,
-insecure web interface disabled» (проверено по исходнику). Опция `--http-host`, переданная Lua,
-игнорируется с сообщением «HTTP host ignored» — хост/порт задаются core‑опциями `--http-host`
+details and quirks — [live probe](live-probe.md)). Authentication — Basic, empty login,
+password `--http-password`; without a password `http.lua` in 3.0.x returns `403` for everything and logs "Password unset,
+insecure web interface disabled" (verified in the source). The `--http-host` option passed to Lua
+is ignored with the message "HTTP host ignored" — host/port are set by the core options `--http-host`
 `--http-port` ([wiki http_intf](https://wiki.videolan.org/Documentation:Modules/http_intf/)).
-Компаньон может держать HTTP к VLC только на `127.0.0.1` и быть единственной LAN‑точкой входа.
+The companion can keep HTTP to VLC on `127.0.0.1` only and be the sole LAN entry point.
 
-### 4b. RC‑интерфейс по TCP
+### 4b. RC interface over TCP
 
-`--extraintf rc --rc-host 127.0.0.1:4212 --rc-quiet` (на Windows без `--rc-quiet` открывается
-консоль, и команды принимаются только после Enter — [форум](https://forum.videolan.org/viewtopic.php?p=243197));
-`--rc-host` — «Accept commands over TCP instead of stdin» ([wiki rc](https://wiki.videolan.org/Documentation:Modules/rc/)).
-Аутентификации нет вообще → **только 127.0.0.1**. Одно соединение за раз, текстовый формат,
-push‑события, `adev` (список/выбор аудиоустройств Windows), `atrack/strack/vtrack` с маркером
-текущей дорожки, `quit` ([live‑probe](live-probe.md)). Компаньон — единственный RC‑клиент,
-мультиплексирует запросы телефонов.
+`--extraintf rc --rc-host 127.0.0.1:4212 --rc-quiet` (on Windows without `--rc-quiet` a
+console opens, and commands are accepted only after Enter — [forum](https://forum.videolan.org/viewtopic.php?p=243197));
+`--rc-host` — "Accept commands over TCP instead of stdin" ([wiki rc](https://wiki.videolan.org/Documentation:Modules/rc/)).
+There is no authentication at all → **127.0.0.1 only**. One connection at a time, text format,
+push events, `adev` (list/select Windows audio devices), `atrack/strack/vtrack` with a marker for the
+current track, `quit` ([live probe](live-probe.md)). The companion is the only RC client and
+multiplexes the phones' requests.
 
-### 4c. Плеер внутри компаньона: LibVLCSharp
+### 4c. A player inside the companion: LibVLCSharp
 
 LibVLCSharp 3.8.x + VideoLAN.LibVLC.Windows 3.0.23(.1) ([LibVLCSharp](https://www.nuget.org/packages/LibVLCSharp),
-[LibVLC.Windows](https://www.nuget.org/packages/VideoLAN.LibVLC.Windows); точные даты релизов — **не
-проверено**).
+[LibVLC.Windows](https://www.nuget.org/packages/VideoLAN.LibVLC.Windows); exact release dates — **not
+verified**).
 
-| За | Против |
+| Pros | Cons |
 |---|---|
-| Полный программный контроль: устройство вывода (`SetOutputDevice`), дорожки, события без парсинга, окно на нужном мониторе, fullscreen без хаков `SetWindowPos` | Дублирует плеер: свои настройки, кэш, плагины, скины, горячие клавиши пользователя не действуют |
-| Нет гонок с «кто запустил VLC» и с `vlcrc` | Нативные DLL ~ +80 МБ в дистрибутиве (размер пакета LibVLC.Windows — **не проверено**) |
-| Один процесс, один протокол | Пользователь, открывший файл двойным кликом, попадёт в «не тот» плеер |
-|  | Больше поверхности для багов (вывод видео в WinForms‑хосте, HDR/аппаратное декодирование) |
+| Full programmatic control: output device (`SetOutputDevice`), tracks, events without parsing, window on the right monitor, fullscreen without `SetWindowPos` hacks | Duplicates the player: the user's own settings, cache, plugins, skins, hotkeys do not apply |
+| No races over "who launched VLC" and over `vlcrc` | Native DLLs ~ +80 MB in the distribution (size of the LibVLC.Windows package — **not verified**) |
+| One process, one protocol | A user who opened a file by double-clicking ends up in "the wrong" player |
+|  | More surface for bugs (video output in a WinForms host, HDR/hardware decoding) |
 
-Вердикт (совпадает с ADR‑0001): не для v1; возможный «встроенный режим» позже.
+Verdict (matches ADR-0001): not for v1; a possible "built-in mode" later.
 
-### 4d. Запуск `vlc.exe` с аргументами
+### 4d. Launching `vlc.exe` with arguments
 
 ```text
 "C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf http:rc --http-host 127.0.0.1 --http-port 8080
@@ -606,29 +606,29 @@ LibVLCSharp 3.8.x + VideoLAN.LibVLC.Windows 3.0.23(.1) ([LibVLCSharp](https://ww
   --fullscreen --qt-fullscreen-screennumber=1 "D:\shared\film.mkv"
 ```
 
-- `--qt-fullscreen-screennumber` — **индекс с нуля** в `QGuiApplication::screens()`; значения вне
-  диапазона игнорируются (окно не переносится) — проверено по
+- `--qt-fullscreen-screennumber` — a **zero-based index** into `QGuiApplication::screens()`; out-of-range
+  values are ignored (the window is not moved) — verified in
   [main_interface.cpp 3.0.x](https://github.com/videolan/vlc/blob/3.0.x/modules/gui/qt/main_interface.cpp)
-  (`if (numscreen >= 0 && numscreen < QGuiApplication::screens().length())`, затем
-  `windowHandle()->setScreen(...)`, `move(...)`). Умолчание `-1` (в `vlcrc`:
-  `#qt-fullscreen-screennumber=-1`, проверено локально). Работает только для встроенного видео
-  ([vlc‑devel 2019](https://mailman.videolan.org/pipermail/vlc-devel/2019-October/128255.html)).
-  Порядок экранов Qt и `Screen.AllScreens` может не совпадать — **не проверено**; надёжнее
-  переносить окно самим (раздел 5).
-- `--one-instance --playlist-enqueue <файл>` добавляет файл в уже запущенный экземпляр
-  ([форум](https://forum.videolan.org/viewtopic.php?p=221412), [ещё](https://forum.videolan.org/viewtopic.php?p=264918));
-  `--started-from-file` встречается только в форумных постах — **не проверено**. Важно: если
-  VLC уже запущен в one‑instance‑режиме, **аргументы интерфейсов второго запуска не применяются**
-  (передаются только элементы плейлиста) — поэтому либо `extraintf` должен быть в `vlcrc`, либо
-  компаньон владеет жизненным циклом VLC.
-- Прочее полезное: `--no-video-title-show`, `--qt-minimal-view`, `--no-qt-fs-controller`,
-  `--start-time`, `--sub-file`, `--audio-track/--sub-track` — по `vlc --longhelp`.
+  (`if (numscreen >= 0 && numscreen < QGuiApplication::screens().length())`, then
+  `windowHandle()->setScreen(...)`, `move(...)`). The default is `-1` (in `vlcrc`:
+  `#qt-fullscreen-screennumber=-1`, verified locally). Works only for embedded video
+  ([vlc-devel 2019](https://mailman.videolan.org/pipermail/vlc-devel/2019-October/128255.html)).
+  The order of Qt screens and `Screen.AllScreens` may differ — **not verified**; it is more reliable
+  to move the window ourselves (section 5).
+- `--one-instance --playlist-enqueue <file>` adds the file to an already running instance
+  ([forum](https://forum.videolan.org/viewtopic.php?p=221412), [another](https://forum.videolan.org/viewtopic.php?p=264918));
+  `--started-from-file` appears only in forum posts — **not verified**. Important: if
+  VLC is already running in one-instance mode, **the interface arguments of the second launch are not applied**
+  (only playlist items are passed on) — so either `extraintf` must be in `vlcrc`, or the
+  companion owns VLC's lifecycle.
+- Other useful ones: `--no-video-title-show`, `--qt-minimal-view`, `--no-qt-fs-controller`,
+  `--start-time`, `--sub-file`, `--audio-track/--sub-track` — per `vlc --longhelp`.
 
-### 4e. Автонастройка через `vlcrc`
+### 4e. Auto-configuration via `vlcrc`
 
-Файл `%APPDATA%\vlc\vlcrc` ([wiki Vlcrc](https://wiki.videolan.org/Vlcrc)). Формат по
-[src/config/file.c 3.0.x](https://github.com/videolan/vlc/blob/3.0.x/src/config/file.c) и локальному
-файлу (3479 строк, записан VLC 3.0.21; проверено):
+The file `%APPDATA%\vlc\vlcrc` ([wiki Vlcrc](https://wiki.videolan.org/Vlcrc)). The format per
+[src/config/file.c 3.0.x](https://github.com/videolan/vlc/blob/3.0.x/src/config/file.c) and the local
+file (3479 lines, written by VLC 3.0.21; verified):
 
 ```text
 ###
@@ -650,63 +650,63 @@ LibVLCSharp 3.8.x + VideoLAN.LibVLC.Windows 3.0.23(.1) ([LibVLCSharp](https://ww
 #one-instance=0
 ```
 
-- Значение, равное умолчанию, пишется закомментированным `#key=value`; изменённое — `key=value`.
-  Заголовок с UTF‑8 BOM. Секции `[module] # описание`.
-- `config_SaveConfigFile` **не читает старый файл**: сериализует загруженные в память модули целиком и
-  заменяет файл атомарно (`vlcrc.<pid>` → rename; на Windows сначала unlink). Строки неизвестных
-  опций при загрузке игнорируются и при сохранении **теряются**. Если файл read‑only — VLC
-  отказывается сохранять (комментарий в коде: «Some users make vlcrc read-only to prevent changes»).
-- Когда VLC сохраняет: Preferences → Save; автосохранение `config_AutoSaveConfigFile` только при
-  флаге `config_dirty` (когда именно он выставляется, кроме диалога настроек, — **не проверено**).
+- A value equal to the default is written commented out as `#key=value`; a changed one — `key=value`.
+  The header has a UTF-8 BOM. Sections `[module] # description`.
+- `config_SaveConfigFile` **does not read the old file**: it serializes the modules loaded in memory in full and
+  replaces the file atomically (`vlcrc.<pid>` → rename; on Windows unlink first). Lines with unknown
+  options are ignored on load and **lost** on save. If the file is read-only, VLC
+  refuses to save (code comment: "Some users make vlcrc read-only to prevent changes").
+- When VLC saves: Preferences → Save; auto-save `config_AutoSaveConfigFile` only when the
+  `config_dirty` flag is set (when exactly it is set, besides the preferences dialog, — **not verified**).
 
-Безопасный алгоритм правки компаньоном:
-1. Только когда `vlc.exe` не запущен (иначе VLC может перезаписать файл при выходе).
-2. Прочитать файл как UTF‑8 с BOM, построчно. Для каждого ключа (`extraintf`, `http-password`,
-   `http-host`, `http-port`, `rc-host`) найти **первую** строку `^#?key=` и заменить на `key=value`
-   (ключ остаётся в своей секции). Если ключа нет — дописать в конец секции `[core]`, для
-   `rc-host` — `[rc]`, для `http-password` — `[lua]` (в 3.0.x `http-password` объявлен модулем lua).
-   Загрузчик ищет опции по имени; роль секций при чтении — **не проверено**, поэтому секции
-   соблюдать.
-3. Записать во временный файл рядом и `File.Move(tmp, vlcrc, overwrite: true)`.
-4. Если `vlcrc` нет — создать минимальный файл с заголовком и нужными строками (VLC должен принять
-   файл без полного списка опций — **не проверено**).
-5. `extraintf=http:rc` — несколько интерфейсов через двоеточие (синтаксис из live‑probe).
-6. Пароль HTTP хранить и в `vlcrc`, и у компаньона (компаньон им же пользуется).
+Safe editing algorithm for the companion:
+1. Only when `vlc.exe` is not running (otherwise VLC may overwrite the file on exit).
+2. Read the file as UTF-8 with BOM, line by line. For each key (`extraintf`, `http-password`,
+   `http-host`, `http-port`, `rc-host`) find the **first** line `^#?key=` and replace it with `key=value`
+   (the key stays in its section). If the key is missing — append it to the end of the `[core]` section; for
+   `rc-host` — `[rc]`, for `http-password` — `[lua]` (in 3.0.x `http-password` is declared by the lua module).
+   The loader looks options up by name; the role of sections when reading — **not verified**, so keep to the
+   sections.
+3. Write to a temporary file alongside and `File.Move(tmp, vlcrc, overwrite: true)`.
+4. If there is no `vlcrc` — create a minimal file with the header and the required lines (VLC should accept a
+   file without the full list of options — **not verified**).
+5. `extraintf=http:rc` — several interfaces separated by a colon (syntax from the live probe).
+6. Store the HTTP password both in `vlcrc` and in the companion (the companion uses it itself).
 
-Детект/управление процессом: `Process.GetProcessesByName("vlc")`; путь установки —
-`HKLM\SOFTWARE\VideoLAN\VLC\InstallDir` (проверено) с fallback на `%ProgramFiles%\VideoLAN\VLC\vlc.exe`;
-«жив ли HTTP» — TCP‑connect на порт + ожидание `401`. Корректное закрытие — RC `quit` (проверено в
-live‑probe; `command=key&val=quit` по HTTP не закрывает), затем `WaitForExit(5s)` → `Kill()`.
-Запуск по требованию — `Process.Start` с аргументами из 4d; после старта первые запросы могут
-вернуть пустой ответ — ретрай (live‑probe).
+Process detection/control: `Process.GetProcessesByName("vlc")`; the installation path —
+`HKLM\SOFTWARE\VideoLAN\VLC\InstallDir` (verified) with a fallback to `%ProgramFiles%\VideoLAN\VLC\vlc.exe`;
+"is HTTP alive" — TCP connect to the port + waiting for `401`. Graceful shutdown — RC `quit` (verified in the
+live probe; `command=key&val=quit` over HTTP does not close it), then `WaitForExit(5s)` → `Kill()`.
+On-demand launch — `Process.Start` with the arguments from 4d; right after start the first requests may
+return an empty response — retry (live probe).
 
 ---
 
-## 5. Экран и телевизор из компаньона (Windows 11, .NET)
+## 5. Screen and TV from the companion (Windows 11, .NET)
 
-**Перечисление мониторов.**
-- WinForms `Screen.AllScreens` (`DeviceName` вида `\\.\DISPLAY2`, `Bounds`, `Primary`)
+**Enumerating monitors.**
+- WinForms `Screen.AllScreens` (`DeviceName` like `\\.\DISPLAY2`, `Bounds`, `Primary`)
   ([docs](https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.screen.allscreens)) —
-  достаточно для трей‑приложения.
+  enough for a tray application.
 - Win32 `EnumDisplayMonitors` + `GetMonitorInfo` ([docs](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdisplaymonitors)).
-- WinRT `Windows.Devices.Display.DisplayMonitor` даёт человеческое имя и тип подключения
-  (HDMI/DisplayPort/внутренний) — удобно, чтобы в пульте написать «LG TV (HDMI)»
+- WinRT `Windows.Devices.Display.DisplayMonitor` gives a human-readable name and the connection type
+  (HDMI/DisplayPort/internal) — handy for showing "LG TV (HDMI)" in the remote
   ([docs](https://learn.microsoft.com/en-us/uwp/api/windows.devices.display.displaymonitor)).
 
-**Найти окно VLC и перенести на ТВ.**
-- `Process.MainWindowHandle` — работает, пока у процесса есть видимое главное окно; при
-  `--no-embedded-video` видео живёт в отдельном окне.
-- `EnumWindows` → фильтр по PID (`GetWindowThreadProcessId`) и классу окна. Для VLC 3 (Qt5) в
-  сообществе используют класс `Qt5QWindowIcon` и заголовок «VLC media player»
-  ([пример VBA](https://xf2023.herber.de/1684to1688/1686695_Fenstergroee_mit_VBA_ermitteln.html));
-  заголовок меняется на `<имя файла> - VLC media player` (проверено по `setVLCWindowsTitle` в
-  исходнике), класс — **не проверено** локально (VLC не был запущен), проверить Spy++. VLC 4 (Qt6)
-  будет иметь другой класс.
-- Перенос: `SetWindowPos(hWnd, IntPtr.Zero, tv.Bounds.X, tv.Bounds.Y, w, h, SWP_NOZORDER | SWP_SHOWWINDOW)`
-  ([docs](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)), затем
-  `fullscreen` через HTTP/RC: VLC уходит в полный экран на том мониторе, где стоит окно (суть
-  патча 2017 г.: [vlc‑devel](https://mailman.videolan.org/pipermail/vlc-devel/2017-December/117078.html)).
-  Если уже в полном экране — сначала `fullscreen off`, перенести, `fullscreen on`.
+**Find the VLC window and move it to the TV.**
+- `Process.MainWindowHandle` — works as long as the process has a visible main window; with
+  `--no-embedded-video` the video lives in a separate window.
+- `EnumWindows` → filter by PID (`GetWindowThreadProcessId`) and window class. For VLC 3 (Qt5) the
+  community uses the class `Qt5QWindowIcon` and the title "VLC media player"
+  ([VBA example](https://xf2023.herber.de/1684to1688/1686695_Fenstergroee_mit_VBA_ermitteln.html));
+  the title changes to `<file name> - VLC media player` (verified via `setVLCWindowsTitle` in the
+  source), the class — **not verified** locally (VLC was not running), check with Spy++. VLC 4 (Qt6)
+  will have a different class.
+- Moving: `SetWindowPos(hWnd, IntPtr.Zero, tv.Bounds.X, tv.Bounds.Y, w, h, SWP_NOZORDER | SWP_SHOWWINDOW)`
+  ([docs](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)), then
+  `fullscreen` via HTTP/RC: VLC goes fullscreen on the monitor where the window is (the gist of the
+  2017 patch: [vlc-devel](https://mailman.videolan.org/pipermail/vlc-devel/2017-December/117078.html)).
+  If already fullscreen — first `fullscreen off`, move, `fullscreen on`.
 
 ```csharp
 static IntPtr FindVlcMainWindow(int pid)
@@ -733,17 +733,17 @@ static void MoveToScreen(IntPtr hWnd, Screen target)
 }
 ```
 
-**Режим проецирования.** `SetDisplayConfig(0, null, 0, null, SDC_TOPOLOGY_EXTEND|SDC_APPLY)` /
-`SDC_TOPOLOGY_EXTERNAL` / `SDC_TOPOLOGY_CLONE` / `SDC_TOPOLOGY_INTERNAL` — «requests the last …
-configuration from the persistence database»
+**Projection mode.** `SetDisplayConfig(0, null, 0, null, SDC_TOPOLOGY_EXTEND|SDC_APPLY)` /
+`SDC_TOPOLOGY_EXTERNAL` / `SDC_TOPOLOGY_CLONE` / `SDC_TOPOLOGY_INTERNAL` — "requests the last …
+configuration from the persistence database"
 ([SetDisplayConfig](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdisplayconfig));
-текущую топологию читать `QueryDisplayConfig(QDC_DATABASE_CURRENT, …, out topologyId)`
+read the current topology with `QueryDisplayConfig(QDC_DATABASE_CURRENT, …, out topologyId)`
 ([QueryDisplayConfig](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-querydisplayconfig)).
-`DisplaySwitch.exe /internal|/clone|/extend|/external` — после 22H2 ключи со слэшем, по сообщениям,
-перестали работать, вместо них числа 1–4 ([Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/1036148/displayswitchexe-behavior-on-windows-11-22h2.html),
+`DisplaySwitch.exe /internal|/clone|/extend|/external` — after 22H2 the slash switches reportedly
+stopped working, numbers 1–4 are used instead ([Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/1036148/displayswitchexe-behavior-on-windows-11-22h2.html),
 [winaero](https://winaero.com/switch-between-multiple-displays-monitors-directly-with-a-shortcut-or-from-the-command-line-in-windows-7-and-windows-8/));
-на этом ПК `DisplaySwitch.exe` 10.0.26100 есть, аргументы — **не проверено**. Использовать
-`SetDisplayConfig` (документирован, без дочерних процессов).
+on this PC `DisplaySwitch.exe` 10.0.26100 exists, the arguments — **not verified**. Use
+`SetDisplayConfig` (documented, no child processes).
 
 ```csharp
 [DllImport("user32.dll")] static extern int SetDisplayConfig(uint n1, IntPtr p1, uint n2, IntPtr p2, uint flags);
@@ -752,71 +752,71 @@ static bool Extend()   => SetDisplayConfig(0, IntPtr.Zero, 0, IntPtr.Zero, SDC_T
 static bool TvOnly()   => SetDisplayConfig(0, IntPtr.Zero, 0, IntPtr.Zero, SDC_TOPOLOGY_EXTERNAL | SDC_APPLY) == 0;
 ```
 
-**Выключить/включить дисплей.** `SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2)`
-(2 — off, 1 — low power, −1 — on, последнее недокументировано)
+**Turning the display off/on.** `SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2)`
+(2 — off, 1 — low power, −1 — on, the last one is undocumented)
 ([WM_SYSCOMMAND](https://learn.microsoft.com/en-us/windows/win32/menurc/wm-syscommand),
-[CodeProject](https://www.codeproject.com/KB/system/display_states.aspx)). На Windows 11 любое
-движение мыши/клавиша включает экран обратно, на части ноутбуков с Modern Standby поведение
-отличается ([отчёт](https://en.delphipraxis.net/topic/13282-turning-monitor-on-laptop-puts-application-to-sleep-also)).
-Для «включить» надёжнее имитировать ввод (`SendInput` с нулевым движением мыши). Телевизор от этого
-не выключается — он видит «нет сигнала» и уходит в standby по своему таймеру.
+[CodeProject](https://www.codeproject.com/KB/system/display_states.aspx)). On Windows 11 any
+mouse movement/key press turns the screen back on; on some laptops with Modern Standby the behaviour
+differs ([report](https://en.delphipraxis.net/topic/13282-turning-monitor-on-laptop-puts-application-to-sleep-also)).
+For "on" it is more reliable to simulate input (`SendInput` with zero mouse movement). The TV does not
+turn off from this — it sees "no signal" and goes to standby on its own timer.
 
-**HDMI‑CEC.** Из HDMI‑порта ноутбука CEC недоступен (видеокарты ПК не выводят CEC‑линию). Решение —
-USB‑CEC‑адаптер Pulse‑Eight между ноутбуком и ТВ + libcec: `tv_on.cmd`/`tv_off.cmd`, выбор входа
-`-s -p N` ([Pulse‑Eight](https://support.pulse-eight.com/support/solutions/articles/30000027391),
-[что такое libcec](https://support.pulse-eight.com/support/solutions/articles/30000053002-what-is-the-pulse-eight-cec-adapter-and-libcec-)).
-Из .NET — запуск `cec-client` процессом (есть и .NET‑обёртка LibCecSharp — **не проверено**).
-Опциональная фича «если найден адаптер».
+**HDMI-CEC.** CEC is not available from a laptop's HDMI port (PC graphics cards do not expose the CEC line). The solution is a
+Pulse-Eight USB-CEC adapter between the laptop and the TV + libcec: `tv_on.cmd`/`tv_off.cmd`, input selection
+`-s -p N` ([Pulse-Eight](https://support.pulse-eight.com/support/solutions/articles/30000027391),
+[what libcec is](https://support.pulse-eight.com/support/solutions/articles/30000053002-what-is-the-pulse-eight-cec-adapter-and-libcec-)).
+From .NET — run `cec-client` as a process (there is also a .NET wrapper, LibCecSharp — **not verified**).
+An optional "if an adapter is found" feature.
 
-**Не спать во время фильма.** `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)`
-на время `playing`, `SetThreadExecutionState(ES_CONTINUOUS)` — снять
+**No sleeping during a movie.** `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)`
+while `playing`, `SetThreadExecutionState(ES_CONTINUOUS)` — to release
 ([docs](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate)).
-Сам VLC во время видео тоже блокирует гашение экрана (общее поведение, **не проверено** для
-3.0.23 на Win11); компаньону нужен свой флаг для сценариев «пауза, но экран не гасить» и
-«выключить экран, но ПК не усыплять» (например, аудио).
+VLC itself also blocks screen blanking during video (general behaviour, **not verified** for
+3.0.23 on Win11); the companion needs its own flag for the scenarios "paused, but do not blank the screen" and
+"turn off the screen, but do not put the PC to sleep" (e.g. audio).
 
-**Сон/гибернация/выключение.** `SetSuspendState(bHibernate, bForce /*no effect*/, bWakeupEventsDisabled)`
-требует привилегии `SE_SHUTDOWN_NAME` через `AdjustTokenPrivileges` (у обычного пользователя она
-есть, но выключена) ([docs](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-setsuspendstate));
-`shutdown.exe /s /t 0`, `/h` (гибернация), `/r` ([docs](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/shutdown)),
-сна у `shutdown.exe` нет; известная ловушка `rundll32 powrprof.dll,SetSuspendState 0,1,0`
-гибернирует, если гибернация включена → для сна использовать P/Invoke `SetSuspendState(false, …)`.
-Блокировка — `LockWorkStation()`.
+**Sleep/hibernation/shutdown.** `SetSuspendState(bHibernate, bForce /*no effect*/, bWakeupEventsDisabled)`
+requires the `SE_SHUTDOWN_NAME` privilege via `AdjustTokenPrivileges` (an ordinary user has it,
+but it is disabled) ([docs](https://learn.microsoft.com/en-us/windows/win32/api/powrprof/nf-powrprof-setsuspendstate));
+`shutdown.exe /s /t 0`, `/h` (hibernation), `/r` ([docs](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/shutdown)),
+`shutdown.exe` has no sleep; a known trap: `rundll32 powrprof.dll,SetSuspendState 0,1,0`
+hibernates if hibernation is enabled → for sleep use P/Invoke `SetSuspendState(false, …)`.
+Locking — `LockWorkStation()`.
 
-**Wake‑on‑LAN.** Магический пакет (UDP на 255.255.255.255:9, 6×FF + 16×MAC) из телефона — тривиально;
-MAC ПК компаньон отдаёт при сопряжении. Но ноутбук по Wi‑Fi: WoWLAN «supported in most wireless
-cards» по словам Intel ([Intel community](https://community.intel.com/t5/Wireless/Wake-on-Wireless-Lan-WOWLAN-compatibility/m-p/1451835)),
-на практике зависит от адаптера/драйвера/BIOS и часто не срабатывает
-([AnandTech](https://forums.anandtech.com/threads/difficulty-setting-up-wowlan.2630657/)); с Ethernet
-надёжно. В пульте — кнопка «Разбудить» как best‑effort с подсказкой.
+**Wake-on-LAN.** A magic packet (UDP to 255.255.255.255:9, 6×FF + 16×MAC) from the phone is trivial;
+the companion hands over the PC's MAC during pairing. But a laptop on Wi-Fi: WoWLAN is "supported in most wireless
+cards" according to Intel ([Intel community](https://community.intel.com/t5/Wireless/Wake-on-Wireless-Lan-WOWLAN-compatibility/m-p/1451835)),
+in practice it depends on the adapter/driver/BIOS and often does not work
+([AnandTech](https://forums.anandtech.com/threads/difficulty-setting-up-wowlan.2630657/)); with Ethernet
+it is reliable. In the remote — a "Wake up" button as best-effort with a hint.
 
 ---
 
-## 6. Звук из компаньона
+## 6. Sound from the companion
 
-**Переключение устройства вывода.**
-1. **Внутри VLC** (документировано, без хаков): RC `adev` без аргумента → список устройств Windows
-   с ID `{0.0.0.00000000}.{GUID}` и `*` на текущем; `adev <id>` переключает; на старте —
-   `--aout mmdevice --mmdevice-audio-device=<id>` ([live‑probe](live-probe.md)). Это закрывает
-   «динамики ноутбука ↔ HDMI ТВ ↔ Bluetooth‑наушники» для фильма, не трогая систему.
-2. **Системное устройство по умолчанию**: публичного API нет; все утилиты (SoundSwitch,
-   AudioEndPointController, Sunshine, AudioSwitcher) используют недокументированный COM
+**Switching the output device.**
+1. **Inside VLC** (documented, no hacks): RC `adev` without an argument → list of Windows devices
+   with IDs `{0.0.0.00000000}.{GUID}` and `*` on the current one; `adev <id>` switches; at startup —
+   `--aout mmdevice --mmdevice-audio-device=<id>` ([live probe](live-probe.md)). This covers
+   "laptop speakers ↔ HDMI TV ↔ Bluetooth headphones" for a movie without touching the system.
+2. **System default device**: there is no public API; all utilities (SoundSwitch,
+   AudioEndPointController, Sunshine, AudioSwitcher) use the undocumented COM
    `IPolicyConfig::SetDefaultEndpoint(deviceId, ERole)`
    ([AudioEndPointController](https://github.com/Belphemur/AudioEndPointController),
    [Sunshine PolicyConfig.h](https://docs.lizardbyte.dev/projects/sunshine/latest/PolicyConfig_8h.html),
    [MS Q&A](https://learn.microsoft.com/en-za/answers/questions/226483/set-active-audio-endpoint)).
-   Работает на Windows 10/11 по отчётам сообщества; официально может сломаться в любом обновлении.
-   GUID `CLSID {870af99c-171d-4f9e-af0d-e63df40c2bc9}` / `IID {f8679f50-850a-41cf-9c72-430f290290c8}`
-   широко цитируются в коде этих проектов, но страницу с ними в этом исследовании получить не
-   удалось — **сверить с `PolicyConfig.h`** перед использованием. Реализовать как 60‑строчный
-   `[ComImport]` интерфейс самим (порядок методов vtable критичен) и обернуть в try/catch с
-   graceful‑fallback. AudioSwitcher.AudioApi (3.1.0‑beta3, [NuGet](https://www.nuget.org/packages/AudioSwitcher.AudioApi))
-   — в бете, даты последней активности **не проверены**; тащить ради одного вызова не стоит.
-3. Перечисление устройств и **системная громкость**: NAudio ([GitHub](https://github.com/naudio/NAudio)),
+   Works on Windows 10/11 per community reports; officially it may break with any update.
+   The GUIDs `CLSID {870af99c-171d-4f9e-af0d-e63df40c2bc9}` / `IID {f8679f50-850a-41cf-9c72-430f290290c8}`
+   are widely quoted in the code of these projects, but the page with them could not be retrieved in this research
+   — **check against `PolicyConfig.h`** before use. Implement it ourselves as a 60-line
+   `[ComImport]` interface (the vtable method order is critical) and wrap it in try/catch with a
+   graceful fallback. AudioSwitcher.AudioApi (3.1.0-beta3, [NuGet](https://www.nuget.org/packages/AudioSwitcher.AudioApi))
+   — in beta, dates of last activity **not verified**; not worth pulling in for a single call.
+3. Device enumeration and **system volume**: NAudio ([GitHub](https://github.com/naudio/NAudio)),
    `MMDeviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia).AudioEndpointVolume`
-   (`MasterVolumeLevelScalar`, `Mute`) — это `IAudioEndpointVolume`
+   (`MasterVolumeLevelScalar`, `Mute`) — this is `IAudioEndpointVolume`
    ([docs](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolume)).
-   Громкость VLC (0..512, 256 = 100 %) — отдельная сущность ([live‑probe](live-probe.md)).
+   VLC volume (0..512, 256 = 100 %) is a separate entity ([live probe](live-probe.md)).
 
 ```csharp
 using NAudio.CoreAudioApi;
@@ -827,163 +827,163 @@ var def = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
 def.AudioEndpointVolume.MasterVolumeLevelScalar = 0.35f;   // 35 %
 ```
 
-**Что выносить в пульт.** Основной слайдер — громкость VLC; второй, «системная громкость» + mute
-(для случая, когда VLC на 100 %, а всё равно тихо/громко); список устройств вывода VLC с
-человеческими именами (`adev`); опционально «сделать устройством Windows по умолчанию»
-(IPolicyConfig) — для сценария «наушники для всего». ID устройств одинаковы в VLC (`mmdevice`) и
-CoreAudio — можно сопоставлять имена.
+**What to expose in the remote.** The main slider — VLC volume; a second one, "system volume" + mute
+(for the case when VLC is at 100 % and it is still too quiet/loud); a list of VLC output devices with
+human-readable names (`adev`); optionally "make it the Windows default device"
+(IPolicyConfig) — for the "headphones for everything" scenario. Device IDs are the same in VLC (`mmdevice`) and
+CoreAudio — names can be matched.
 
 ---
 
-## 7. Форма компаньона на Windows
+## 7. The companion's form on Windows
 
-**Трей‑приложение.** Проще всего — WinForms `WinExe` (`net9.0-windows`, `UseWindowsForms`) с
-`NotifyIcon` + `ContextMenuStrip`, без главного окна ([NotifyIcon](https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.notifyicon));
-окна «QR для сопряжения» и «Настройки» — обычные формы по требованию. В пробе WinForms‑трей и
-Kestrel собраны в одном процессе: `_ = app.RunAsync(); Application.Run();`. WPF — то же, но без
-штатного трей‑контрола (нужен Hardcodet.NotifyIcon.Wpf); WinUI 3 — Windows App SDK, тяжелее и
-сложнее с unpackaged‑режимом. Единственный экземпляр — `Mutex`.
+**Tray application.** The simplest is a WinForms `WinExe` (`net9.0-windows`, `UseWindowsForms`) with
+`NotifyIcon` + `ContextMenuStrip`, without a main window ([NotifyIcon](https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.notifyicon));
+the "Pairing QR" and "Settings" windows are ordinary forms on demand. In the probe the WinForms tray and
+Kestrel were built into one process: `_ = app.RunAsync(); Application.Run();`. WPF — the same, but without
+a standard tray control (needs Hardcodet.NotifyIcon.Wpf); WinUI 3 — Windows App SDK, heavier and
+harder in unpackaged mode. Single instance — a `Mutex`.
 
-**Автозапуск.** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` — без администратора,
-пользователь видит и может отключить в Диспетчере задач → Автозагрузка
+**Autostart.** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` — no administrator needed,
+the user sees it and can disable it in Task Manager → Startup
 ([Run keys](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys)).
-Папка Startup — то же, но ярлыком. Планировщик — нужен только для «с наивысшими правами» (здесь
-не требуется). Выбор: Run‑ключ, переключатель в меню трея.
+The Startup folder — the same, but with a shortcut. Task Scheduler — needed only for "with highest privileges" (not
+required here). Choice: the Run key, with a toggle in the tray menu.
 
-**Размер публикации (измерено, .NET 9.0.310, win‑x64, Release):**
+**Publish size (measured, .NET 9.0.310, win-x64, Release):**
 
-| Конфигурация | Трей (WinForms) | Трей + Kestrel |
+| Configuration | Tray (WinForms) | Tray + Kestrel |
 |---|---|---|
-| framework‑dependent, single‑file | 0,2 МБ (нужен .NET Desktop Runtime 9; для Kestrel — ещё ASP.NET Core Runtime) | 0,2 МБ |
-| self‑contained, single‑file | 107,7 МБ | 133,3 МБ |
-| self‑contained, single‑file, `EnableCompressionInSingleFile` | 48,1 МБ | 59,3 МБ |
+| framework-dependent, single-file | 0.2 MB (needs .NET Desktop Runtime 9; for Kestrel — also ASP.NET Core Runtime) | 0.2 MB |
+| self-contained, single-file | 107.7 MB | 133.3 MB |
+| self-contained, single-file, `EnableCompressionInSingleFile` | 48.1 MB | 59.3 MB |
 
-Trimming WinForms не рассматривался (исторически несовместим — **не проверено** для .NET 9).
-Для пользователей без .NET — self‑contained сжатый (~60 МБ скачивания, распаковка в память при
-старте; старт на ~0,5–1 с медленнее — **не проверено**). Для себя — framework‑dependent.
+Trimming WinForms was not considered (historically incompatible — **not verified** for .NET 9).
+For users without .NET — self-contained compressed (~60 MB download, decompressed into memory at
+startup; startup ~0.5–1 s slower — **not verified**). For ourselves — framework-dependent.
 
-**Установка без администратора и обновления.**
-- **Velopack**: наследник Squirrel.Windows/Clowd.Squirrel («Clowd.Squirrel has been renamed to
-  Velopack» — [NuGet Clowd.Squirrel](https://www.nuget.org/packages/Clowd.Squirrel)); ставит в
-  `%LocalAppData%\<AppId>\current\` без UAC, `current` целиком заменяется при обновлении (логи и
-  настройки хранить отдельно), обновления с любого статического URL или GitHub Releases
+**Installation without an administrator, and updates.**
+- **Velopack**: the successor of Squirrel.Windows/Clowd.Squirrel ("Clowd.Squirrel has been renamed to
+  Velopack" — [NuGet Clowd.Squirrel](https://www.nuget.org/packages/Clowd.Squirrel)); installs into
+  `%LocalAppData%\<AppId>\current\` without UAC, `current` is replaced entirely on update (keep logs and
+  settings separately), updates from any static URL or GitHub Releases
   ([Windows packaging](https://docs.velopack.io/packaging/operating-systems/windows),
-  [C# getting started](https://docs.velopack.io/getting-started/csharp)); C#‑SDK + CLI `vpk`
-  (`dotnet tool install -g vpk`; версии vpk и пакета должны совпадать). Дельта‑обновления и
-  проверка подписи — по документации заявлены, в этом исследовании **не проверены**. Поток:
+  [C# getting started](https://docs.velopack.io/getting-started/csharp)); C# SDK + the `vpk` CLI
+  (`dotnet tool install -g vpk`; the vpk and package versions must match). Delta updates and
+  signature verification are claimed in the documentation, **not verified** in this research. Flow:
   `dotnet publish … --self-contained -r win-x64 -o publish` → `vpk pack --packId VlcRemoteCompanion --packVersion 1.0.0 --packDir publish` → `vpk upload github …`.
-- Оригинальный Squirrel.Windows — без активности (точный статус репозитория **не проверен**); не брать.
-- Минимум без фреймворка: zip на GitHub Releases + проверка `releases/latest` из трея и ссылка
-  «скачать». Для домашнего проекта допустимо, но Velopack даёт то же за час работы.
-- Неподписанный exe вызовет SmartScreen при первом запуске (общее знание); для себя — ок.
+- The original Squirrel.Windows — no activity (exact repository status **not verified**); do not use.
+- Minimum without a framework: a zip on GitHub Releases + checking `releases/latest` from the tray and a
+  "download" link. Acceptable for a home project, but Velopack gives the same for an hour of work.
+- An unsigned exe will trigger SmartScreen on first launch (common knowledge); fine for ourselves.
 
-**Логирование.** `Microsoft.Extensions.Logging` + Serilog `File`‑sink с ротацией в
-`%LocalAppData%\VlcRemoteCompanion\logs\` ([Serilog](https://serilog.net/)); без токенов и
-паролей; кнопка «Открыть папку логов» в трее.
+**Logging.** `Microsoft.Extensions.Logging` + Serilog `File` sink with rotation in
+`%LocalAppData%\VlcRemoteCompanion\logs\` ([Serilog](https://serilog.net/)); no tokens or
+passwords; an "Open log folder" button in the tray.
 
-**Альтернативные языки компаньона.**
-- **Rust**: `windows-rs` даёт те же WinRT (RFCOMM, DNS‑SD, Bluetooth) и COM (CoreAudio) API,
-  `tray-icon` для трея, Velopack имеет Rust‑SDK; exe 3–6 МБ без рантайма
-  ([windows‑rs](https://github.com/microsoft/windows-rs), [tray‑icon](https://github.com/tauri-apps/tray-icon)).
-  Цена — другой язык, 2–3× времени на ту же поверхность Windows API.
-- **Go**: `systray` есть ([getlantern/systray](https://github.com/getlantern/systray)), но WinRT/COM
-  из Go — боль (cgo или ручные vtable), RFCOMM‑сервер через Winsock руками.
-- Почему **C#/.NET**: вся нужная поверхность (WinRT Bluetooth и DNS‑SD, COM CoreAudio, Win32 окна/
-  дисплеи, Kestrel) первоклассна и уже проверена; разница в 50 МБ дистрибутива для домашнего
-  HTPC несущественна; разработчик знает язык.
-
----
-
-## 8. Безопасность в домашней LAN
-
-- **VLC HTTP**: Basic‑auth по открытому HTTP с пустым логином; пароль виден любому, кто может
-  слушать Wi‑Fi (знает WPA2‑пароль). При наличии компаньона — `--http-host 127.0.0.1`: VLC вообще
-  не виден в сети, единственная LAN‑точка — компаньон с токеном. Без компаньона (уровень 0) —
-  принять риск, пароль не равен другим паролям пользователя.
-- **RC**: без аутентификации — **только `127.0.0.1`**, никогда `0.0.0.0`.
-- **Компаньон**: токен 256 бит, в хранилище — SHA‑256; код сопряжения живёт 2 минуты и только
-  пока открыто окно «Подключить телефон»; лимит попыток; отвечать только адресам из RFC 1918 и
-  link‑local (защита от случайного проброса порта); не делать UPnP‑маппинг; `/info` без секретов;
-  правило брандмауэра на программу+порт, `remoteip=localsubnet`; при появлении TLS — пиннинг
-  отпечатка из QR (TOFU).
-- **Bluetooth**: сопряжение (SSP) даёт шифрование на канальном уровне; использовать
-  аутентифицированные сокеты (`createRfcommSocketToServiceRecord` + `BluetoothEncryptionWithAuthentication`),
-  не insecure‑вариант (MITM). Токен приложения — всё равно (единая модель, защита от чужого
-  сопряжённого устройства).
-- **Не выходить за LAN**: никаких облачных реле в v1; доступ из интернета — только через
-  пользовательский VPN (WireGuard/Tailscale), который прозрачен для протокола.
-- **Обновления**: только HTTPS (GitHub); по возможности подписывать релизы.
+**Alternative languages for the companion.**
+- **Rust**: `windows-rs` gives the same WinRT (RFCOMM, DNS-SD, Bluetooth) and COM (CoreAudio) APIs,
+  `tray-icon` for the tray, Velopack has a Rust SDK; exe 3–6 MB without a runtime
+  ([windows-rs](https://github.com/microsoft/windows-rs), [tray-icon](https://github.com/tauri-apps/tray-icon)).
+  The price — a different language, 2–3× the time for the same Windows API surface.
+- **Go**: `systray` exists ([getlantern/systray](https://github.com/getlantern/systray)), but WinRT/COM
+  from Go is painful (cgo or manual vtables), an RFCOMM server via Winsock by hand.
+- Why **C#/.NET**: the whole required surface (WinRT Bluetooth and DNS-SD, COM CoreAudio, Win32 windows/
+  displays, Kestrel) is first-class and already verified; a 50 MB difference in distribution size is
+  insignificant for a home HTPC; the developer knows the language.
 
 ---
 
-## Рекомендации
+## 8. Security in a home LAN
 
-### Архитектура транспорта
+- **VLC HTTP**: Basic auth over plain HTTP with an empty login; the password is visible to anyone who can
+  sniff the Wi-Fi (knows the WPA2 password). With the companion — `--http-host 127.0.0.1`: VLC is not
+  visible on the network at all, the only LAN entry point is the companion with a token. Without the companion (level 0) —
+  accept the risk; the password is not the same as the user's other passwords.
+- **RC**: no authentication — **`127.0.0.1` only**, never `0.0.0.0`.
+- **Companion**: a 256-bit token, stored as SHA-256; the pairing code lives 2 minutes and only
+  while the "Connect a phone" window is open; an attempt limit; respond only to RFC 1918 and
+  link-local addresses (protection against accidental port forwarding); no UPnP mapping; `/info` without secrets;
+  a firewall rule per program+port, `remoteip=localsubnet`; once TLS arrives — pinning the
+  fingerprint from the QR (TOFU).
+- **Bluetooth**: pairing (SSP) provides link-level encryption; use
+  authenticated sockets (`createRfcommSocketToServiceRecord` + `BluetoothEncryptionWithAuthentication`),
+  not the insecure variant (MITM). The application token — still required (a single model, protection against someone else's
+  paired device).
+- **Do not leave the LAN**: no cloud relays in v1; access from the internet — only via the
+  user's own VPN (WireGuard/Tailscale), which is transparent to the protocol.
+- **Updates**: HTTPS only (GitHub); sign releases where possible.
+
+---
+
+## Recommendations
+
+### Transport architecture
 
 ```
    Android (Kotlin/Compose)                                Windows 11 HTPC
  ┌──────────────────────────┐                     ┌─────────────────────────────────────┐
- │ UI ── PlayerBackend ─────┼─ уровень 0/1 ───────┼─▶ VLC http intf :8080 (Lua, Basic)  │
- │        │                 │   (HTTP, без        │        ▲                 ▲          │
- │        │ CompanionBackend│    компаньона)      │        │ 127.0.0.1       │ RC 4212  │
+ │ UI ── PlayerBackend ─────┼─ level 0/1 ─────────┼─▶ VLC http intf :8080 (Lua, Basic)  │
+ │        │                 │   (HTTP, no         │        ▲                 ▲          │
+ │        │ CompanionBackend│    companion)       │        │ 127.0.0.1       │ RC 4212  │
  │        │   │             │                     │   ┌────┴─────────────────┴────────┐ │
- │        │   ├─ WsTransport┼─ LAN ws://pc:47555 ─┼──▶│ Companion (.NET 9, трей)       │ │
+ │        │   ├─ WsTransport┼─ LAN ws://pc:47555 ─┼──▶│ Companion (.NET 9, tray)       │ │
  │        │   │  (OkHttp)   │   NDJSON + token    │   │  Kestrel WS/HTTP :47555        │ │
  │        │   └─ BtTransport┼─ RFCOMM (UUID) ─────┼──▶│  RfcommServiceProvider         │ │
  │        │      (secure)   │   NDJSON + token    │   │  DnsServiceRegister (_vlcremote)│ │
  │ Discovery: NsdManager +  │◀─ mDNS / UDP beacon ┼───│  UDP beacon responder :47556   │ │
  │  UDP beacon + /24 scan   │                     │   │  VLC process mgr, vlcrc        │ │
- │  + ручной host / QR      │                     │   │  Win32: окна, SetDisplayConfig,│ │
+ │  + manual host / QR      │                     │   │  Win32: windows, SetDisplayCfg,│ │
  └──────────────────────────┘                     │   │   power; CoreAudio; IPolicyCfg │ │
           ▲                                       │   └────────────────────────────────┘ │
-          └── Bluetooth PAN (без кода) → обычный IP‑путь, как LAN ─────────────────────────┘
+          └── Bluetooth PAN (no code) → ordinary IP path, like LAN ────────────────────────┘
 ```
 
-Один `Session`‑класс на ПК обслуживает оба транспорта через абстракцию «строка туда/строка сюда».
-На телефоне `CompanionBackend` выбирает транспорт: LAN найден → WS; нет сети/нет ПК в mDNS за 3 с
-и есть сопряжённый ПК → RFCOMM; оба недоступны → подсказать PAN/хотспот.
+A single `Session` class on the PC serves both transports through a "line in / line out" abstraction.
+On the phone `CompanionBackend` picks the transport: LAN found → WS; no network/no PC in mDNS within 3 s
+and there is a paired PC → RFCOMM; both unavailable → suggest PAN/hotspot.
 
-### Выбранные библиотеки и версии
+### Chosen libraries and versions
 
-| Компонент | Выбор | Версия (на 2026‑10) |
+| Component | Choice | Version (as of 2026-10) |
 |---|---|---|
-| Трей, окна | WinForms (`net9.0-windows10.0.19041.0`, `UseWindowsForms`) | .NET 9 (SDK 9.0.310 установлен) |
-| HTTP/WebSocket | Kestrel (`FrameworkReference Microsoft.AspNetCore.App`, `CreateSlimBuilder`) | в составе .NET 9 |
-| Bluetooth RFCOMM | WinRT `Windows.Devices.Bluetooth.Rfcomm` (без NuGet) | Windows SDK 10.0.19041+ |
-| mDNS/DNS‑SD | Win32 `dnsapi.dll` P/Invoke (`DnsServiceRegister`) | Windows 10+ |
-| Аудио | NAudio (CoreAudio) + собственный `IPolicyConfig` interop | NAudio 2.x |
-| Win32 | P/Invoke вручную или `Microsoft.Windows.CsWin32` source‑generator | CsWin32 0.3.x |
-| Логи | Serilog + Serilog.Sinks.File | 4.x / 6.x |
-| Установка/обновления | Velopack + `vpk` | 0.0.5xx (NuGet, версии синхронизировать) |
-| JSON | `System.Text.Json` (source‑generated) | в составе .NET 9 |
+| Tray, windows | WinForms (`net9.0-windows10.0.19041.0`, `UseWindowsForms`) | .NET 9 (SDK 9.0.310 installed) |
+| HTTP/WebSocket | Kestrel (`FrameworkReference Microsoft.AspNetCore.App`, `CreateSlimBuilder`) | part of .NET 9 |
+| Bluetooth RFCOMM | WinRT `Windows.Devices.Bluetooth.Rfcomm` (no NuGet) | Windows SDK 10.0.19041+ |
+| mDNS/DNS-SD | Win32 `dnsapi.dll` P/Invoke (`DnsServiceRegister`) | Windows 10+ |
+| Audio | NAudio (CoreAudio) + our own `IPolicyConfig` interop | NAudio 2.x |
+| Win32 | Manual P/Invoke or the `Microsoft.Windows.CsWin32` source generator | CsWin32 0.3.x |
+| Logs | Serilog + Serilog.Sinks.File | 4.x / 6.x |
+| Install/updates | Velopack + `vpk` | 0.0.5xx (NuGet, keep versions in sync) |
+| JSON | `System.Text.Json` (source-generated) | part of .NET 9 |
 | Android BT | `android.bluetooth` + `CompanionDeviceManager` | API 26+ / 33+ |
 | Android WS | OkHttp `WebSocket` | 4.12 / 5.x |
 | Android discovery | `NsdManager` (API 34+ callbacks) + UDP | — |
 
-### Оценка сложности
+### Complexity estimate
 
-| Кусок | Сложность | Ориентир |
+| Piece | Complexity | Rough estimate |
 |---|---|---|
-| Трей + Kestrel + NDJSON‑сессия + токен/QR | S–M | 2–3 дня |
-| RFCOMM‑сервер на Windows + тот же `Session` | S (проверено, что API работает) | 1 день + тесты с 2–3 телефонами |
-| Android: WS‑транспорт + discovery (NSD + beacon + ручной ввод) | M | 2–3 дня (NSD капризен) |
-| Android: BT‑транспорт + CDM + реконнект | M | 2–3 дня |
-| VLC‑менеджер: процесс, аргументы, `vlcrc`, RC‑мультиплексор, diff‑push | M | 3 дня |
-| Окна/мониторы/проецирование/сон/keep‑awake | S–M | 1–2 дня (+ тесты на реальном ТВ) |
-| Аудио: `adev` + NAudio громкость | S | 0,5 дня; `IPolicyConfig` ещё +0,5 |
-| Брандмауэр (детект + UAC‑помощник) | S | 0,5 дня |
-| Velopack, релизы, автозапуск, логи | S | 1 день |
-| HDMI‑CEC (опционально, с адаптером) | S | 0,5 дня |
-| TLS с пиннингом (отложено) | M | 1–2 дня |
+| Tray + Kestrel + NDJSON session + token/QR | S–M | 2–3 days |
+| RFCOMM server on Windows + the same `Session` | S (the API is verified to work) | 1 day + tests with 2–3 phones |
+| Android: WS transport + discovery (NSD + beacon + manual entry) | M | 2–3 days (NSD is fickle) |
+| Android: BT transport + CDM + reconnect | M | 2–3 days |
+| VLC manager: process, arguments, `vlcrc`, RC multiplexer, diff push | M | 3 days |
+| Windows/monitors/projection/sleep/keep-awake | S–M | 1–2 days (+ tests on a real TV) |
+| Audio: `adev` + NAudio volume | S | 0.5 day; `IPolicyConfig` another +0.5 |
+| Firewall (detection + UAC helper) | S | 0.5 day |
+| Velopack, releases, autostart, logs | S | 1 day |
+| HDMI-CEC (optional, with an adapter) | S | 0.5 day |
+| TLS with pinning (postponed) | M | 1–2 days |
 
-### Что проверить первым в прототипе (открытые вопросы)
+### What to check first in the prototype (open questions)
 
-1. Полный цикл Android → Windows RFCOMM: сопряжение по диалогу при `connect()`, уведомление «Add a
-   device» на ПК, `BluetoothEncryptionWithAuthentication`.
-2. Выживание RFCOMM‑listener после сна/пробуждения ноутбука.
-3. `NsdManager` на целевом телефоне находит `_vlcremote._tcp`, объявленный Windows‑responder’ом;
-   поведение поверх Bluetooth PAN и профиль брандмауэра PAN‑сети.
-4. Класс окна VLC (Spy++) и порядок экранов Qt vs `Screen.AllScreens`.
-5. `SetDisplayConfig(SDC_TOPOLOGY_EXTERNAL)` на этом ноутбуке; `SC_MONITORPOWER` под Modern Standby.
-6. `IPolicyConfig` на текущей сборке Windows 11 (26200).
-7. Правка `vlcrc`: VLC принимает минимальный файл; какие действия выставляют `config_dirty`.
+1. The full Android → Windows RFCOMM cycle: pairing via the dialog on `connect()`, the "Add a
+   device" notification on the PC, `BluetoothEncryptionWithAuthentication`.
+2. Survival of the RFCOMM listener after the laptop sleeps/wakes.
+3. `NsdManager` on the target phone finds `_vlcremote._tcp` advertised by the Windows responder;
+   behaviour over Bluetooth PAN and the firewall profile of the PAN network.
+4. The VLC window class (Spy++) and the order of Qt screens vs `Screen.AllScreens`.
+5. `SetDisplayConfig(SDC_TOPOLOGY_EXTERNAL)` on this laptop; `SC_MONITORPOWER` under Modern Standby.
+6. `IPolicyConfig` on the current Windows 11 build (26200).
+7. Editing `vlcrc`: VLC accepts a minimal file; which actions set `config_dirty`.
