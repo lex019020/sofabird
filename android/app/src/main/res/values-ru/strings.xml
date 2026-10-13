@@ -73,8 +73,8 @@
     <string name="chapter_n_of">Глава %1$d из %2$d</string>
     <string name="chapter_n_named">Глава %1$d/%2$d · %3$s</string>
     <string name="chapter_unnamed">Глава %1$d</string>
-    <string name="chip_audio">Аудио: %1$s</string>
-    <string name="chip_subtitles">Субтитры: %1$s</string>
+    <string name="quick_audio">Аудио</string>
+    <string name="quick_subtitles">Субтитры</string>
     <string name="chip_more">Ещё</string>
     <string name="track_off">выкл.</string>
     <string name="track_unknown_count">\? из %1$d</string>
@@ -197,7 +197,6 @@
     <string name="display_primary">основной</string>
     <string name="displays_none">Экраны не найдены. Нажмите «Обновить».</string>
     <string name="display_vlc_here">VLC здесь</string>
-    <string name="chip_display">Экран: %1$s</string>
     <string name="sheet_display_title">Экран для VLC</string>
     <string name="display_hint_open">Нажмите на экран — VLC переедет туда сейчас и дальше будет открываться на нём.</string>
     <string name="display_hint_closed">VLC закрыт. Выберите экран, на котором он откроется.</string>

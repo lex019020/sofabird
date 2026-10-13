@@ -47,6 +47,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.LabelText
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.ui.common.displayNameFromUri
@@ -120,7 +122,7 @@ fun ResumePromptDialog(prompt: ResumePrompt, onChoice: (ResumeChoice) -> Unit) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    prompt.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(prompt.uri),
+                    (prompt.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(prompt.uri)).withNameBreaks(),
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
@@ -212,7 +214,7 @@ fun NextEpisodeCard(next: NextEpisode, haptics: Boolean, onPlay: () -> Unit, onD
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                next.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(next.uri),
+                (next.title?.takeIf { it.isNotBlank() } ?: displayNameFromUri(next.uri)).withNameBreaks(),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 maxLines = 2,
@@ -225,12 +227,12 @@ fun NextEpisodeCard(next: NextEpisode, haptics: Boolean, onPlay: () -> Unit, onD
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = { haptic(); onDismiss() }) { Text(stringResource(R.string.next_episode_dismiss)) }
+                TextButton(onClick = { haptic(); onDismiss() }) { LabelText(stringResource(R.string.next_episode_dismiss)) }
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = { haptic(); onPlay() }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.next_episode_play))
+                    LabelText(stringResource(R.string.next_episode_play))
                 }
             }
         }
@@ -258,14 +260,14 @@ fun ContinueWatchingRow(
             Text(
                 stringResource(R.string.continue_watching),
                 style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onHistory) {
                 Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.history_title))
+                LabelText(stringResource(R.string.history_title))
             }
         }
         // Cards grow with the font size, so "1:23:45 of 2:58:25" and two title lines still fit.
@@ -294,7 +296,7 @@ private fun ContinueCardView(card: ContinueCard, modifier: Modifier, onClick: ()
                 .padding(12.dp),
         ) {
             Text(
-                card.title,
+                card.title.withNameBreaks(),
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 2,
                 minLines = 2,

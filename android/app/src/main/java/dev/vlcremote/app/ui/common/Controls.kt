@@ -131,12 +131,12 @@ fun RemoteButton(
                 modifier = Modifier.size(iconSize),
             )
             if (label != null) {
-                Text(
+                // Inside a fixed circle: the label grows with the font scale only a little.
+                LabelText(
                     text = label,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
                     color = content.copy(alpha = alpha),
-                    modifier = Modifier.align(Alignment.BottomCenter).let { it },
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
         }

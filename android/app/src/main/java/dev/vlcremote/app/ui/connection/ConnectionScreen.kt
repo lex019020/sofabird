@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalLayoutApi::class)
+
 package dev.vlcremote.app.ui.connection
 
 import androidx.compose.animation.AnimatedVisibility
@@ -6,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,6 +86,7 @@ import dev.vlcremote.app.domain.model.SavedServer
 import dev.vlcremote.app.domain.model.ServerMode
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.BluetoothPermissionRationaleDialog
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.StatusDot
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.common.hint
@@ -305,18 +310,23 @@ private fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Uni
     val server = ui.activeServer ?: return
     val (color, text) = connectionSummary(ui.connection, server.displayName)
     Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            StatusDot(color)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(server.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(text, style = MaterialTheme.typography.bodySmall)
+        // The action sits under the name, not beside it: a PC name is one long word and must keep the full width.
+        Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
+                StatusDot(color)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(server.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(text, style = MaterialTheme.typography.bodySmall)
+                }
             }
             val c = ui.connection
-            if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
-                TextButton(onClick = onEnterCode) { Text(stringResource(R.string.action_enter_code)) }
-            } else {
-                TextButton(onClick = onDisconnect) { Text(stringResource(R.string.action_disconnect)) }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
+                    TextButton(onClick = onEnterCode) { LabelText(stringResource(R.string.action_enter_code)) }
+                } else {
+                    TextButton(onClick = onDisconnect) { LabelText(stringResource(R.string.action_disconnect)) }
+                }
             }
         }
     }
@@ -352,8 +362,8 @@ private fun NearbyPcCard(
             Column(Modifier.weight(1f)) {
                 Text(
                     host.displayName,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 val status = host.vlcStatus ?: host.vlcRunning?.let { if (it) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING }
@@ -364,7 +374,11 @@ private fun NearbyPcCard(
                         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
                     if (active) Badge(stringResource(R.string.badge_connected), highlight = true)
                     if (pc.paired) Badge(stringResource(R.string.badge_paired), highlight = !active)
                 }
@@ -576,7 +590,7 @@ private fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(host.displayName, style = MaterialTheme.typography.titleSmall)
                 Text(host.host, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
                     Badge(stringResource(R.string.badge_pc_found))
                     if (host.vlcRunning == true) {
                         Badge(stringResource(R.string.badge_vlc_running) + (host.vlcVersion?.let { " $it" } ?: ""))
@@ -589,7 +603,7 @@ private fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
 
 @Composable
 private fun Badge(text: String, highlight: Boolean = false) {
-    Text(
+    LabelText(
         text,
         style = MaterialTheme.typography.labelSmall,
         color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,

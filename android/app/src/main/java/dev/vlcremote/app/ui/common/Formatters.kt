@@ -31,9 +31,13 @@ fun formatDelay(seconds: Double, msUnit: String): String {
     return if (ms == 0L) "0 $msUnit" else String.format(Locale.ROOT, "%+d %s", ms, msUnit)
 }
 
-/** Percent-decoded last path segment of a file URI for display. */
+/** Percent-decoded last path segment of a file URI for display; a drive root reads as `D:`. */
 fun displayNameFromUri(uri: String): String {
     val trimmed = uri.trimEnd('/')
     val last = trimmed.substringAfterLast('/')
-    return runCatching { java.net.URLDecoder.decode(last, "UTF-8") }.getOrDefault(last)
+    // URLDecoder is a form decoder: a literal "+" would turn into a space.
+    val name = runCatching { java.net.URLDecoder.decode(last.replace("+", "%2B"), "UTF-8") }.getOrDefault(last)
+    return if (DRIVE_ROOT.matches(name)) name.uppercase() else name
 }
+
+private val DRIVE_ROOT = Regex("^[A-Za-z]:$")

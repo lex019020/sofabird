@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -66,7 +64,9 @@ import dev.vlcremote.app.data.history.WatchPrompts
 import dev.vlcremote.app.ui.history.NextEpisodeCard
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.RemoteButton
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.ui.common.formatRemaining
 import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.app.ui.common.rememberTick
@@ -124,36 +124,44 @@ fun RemoteScreen(
                         TransportRow(ui, viewModel)
                         VolumeRow(ui, viewModel)
                     }
-                    QuickChips(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
+                    QuickActions(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
                 }
             }
         } else {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Spacer(Modifier.height(8.dp))
-                Artwork(ui, Modifier.fillMaxWidth().widthIn(max = 360.dp))
-                Spacer(Modifier.height(12.dp))
                 val block = ui.vlcBlock
-                if (block == null) TitleBlock(ui)
-                next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = prompts::playNext, onDismiss = prompts::dismissNext) }
-                OfflineCard(ui, onOpenConnection)
-                BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
-                if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
-                QuickChips(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
-                Spacer(Modifier.weight(1f))
+                // The upper part scrolls; the playback controls below always stay on screen. The artwork
+                // gives way first: it takes at most 40 % of the free height.
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val artworkMaxHeight = maxHeight * 0.4f
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Spacer(Modifier.height(8.dp))
+                        Artwork(ui, Modifier.widthIn(max = 360.dp).heightIn(max = artworkMaxHeight))
+                        Spacer(Modifier.height(12.dp))
+                        if (block == null) TitleBlock(ui)
+                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = prompts::playNext, onDismiss = prompts::dismissNext) }
+                        OfflineCard(ui, onOpenConnection)
+                        BluetoothFallbackCard(ui, onReady = viewModel::bluetoothReady, onDismiss = viewModel::dismissBluetooth)
+                        if (block != null) VlcStateCard(block, ui, onLaunch = viewModel::launchVlc)
+                    }
+                }
+                QuickActions(ui, onTracks = { tracksSheet = it }, onDisplays = { displaySheet = true }, onMore = { moreSheet = true })
                 if (block == null) {
                     ScrubBar(ui, viewModel)
-                    Spacer(Modifier.height(8.dp))
                     VolumeRow(ui, viewModel)
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                     TransportRow(ui, viewModel)
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
@@ -213,7 +221,7 @@ private fun TitleBlock(ui: RemoteUiState) {
         else -> stringResource(R.string.nothing_playing)
     }
     Text(
-        title,
+        title.withNameBreaks(),
         style = MaterialTheme.typography.titleLarge,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -228,8 +236,9 @@ private fun TitleBlock(ui: RemoteUiState) {
             else stringResource(R.string.chapter_n_named, ch.index + 1, ch.count, name),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -454,66 +463,33 @@ private fun VolumeRow(ui: RemoteUiState, viewModel: RemoteViewModel) {
             modifier = Modifier.weight(1f),
         )
         val shown = ((dragging ?: volume.value.toFloat()) * 100 / 256).toInt()
-        Text(
+        LabelText(
             "$shown %",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.widthIn(min = 56.dp),
             textAlign = TextAlign.End,
             color = if (shown > 100) MaterialTheme.colorScheme.tertiary else Color.Unspecified,
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun QuickChips(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDisplays: () -> Unit, onMore: () -> Unit) {
+private fun QuickActions(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDisplays: () -> Unit, onMore: () -> Unit) {
     val tracks = ui.state.tracks
     val audioLabel = trackChipLabel(tracks.audio.firstOrNull { it.id == tracks.currentAudio }?.let { it.lang ?: it.name }, tracks.currentAudio, tracks.audio.size)
     val subLabel = trackChipLabel(tracks.subtitle.firstOrNull { it.id == tracks.currentSubtitle }?.let { it.lang ?: it.name }, tracks.currentSubtitle, tracks.subtitle.size)
-    // Wraps to a second line on narrow screens (the "Display" chip makes four).
-    FlowRow(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        AssistChip(
-            onClick = { onTracks(TrackKind.AUDIO) },
-            label = { Text(stringResource(R.string.chip_audio, audioLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            leadingIcon = { Icon(Icons.Default.Audiotrack, null) },
-            enabled = ui.connection.isOnline && ui.vlcBlock == null,
-            modifier = Modifier.widthIn(max = 220.dp),
-        )
-        AssistChip(
-            onClick = { onTracks(TrackKind.SUBTITLE) },
-            label = { Text(stringResource(R.string.chip_subtitles, subLabel), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            leadingIcon = { Icon(Icons.Default.Subtitles, null) },
-            enabled = ui.connection.isOnline && ui.vlcBlock == null,
-            modifier = Modifier.widthIn(max = 220.dp),
-        )
+    val tracksEnabled = ui.connection.isOnline && ui.vlcBlock == null
+    val actions = buildList {
+        add(QuickAction(Icons.Default.Audiotrack, stringResource(R.string.quick_audio), audioLabel, tracksEnabled) { onTracks(TrackKind.AUDIO) })
+        add(QuickAction(Icons.Default.Subtitles, stringResource(R.string.quick_subtitles), subLabel, tracksEnabled) { onTracks(TrackKind.SUBTITLE) })
         if (ui.showDisplayChoice) {
             // Where VLC is now, or (VLC closed) where it will open. Usable while VLC is closed too.
             val shown = ui.displayChoice.chipDisplay
-            AssistChip(
-                onClick = onDisplays,
-                label = {
-                    Text(
-                        shown?.let { stringResource(R.string.chip_display, displayLabel(it)) } ?: stringResource(R.string.section_display),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                leadingIcon = { Icon(displayIcon(shown), null) },
-                enabled = ui.connection.isOnline,
-                modifier = Modifier.widthIn(max = 240.dp),
-            )
+            add(QuickAction(displayIcon(shown), stringResource(R.string.section_display), shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays))
         }
-        AssistChip(
-            onClick = onMore,
-            label = { Text(stringResource(R.string.chip_more)) },
-            leadingIcon = { Icon(Icons.Default.MoreHoriz, null) },
-        )
+        add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, onMore))
     }
+    QuickActionsRow(actions)
 }
 
 @Composable

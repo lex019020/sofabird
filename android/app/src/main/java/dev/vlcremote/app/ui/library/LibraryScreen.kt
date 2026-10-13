@@ -55,6 +55,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.LabelText
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.displayNameFromUri
@@ -180,7 +182,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
 
     ui.menuFor?.let { entry ->
         ModalBottomSheet(onDismissRequest = { viewModel.showMenu(null) }) {
-            Text(entry.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(entry.name.withNameBreaks(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_play)) },
                 leadingContent = { Icon(Icons.Default.PlayArrow, null) },
@@ -198,7 +200,7 @@ fun LibraryScreen(onPlayed: () -> Unit, onOpenHistory: () -> Unit, viewModel: Li
     ui.continueMenuFor?.let { item ->
         ModalBottomSheet(onDismissRequest = { viewModel.showContinueMenu(null) }) {
             Text(
-                item.displayTitle,
+                item.displayTitle.withNameBreaks(),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 maxLines = 3,
@@ -248,7 +250,7 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
             FilterChip(
                 selected = ui.mediaOnly,
                 onClick = { viewModel.setMediaOnly(!ui.mediaOnly) },
-                label = { Text(stringResource(R.string.media_only)) },
+                label = { LabelText(stringResource(R.string.media_only)) },
             )
             IconButton(onClick = viewModel::reload) { Icon(Icons.Default.Refresh, stringResource(R.string.refresh)) }
         }
@@ -261,10 +263,10 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = viewModel::goRoot) { Text(stringResource(R.string.drives)) }
+            TextButton(onClick = viewModel::goRoot) { LabelText(stringResource(R.string.drives)) }
             ui.crumbs.forEach { crumb ->
                 Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { viewModel.open(crumb.uri) }) { Text(crumb.name, maxLines = 1) }
+                TextButton(onClick = { viewModel.open(crumb.uri) }) { LabelText(crumb.name) }
             }
         }
 
@@ -281,7 +283,7 @@ private fun FolderToolbar(ui: LibraryUiState, viewModel: LibraryViewModel) {
                     FilterChip(
                         selected = false,
                         onClick = { viewModel.open(fav) },
-                        label = { Text(displayNameFromUri(fav), maxLines = 1) },
+                        label = { LabelText(displayNameFromUri(fav)) },
                         leadingIcon = { Icon(Icons.Default.Star, null) },
                     )
                 }
@@ -323,7 +325,7 @@ private fun EntryRow(entry: Entry, onClick: () -> Unit, onLongClick: () -> Unit)
     val badge = entry.historyBadge()
     val size = if (!entry.isDir && entry.size != null) formatSize(LocalContext.current, entry.size) else ""
     ListItem(
-        headlineContent = { Text(entry.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        headlineContent = { Text(entry.name.withNameBreaks(), maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = if (size.isNotEmpty() || badge is EntryBadge.Started) {
             {
                 Column {

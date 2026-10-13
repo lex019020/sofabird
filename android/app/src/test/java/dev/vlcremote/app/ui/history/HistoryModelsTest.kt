@@ -96,6 +96,8 @@ class HistoryModelsTest {
         assertEquals("x.mkv", HistoryItem("file:///D:/a/x.mkv", title = "", name = "x.mkv").displayTitle)
         assertEquals("Мой фильм.mkv", HistoryItem("file:///D:/a/%D0%9C%D0%BE%D0%B9%20%D1%84%D0%B8%D0%BB%D1%8C%D0%BC.mkv").displayTitle)
         assertEquals("Season 1", HistoryItem("file:///D:/Season%201/e.mkv", folderUri = "file:///D:/Season%201/").folderName)
+        assertEquals("Y:", HistoryItem("file:///y:/e.mkv", folderUri = "file:///y:/").folderName)
+        assertEquals("C++ course", HistoryItem("file:///D:/C++%20course/e.mkv", folderUri = "file:///D:/C++%20course/").folderName)
     }
 
     @Test
