@@ -9,7 +9,7 @@ plugins {
 }
 
 // Version: the base comes from the VERSION file in the repository root; CI/the deploy script pass
-// -Pvlcr.versionCode=<monotonic number> and -Pvlcr.versionSuffix=beta.<N> (a release has no suffix).
+// -Pvlcr.versionCode=<monotonic number> and -Pvlcr.versionSuffix=beta<NNNN> (a release has no suffix).
 val baseVersion = rootProject.file("../VERSION").readText().trim()
 val versionSuffix = (findProperty("vlcr.versionSuffix") as String?).orEmpty()
 val appVersionCode = (findProperty("vlcr.versionCode") as String?)?.toInt() ?: 1

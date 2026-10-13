@@ -34,7 +34,7 @@ DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`ta
 - `release` — `dev.vlcremote.app`, signed with the shared key from `android/keystore.properties` (not in git) or the
   variables `VLCR_KEYSTORE_FILE`/`VLCR_KEYSTORE_PASSWORD`/`VLCR_KEY_ALIAS`/`VLCR_KEY_PASSWORD`. This is how test
   builds and releases are built in CI; see CLAUDE.md "APK signing".
-- Version: `versionName` from the `VERSION` file + `-Pvlcr.versionSuffix=beta.N`, `versionCode` from
+- Version: `versionName` from the `VERSION` file + `-Pvlcr.versionSuffix=beta0042`, `versionCode` from
   `-Pvlcr.versionCode=<number of commits>`. Shown in "Settings → About".
 
 ## Structure

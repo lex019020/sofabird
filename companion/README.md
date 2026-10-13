@@ -74,7 +74,7 @@ start of a new version shows "The companion was updated to …" in the tray. Tes
 releases follow releases (`updateChannel` in `settings.json`, tray: "Get test builds"); builds made with `-Local`
 (`-local.*`) do not update themselves. Uninstalling (Windows "Apps", or `deploy-windows.ps1 -Uninstall`) removes the
 autostart entry and keeps the settings. Details are in CLAUDE.md.
-The version comes from the `VERSION` file in the root (`-p:VersionSuffix=beta.N` for test builds) and is shown in the
+The version comes from the `VERSION` file in the root (`-p:VersionSuffix=beta0042` for test builds) and is shown in the
 tray icon tooltip and in `/info`.
 
 ## Publishing

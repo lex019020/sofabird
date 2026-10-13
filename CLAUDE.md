@@ -94,7 +94,7 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
 - The base version is the `VERSION` file (SemVer `MAJOR.MINOR.PATCH`); the companion (`VersionPrefix`) and
   Android (`versionName`) take their version from it. `versionCode` = number of commits in `main` × 10 (CI); for local
   `deploy-android -Local` builds — commits in `origin/main` × 10 + 5: newer than the current test build, older than the next one.
-- A **test build** (pre-release `v<VERSION>-beta.<N>`) is created automatically on every merge to `main`
+- A **test build** (pre-release `v<VERSION>-beta<NNNN>`, e.g. `v0.2.0-beta0040`, so that GitHub lists the newest on top) is created automatically on every merge to `main`
   (`.github/workflows/release.yml`). Description — the release notes of the merged PR + installation instructions.
   Files: `VlcRemote-Companion-Setup.exe` (linked from the notes) + the Velopack update feed (`*-full.nupkg`,
   `*-delta.nupkg`, `releases.win.json`), `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
@@ -115,7 +115,7 @@ messages in English:
 | Command | What it does |
 |---|---|
 | `deploy-windows.ps1` | the latest test build of the companion from GitHub Releases (anonymous; `gh` is used only as a fallback) |
-| `-Channel stable` / `-Tag v0.2.0-beta.12` | the latest release / a specific build (also the way back to an earlier one) |
+| `-Channel stable` / `-Tag v0.2.0-beta0040` | the latest release / a specific build (also the way back to an earlier one) |
 | `-Local` | build the installer from the working copy and install it |
 | `-Package <Setup.exe>` | install a ready-made installer (used by `dev-laptop.ps1 -Deploy`) |
 | `-CheckOnly` | compare the installed version with the latest one |

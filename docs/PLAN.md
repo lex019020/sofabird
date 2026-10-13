@@ -352,7 +352,7 @@ iOS via Compose Multiplatform.
 - **Bluetooth PAN hint** — not needed while RFCOMM works.
 
 ### Development tooling — done
-- [x] Release pipeline: a test build (`v<VERSION>-beta.<N>`) on every merge to `main`, release notes collected
+- [x] Release pipeline: a test build (`v<VERSION>-beta<NNNN>`) on every merge to `main`, release notes collected
       from PRs, stable releases on demand.
 - [x] Deploy scripts for Windows and Android (device allowlist, automatic phone discovery over Wi-Fi debugging).
 - [x] SSH-based remote debugging of the TV laptop (`scripts/dev-laptop.ps1`).
