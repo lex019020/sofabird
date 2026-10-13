@@ -6,6 +6,16 @@ small Windows companion that makes the PC a proper media station.
 [![CI](https://github.com/lex019020/vlc-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/vlc-remote/actions/workflows/ci.yml)
 [![Release](https://github.com/lex019020/vlc-remote/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/vlc-remote/releases)
 
+<p align="center">
+  <img src="docs/images/remote.png" width="200" alt="Remote screen: playback controls, tracks and chapters">
+  <img src="docs/images/library.png" width="200" alt="Library with movie posters and Continue watching">
+  <img src="docs/images/movie.png" width="200" alt="Movie card with backdrop, rating, description and Play">
+  <img src="docs/images/series.png" width="200" alt="Series page with seasons and episodes">
+</p>
+
+**Website:** [lex019020.github.io/vlc-remote](https://lex019020.github.io/vlc-remote/) ·
+**Download:** [latest release](https://github.com/lex019020/vlc-remote/releases/latest)
+
 The phone controls VLC over the local network. Without anything installed on the PC it talks to VLC's own web
 interface; with the companion it finds the PC by itself, starts VLC on the TV, keeps working over Bluetooth when
 Wi‑Fi is gone and remembers where you stopped watching. The apps follow the system language: English and Russian.
