@@ -6,6 +6,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  scripts:
+    name: Scripts (PSScriptAnalyzer)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PSScriptAnalyzer
+        shell: powershell
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Scope CurrentUser -Force }
+          $results = Invoke-ScriptAnalyzer -Path scripts -Recurse -Settings scripts/PSScriptAnalyzerSettings.psd1
+          $results | Sort-Object ScriptName, Line | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize -Wrap | Out-String -Width 400
+          if ($results) { Write-Error "$(@($results).Count) PSScriptAnalyzer finding(s)"; exit 1 }
+
   companion:
     name: Companion (.NET, Windows)
     runs-on: windows-latest

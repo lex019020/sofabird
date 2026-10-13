@@ -133,11 +133,11 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
         $work = New-WorkDir
         try {
             if ($Local) {
-                $build = Build-LocalCompanion $work
+                $build = Invoke-LocalCompanionBuild $work
                 $zip = $build.File
             } else {
-                $tagName = Resolve-ReleaseTag
-                $zip = Get-ReleaseAsset $tagName 'VlcRemote.Companion-*-win-x64.zip' $work
+                $tagName = Resolve-ReleaseTag -Repo $Repo -Channel $Channel -Tag $Tag
+                $zip = Get-ReleaseAsset $Repo $tagName 'VlcRemote.Companion-*-win-x64.zip' $work
             }
             Write-Step "Copying to the laptop: $(Split-Path $zip -Leaf)"
             $null = Invoke-Remote 'New-Item -ItemType Directory -Force -Path (Join-Path $HOME "vlcremote-deploy") | Out-Null'
