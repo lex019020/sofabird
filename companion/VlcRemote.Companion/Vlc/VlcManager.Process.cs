@@ -19,7 +19,18 @@ public sealed partial class VlcManager
     /// <paramref name="uri"/> over HTTP. If VLC is open without control (<see cref="VlcRunState.RunningNoApi"/>),
     /// restart it with the same file (the position is lost). If it is starting, wait for it.
     /// </summary>
-    public async Task LaunchAsync(string? uri, int? displayIndex, CancellationToken ct)
+    public Task LaunchAsync(string? uri, int? displayIndex, CancellationToken ct) =>
+        ExclusiveAsync(() => LaunchCoreAsync(uri, displayIndex, ct), ct);
+
+    /// <summary>Runs a launch/restart/quit after the one in progress (see <see cref="_lifecycleGate"/>).</summary>
+    private async Task ExclusiveAsync(Func<Task> action, CancellationToken ct)
+    {
+        await _lifecycleGate.WaitAsync(ct).ConfigureAwait(false);
+        try { await action().ConfigureAwait(false); }
+        finally { _lifecycleGate.Release(); }
+    }
+
+    private async Task LaunchCoreAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
         Installation ??= VlcLocator.Find(_settings.VlcPath);
         if (Installation is null)
@@ -42,7 +53,7 @@ public sealed partial class VlcManager
                     await OpenAsync(uri, enqueue: false, subtitle: null, audioTrack: null, subtitleTrack: null, ct).ConfigureAwait(false);
                 return;
             case VlcRunState.RunningNoApi:
-                await RestartAsync(uri, displayIndex, ct).ConfigureAwait(false);
+                await RestartCoreAsync(uri, displayIndex, ct).ConfigureAwait(false);
                 return;
             case VlcRunState.Starting:
                 _log.LogWarning("launch: VLC is still starting after 20 s");
@@ -131,7 +142,10 @@ public sealed partial class VlcManager
     /// Without <paramref name="uri"/> VLC opens with the same file: the current item (if VLC is under control)
     /// or the file from the process command line. The playback position is lost.
     /// </summary>
-    public async Task RestartAsync(string? uri, int? displayIndex, CancellationToken ct)
+    public Task RestartAsync(string? uri, int? displayIndex, CancellationToken ct) =>
+        ExclusiveAsync(() => RestartCoreAsync(uri, displayIndex, ct), ct);
+
+    private async Task RestartCoreAsync(string? uri, int? displayIndex, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(uri))
         {
@@ -203,7 +217,9 @@ public sealed partial class VlcManager
     }
 
     /// <summary>Close VLC: RC <c>quit</c>, then <c>vlc://quit</c> over HTTP, then closing the window.</summary>
-    public async Task QuitAsync(CancellationToken ct)
+    public Task QuitAsync(CancellationToken ct) => ExclusiveAsync(() => QuitCoreAsync(ct), ct);
+
+    private async Task QuitCoreAsync(CancellationToken ct)
     {
         if (RunState == VlcRunState.Running)
         {

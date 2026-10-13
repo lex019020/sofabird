@@ -39,6 +39,8 @@ public sealed class PlaybackInfo
     public double Rate { get; set; } = 1.0;
     /// <summary>Unix time (ms) when the state was captured.</summary>
     public long UpdatedAt { get; set; }
+
+    public PlaybackInfo Clone() => (PlaybackInfo)MemberwiseClone();
 }
 
 public sealed class ItemInfo
@@ -124,6 +126,26 @@ public sealed class SystemInfo
 
 public sealed class StateMessage : Message
 {
+    /// <summary>
+    /// The reply to one phone's <c>getState</c>: a shallow copy with that request's id. The state itself is shared
+    /// (broadcasts, other sessions) and must not carry an id.
+    /// </summary>
+    public StateMessage WithId(string? id)
+    {
+        var copy = (StateMessage)MemberwiseClone();
+        copy.Id = id;
+        return copy;
+    }
+
+    /// <summary>A copy without the playback timestamp, to tell a real change from a mere poll.</summary>
+    public StateMessage WithoutTimestamp()
+    {
+        var copy = (StateMessage)MemberwiseClone();
+        copy.Playback = Playback.Clone();
+        copy.Playback.UpdatedAt = 0;
+        return copy;
+    }
+
     public VlcInfo Vlc { get; set; } = new();
     public PlaybackInfo Playback { get; set; } = new();
     public ItemInfo? Item { get; set; }
