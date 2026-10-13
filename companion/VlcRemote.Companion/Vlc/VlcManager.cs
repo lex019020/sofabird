@@ -42,6 +42,8 @@ public sealed partial class VlcManager : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _pollGate = new(1, 1);
     private readonly SemaphoreSlim _wake = new(0, 1);
+    /// <summary>One launch/restart/quit at a time: two phones (or the tray and a phone) must not start two VLCs.</summary>
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
 
     private VlcHttpClient _http;
     private VlcRcClient _rc;
@@ -436,7 +438,7 @@ public sealed partial class VlcManager : IAsyncDisposable
     {
         return StateBuilder.Build(new StateInputs
         {
-            Vlc = Info,
+            Vlc = Info.Clone(),
             Status = status,
             TracksPage = _tracksPage,
             Playlist = _playlist,
@@ -453,10 +455,7 @@ public sealed partial class VlcManager : IAsyncDisposable
     private void PublishState(StateMessage state)
     {
         LastState = state;
-        var updatedAt = state.Playback.UpdatedAt;
-        state.Playback.UpdatedAt = 0;
-        var json = ProtocolJson.Serialize(state);
-        state.Playback.UpdatedAt = updatedAt;
+        var json = ProtocolJson.Serialize(state.WithoutTimestamp());
         if (json == _lastStateJson) return;
         _lastStateJson = json;
         try { StateChanged?.Invoke(state); }
@@ -516,6 +515,7 @@ public sealed partial class VlcManager : IAsyncDisposable
         _owned?.Dispose();
         _cts.Dispose();
         _pollGate.Dispose();
+        _lifecycleGate.Dispose();
         _wake.Dispose();
     }
 }

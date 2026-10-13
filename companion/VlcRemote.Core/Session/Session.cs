@@ -177,7 +177,7 @@ public sealed class Session : IAsyncDisposable
             {
                 PingMessage p => new PongMessage { Id = p.Id },
                 PongMessage => null,
-                GetStateMessage g => WithId(await _host.GetStateAsync(ct).ConfigureAwait(false), g.Id),
+                GetStateMessage g => (await _host.GetStateAsync(ct).ConfigureAwait(false)).WithId(g.Id),
                 CmdMessage c => await RunCommandAsync(c, ct).ConfigureAwait(false),
                 SysMessage s => await RunSysAsync(s, ct).ConfigureAwait(false),
                 BrowseMessage b => new EntriesMessage
@@ -211,12 +211,6 @@ public sealed class Session : IAsyncDisposable
                 _log.LogDebug("Request {Type} → {Code}: {Msg}", msg.GetType().Name, err.Code, err.Msg);
             await SendAsync(err, ct).ConfigureAwait(false);
         }
-    }
-
-    private static StateMessage WithId(StateMessage state, string? id)
-    {
-        state.Id = id;
-        return state;
     }
 
     private async Task<Message> RunCommandAsync(CmdMessage c, CancellationToken ct)
