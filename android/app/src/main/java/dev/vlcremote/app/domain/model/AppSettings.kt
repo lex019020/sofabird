@@ -20,6 +20,8 @@ data class AppSettings(
     val haptics: Boolean = true,
     /** Library: hide non-media files. */
     val libraryMediaOnly: Boolean = true,
+    /** Library: posters of movies and series (companion `library`) rather than the folders. */
+    val libraryPosters: Boolean = true,
 ) {
     companion object {
         val VOLUME_STEPS = listOf(5, 13, 26) // ≈2 %, 5 %, 10 %

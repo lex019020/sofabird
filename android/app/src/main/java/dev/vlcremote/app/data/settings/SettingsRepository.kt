@@ -36,6 +36,7 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
         val keepInBackground = booleanPreferencesKey("keep_connection_in_background")
         val haptics = booleanPreferencesKey("haptics")
         val libraryMediaOnly = booleanPreferencesKey("library_media_only")
+        val libraryPosters = booleanPreferencesKey("library_posters")
         val bluetoothFallback = booleanPreferencesKey("bluetooth_fallback")
         val permissionsScreenVersion = intPreferencesKey("permissions_screen_version")
         val permissionsRequested = stringSetPreferencesKey("permissions_requested")
@@ -56,6 +57,7 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
             keepConnectionInBackground = p[Keys.keepInBackground] ?: defaults.keepConnectionInBackground,
             haptics = p[Keys.haptics] ?: defaults.haptics,
             libraryMediaOnly = p[Keys.libraryMediaOnly] ?: defaults.libraryMediaOnly,
+            libraryPosters = p[Keys.libraryPosters] ?: defaults.libraryPosters,
             bluetoothFallback = p[Keys.bluetoothFallback] ?: defaults.bluetoothFallback,
         )
     }
@@ -77,6 +79,7 @@ class SettingsRepository(context: Context, private val scope: CoroutineScope) {
             p[Keys.keepInBackground] = next.keepConnectionInBackground
             p[Keys.haptics] = next.haptics
             p[Keys.libraryMediaOnly] = next.libraryMediaOnly
+            p[Keys.libraryPosters] = next.libraryPosters
             p[Keys.bluetoothFallback] = next.bluetoothFallback
         }
     }

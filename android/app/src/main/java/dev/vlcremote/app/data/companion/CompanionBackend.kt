@@ -19,8 +19,10 @@ import dev.vlcremote.protocol.model.Entry
 import dev.vlcremote.protocol.model.HistoryChange
 import dev.vlcremote.protocol.model.HistoryFilter
 import dev.vlcremote.protocol.model.HistoryPage
+import dev.vlcremote.protocol.model.Library
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
+import dev.vlcremote.protocol.model.ShowDetails
 import dev.vlcremote.protocol.model.TransportKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -513,6 +515,16 @@ class CompanionBackend(
     override suspend fun clearHistory(): Result<Unit> = resultOf {
         request { id -> CompanionMessage.HistoryClear(id) }
         Unit
+    }
+
+    override suspend fun library(): Result<Library> = resultOf {
+        val reply = request { id -> CompanionMessage.GetLibrary(id) }
+        (reply as? CompanionMessage.Library)?.toLibrary() ?: error("unexpected reply ${reply::class.simpleName}")
+    }
+
+    override suspend fun show(key: String): Result<ShowDetails> = resultOf {
+        val reply = request { id -> CompanionMessage.GetShow(id, key) }
+        (reply as? CompanionMessage.Show)?.toDetails() ?: error("unexpected reply ${reply::class.simpleName}")
     }
 
     private companion object {
