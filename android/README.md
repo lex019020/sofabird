@@ -249,6 +249,49 @@ Behaviour:
 **Аппаратные клавиши громкости**: `MainActivity.dispatchKeyEvent` при включённой настройке и живом
 соединении шлёт `volume&val=` на ПК и показывает результат снэкбаром; иначе — штатное поведение.
 
+## Watch history
+
+Companion mode with the `history` capability only (protocol: "Watch history and resume" in
+[`../protocol/README.md`](../protocol/README.md)); direct VLC mode and older companions show none of this.
+The companion is the source of truth: the phone keeps no history of its own.
+
+- **Protocol** (`:core:protocol`): `Capability.HISTORY`; `PlayerState.resume` / `next` / `history`
+  (`ResumePrompt`, `NextEpisode`, `HistoryInfo`); `Entry.progress` / `finished`; messages `getHistory` → `history`,
+  `historyUpdate` (only `finished` or `remove` is sent), `historyClear`; `PlayerCommand.Resume(ResumeChoice)` →
+  `cmd resume {"choice"}`, `PlayerCommand.DismissNext` → `cmd dismissNext`. `PlayerBackend.history` /
+  `updateHistory` / `clearHistory` fail with `UnsupportedOperationException` unless the backend implements them
+  (only `CompanionBackend` does). All new fields are optional: old payloads decode as before.
+- **Resume prompt** (`data/history/WatchPrompts.kt`, a Koin singleton): while `state.resume.pending` is set and the
+  link is up, `ResumePromptHost` (called from `AppRoot`, so over any screen, including the permissions screen) shows
+  a modal dialog: the movie title (up to 3 lines), a progress bar, "Stopped at 1:23:45 of 2:58:25" and two large
+  full-width buttons, "Continue from 1:23:45" / "From the beginning" (labels wrap at large font sizes, never cut).
+  Back and outside taps do not close it: VLC waits paused for the answer. The first tap wins locally
+  (`ResumeDialogState`: a second tap sends nothing) and across phones (the PC drops `state.resume`, every dialog
+  disappears). A failed answer brings the dialog back if the PC still waits (after a short grace when the PC
+  rejected it, as it does when another phone was faster). Confirm haptic on the choice (setting "Button vibration").
+- **Notification**: while the prompt stands, the foreground-service notification switches from the media style to a
+  plain one with the movie title, "Continue from 1:23:45?" and the actions "Continue from 1:23:45" / "From the
+  beginning" (on Android 13+ a media-style notification shows only the media session's buttons, so custom actions
+  would be invisible there). The same for the next-episode offer: "Next: <title>" with "Play next", play/pause and
+  "Dismiss". Afterwards the media controls come back.
+- **Next episode**: `state.next` → a card on the Remote screen under the title: "Next episode", the title (2 lines
+  max), "Dismiss" (`cmd dismissNext`) and "Play" (`cmd open {uri}`). Nothing is played automatically. Either button
+  hides the card at once (also in the notification) until the PC offers something else.
+- **Library**: the tab starts with "Continue watching" (`getHistory continue`, up to 20): horizontal cards with the
+  title (always 2 lines, ellipsis), a progress bar and "1:23:45 of 2:58:25", or a "Next episode" badge. Cards grow
+  with the system font size. Tap → `cmd open` (the PC then asks about resuming) and the Remote screen; long press →
+  sheet with Play / Mark as watched / Remove from history. The row scrolls away with the list and the folder
+  toolbar then sticks to the top. With nothing to continue the row is replaced by a "History" link; the row header
+  has a "History" button too. Files of the folder that are in the history show a thin progress bar (started) or a
+  check mark (finished), from the optional `progress` / `finished` of `entries`.
+- **History screen** (route `history`): `getHistory all`, pages of 50 loaded as the end comes into view; grouped
+  into Today / Yesterday / This week (calendar week, first day from the locale) / Earlier (`groupHistoryByDate`,
+  clock injectable); each row: title, folder, progress bar + times or "Watched" with a check mark. Swipe left to
+  remove; long press or "⋮" → Play / Mark as watched or unwatched / Remove; "⋮" in the top bar → "Clear history"
+  with a confirmation naming the PC. Edits are optimistic; a failure shows a snackbar and reloads.
+- **Refresh**: Library and History watch `state.history.revision` while they are on screen and refresh (debounced
+  1–1.5 s; the PC saves the position every 10 s during playback). A refresh failure keeps the current list.
+
 ## Известные ограничения
 
 - Насечки глав на шкале расположены равномерно: HTTP‑интерфейс VLC 3 не отдаёт смещения глав,
@@ -335,3 +378,28 @@ Behaviour:
        returning, the status is "Allowed".
     4. "Not now" → "Connection"; on the first connection Android asks for notifications once (fallback).
     5. Restart the app → the screen does not appear again.
+16. **Watch history** (Galaxy S24 ↔ TV laptop, companion with `history`; check in English and Russian, also with the
+    largest font size).
+    1. Play a movie for 6+ minutes, stop, open it again from the Library → VLC pauses on the TV, the phone shows
+       "Continue watching?" with the title, progress and "Continue from 1:23:45" / "From the beginning"; nothing is cut
+       off, buttons are large; a tap gives a firm vibration and VLC seeks (or starts from 0) and plays.
+    2. Open the same movie by double-clicking it on the laptop → the dialog appears on the phone too (any tab, also
+       Settings / Connection). Pressing Play in VLC itself → the dialog disappears.
+    3. Two phones (or phone + second app install): both show the dialog; answer on one → the other closes it within
+       ~1 s, no error snackbar.
+    4. App in the background with the notification → open a resumable movie on the laptop → the notification shows
+       "Continue from …?" with both actions; each works; afterwards the media controls return. Phone locked: the actions
+       are reachable from the lock screen notification.
+    5. Wi‑Fi off while the dialog is open → it closes; after the reconnect (Wi‑Fi or Bluetooth) it reappears if VLC
+       still waits.
+    6. Finish an episode of a series folder (or seek to the last 5 %) → the Remote screen shows "Next episode: …" with
+       Play / Dismiss and the notification "Play next"; Play opens the next file (then the resume question if it was
+       started); Dismiss hides it on the phone and the PC; nothing starts by itself.
+    7. Library: "Continue watching" row on top with cards (2-line titles, bar, "1:23:45 of 2:58:25", "Next episode"
+       badge); tap plays and goes to the Remote; long press → Mark as watched (card disappears, the file in its folder
+       gets a check mark) / Remove from history. Scroll: the row scrolls away, the folder toolbar sticks. Folder rows:
+       thin bar on started files, check mark on finished ones; marks update while a movie plays (~10 s).
+    8. History: groups Today / Yesterday / This week / Earlier; rows with folder and progress or "Watched"; swipe left
+       removes; menu → Mark as unwatched resets the progress; scroll through 50+ entries loads more; "Clear history" →
+       confirmation with the PC name → empty screen text; the Library row is empty too ("History" link).
+    9. Old companion (no `history`) and direct VLC mode: no dialog, no card, no row, no History link, no marks.

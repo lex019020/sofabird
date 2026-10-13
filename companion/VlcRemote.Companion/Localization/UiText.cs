@@ -172,7 +172,7 @@ internal static class UiText
     public static string SetupAutostartFailed(object a0) => F("SetupAutostartFailed", a0);
     /// <summary>Configure VLC for phone control</summary>
     public static string SetupVlcTitle => S("SetupVlcTitle");
-    /// <summary>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles.</summary>
+    /// <summary>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles. VLC's own “continue playback?” question is turned off: the phone asks instead.</summary>
     public static string SetupVlcText => S("SetupVlcText");
     /// <summary>✓ VLC is configured</summary>
     public static string SetupVlcConfigured => S("SetupVlcConfigured");

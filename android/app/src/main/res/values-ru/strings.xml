@@ -302,4 +302,35 @@
     <string name="perm_nearby_why">Пульт продолжит управлять ПК по Bluetooth, когда Wi‑Fi недоступен. Используется только ПК, уже сопряжённый с телефоном: без поиска устройств и геолокации.</string>
     <string name="perm_nearby_without">Без него пульт работает только по Wi‑Fi.</string>
     <string name="settings_permissions">Разрешения</string>
+
+    <!-- История просмотра, вопрос о продолжении, следующая серия (возможность компаньона `history`) -->
+    <string name="resume_title">Продолжить просмотр?</string>
+    <string name="resume_continue_from">Продолжить с %1$s</string>
+    <string name="resume_from_start">С начала</string>
+    <string name="resume_stopped_at">Остановились на %1$s из %2$s</string>
+    <string name="resume_stopped_at_no_length">Остановились на %1$s</string>
+    <string name="resume_waiting_hint">VLC стоит на паузе, пока вы не выберете.</string>
+    <string name="next_episode_label">Следующая серия</string>
+    <string name="next_episode_play">Смотреть</string>
+    <string name="next_episode_dismiss">Скрыть</string>
+    <string name="continue_watching">Продолжить просмотр</string>
+    <string name="history_title">История</string>
+    <string name="history_position_of">%1$s из %2$s</string>
+    <string name="history_next_badge">Следующая серия</string>
+    <string name="history_watched">Просмотрено</string>
+    <string name="history_mark_watched">Отметить просмотренным</string>
+    <string name="history_mark_unwatched">Отметить непросмотренным</string>
+    <string name="history_remove">Удалить из истории</string>
+    <string name="history_clear">Очистить историю</string>
+    <string name="history_clear_confirm">Удалить всю историю просмотра на %1$s? Места, где вы остановились, тоже пропадут.</string>
+    <string name="history_clear_action">Очистить</string>
+    <string name="history_empty">Здесь пока пусто. Сюда попадает всё, что включали на компьютере, — с телефона или в самом VLC.</string>
+    <string name="history_unavailable">Историю просмотра ведёт компаньон на ПК. Подключитесь к компьютеру с обновлённым компаньоном.</string>
+    <string name="history_today">Сегодня</string>
+    <string name="history_yesterday">Вчера</string>
+    <string name="history_this_week">На этой неделе</string>
+    <string name="history_earlier">Раньше</string>
+    <string name="notif_resume_text">Продолжить с %1$s?</string>
+    <string name="notif_next_text">Далее: %1$s</string>
+    <string name="notif_play_next">Смотреть следующую</string>
 </resources>

@@ -3,6 +3,7 @@ using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Displays;
+using VlcRemote.Core.History;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Protocol;
 using VlcRemote.Core.Session;
@@ -47,6 +48,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Power,
             Core.Protocol.Caps.SystemVolume,
             Core.Protocol.Caps.Metadata,
+            .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
         if (settings.MigratePreferredDisplay(display.GetMonitors()))
@@ -221,4 +223,40 @@ public sealed class CompanionHost : ISessionHost
     public Task<IReadOnlyList<PlaylistEntry>> GetPlaylistAsync(CancellationToken ct) => _vlc.GetPlaylistAsync(ct);
     public Task<TracksInfo> GetTracksAsync(CancellationToken ct) => _vlc.GetTracksAsync(ct);
     public Task<IReadOnlyList<AudioDeviceEntry>> GetAudioDevicesAsync(CancellationToken ct) => _vlc.GetAudioDevicesAsync(ct);
+
+    private HistoryStore HistoryStore => _vlc.History?.Store ?? throw ProtocolException.Unsupported("watch history is off");
+
+    public async Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct)
+    {
+        var store = HistoryStore;
+        // "continue" lists series folders (possibly on a network share): off the session thread.
+        var (total, items) = await Task.Run(() => store.Query(filter, limit, offset), ct).ConfigureAwait(false);
+        return new HistoryMessage { Total = total, Items = items };
+    }
+
+    public Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct)
+    {
+        var store = HistoryStore;
+        if (MediaUri.Normalize(uri) is null) throw ProtocolException.BadRequest(ProtocolText.HistoryNotAFile(uri));
+        if (remove)
+        {
+            var removed = store.Remove(uri);
+            _log.LogInformation("History: {Uri} {Result} by a phone", uri, removed ? "removed" : "not found, nothing removed");
+        }
+        else if (finished is bool f)
+        {
+            store.SetFinished(uri, f);
+            _log.LogInformation("History: {Uri} marked {State} by a phone", uri, f ? "watched" : "unwatched");
+        }
+        _vlc.Poke();
+        return Task.CompletedTask;
+    }
+
+    public Task ClearHistoryAsync(CancellationToken ct)
+    {
+        HistoryStore.Clear();
+        _log.LogInformation("History cleared by a phone");
+        _vlc.Poke();
+        return Task.CompletedTask;
+    }
 }

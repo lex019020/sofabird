@@ -31,6 +31,7 @@ public static class VlcrcEditor
     public const string CoreSection = "core";
     public const string LuaSection = "lua";
     public const string OldRcSection = "oldrc";
+    public const string QtSection = "qt";
 
     /// <summary>Нужные значения: (секция, ключ, функция «текущее значение → новое»).</summary>
     private static IEnumerable<(string Section, string Key, Func<string?, string> Value)> Wanted(VlcrcSettings s) =>
@@ -40,6 +41,8 @@ public static class VlcrcEditor
         (LuaSection, "http-password", _ => s.HttpPassword),
         (OldRcSection, "rc-host", _ => $"127.0.0.1:{s.RcPort}"),
         (OldRcSection, "rc-quiet", _ => "1"),
+        // VLC's own "continue playback?" (0 = never, 1 = ask, 2 = always): the companion asks on the phone instead.
+        (QtSection, "qt-continue", _ => "0"),
     ];
 
     /// <summary>

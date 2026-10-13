@@ -32,4 +32,6 @@ public static class ProtocolText
     public static LocalizableText FolderNotFound(object a0) => new("FolderNotFound", a0);
     /// <summary>Folder is not available: {0}</summary>
     public static LocalizableText FolderUnavailable(object a0) => new("FolderUnavailable", a0);
+    /// <summary>Only files on this PC are kept in the watch history: {0}</summary>
+    public static LocalizableText HistoryNotAFile(object a0) => new("HistoryNotAFile", a0);
 }

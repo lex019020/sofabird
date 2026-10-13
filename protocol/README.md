@@ -65,7 +65,7 @@ Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vl
 Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
 
 `caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
-`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`.
+`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`.
 
 ## Player commands: `cmd`
 
@@ -95,6 +95,8 @@ and state changes arrive in a separate `state`.
 | `random` / `loop` / `repeat` | `{"on": bool}` | `pl_random`/`pl_loop`/`pl_repeat` (toggle, the companion verifies) |
 | `launch` | `{"uri": string?, "display": int?}` | starts `vlc.exe` with the required parameters |
 | `quit` | — | RC `quit` or `in_play&input=vlc://quit` |
+| `resume` | `{"choice": "resume"\|"restart"}` | answer to the resume prompt (see «Watch history») |
+| `dismissNext` | — | hide the «next episode» offer |
 
 ## System commands: `sys` (require the corresponding `caps`)
 
@@ -184,9 +186,63 @@ in any way is controllable right away. `cmd launch` in `noControl` restarts VLC 
 The fields `tracks.current*`, `chapters.names`, `system` may be absent if the level/`caps` do not provide them.
 `artUrl` is served by the companion (it proxies VLC's `/art`); authorization is the `Authorization: Bearer <token>` header.
 
+## Watch history and resume (capability `history`)
+
+Product decisions (user, 2026-10-13): ask on the phone whether to resume; with no phone or no answer VLC waits paused;
+resume is offered after 5 minutes watched; "finished" = less than 5% left; audio/subtitle choices are remembered per
+folder; the next episode is only *offered* on the phone, never auto-played; history is kept for 6 months.
+
+**Storage (companion = source of truth).** The companion records every input VLC plays — launched from a phone or
+opened manually — in `history.json` in its data dir (atomic writes, debounced). One entry per file:
+
+| field | meaning |
+|---|---|
+| `uri` | normalized file URI (key; drive letter lower-case, percent-encoding normalized) |
+| `name`, `size` | file name and size — a secondary key, so an entry survives a path change (`D:\shared\x.mkv` ↔ `\\host\shared\x.mkv`) |
+| `title` | VLC's title (metadata or file name) |
+| `folderUri` | parent folder URI |
+| `position`, `length` | seconds; `position` is the resume point (0 when finished) |
+| `finished` | `true` once less than 5% was left (or set manually) |
+| `lastWatched` | unix ms of the last playback |
+| `playCount` | number of opens |
+
+Per-folder track preferences in the same file: `{folderUri: {audio: {lang, name, codec}, subtitle: {lang, name, codec} | "off"}}`.
+They are written whenever the user picks a track (from the phone or in VLC) and applied to every new file of that
+folder by best match (language → name → codec; subtitles "off" stays off). Track ids are per file and are not stored.
+
+Recording: the position is saved every 10 s while playing and on pause, stop, input change and VLC exit. Entries
+older than 183 days (`lastWatched`) are deleted at startup and once a day.
+
+**Resume prompt.** When a new input starts and its entry has `position >= 300` and `finished == false`:
+1. the companion pauses VLC right away (before applying the folder track preferences, which happens at the same time);
+2. `state.resume = {"uri", "title", "position", "length", "pending": true}` and `event {"name":"resumePrompt", ...same}`;
+3. every connected phone shows a modal choice «Continue from 1:23:45» / «From the beginning»; the first answer wins:
+   `cmd resume {"choice": "resume"|"restart"}` → the companion seeks (or stays at 0), plays, and clears `state.resume`;
+4. no phone / no answer → VLC stays paused indefinitely; a phone connecting later sees `state.resume.pending` and shows
+   the choice; if the user presses Play in VLC itself, the prompt is cleared and playback continues from the current
+   position (the beginning).
+VLC's own "continue playback?" feature is disabled by the companion (`qt-continue=0` in `vlcrc`) to avoid a double
+question.
+
+**Next episode.** When an input becomes `finished` (or ends) and its folder contains a next video file (natural sort
+order of video files in the same folder) that is not finished, the companion sets `state.next = {"uri", "title"}` and
+sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title>» with «Play» (`cmd open {uri}`) and
+«Dismiss» (`cmd dismissNext`). Nothing is played automatically. `state.next` is cleared when another input starts.
+
+**Requests.**
+- `{"t":"getHistory","id":"9","filter":"continue"|"all","limit":50,"offset":0}` → `{"t":"history","id":"9","total":N,
+  "items":[{"uri","title","name","folderUri","position","length","progress","finished","lastWatched","playCount","artUrl"?}]}`;
+  `continue` = not finished and `position >= 300`, plus for each series folder the next unfinished episode after the last
+  finished one (marked `"next": true`); sorted by `lastWatched` descending.
+- `{"t":"historyUpdate","id":"10","uri":"...","finished":true|false}` (mark watched / unwatched; unwatched resets
+  `position` to 0) or `{"t":"historyUpdate","id":"10","uri":"...","remove":true}` → `ok`.
+- `{"t":"historyClear","id":"11"}` → `ok`.
+- `entries` items of `browse` get optional `progress` (0..1) and `finished` for files that are in the history.
+- `state.history = {"revision": n}` changes whenever the history changes, so phones can refresh lists.
+
 ## Events: `event`
 
-`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired", ...}`.
+`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode", ...}`.
 
 ## Keep-alive
 

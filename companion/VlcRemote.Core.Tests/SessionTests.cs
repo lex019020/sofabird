@@ -57,6 +57,30 @@ public class SessionTests
 
         public Task<IReadOnlyList<AudioDeviceEntry>> GetAudioDevicesAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<AudioDeviceEntry>>([new AudioDeviceEntry { Id = "", Name = "Default", Current = true }]);
+
+        public List<string> HistoryCalls { get; } = new();
+
+        public Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct)
+        {
+            HistoryCalls.Add($"get {filter} {limit} {offset}");
+            return Task.FromResult(new HistoryMessage
+            {
+                Total = 3,
+                Items = [new HistoryItem { Uri = "file:///d:/s/e02.mkv", Title = "E02", Name = "e02.mkv", FolderUri = "file:///d:/s/", Position = 0, Length = 0, Next = true, LastWatched = 5 }],
+            });
+        }
+
+        public Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct)
+        {
+            HistoryCalls.Add($"update {uri} {finished?.ToString() ?? "-"} {remove}");
+            return Task.CompletedTask;
+        }
+
+        public Task ClearHistoryAsync(CancellationToken ct)
+        {
+            HistoryCalls.Add("clear");
+            return Task.CompletedTask;
+        }
     }
 
     private static (InMemoryLineTransport transport, Core.Session.Session session, FakeHost host, PairingService pairing, Task run) Start(string? pairedToken = null)
@@ -264,6 +288,70 @@ public class SessionTests
         t.PhoneDisconnect();
         await run.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(t.Closed);
+    }
+
+    [Fact]
+    public async Task HistoryRequests_AreDispatchedAndValidated()
+    {
+        var (t, _, host, _, run) = Start("tok");
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d","locale":"ru-RU"},"token":"tok"}""");
+        Assert.Equal("welcome", Recv(t).GetProperty("t").GetString());
+
+        await t.PhoneSendAsync("""{"t":"getHistory","id":"9","filter":"continue","limit":20,"offset":40}""");
+        var h = Recv(t);
+        Assert.Equal("history", h.GetProperty("t").GetString());
+        Assert.Equal("9", h.GetProperty("id").GetString());
+        Assert.Equal(3, h.GetProperty("total").GetInt32());
+        var item = h.GetProperty("items")[0];
+        Assert.True(item.GetProperty("next").GetBoolean());
+        Assert.Equal("file:///d:/s/", item.GetProperty("folderUri").GetString());
+        Assert.False(item.TryGetProperty("artUrl", out _));
+
+        await t.PhoneSendAsync("""{"t":"getHistory","id":"10"}""");
+        Assert.Equal("history", Recv(t).GetProperty("t").GetString());
+        await t.PhoneSendAsync("""{"t":"getHistory","id":"11","limit":100000,"offset":-5}""");
+        Recv(t);
+        Assert.Equal(["get continue 20 40", "get all 50 0", "get all 500 0"], host.HistoryCalls);
+
+        await t.PhoneSendAsync("""{"t":"getHistory","id":"12","filter":"recent"}""");
+        var bad = Recv(t);
+        Assert.Equal("bad_request", bad.GetProperty("code").GetString());
+        Assert.Equal("12", bad.GetProperty("id").GetString());
+
+        await t.PhoneSendAsync("""{"t":"historyUpdate","id":"13","uri":"file:///d:/x.mkv","finished":true}""");
+        Assert.Equal("ok", Recv(t).GetProperty("t").GetString());
+        await t.PhoneSendAsync("""{"t":"historyUpdate","id":"14","uri":"file:///d:/x.mkv","remove":true}""");
+        Assert.Equal("ok", Recv(t).GetProperty("t").GetString());
+        await t.PhoneSendAsync("""{"t":"historyUpdate","id":"15","uri":"file:///d:/x.mkv"}""");
+        Assert.Equal("bad_request", Recv(t).GetProperty("code").GetString());
+        await t.PhoneSendAsync("""{"t":"historyClear","id":"16"}""");
+        var ok = Recv(t);
+        Assert.Equal("ok", ok.GetProperty("t").GetString());
+        Assert.Equal("16", ok.GetProperty("id").GetString());
+        Assert.Equal(["update file:///d:/x.mkv True False", "update file:///d:/x.mkv - True", "clear"], host.HistoryCalls.Skip(3));
+
+        // New commands go through the usual cmd path.
+        await t.PhoneSendAsync("""{"t":"cmd","id":"17","name":"resume","args":{"choice":"resume"}}""");
+        Assert.Equal("ok", Recv(t).GetProperty("t").GetString());
+        await t.PhoneSendAsync("""{"t":"cmd","id":"18","name":"dismissNext"}""");
+        Assert.Equal("ok", Recv(t).GetProperty("t").GetString());
+        Assert.Equal(["resume", "dismissNext"], host.Commands.Select(c => c.Name));
+        Assert.Equal("resume", host.Commands[0].Args.GetString("choice"));
+
+        t.PhoneDisconnect();
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void ResumeAndNextEvents_SerializeFlat()
+    {
+        var json = ProtocolJson.Serialize(new EventMessage
+        {
+            Name = EventNames.ResumePrompt, Uri = "file:///d:/x.mkv", Title = "X", Position = 1234, Length = 5000, Pending = true,
+        });
+        Assert.Equal("""{"t":"event","name":"resumePrompt","uri":"file:///d:/x.mkv","title":"X","position":1234,"length":5000,"pending":true}""", json);
+        var next = ProtocolJson.Serialize(new EventMessage { Name = EventNames.NextEpisode, Uri = "file:///d:/e2.mkv", Title = "E2" });
+        Assert.Equal("""{"t":"event","name":"nextEpisode","uri":"file:///d:/e2.mkv","title":"E2"}""", next);
     }
 
     [Fact]

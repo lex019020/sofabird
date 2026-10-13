@@ -67,6 +67,8 @@ import dev.vlcremote.app.ui.common.StatusDot
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.message
 import dev.vlcremote.app.ui.connection.ConnectionScreen
+import dev.vlcremote.app.ui.history.HistoryScreen
+import dev.vlcremote.app.ui.history.ResumePromptHost
 import dev.vlcremote.app.ui.library.LibraryScreen
 import dev.vlcremote.app.ui.permissions.PermissionsScreen
 import dev.vlcremote.app.ui.permissions.isGranted
@@ -86,6 +88,7 @@ object Routes {
     const val PLAYLIST = "playlist"
     const val CONNECTION = "connection"
     const val SETTINGS = "settings"
+    const val HISTORY = "history"
     val tabs = listOf(REMOTE, LIBRARY, PLAYLIST)
 }
 
@@ -141,6 +144,7 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                 is PlayerEvent.SystemCommandFailed -> snackbar.showSnackbar(event.error.commandErrorMessage(context))
                 is PlayerEvent.VolumeChanged -> snackbar.showSnackbar(context.getString(R.string.volume_percent, event.percent))
                 is PlayerEvent.Paired -> snackbar.showSnackbar(context.getString(R.string.paired_with, event.server.displayName))
+                is PlayerEvent.RequestFailed -> snackbar.showSnackbar(event.error.commandErrorMessage(context))
             }
         }
     }
@@ -177,6 +181,9 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
             navController.navigate(Routes.CONNECTION) { launchSingleTop = true }
         }
     }
+
+    // "Continue from …?" — modal over any screen while the PC waits paused for the answer.
+    ResumePromptHost()
 
     when (showPermissions) {
         null -> {
@@ -252,7 +259,22 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
             modifier = Modifier.padding(padding),
         ) {
             composable(Routes.REMOTE) { RemoteScreen(onOpenConnection = { navController.navigate(Routes.CONNECTION) }) }
-            composable(Routes.LIBRARY) { LibraryScreen(onPlayed = { navController.navigate(Routes.REMOTE) }) }
+            composable(Routes.LIBRARY) {
+                LibraryScreen(
+                    onPlayed = { navController.navigate(Routes.REMOTE) },
+                    onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                )
+            }
+            composable(Routes.HISTORY) {
+                HistoryScreen(
+                    onBack = { navController.popBackStack() },
+                    // Like a tap in the Library: back to the remote (History closes).
+                    onPlayed = {
+                        navController.popBackStack()
+                        navController.navigate(Routes.REMOTE)
+                    },
+                )
+            }
             composable(Routes.PLAYLIST) { PlaylistScreen() }
             composable(Routes.CONNECTION) {
                 ConnectionScreen(

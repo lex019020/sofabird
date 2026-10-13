@@ -39,6 +39,10 @@ namespace VlcRemote.Core.Protocol;
 [JsonSerializable(typeof(PingMessage))]
 [JsonSerializable(typeof(PongMessage))]
 [JsonSerializable(typeof(BeaconMessage))]
+[JsonSerializable(typeof(GetHistoryMessage))]
+[JsonSerializable(typeof(HistoryMessage))]
+[JsonSerializable(typeof(HistoryUpdateMessage))]
+[JsonSerializable(typeof(HistoryClearMessage))]
 [JsonSerializable(typeof(InfoResponse))]
 public partial class ProtocolJsonContext : JsonSerializerContext
 {

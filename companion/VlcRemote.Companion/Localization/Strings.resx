@@ -87,7 +87,7 @@ Change wsPort in {2}.</value></data>
   <data name="SetupAutostartText" xml:space="preserve"><value>The companion starts when you sign in to Windows, so the phone can control VLC without anyone touching the PC. It uses your own startup list; no administrator rights are needed.</value></data>
   <data name="SetupAutostartFailed" xml:space="preserve"><value>✗ Could not change autostart: {0}</value></data>
   <data name="SetupVlcTitle" xml:space="preserve"><value>Configure VLC for phone control</value></data>
-  <data name="SetupVlcText" xml:space="preserve"><value>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles.</value></data>
+  <data name="SetupVlcText" xml:space="preserve"><value>VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way (even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file (a backup copy is kept) and installs helper pages for audio tracks and subtitles. VLC's own “continue playback?” question is turned off: the phone asks instead.</value></data>
   <data name="SetupVlcConfigured" xml:space="preserve"><value>✓ VLC is configured</value></data>
   <data name="SetupVlcNotConfigured" xml:space="preserve"><value>Not configured yet</value></data>
   <data name="SetupVlcRunning" xml:space="preserve"><value>VLC is running: its settings will be written after it closes</value></data>

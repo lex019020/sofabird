@@ -122,10 +122,12 @@ UI = [
     ("SetupVlcTitle", "Configure VLC for phone control", "Настроить VLC для управления с телефона"),
     ("SetupVlcText", "VLC gets its web interface turned on with a password made by the companion, so VLC opened in any way "
                      "(even by a double-click on a movie) can be controlled from the phone. The companion edits VLC's settings file "
-                     "(a backup copy is kept) and installs helper pages for audio tracks and subtitles.",
+                     "(a backup copy is kept) and installs helper pages for audio tracks and subtitles. VLC's own "
+                     "“continue playback?” question is turned off: the phone asks instead.",
      "В VLC включается веб‑интерфейс с паролем, который создал компаньон, — так VLC, открытый как угодно "
      "(даже двойным щелчком по фильму), управляется с телефона. Компаньон правит файл настроек VLC "
-     "(резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров."),
+     "(резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров. "
+     "Собственный вопрос VLC «продолжить воспроизведение?» отключается — вместо него спрашивает телефон."),
     ("SetupVlcConfigured", "✓ VLC is configured", "✓ VLC настроен"),
     ("SetupVlcNotConfigured", "Not configured yet", "Ещё не настроен"),
     ("SetupVlcRunning", "VLC is running: its settings will be written after it closes",
@@ -173,6 +175,8 @@ PROTO = [
     ("VlcNotRunning", "VLC is not running", "VLC не запущен"),
     ("FolderNotFound", "Folder not found: {0}", "Папка не найдена: {0}"),
     ("FolderUnavailable", "Folder is not available: {0}", "Папка недоступна: {0}"),
+    ("HistoryNotAFile", "Only files on this PC are kept in the watch history: {0}",
+     "В истории просмотра хранятся только файлы на этом компьютере: {0}"),
 ]
 
 HEAD = """<?xml version="1.0" encoding="utf-8"?>

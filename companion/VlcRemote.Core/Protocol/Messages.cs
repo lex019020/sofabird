@@ -30,6 +30,10 @@ namespace VlcRemote.Core.Protocol;
 [JsonDerivedType(typeof(PingMessage), "ping")]
 [JsonDerivedType(typeof(PongMessage), "pong")]
 [JsonDerivedType(typeof(BeaconMessage), "beacon")]
+[JsonDerivedType(typeof(GetHistoryMessage), "getHistory")]
+[JsonDerivedType(typeof(HistoryMessage), "history")]
+[JsonDerivedType(typeof(HistoryUpdateMessage), "historyUpdate")]
+[JsonDerivedType(typeof(HistoryClearMessage), "historyClear")]
 public abstract class Message
 {
     /// <summary>Идентификатор запроса; ответ несёт тот же <c>id</c>.</summary>
@@ -101,6 +105,10 @@ public sealed class BrowseEntry
     public string Type { get; set; } = "file";
     public long? Size { get; set; }
     public long? Modified { get; set; }
+    /// <summary>Watched part 0..1 (1 when finished); only for files in the watch history.</summary>
+    public double? Progress { get; set; }
+    /// <summary>Watched to the end (less than 5% left) or marked as watched; only for files in the watch history.</summary>
+    public bool? Finished { get; set; }
 }
 
 public sealed class EntriesMessage : Message
@@ -215,7 +223,57 @@ public sealed class EventMessage : Message
     public string? Uri { get; set; }
     /// <summary>Дополнительно для <c>paired</c>: имя устройства.</summary>
     public string? Device { get; set; }
+    /// <summary><c>resumePrompt</c> / <c>nextEpisode</c>: title of the file.</summary>
+    public string? Title { get; set; }
+    /// <summary><c>resumePrompt</c>: resume point, seconds.</summary>
+    public long? Position { get; set; }
+    /// <summary><c>resumePrompt</c>: duration, seconds.</summary>
+    public long? Length { get; set; }
+    /// <summary><c>resumePrompt</c>: the question is waiting for an answer.</summary>
+    public bool? Pending { get; set; }
 }
+
+/// <summary><c>getHistory</c>: <c>filter</c> = <c>continue</c> | <c>all</c>.</summary>
+public sealed class GetHistoryMessage : Message
+{
+    public string? Filter { get; set; }
+    public int? Limit { get; set; }
+    public int? Offset { get; set; }
+}
+
+public sealed class HistoryItem
+{
+    public string Uri { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string FolderUri { get; set; } = "";
+    public long Position { get; set; }
+    public long Length { get; set; }
+    public double Progress { get; set; }
+    public bool Finished { get; set; }
+    public long LastWatched { get; set; }
+    public int PlayCount { get; set; }
+    public string? ArtUrl { get; set; }
+    /// <summary>The next episode of a series (in the <c>continue</c> list); absent otherwise.</summary>
+    public bool? Next { get; set; }
+}
+
+public sealed class HistoryMessage : Message
+{
+    /// <summary>Number of items matching the filter (before paging).</summary>
+    public int Total { get; set; }
+    public IReadOnlyList<HistoryItem> Items { get; set; } = [];
+}
+
+/// <summary><c>historyUpdate</c>: mark watched / unwatched (<c>finished</c>) or <c>remove</c> an entry.</summary>
+public sealed class HistoryUpdateMessage : Message
+{
+    public string Uri { get; set; } = "";
+    public bool? Finished { get; set; }
+    public bool? Remove { get; set; }
+}
+
+public sealed class HistoryClearMessage : Message;
 
 public sealed class PingMessage : Message;
 
@@ -272,6 +330,8 @@ public static class Caps
     public const string SystemVolume = "systemVolume";
     public const string Metadata = "metadata";
     public const string Bluetooth = "bluetooth";
+    /// <summary>Watch history, resume prompt and next-episode offer.</summary>
+    public const string History = "history";
 }
 
 public static class EventNames
@@ -281,4 +341,6 @@ public static class EventNames
     public const string InputChanged = "inputChanged";
     public const string EndReached = "endReached";
     public const string Paired = "paired";
+    public const string ResumePrompt = "resumePrompt";
+    public const string NextEpisode = "nextEpisode";
 }

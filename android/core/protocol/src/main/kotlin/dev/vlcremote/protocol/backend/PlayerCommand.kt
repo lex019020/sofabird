@@ -1,5 +1,6 @@
 package dev.vlcremote.protocol.backend
 
+import dev.vlcremote.protocol.model.ResumeChoice
 import dev.vlcremote.protocol.model.TrackKind
 
 /** Player commands, transport-agnostic. See protocol/README.md "Команды плеера". */
@@ -57,6 +58,12 @@ sealed class PlayerCommand {
     /** Companion only: start VLC (optionally with a file and on a display). */
     data class Launch(val uri: String? = null, val display: Int? = null) : PlayerCommand()
     data object Quit : PlayerCommand()
+
+    /** Companion `history`: answer the resume prompt (`state.resume`). */
+    data class Resume(val choice: ResumeChoice) : PlayerCommand()
+
+    /** Companion `history`: hide the next-episode offer (`state.next`). */
+    data object DismissNext : PlayerCommand()
 }
 
 /** System-level commands; each needs the corresponding capability (companion only). */

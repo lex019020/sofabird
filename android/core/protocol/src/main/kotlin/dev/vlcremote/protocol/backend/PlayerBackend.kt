@@ -5,6 +5,9 @@ import dev.vlcremote.protocol.companion.DisplayList
 import dev.vlcremote.protocol.model.Capabilities
 import dev.vlcremote.protocol.model.ConnectionState
 import dev.vlcremote.protocol.model.Entry
+import dev.vlcremote.protocol.model.HistoryChange
+import dev.vlcremote.protocol.model.HistoryFilter
+import dev.vlcremote.protocol.model.HistoryPage
 import dev.vlcremote.protocol.model.PlayerState
 import dev.vlcremote.protocol.model.PlaylistItem
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +48,18 @@ interface PlayerBackend {
     /** Companion `sys listDisplays` (needs `windowControl` capability). */
     suspend fun listDisplays(): Result<DisplayList> =
         Result.failure(UnsupportedOperationException("displays need the companion"))
+
+    /** Companion `getHistory` (needs `history` capability). */
+    suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage> =
+        Result.failure(UnsupportedOperationException("watch history needs the companion"))
+
+    /** Companion `historyUpdate`: mark watched / unwatched or remove one entry. */
+    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> =
+        Result.failure(UnsupportedOperationException("watch history needs the companion"))
+
+    /** Companion `historyClear`. */
+    suspend fun clearHistory(): Result<Unit> =
+        Result.failure(UnsupportedOperationException("watch history needs the companion"))
 
     /** Ask the backend to re-fetch state now (e.g. after returning to the foreground). */
     suspend fun refresh()

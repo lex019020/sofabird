@@ -7,6 +7,7 @@ using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Setup;
 using VlcRemote.Companion.Tray;
 using VlcRemote.Companion.Vlc;
+using VlcRemote.Core.History;
 using VlcRemote.Core.Lua;
 using VlcRemote.Core.Pairing;
 using VlcRemote.Core.Setup;
@@ -112,7 +113,10 @@ internal static class Program
         var lua = installation is null ? null
             : new LuaPagesInstaller(installation.LuaHttpDir, LuaPagesInstaller.DefaultTargetDir, EmbeddedLuaPages.Load(), lf.CreateLogger<LuaPagesInstaller>());
 
-        var vlc = new VlcManager(settings, installation, lua, lf);
+        var historyStore = new HistoryStore(paths.HistoryFile, logger: lf.CreateLogger<HistoryStore>());
+        historyStore.StartMaintenance();
+        var history = new HistoryTracker(historyStore, lf.CreateLogger<HistoryTracker>());
+        var vlc = new VlcManager(settings, installation, lua, lf, history);
         var pairing = new PairingService(new JsonFileTokenStore(paths.PairedDevicesFile));
         var display = new DisplayService(lf.CreateLogger<DisplayService>());
         var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
@@ -165,6 +169,7 @@ internal static class Program
             {
                 quitWait.Unregister(null);
                 display.Dispose();
+                historyStore.Dispose();
                 ui.Dispose();
                 log.LogInformation("Exited before start");
                 return 0;
@@ -206,6 +211,7 @@ internal static class Program
             await sessions.CloseAllAsync();
             await web.DisposeAsync();
             await vlc.DisposeAsync();
+            historyStore.Dispose(); // writes the last positions
             display.Dispose();
             sessions.Dispose();
         }

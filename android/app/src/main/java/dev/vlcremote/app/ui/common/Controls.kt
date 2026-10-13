@@ -47,6 +47,21 @@ fun rememberTick(enabled: Boolean): () -> Unit {
     return { view.tick(current.value) }
 }
 
+/** A firmer haptic for decisions (resume / from the beginning / play next): CONFIRM on Android 11+. */
+@Composable
+fun rememberConfirmHaptic(enabled: Boolean): () -> Unit {
+    val view = LocalView.current
+    val current = rememberUpdatedState(enabled)
+    return {
+        if (current.value) {
+            view.performHapticFeedback(
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM
+                else HapticFeedbackConstants.VIRTUAL_KEY,
+            )
+        }
+    }
+}
+
 /**
  * Round remote button. Tap → [onClick]; hold → [onClick] repeats every [repeatEveryMs] after
  * [repeatAfterMs] (for ±10/±30 s). A hold that already repeated does not fire again on release.

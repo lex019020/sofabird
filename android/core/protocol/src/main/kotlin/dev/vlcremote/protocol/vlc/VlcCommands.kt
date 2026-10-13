@@ -144,6 +144,7 @@ object VlcCommands {
         is PlayerCommand.Repeat -> if (command.on == current.repeat) emptyList() else listOf(toggleRepeat())
         is PlayerCommand.Launch -> emptyList() // companion only
         PlayerCommand.Quit -> listOf(quit())
+        is PlayerCommand.Resume, PlayerCommand.DismissNext -> emptyList() // companion only (history)
     }
 
     /** Values of toggle-style flags needed to turn `set` commands into VLC toggles. */

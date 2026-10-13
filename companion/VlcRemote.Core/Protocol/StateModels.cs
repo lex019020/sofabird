@@ -135,4 +135,32 @@ public sealed class StateMessage : Message
     public DelaysInfo Delays { get; set; } = new();
     public FlagsInfo Flags { get; set; } = new();
     public SystemInfo? System { get; set; }
+    /// <summary>The resume question waiting for an answer (<c>cmd resume</c>); absent when there is none.</summary>
+    public ResumeInfo? Resume { get; set; }
+    /// <summary>The offered next episode (<c>cmd open</c> / <c>cmd dismissNext</c>); absent when there is none.</summary>
+    public NextInfo? Next { get; set; }
+    /// <summary>Watch history revision (capability <c>history</c>).</summary>
+    public HistoryInfo? History { get; set; }
+}
+
+public sealed class ResumeInfo
+{
+    public string Uri { get; set; } = "";
+    public string Title { get; set; } = "";
+    /// <summary>Resume point, seconds.</summary>
+    public long Position { get; set; }
+    public long Length { get; set; }
+    public bool Pending { get; set; } = true;
+}
+
+public sealed class NextInfo
+{
+    public string Uri { get; set; } = "";
+    public string Title { get; set; } = "";
+}
+
+public sealed class HistoryInfo
+{
+    /// <summary>Changes whenever the history changes, so phones can refresh their lists.</summary>
+    public long Revision { get; set; }
 }

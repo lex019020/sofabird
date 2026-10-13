@@ -189,6 +189,9 @@ public sealed class Session : IAsyncDisposable
                 GetPlaylistMessage gp => new PlaylistMessage { Id = gp.Id, Items = await _host.GetPlaylistAsync(ct).ConfigureAwait(false) },
                 GetTracksMessage gt => TracksMessage.From(await _host.GetTracksAsync(ct).ConfigureAwait(false), gt.Id),
                 GetAudioDevicesMessage ga => new AudioDevicesMessage { Id = ga.Id, Items = await _host.GetAudioDevicesAsync(ct).ConfigureAwait(false) },
+                GetHistoryMessage gh => await GetHistoryAsync(gh, ct).ConfigureAwait(false),
+                HistoryUpdateMessage hu => await UpdateHistoryAsync(hu, ct).ConfigureAwait(false),
+                HistoryClearMessage hc => await ClearHistoryAsync(hc, ct).ConfigureAwait(false),
                 HelloMessage h => new ErrMessage { Id = h.Id, Code = ErrorCodes.BadRequest, Msg = "already authenticated" },
                 _ => new ErrMessage { Id = msg.Id, Code = ErrorCodes.BadRequest, Msg = $"unexpected message type for this direction" },
             };
@@ -231,6 +234,36 @@ public sealed class Session : IAsyncDisposable
         if (reply is DisplaysMessage displays) displays.Localize(Culture);
         reply.Id = s.Id;
         return reply;
+    }
+
+    /// <summary>Default and maximum page size of <c>getHistory</c>.</summary>
+    public const int DefaultHistoryLimit = 50;
+    public const int MaxHistoryLimit = 500;
+
+    private async Task<Message> GetHistoryAsync(GetHistoryMessage m, CancellationToken ct)
+    {
+        var filter = string.IsNullOrEmpty(m.Filter) ? "all" : m.Filter;
+        if (filter is not ("continue" or "all")) throw ProtocolException.BadRequest("getHistory.filter must be continue|all");
+        var limit = Math.Clamp(m.Limit ?? DefaultHistoryLimit, 0, MaxHistoryLimit);
+        var offset = Math.Max(0, m.Offset ?? 0);
+        var reply = await _host.GetHistoryAsync(filter, limit, offset, ct).ConfigureAwait(false);
+        reply.Id = m.Id;
+        return reply;
+    }
+
+    private async Task<Message> UpdateHistoryAsync(HistoryUpdateMessage m, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(m.Uri)) throw ProtocolException.BadRequest("historyUpdate.uri is required");
+        var remove = m.Remove == true;
+        if (!remove && m.Finished is null) throw ProtocolException.BadRequest("historyUpdate requires 'finished' or 'remove'");
+        await _host.UpdateHistoryAsync(m.Uri, m.Finished, remove, ct).ConfigureAwait(false);
+        return new OkMessage { Id = m.Id };
+    }
+
+    private async Task<Message> ClearHistoryAsync(HistoryClearMessage m, CancellationToken ct)
+    {
+        await _host.ClearHistoryAsync(ct).ConfigureAwait(false);
+        return new OkMessage { Id = m.Id };
     }
 
     /// <summary>Language of the phone (<c>hello.device.locale</c>) for <c>err.msg</c>; null = English.</summary>

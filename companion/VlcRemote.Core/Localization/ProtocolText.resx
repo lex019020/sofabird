@@ -19,4 +19,5 @@
   <data name="VlcNotRunning" xml:space="preserve"><value>VLC is not running</value></data>
   <data name="FolderNotFound" xml:space="preserve"><value>Folder not found: {0}</value></data>
   <data name="FolderUnavailable" xml:space="preserve"><value>Folder is not available: {0}</value></data>
+  <data name="HistoryNotAFile" xml:space="preserve"><value>Only files on this PC are kept in the watch history: {0}</value></data>
 </root>

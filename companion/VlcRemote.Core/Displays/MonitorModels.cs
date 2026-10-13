@@ -101,4 +101,9 @@ public interface IVlcWindowHost
     /// centred, a maximized one is maximized again there, a borderless fullscreen one covers the target bounds.
     /// </summary>
     bool MoveWindow(long window, MonitorInfo target);
+    /// <summary>
+    /// VLC is kept paused for the resume question: a paused file may have no video output yet (VLC ignores
+    /// fullscreen requests then), so waiting for fullscreen does not time out until playback goes on.
+    /// </summary>
+    bool PlaybackHeld => false;
 }
