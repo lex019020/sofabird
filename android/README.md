@@ -20,6 +20,15 @@ $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # любой JD
 Ktor 3.0.1 (движок OkHttp 4.12), kotlinx.serialization 1.7.3, Koin 4.0.0, Media3 1.4.1,
 DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`targetSdk` 35, `minSdk` 26.
 
+## Варианты сборки и подпись
+
+- `debug` — `dev.vlcremote.app.debug`, «VLC Remote (dev)», debug‑ключ; ставится рядом с основной.
+- `release` — `dev.vlcremote.app`, подписывается общим ключом из `android/keystore.properties` (не в git) или
+  переменных `VLCR_KEYSTORE_FILE`/`VLCR_KEYSTORE_PASSWORD`/`VLCR_KEY_ALIAS`/`VLCR_KEY_PASSWORD`. Так собираются
+  тестовые сборки и релизы в CI; см. CLAUDE.md «Подпись APK».
+- Версия: `versionName` из файла `VERSION` + `-Pvlcr.versionSuffix=beta.N`, `versionCode` из
+  `-Pvlcr.versionCode=<число коммитов>`. Видна в «Настройки → О приложении».
+
 ## Структура
 
 ```

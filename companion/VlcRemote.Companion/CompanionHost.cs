@@ -57,7 +57,7 @@ public sealed class CompanionHost : ISessionHost
     public InfoResponse BuildInfo() => new()
     {
         Name = MachineName,
-        Version = typeof(CompanionHost).Assembly.GetName().Version?.ToString(3) ?? "0.0.0",
+        Version = AppVersion.Informational,
         Vlc = _vlc.Info,
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,

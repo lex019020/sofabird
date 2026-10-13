@@ -124,6 +124,12 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_about))
             Text(stringResource(R.string.about_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stringResource(R.string.settings_version, dev.vlcremote.app.BuildConfig.VERSION_NAME, dev.vlcremote.app.BuildConfig.VERSION_CODE),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
             Text("", Modifier.padding(bottom = 24.dp))
         }
     }

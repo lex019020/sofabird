@@ -3,3 +3,6 @@
 # Android Studio captures / profiler
 captures/
 *.hprof
+keystore.properties
+*.jks
+*.keystore

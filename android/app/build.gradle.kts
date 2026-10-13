@@ -1,9 +1,28 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// Версия: базовая из файла VERSION в корне репозитория; CI/скрипт развёртывания передают
+// -Pvlcr.versionCode=<монотонный номер> и -Pvlcr.versionSuffix=beta.<N> (для релиза суффикса нет).
+val baseVersion = rootProject.file("../VERSION").readText().trim()
+val versionSuffix = (findProperty("vlcr.versionSuffix") as String?).orEmpty()
+val appVersionCode = (findProperty("vlcr.versionCode") as String?)?.toInt() ?: 1
+val appVersionName = if (versionSuffix.isEmpty()) baseVersion else "$baseVersion-$versionSuffix"
+
+// Подпись релизных сборок (тестовых и релизов): android/keystore.properties (не в git) или
+// переменные окружения VLCR_KEYSTORE_FILE / VLCR_KEYSTORE_PASSWORD / VLCR_KEY_ALIAS / VLCR_KEY_PASSWORD.
+// Один ключ для всех каналов, чтобы обновления ставились поверх. Без ключа release не подписывается.
+val signingProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun signingValue(prop: String, env: String): String? = signingProps.getProperty(prop) ?: System.getenv(env)
+val keystorePath = signingValue("storeFile", "VLCR_KEYSTORE_FILE")
 
 android {
     namespace = "dev.vlcremote.app"
@@ -14,13 +33,32 @@ android {
         applicationId = "dev.vlcremote.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         vectorDrawables.useSupportLibrary = true
     }
 
+    signingConfigs {
+        if (keystorePath != null) {
+            create("shared") {
+                storeFile = file(keystorePath)
+                storePassword = signingValue("storePassword", "VLCR_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "VLCR_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "VLCR_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            // Отладочная сборка ставится рядом с тестовой/релизной (другой applicationId и ключ).
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-dev"
+            manifestPlaceholders["appLabel"] = "VLC Remote (dev)"
+        }
         release {
+            signingConfig = signingConfigs.findByName("shared")
+            manifestPlaceholders["appLabel"] = "@string/app_name"
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -33,6 +71,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

@@ -1,0 +1,183 @@
+name: Release
+
+# Каждый мерж в main → тестовая сборка (pre-release v<VERSION>-beta.<N>) с release notes из PR.
+# Ручной запуск (channel=stable) → релиз v<VERSION> с заметками всех PR после прошлого релиза.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'stable — релиз v<VERSION>; beta — ещё одна тестовая сборка'
+        type: choice
+        options: [stable, beta]
+        default: stable
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  meta:
+    name: Версия
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.v.outputs.channel }}
+      version: ${{ steps.v.outputs.version }}
+      suffix: ${{ steps.v.outputs.suffix }}
+      tag: ${{ steps.v.outputs.tag }}
+      code: ${{ steps.v.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+        run: |
+          base=$(tr -d '[:space:]' < VERSION)
+          channel=${INPUT_CHANNEL:-beta}
+          if [ "$channel" = "stable" ]; then
+            suffix=""; version="$base"
+            if gh release view "v$version" >/dev/null 2>&1; then
+              echo "::error::Релиз v$version уже есть. Поднимите VERSION в PR (см. CLAUDE.md) и повторите."
+              exit 1
+            fi
+          else
+            suffix="beta.${GITHUB_RUN_NUMBER}"; version="$base-$suffix"
+          fi
+          code=$(git rev-list --count HEAD)
+          {
+            echo "channel=$channel"; echo "version=$version"; echo "suffix=$suffix"
+            echo "tag=v$version"; echo "code=$code"
+          } >> "$GITHUB_OUTPUT"
+          echo "### $channel: v$version (versionCode $code)" >> "$GITHUB_STEP_SUMMARY"
+
+  companion:
+    name: Компаньон
+    needs: meta
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Test
+        run: dotnet test companion/VlcRemote.sln -c Release
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish companion/VlcRemote.Companion/VlcRemote.Companion.csproj -c Release -r win-x64 `
+            --self-contained false -p:PublishSingleFile=true "-p:VersionSuffix=${{ needs.meta.outputs.suffix }}" -o out
+          Compress-Archive -Path out/* -DestinationPath "VlcRemote.Companion-${{ needs.meta.outputs.version }}-win-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: companion
+          path: VlcRemote.Companion-*.zip
+
+  android:
+    name: Android
+    needs: meta
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Android SDK components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Нет секрета ANDROID_KEYSTORE_BASE64 (см. CLAUDE.md, «Подпись APK»)"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/vlcremote.jks"
+          echo "VLCR_KEYSTORE_FILE=$RUNNER_TEMP/vlcremote.jks" >> "$GITHUB_ENV"
+      - name: Test and assemble
+        env:
+          VLCR_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VLCR_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          VLCR_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ needs.meta.outputs.code }}
+          VERSION_SUFFIX: ${{ needs.meta.outputs.suffix }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          chmod +x gradlew
+          ./gradlew test :app:assembleRelease --no-daemon \
+            "-Pvlcr.versionCode=$VERSION_CODE" "-Pvlcr.versionSuffix=$VERSION_SUFFIX"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk "../VlcRemote-$VERSION.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: VlcRemote-*.apk
+
+  publish:
+    name: Публикация
+    needs: [meta, companion, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONIOENCODING: utf-8
+          CHANNEL: ${{ needs.meta.outputs.channel }}
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          if [ "$CHANNEL" = "stable" ]; then
+            prev=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+            python3 scripts/release_notes.py stable ${prev:+--since-tag "$prev"} > notes.md
+          else
+            python3 scripts/release_notes.py beta --sha "$GITHUB_SHA" > notes.md
+          fi
+          python3 - <<'PY' >> notes.md
+          import os
+          tag, repo = os.environ["TAG"], os.environ["GITHUB_REPOSITORY"]
+          print(f"""
+          ---
+          **Установка и обновление на Windows** (нужен [gh](https://cli.github.com) с доступом к репозиторию):
+          ```powershell
+          gh release download {tag} --repo {repo} --pattern 'deploy.*' --dir $env:TEMP\\vlcremote --clobber
+          & $env:TEMP\\vlcremote\\deploy.ps1 -Tag {tag} -Apk
+          ```
+          Или скачайте `deploy.cmd` и `deploy.ps1` из этого релиза и запустите `deploy.cmd`. APK можно поставить и вручную.""".replace("\n          ", "\n"))
+          PY
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ needs.meta.outputs.channel }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          cp scripts/deploy.ps1 scripts/deploy.cmd dist/
+          if [ "$CHANNEL" = "stable" ]; then
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "VLC Remote $VERSION" --notes-file notes.md --latest
+          else
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$VERSION (тестовая)" --notes-file notes.md --prerelease
+          fi

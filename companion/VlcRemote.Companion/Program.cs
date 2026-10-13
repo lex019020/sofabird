@@ -17,6 +17,10 @@ internal static class Program
     private static int Main(string[] args)
     {
         var paths = AppPaths.Resolve(args);
+        var quitEventName = @"Local\VlcRemoteCompanion_Quit_" + Hash(paths.DataDir);
+        if (args.Contains("--shutdown", StringComparer.OrdinalIgnoreCase))
+            return RequestShutdown(quitEventName);
+
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
@@ -43,11 +47,11 @@ internal static class Program
         using var lf = new SerilogLoggerFactory(Log.Logger, dispose: false);
         var log = lf.CreateLogger("Program");
         log.LogInformation("VLC Remote Companion {Version} starting; data dir {Dir}",
-            typeof(Program).Assembly.GetName().Version, paths.DataDir);
+            AppVersion.Informational, paths.DataDir);
 
         try
         {
-            return Run(paths, lf, log);
+            return Run(paths, lf, log, quitEventName);
         }
         catch (Exception ex)
         {
@@ -61,8 +65,28 @@ internal static class Program
         }
     }
 
-    private static int Run(AppPaths paths, ILoggerFactory lf, Microsoft.Extensions.Logging.ILogger log)
+    /// <summary>
+    /// <c>--shutdown</c>: просит уже запущенный экземпляр (с тем же каталогом данных) корректно завершиться
+    /// и ждёт до 15 с. Используется скриптом развёртывания перед обновлением файлов.
+    /// </summary>
+    private static int RequestShutdown(string quitEventName)
     {
+        if (!EventWaitHandle.TryOpenExisting(quitEventName, out var evt)) return 0; // не запущен
+        using (evt) evt.Set();
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        var self = Environment.ProcessId;
+        while (DateTime.UtcNow < deadline)
+        {
+            var others = System.Diagnostics.Process.GetProcessesByName("VlcRemote.Companion").Where(p => p.Id != self).ToList();
+            if (others.Count == 0) return 0;
+            Thread.Sleep(250);
+        }
+        return 4; // не успел завершиться
+    }
+
+    private static int Run(AppPaths paths, ILoggerFactory lf, Microsoft.Extensions.Logging.ILogger log, string quitEventName)
+    {
+        using var quitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, quitEventName);
         var settingsStore = new SettingsStore(paths.SettingsFile);
         var settings = settingsStore.Load();
 
@@ -129,7 +153,13 @@ internal static class Program
 
         using var tray = new TrayContext(ui, paths, settings, settingsStore, vlc, pairing, display, sessions, host, power,
             ShutdownAsync, lf.CreateLogger<TrayContext>());
+        var quitWait = ThreadPool.RegisterWaitForSingleObject(quitEvent, (_, _) =>
+        {
+            log.LogInformation("Shutdown requested by another process (--shutdown)");
+            tray.RequestExit();
+        }, null, Timeout.Infinite, executeOnlyOnce: true);
         Application.Run(tray);
+        quitWait.Unregister(null);
         ui.Dispose();
         log.LogInformation("Exited");
         return 0;

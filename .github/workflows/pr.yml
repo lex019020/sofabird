@@ -1,0 +1,21 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: Заголовок и release notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверка оформления PR (см. CLAUDE.md)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PYTHONIOENCODING: utf-8
+        run: python3 scripts/release_notes.py check

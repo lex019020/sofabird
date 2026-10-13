@@ -50,6 +50,14 @@ dotnet run --project companion\VlcRemote.Companion -c Release
 Для отладки с отдельной папкой данных: `VlcRemote.Companion.exe --data-dir D:\tmp\vlcremote`
 (или переменная окружения `VLCREMOTE_DATA_DIR`).
 
+## Установка через скрипт
+
+Обычно компаньон ставится не вручную, а скриптом `scripts\deploy.ps1` (из GitHub Releases или `-Local` из
+исходников) в `%LOCALAPPDATA%\VlcRemote\app`; обновление закрывает запущенный экземпляр командой
+`VlcRemote.Companion.exe --shutdown` и сохраняет предыдущую версию для `-Rollback`. Подробности — CLAUDE.md.
+Версия берётся из файла `VERSION` в корне (`-p:VersionSuffix=beta.N` для тестовых сборок) и видна в подсказке
+иконки в трее и в `/info`.
+
 ## Публикация
 
 ```powershell

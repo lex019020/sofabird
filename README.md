@@ -31,6 +31,19 @@ HTTP‑интерфейс VLC, а с компаньоном на ПК получ
 появится 6‑значный код; в приложении выбрать найденный ПК и ввести код. Компаньон сам
 запускает VLC с веб‑интерфейсом и ставит Lua‑страницы.
 
+## Установка тестовых сборок на Windows
+
+Каждый мерж в `main` публикует тестовую сборку в [Releases](https://github.com/lex019020/vlc-remote/releases)
+с заметками из PR. Установить или обновить компаньон (и APK на телефон по adb):
+
+```powershell
+gh release download --repo lex019020/vlc-remote --pattern 'deploy.*' --dir $env:TEMP\vlcremote --clobber
+& $env:TEMP\vlcremote\deploy.ps1 -Apk
+```
+
+Из рабочей копии: `scripts\deploy.ps1` (последняя сборка) или `scripts\deploy.ps1 -Local -Apk` (из исходников).
+Все ключи — в [CLAUDE.md](CLAUDE.md#развёртывание-на-windows).
+
 ## Сборка
 
 ```powershell
@@ -43,7 +56,8 @@ cd android
 .\gradlew.bat :app:assembleDebug test
 ```
 
-CI на GitHub Actions собирает обе части и публикует артефакты (`app-debug-apk`, `companion-win-x64`).
+CI проверяет каждый PR (сборка, тесты, оформление заголовка и release notes). Правила PR, версий и
+релизов — в [CLAUDE.md](CLAUDE.md).
 
 ## Дорожная карта
 
