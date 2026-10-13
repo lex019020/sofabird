@@ -19,9 +19,9 @@ public static class SetupPolicy
 {
     /// <summary>
     /// Version of the item set. 1: network access (firewall), start with Windows, VLC configuration, keep awake,
-    /// Bluetooth (info).
+    /// Bluetooth (info). 2: + media station (power plan: lid closed, no sleep).
     /// </summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     /// <summary>Show the window at startup: never completed, or completed for an older item set.</summary>
     public static bool ShouldShowOnStart(bool completed, int completedVersion) =>

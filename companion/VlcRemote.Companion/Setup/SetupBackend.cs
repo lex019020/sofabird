@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
 using VlcRemote.Companion.Vlc;
+using VlcRemote.Core.Power;
 using VlcRemote.Core.Setup;
 using VlcRemote.Core.Vlc;
 
@@ -28,10 +29,13 @@ public sealed record SetupSnapshot(
     BluetoothServerStatus Bluetooth,
     bool Completed,
     bool ManageFirewall,
-    bool ConfigureVlc);
+    bool ConfigureVlc,
+    bool? MediaStation = null,
+    IReadOnlyList<PowerDeviation>? PowerDeviations = null,
+    bool EverCompleted = false);
 
 /// <summary>What the user ticked.</summary>
-public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake);
+public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false);
 
 public enum StepOutcome
 {
@@ -51,7 +55,7 @@ public sealed record StepResult(StepOutcome Outcome, string? Detail = null)
     public static readonly StepResult Skipped = new(StepOutcome.Skipped);
 }
 
-public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake);
+public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake, StepResult? MediaStation = null);
 
 /// <summary>
 /// Everything the "Setup and permissions" window reads and changes. The window talks only to this interface, so it
@@ -81,11 +85,13 @@ public sealed class SetupBackend : ISetupBackend
     private readonly VlcManager _vlc;
     private readonly PowerService _power;
     private readonly BluetoothRfcommServer _bluetooth;
+    private readonly PowerPlanService _powerPlan;
     private readonly ILogger _log;
 
     public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, PowerService power,
-        BluetoothRfcommServer bluetooth, ILogger<SetupBackend> log)
+        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, ILogger<SetupBackend> log)
     {
+        _powerPlan = powerPlan;
         _paths = paths;
         _settings = settings;
         _store = store;
@@ -117,7 +123,8 @@ public sealed class SetupBackend : ISetupBackend
         try { autostart = AutostartService.IsEnabled(); }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { autostart = false; }
         return new SetupSnapshot(fw, fwError, publicNets, autostart, InspectVlc(), _settings.KeepAwake, _bluetooth.Status,
-            _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc);
+            _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
+            _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted);
     }
 
     private VlcSetupState InspectVlc()
@@ -143,12 +150,13 @@ public sealed class SetupBackend : ISetupBackend
 
     public async Task<SetupResult> ApplyAsync(SetupChoices choices, CancellationToken ct)
     {
-        _log.LogInformation("Setup: applying (firewall {Firewall}, autostart {Autostart}, configure VLC {Vlc}, keep awake {KeepAwake})",
-            choices.Firewall, choices.Autostart, choices.ConfigureVlc, choices.KeepAwake);
+        _log.LogInformation("Setup: applying (firewall {Firewall}, autostart {Autostart}, configure VLC {Vlc}, keep awake {KeepAwake}, media station {MediaStation})",
+            choices.Firewall, choices.Autostart, choices.ConfigureVlc, choices.KeepAwake, choices.MediaStation);
 
         var autostart = ApplyAutostart(choices.Autostart);
         var vlc = ApplyVlc(choices.ConfigureVlc);
         ApplyKeepAwake(choices.KeepAwake);
+        var mediaStation = ApplyMediaStation(choices.MediaStation);
 
         _settings.ManageFirewall = choices.Firewall;
         _settings.SetupCompleted = true;
@@ -156,9 +164,18 @@ public sealed class SetupBackend : ISetupBackend
         _store.Save(_settings);
 
         var firewall = choices.Firewall ? await ApplyFirewallAsync(ct) : StepResult.Skipped;
-        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}",
-            firewall.Outcome, autostart.Outcome, vlc.Outcome);
-        return new SetupResult(firewall, autostart, vlc, StepResult.Done);
+        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}",
+            firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome);
+        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation);
+    }
+
+    /// <summary>Unticking only stops the watching: the previous power settings are not known, so they stay.</summary>
+    private StepResult ApplyMediaStation(bool on)
+    {
+        _settings.MediaStation = on;
+        if (!on) return StepResult.Skipped;
+        var error = _powerPlan.ApplyMediaStation();
+        return error is null ? StepResult.Done : new StepResult(StepOutcome.Failed, error);
     }
 
     private StepResult ApplyAutostart(bool on)

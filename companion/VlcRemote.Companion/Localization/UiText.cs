@@ -190,6 +190,34 @@ internal static class UiText
     public static string SetupKeepAwakeTitle => S("SetupKeepAwakeTitle");
     /// <summary>While a movie is playing, Windows won't put the PC to sleep or turn off the screen. When playback stops, your usual power settings apply again.</summary>
     public static string SetupKeepAwakeText => S("SetupKeepAwakeText");
+    /// <summary>This PC is a media station</summary>
+    public static string SetupMediaStationTitle => S("SetupMediaStationTitle");
+    /// <summary>For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. The companion changes these settings of the current Windows power plan; unticking this later does not change them back. The screen may still turn off, and the TV may go to standby.</summary>
+    public static string SetupMediaStationText => S("SetupMediaStationText");
+    /// <summary>✓ The lid can be closed; the PC does not go to sleep</summary>
+    public static string SetupMediaStationOk => S("SetupMediaStationOk");
+    /// <summary>Off: the usual Windows power settings apply</summary>
+    public static string SetupMediaStationOff => S("SetupMediaStationOff");
+    /// <summary>Now: {0}</summary>
+    public static string SetupMediaStationNow(object a0) => F("SetupMediaStationNow", a0);
+    /// <summary>⚠ The power settings were changed: {0}. Press Apply to set them again.</summary>
+    public static string SetupMediaStationDrift(object a0) => F("SetupMediaStationDrift", a0);
+    /// <summary>Could not read the Windows power plan</summary>
+    public static string SetupMediaStationUnknown => S("SetupMediaStationUnknown");
+    /// <summary>✗ Could not change the power plan ({0}). Details are in the log.</summary>
+    public static string SetupMediaStationFailed(object a0) => F("SetupMediaStationFailed", a0);
+    /// <summary>plugged in</summary>
+    public static string PowerPluggedIn => S("PowerPluggedIn");
+    /// <summary>on battery</summary>
+    public static string PowerOnBattery => S("PowerOnBattery");
+    /// <summary>closing the lid stops it ({0})</summary>
+    public static string PowerLidStops(object a0) => F("PowerLidStops", a0);
+    /// <summary>sleep after {0} min ({1})</summary>
+    public static string PowerSleepAfter(object a0, object a1) => F("PowerSleepAfter", a0, a1);
+    /// <summary>hibernation after {0} min ({1})</summary>
+    public static string PowerHibernateAfter(object a0, object a1) => F("PowerHibernateAfter", a0, a1);
+    /// <summary>The power settings of the media station were changed: the PC may go to sleep. Click to fix.</summary>
+    public static string BalloonMediaStationDrift => S("BalloonMediaStationDrift");
     /// <summary>Bluetooth (optional)</summary>
     public static string SetupBluetoothTitle => S("SetupBluetoothTitle");
     /// <summary>Without Wi‑Fi the phone can control the PC over Bluetooth. Windows asks for no permission for this, but the phone has to be paired with this PC once in the Windows Bluetooth settings.</summary>

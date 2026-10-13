@@ -131,6 +131,14 @@ public sealed class DisplayService : IMonitorSource, IDisposable
         return best != IntPtr.Zero ? best : fallback;
     }
 
+    /// <summary>Un-minimizes a window without activating it; <c>true</c> if it was minimized.</summary>
+    public static bool RestoreWindow(IntPtr hwnd)
+    {
+        if (!NativeMethods.IsIconic(hwnd)) return false;
+        NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOWNOACTIVATE);
+        return true;
+    }
+
     /// <summary>GDI device name of the monitor with the largest part of the window; <c>null</c> — none.</summary>
     public static string? GetWindowMonitorDevice(IntPtr hwnd) => GetMonitorOf(hwnd, out var info) ? info.szDevice : null;
 

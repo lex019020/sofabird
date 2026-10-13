@@ -251,6 +251,7 @@ public sealed class VlcManager : IAsyncDisposable
 
             var prev = _lastStatus;
             _lastStatus = status;
+            if (status.Fullscreen) LastFullscreenAt = DateTimeOffset.UtcNow;
 
             if (prev is not null && prev.CurrentPlId != status.CurrentPlId)
             {
@@ -588,6 +589,34 @@ public sealed class VlcManager : IAsyncDisposable
     }
 
     public string? LastAudioDevice => _lastAudioDevice;
+
+    /// <summary>
+    /// The output device chosen from the phone came back (e.g. the TV's HDMI audio after the TV was off): VLC fell back
+    /// to another device meanwhile, so switch it back. Returns <c>true</c> if VLC was switched.
+    /// </summary>
+    public async Task<bool> RestoreAudioDeviceAsync(string id, CancellationToken ct)
+    {
+        if (RunState != VlcRunState.Running || string.IsNullOrEmpty(id)) return false;
+        var devices = await GetAudioDevicesAsync(ct).ConfigureAwait(false);
+        if (!devices.Any(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase))) return false;
+        if (devices.Any(d => d.Current && string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase))) return false;
+        await _rc.SetAudioDeviceAsync(id, ct).ConfigureAwait(false);
+        _lastAudioDevice = id;
+        Poke();
+        return true;
+    }
+
+    /// <summary>When the status polling last saw VLC fullscreen.</summary>
+    public DateTimeOffset? LastFullscreenAt { get; private set; }
+
+    public bool IsPlaying => RunState == VlcRunState.Running && _lastStatus?.IsPlaying == true;
+
+    public async Task PauseAsync(CancellationToken ct)
+    {
+        EnsureRunning();
+        _lastStatus = await Cmd("pl_forcepause", ct).ConfigureAwait(false);
+        Poke();
+    }
 
     // ------------------------------------------------------------------ process control
 

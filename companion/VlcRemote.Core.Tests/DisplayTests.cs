@@ -252,6 +252,144 @@ public class DisplayControllerTests
             WindowMonitor[window] = target.GdiDeviceName;
             return true;
         }
+
+        public HashSet<long> Minimized { get; } = new();
+        public DateTimeOffset? LastFullscreenAt { get; set; }
+        public bool IsPlaying { get; set; }
+
+        public bool RestoreWindow(long window)
+        {
+            if (!Minimized.Remove(window)) return false;
+            Log.Add($"restore {window}");
+            return true;
+        }
+
+        public Task PauseAsync(CancellationToken ct)
+        {
+            Log.Add("pause");
+            IsPlaying = false;
+            return Task.CompletedTask;
+        }
+    }
+
+    private static readonly DateTimeOffset Now = new(2026, 10, 13, 16, 47, 4, TimeSpan.Zero);
+
+    /// <summary>The TV laptop with the lid closed: only the TV, now primary at (0,0) and with another GDI name.</summary>
+    private static IReadOnlyList<MonitorInfo> TvOnly() => MonitorTopology.Build(
+        [MonitorTopologyTests.Screen(4, 0, primary: true)],
+        [new DisplayTarget(@"\\.\DISPLAY4", TvPath, "SAMSUNG", MonitorTopology.OutputHdmi)]);
+
+    private static IReadOnlyList<MonitorInfo> PanelOnly() => MonitorTopology.Build(
+        [MonitorTopologyTests.Screen(1, 0, primary: true)],
+        [new DisplayTarget(@"\\.\DISPLAY1", MonitorTopologyTests.PanelPath, "LM156LF9L01", MonitorTopology.OutputInternal)]);
+
+    private static DisplayController TopologyController(FakeMonitors monitors, FakePrefs prefs, FakeVlc vlc) =>
+        new(monitors, prefs, vlc, delay: (_, _) => Task.CompletedTask) { Clock = () => Now };
+
+    [Fact]
+    public async Task LidClosed_VlcDroppedFullscreenAndWasMinimized_IsRestoredFullscreenOnTheTv()
+    {
+        var monitors = new FakeMonitors();
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true, Fullscreen = true, IsPlaying = true };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
+        var c = TopologyController(monitors, new FakePrefs { PreferredId = TvPath }, vlc);
+        c.CaptureTopology();
+        Assert.Equal(TvPath, c.FindVlcMonitor()!.Id);
+        vlc.LastFullscreenAt = Now.AddSeconds(-1);
+
+        // The lid closes: the panel goes, the TV becomes \\.\DISPLAY4; VLC leaves fullscreen and gets minimized.
+        monitors.List = TvOnly();
+        vlc.Fullscreen = false;
+        vlc.Minimized.Add(42);
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY4";
+        c.MarkTopologyChanged();
+
+        Assert.Equal(TopologyReaction.Restore, await c.HandleTopologyChangeAsync(CancellationToken.None));
+        Assert.Equal(["restore 42", "fullscreen"], vlc.Log);
+        Assert.True(vlc.Fullscreen);
+        Assert.True(vlc.IsPlaying);
+    }
+
+    [Fact]
+    public async Task UserMinimizedWindowWithoutFullscreen_StaysMinimized()
+    {
+        var monitors = new FakeMonitors();
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
+        vlc.Minimized.Add(42);
+        var c = TopologyController(monitors, new FakePrefs { PreferredId = TvPath }, vlc);
+        c.CaptureTopology();
+        c.FindVlcMonitor();
+
+        monitors.List = TvOnly();
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY4";
+        c.MarkTopologyChanged();
+
+        Assert.Equal(TopologyReaction.Restore, await c.HandleTopologyChangeAsync(CancellationToken.None));
+        Assert.Empty(vlc.Log);
+        Assert.Contains(42L, vlc.Minimized);
+    }
+
+    [Fact]
+    public async Task TvGone_PausesPlayback_AndWhenItIsBack_MovesTheWindowBackFullscreenWithoutResuming()
+    {
+        var monitors = new FakeMonitors();
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true, Fullscreen = true, IsPlaying = true };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
+        var c = TopologyController(monitors, new FakePrefs { PreferredId = TvPath }, vlc);
+        c.CaptureTopology();
+        c.FindVlcMonitor();
+
+        // HDMI unplugged: Windows moves the window to the panel; VLC is no longer fullscreen.
+        monitors.List = PanelOnly();
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY1";
+        vlc.Fullscreen = false;
+        vlc.LastFullscreenAt = Now.AddSeconds(-1);
+        c.MarkTopologyChanged();
+        Assert.Equal(TopologyReaction.PreferredLost, await c.HandleTopologyChangeAsync(CancellationToken.None));
+        Assert.Equal(["pause"], vlc.Log);
+        c.FindVlcMonitor(); // polling meanwhile sees the window on the panel
+
+        // Minutes later the TV is back (the fullscreen memory of the first change has long expired).
+        vlc.Log.Clear();
+        vlc.LastFullscreenAt = Now.AddMinutes(-10);
+        monitors.List = MonitorTopologyTests.LaptopAndTv();
+        c.MarkTopologyChanged();
+        Assert.Equal(TopologyReaction.Restore, await c.HandleTopologyChangeAsync(CancellationToken.None));
+        Assert.Equal([@"move 42 -> \\.\DISPLAY2", "fullscreen"], vlc.Log);
+        Assert.False(vlc.IsPlaying);
+    }
+
+    [Fact]
+    public async Task MoveToDisplay_RestoresAMinimizedWindowAlreadyOnThatDisplay()
+    {
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
+        vlc.Minimized.Add(42);
+        var c = TopologyController(new FakeMonitors(), new FakePrefs { PreferredId = TvPath }, vlc);
+
+        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        Assert.Equal(["restore 42"], vlc.Log);
+    }
+
+    [Fact]
+    public async Task NoPreferredDisplay_WindowIsNotTouched()
+    {
+        var monitors = new FakeMonitors();
+        var vlc = new FakeVlc { ProcessId = 10, IsControllable = true, IsPlaying = true };
+        vlc.Windows[10] = 42;
+        vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
+        var c = TopologyController(monitors, new FakePrefs(), vlc);
+        c.CaptureTopology();
+
+        monitors.List = PanelOnly();
+        c.MarkTopologyChanged();
+        Assert.Equal(TopologyReaction.NotManaged, await c.HandleTopologyChangeAsync(CancellationToken.None));
+        Assert.Empty(vlc.Log);
     }
 
     [Fact]

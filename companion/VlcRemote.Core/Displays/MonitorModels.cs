@@ -106,4 +106,12 @@ public interface IVlcWindowHost
     /// fullscreen requests then), so waiting for fullscreen does not time out until playback goes on.
     /// </summary>
     bool PlaybackHeld => false;
+    /// <summary>Un-minimize the window without activating it; <c>true</c> if it was minimized.</summary>
+    bool RestoreWindow(long window) => false;
+    /// <summary>When VLC was last seen fullscreen by the status polling; <c>null</c> — not since it started.</summary>
+    DateTimeOffset? LastFullscreenAt => null;
+    /// <summary>VLC is playing (not paused or stopped).</summary>
+    bool IsPlaying => false;
+    /// <summary>Pause playback (idempotent).</summary>
+    Task PauseAsync(CancellationToken ct) => Task.CompletedTask;
 }
