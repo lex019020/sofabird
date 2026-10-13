@@ -10,7 +10,7 @@
   Then:
     .\dev-laptop.ps1 -Status                  # companion, VLC, network on the laptop
     .\dev-laptop.ps1 -Deploy -Local           # build the companion here and install it on the laptop
-    .\dev-laptop.ps1 -Deploy [-Tag v0.2.0-beta.3]   # test build from GitHub Releases
+    .\dev-laptop.ps1 -Deploy [-Tag v0.2.0-beta0040]   # test build from GitHub Releases
     .\dev-laptop.ps1 -Logs [-Tail 200] [-Follow]
     .\dev-laptop.ps1 -Exec 'Get-Process vlc'  # any PowerShell command on the laptop
     .\dev-laptop.ps1 -Shell                   # interactive session

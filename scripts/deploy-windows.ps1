@@ -13,7 +13,7 @@
 .EXAMPLE
   .\deploy-windows.ps1                       # latest test build
   .\deploy-windows.ps1 -Channel stable       # latest release
-  .\deploy-windows.ps1 -Tag v0.2.0-beta.12   # a specific build (also the way back to an earlier version)
+  .\deploy-windows.ps1 -Tag v0.2.0-beta0040   # a specific build (also the way back to an earlier version)
   .\deploy-windows.ps1 -Local                # build from source and install
   .\deploy-windows.ps1 -Package <Setup.exe>  # install a ready-made installer (this is how dev-laptop.ps1 installs over SSH)
   .\deploy-windows.ps1 -CheckOnly            # only compare versions

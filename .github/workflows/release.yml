@@ -1,6 +1,8 @@
 name: Release
 
-# Every merge into main -> test build (pre-release v<VERSION>-beta.<N>) with the PR's release notes.
+# Every merge into main -> test build (pre-release v<VERSION>-beta<NNNN>) with the PR's release notes.
+# The run number is zero-padded: GitHub lists releases by tag name as text, so beta0040 sorts above beta0039 (and
+# above the old beta.9), and semver still orders them (beta0040 > beta.34 > beta.9).
 # Manual run (channel=stable) -> release v<VERSION> with the notes of all PRs since the previous release.
 on:
   push:
@@ -49,7 +51,7 @@ jobs:
               exit 1
             fi
           else
-            suffix="beta.${GITHUB_RUN_NUMBER}"; version="$base-$suffix"
+            suffix=$(printf 'beta%04d' "$GITHUB_RUN_NUMBER"); version="$base-$suffix"
           fi
           code=$(( $(git rev-list --count HEAD) * 10 ))  # local builds use main*10+5 (deploy-lib.ps1)
           {
