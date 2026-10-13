@@ -32,7 +32,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -58,6 +56,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.player.PlayerEvent
 import dev.vlcremote.app.data.servers.ServerRepository
@@ -238,7 +237,7 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                                 }
                             },
                             label = {
-                                Text(
+                                LabelText(
                                     when (tab) {
                                         Routes.REMOTE -> stringResource(R.string.tab_remote)
                                         Routes.LIBRARY -> stringResource(R.string.tab_library)
@@ -314,14 +313,10 @@ private fun ConnectionTopBar(
                     StatusDot(color)
                 }
                 Spacer(Modifier.width(10.dp))
+                // The app bar has a fixed height: both lines must fit it at any font scale.
                 Column {
-                    Text(
-                        text = hostName ?: stringResource(R.string.no_server),
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(text, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    LabelText(hostName ?: stringResource(R.string.no_server), style = MaterialTheme.typography.titleMedium)
+                    LabelText(text, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -355,7 +350,7 @@ private fun TransportIndicator(transport: TransportKind) {
             modifier = Modifier.size(14.dp),
         )
         Spacer(Modifier.width(4.dp))
-        Text(
+        LabelText(
             stringResource(if (bluetooth) R.string.transport_bluetooth else R.string.transport_wifi),
             style = MaterialTheme.typography.labelSmall,
             color = tint,

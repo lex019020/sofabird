@@ -34,7 +34,12 @@ dotnet build companion\VlcRemote.sln -c Release
 dotnet test  companion\VlcRemote.sln
 $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # on this PC; any JDK 17/21 will do
 android\gradlew.bat -p android test :app:assembleDebug
+android\gradlew.bat -p android :app:verifyRoborazziDebug   # layout screenshots; recordRoborazziDebug updates them
 ```
+
+UI texts must not break inside a word at any font scale: labels in tabs, buttons, chips and badges use
+`LabelText` (one line, ellipsis, limited growth), groups of chips/buttons go into `FlowRow`, file names are shown
+with `withNameBreaks()`. Check new screens in both languages at font scale 2.0.
 
 Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 are pinned to the installed SDK (without the licenses folder
 nothing new can be downloaded); do not bump them unless necessary. Companion — the SDK from `companion/global.json`.

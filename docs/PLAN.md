@@ -304,16 +304,17 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       files opened manually on the PC) with position, length, a finished flag and the last-watched time, offers to
       resume on open; the phone shows a "Continue watching" row and a history screen. The companion is the source
       of truth, so several phones share it.
-- [ ] **Polish the app layout** (user request): no truncated text or line breaks in the middle of a
-      word, alignment and spacing on the Material 3 grid, long names (movies, tracks, PCs) on one line with an
-      ellipsis or neatly on two; check Russian and English, large font scales (1.3–2.0),
-      a narrow screen and landscape. Method: screenshots of all screens from the phone via adb → list of defects →
-      fixes → screenshot tests (Roborazzi) for the key screens so that it does not regress.
+- [x] **Polish the app layout** (user request): audit of all screens on the phone in Russian and English at
+      font scales 1.0/1.3/2.0 → fixes: labels of tabs, buttons, chips and badges stay on one line, chips wrap as a
+      whole, file names break at dots, the playback controls are pinned on the Remote screen, a single row of
+      quick tiles (audio / subtitles / display / more). Roborazzi screenshot tests of the shared controls.
+      Left: landscape and tablet check; full-screen screenshot tests (need the refactoring below).
 - [ ] **Refactoring and code cleanliness** (user request): split the large files and classes (the Remote screen,
       the companion host, the deploy scripts), remove duplication and dead code, consistent naming and
       error handling, enable and fix the analysers (detekt/ktlint for Kotlin, .NET analyzers and
       `TreatWarningsAsErrors` for the companion, PSScriptAnalyzer for the scripts) and run them in CI; no
-      behaviour changes, covered by the existing tests.
+      behaviour changes, covered by the existing tests. Screens get a stateless content composable
+      (`RemoteContent(ui, actions)` etc.), so whole screens can be screenshot-tested with fake state.
 - [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
       phone), cache.
 - [ ] Installer and auto-update for the companion (Velopack).
@@ -382,9 +383,9 @@ vlc-remote/
 
 ## 10. Next steps
 
-1. **UI layout polish** (in progress): no truncated or broken text, alignment, large font scales, both languages,
-   landscape; screenshot tests.
-2. **Refactoring and code cleanliness**: large files split, duplication and dead code removed, analysers in CI.
+1. **Refactoring and code cleanliness**: large files split, duplication and dead code removed, analysers in CI,
+   stateless screen contents with full-screen screenshot tests.
+2. **UI in landscape and on tablets**: the remaining part of the layout polish.
 3. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
 4. **Installer and auto-update for the companion** (Velopack).
 5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.

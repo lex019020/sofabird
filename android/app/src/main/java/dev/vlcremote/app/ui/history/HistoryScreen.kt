@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.data.player.PlayerController
 import dev.vlcremote.app.data.settings.SettingsRepository
 import dev.vlcremote.app.ui.common.commandErrorMessage
@@ -302,7 +303,7 @@ private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit)
 @Composable
 private fun HistoryRow(item: HistoryItem, onClick: () -> Unit, onMenu: () -> Unit) {
     ListItem(
-        headlineContent = { Text(item.displayTitle, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        headlineContent = { Text(item.displayTitle.withNameBreaks(), maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
                 item.folderName?.let { folder ->
@@ -347,7 +348,7 @@ private fun HistoryItemMenu(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            item.displayTitle,
+            item.displayTitle.withNameBreaks(),
             style = MaterialTheme.typography.titleMedium,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,

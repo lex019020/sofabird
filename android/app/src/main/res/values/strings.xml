@@ -69,8 +69,8 @@
     <string name="chapter_n_of">Chapter %1$d of %2$d</string>
     <string name="chapter_n_named">Chapter %1$d/%2$d · %3$s</string>
     <string name="chapter_unnamed">Chapter %1$d</string>
-    <string name="chip_audio">Audio: %1$s</string>
-    <string name="chip_subtitles">Subtitles: %1$s</string>
+    <string name="quick_audio">Audio</string>
+    <string name="quick_subtitles">Subtitles</string>
     <string name="chip_more">More</string>
     <string name="track_off">off</string>
     <string name="track_unknown_count">\? of %1$d</string>
@@ -185,7 +185,6 @@
     <string name="display_primary">primary</string>
     <string name="displays_none">No displays found. Press "Refresh".</string>
     <string name="display_vlc_here">VLC is here</string>
-    <string name="chip_display">Display: %1$s</string>
     <string name="sheet_display_title">Display for VLC</string>
     <string name="display_hint_open">Tap a display: VLC moves there now and will open on it from now on.</string>
     <string name="display_hint_closed">VLC is closed. Choose the display it will open on.</string>

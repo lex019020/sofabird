@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -17,16 +18,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
@@ -34,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.formatRate
 import dev.vlcremote.app.ui.common.rememberTick
 
@@ -57,6 +62,7 @@ private val RATE_PRESETS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2.21:1", "2.35:1", "2.39:1", "5:4")
 
 /** "More": chapters, rate, aspect, fullscreen, companion-only system actions. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit, onOpenDisplays: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -86,8 +92,10 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 Text(stringResource(R.string.chapters_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { tick(); viewModel.chapter((ch.index - 1).coerceAtLeast(0)) }, enabled = online && ch.index > 0) { Text("◀") }
-                    Spacer(Modifier.width(8.dp))
+                    OutlinedIconButton(onClick = { tick(); viewModel.chapter((ch.index - 1).coerceAtLeast(0)) }, enabled = online && ch.index > 0) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, stringResource(R.string.action_prev))
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Text(
                         text = ch.names?.getOrNull(ch.index)?.takeIf { it.isNotBlank() }
                             ?.let { stringResource(R.string.chapter_n_named, ch.index + 1, ch.count, it) }
@@ -95,14 +103,16 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                         modifier = Modifier
                             .weight(1f)
                             .clickable { showChapters = true },
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedButton(onClick = { tick(); viewModel.chapter(ch.index + 1) }, enabled = online && ch.index < ch.count - 1) { Text("▶") }
+                    Spacer(Modifier.width(12.dp))
+                    OutlinedIconButton(onClick = { tick(); viewModel.chapter(ch.index + 1) }, enabled = online && ch.index < ch.count - 1) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.action_next))
+                    }
                 }
                 OutlinedButton(onClick = { showChapters = true }, modifier = Modifier.padding(top = 4.dp)) {
-                    Text(stringResource(R.string.chapters_all))
+                    LabelText(stringResource(R.string.chapters_all))
                 }
             }
 
@@ -110,12 +120,12 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
 
             // Rate
             SectionTitle(stringResource(R.string.section_rate, formatRate(ui.state.playback.rate)))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 RATE_PRESETS.forEach { r ->
                     FilterChip(
                         selected = kotlin.math.abs(ui.state.playback.rate - r) < 0.03,
                         onClick = { tick(); viewModel.rate(r) },
-                        label = { Text(formatRate(r)) },
+                        label = { LabelText(formatRate(r)) },
                         enabled = online,
                     )
                 }
@@ -125,12 +135,12 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
 
             // Aspect
             SectionTitle(stringResource(R.string.section_aspect))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ASPECT_PRESETS.forEach { a ->
                     FilterChip(
                         selected = ui.state.video.aspect == a || (a == "default" && ui.state.video.aspect.isBlank()),
                         onClick = { tick(); viewModel.aspect(a) },
-                        label = { Text(if (a == "default") stringResource(R.string.aspect_default) else a) },
+                        label = { LabelText(if (a == "default") stringResource(R.string.aspect_default) else a) },
                         enabled = online,
                     )
                 }
@@ -150,12 +160,12 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
             if (ui.isCompanion || caps.launchVlc) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 SectionTitle(stringResource(R.string.section_pc))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { tick(); viewModel.launchVlc() }, enabled = online && caps.launchVlc && !ui.state.vlc.running) {
-                        Text(stringResource(R.string.action_launch_vlc))
+                        LabelText(stringResource(R.string.action_launch_vlc))
                     }
                     OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online && ui.state.vlc.running) {
-                        Text(stringResource(R.string.action_quit_vlc))
+                        LabelText(stringResource(R.string.action_quit_vlc))
                     }
                 }
             }
@@ -177,10 +187,8 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
             }
             if (!ui.isCompanion && online) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online) {
-                        Text(stringResource(R.string.action_quit_vlc))
-                    }
+                OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online) {
+                    LabelText(stringResource(R.string.action_quit_vlc))
                 }
                 Text(
                     stringResource(R.string.needs_companion_hint),
@@ -219,10 +227,10 @@ private fun SystemVolumeSection(ui: RemoteUiState, viewModel: RemoteViewModel) {
             enabled = online && system?.volume != null,
             modifier = Modifier.weight(1f),
         )
-        Text(
+        LabelText(
             "${(dragging ?: (system?.volume ?: 0).toFloat()).toInt()} %",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.widthIn(min = 56.dp),
             textAlign = TextAlign.End,
         )
     }
@@ -294,6 +302,7 @@ private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
 }
 
 /** `power`: keep-awake switch, display off, sleep (behind a confirmation). */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit) {
     val tick = rememberTick(ui.settings.haptics)
@@ -307,12 +316,12 @@ private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismis
         enabled = online,
         onToggle = { tick(); viewModel.setKeepAwake(!keepAwake) },
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
         OutlinedButton(onClick = { tick(); viewModel.displayPower(false) }, enabled = online) {
-            Text(stringResource(R.string.action_display_off))
+            LabelText(stringResource(R.string.action_display_off))
         }
         OutlinedButton(onClick = { tick(); confirmSleep = true }, enabled = online) {
-            Text(stringResource(R.string.action_sleep_pc))
+            LabelText(stringResource(R.string.action_sleep_pc))
         }
     }
     if (confirmSleep) {
@@ -341,7 +350,7 @@ private fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick
     ) {
         RadioButton(selected = selected, onClick = onClick, enabled = enabled)
         Spacer(Modifier.width(8.dp))
-        Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -353,7 +362,7 @@ private fun ChaptersList(ui: RemoteUiState, viewModel: RemoteViewModel, onBack: 
     LaunchedEffect(ch.index) { if (ch.index >= 0) listState.scrollToItem(ch.index) }
     Column(Modifier.padding(bottom = 24.dp)) {
         Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+            OutlinedButton(onClick = onBack) { LabelText(stringResource(R.string.back)) }
             Spacer(Modifier.width(12.dp))
             Text(stringResource(R.string.section_chapters), style = MaterialTheme.typography.titleLarge)
         }
@@ -401,7 +410,7 @@ private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean, onToggl
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
+        Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Switch(checked = checked, onCheckedChange = { onToggle() }, enabled = enabled)
     }
 }

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.roborazzi)
 }
 
 // Version: the base comes from the VERSION file in the repository root; CI/the deploy script pass
@@ -86,6 +87,21 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Robolectric (screenshot tests) needs the merged resources.
+        unitTests.isIncludeAndroidResources = true
+    }
+}
+
+// Layout screenshot tests: `recordRoborazziDebug` updates the reference images, `verifyRoborazziDebug` compares.
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
+}
+
+// Unit tests run on the debug variant only: the screenshot tests need the Compose test activity
+// (ui-test-manifest), which must not get into the release APK; the other tests do not depend on the variant.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) {
+        (it as com.android.build.api.variant.HasUnitTestBuilder).enableUnitTest = false
     }
 }
 
@@ -133,4 +149,11 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

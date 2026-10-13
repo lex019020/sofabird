@@ -4,9 +4,13 @@ import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,10 +39,12 @@ import dev.vlcremote.app.R
 import dev.vlcremote.app.domain.model.AppSettings
 import dev.vlcremote.app.domain.model.ThemeMode
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
+import dev.vlcremote.app.ui.common.LabelText
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
 import dev.vlcremote.app.ui.permissions.PermissionsSettingsSection
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
@@ -88,13 +94,13 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_appearance))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = s.theme == mode,
                         onClick = { viewModel.update { it.copy(theme = mode) } },
                         label = {
-                            Text(
+                            LabelText(
                                 stringResource(
                                     when (mode) {
                                         ThemeMode.SYSTEM -> R.string.theme_system
@@ -145,7 +151,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Text("", Modifier.padding(bottom = 24.dp))
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -195,7 +201,7 @@ private fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enable
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -203,13 +209,15 @@ private fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enable
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
     Column(Modifier.padding(vertical = 4.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Wraps whole chips to the next line rather than breaking their labels.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             options.forEach { option ->
-                FilterChip(selected = option == selected, onClick = { onSelect(option) }, label = { Text(label(option)) })
+                FilterChip(selected = option == selected, onClick = { onSelect(option) }, label = { LabelText(label(option)) })
             }
         }
     }

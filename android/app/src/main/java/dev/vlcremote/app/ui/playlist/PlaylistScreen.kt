@@ -43,7 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.graphics.compositeOver
 import dev.vlcremote.app.R
+import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.app.ui.common.commandErrorMessage
 import dev.vlcremote.app.ui.common.formatTime
 import dev.vlcremote.app.ui.common.rememberTick
@@ -145,7 +147,7 @@ private fun PlaylistRow(item: PlaylistItem, onClick: () -> Unit) {
     ListItem(
         headlineContent = {
             Text(
-                item.name,
+                item.name.withNameBreaks(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (item.current) FontWeight.Bold else FontWeight.Normal,
@@ -164,8 +166,13 @@ private fun PlaylistRow(item: PlaylistItem, onClick: () -> Unit) {
                 Spacer(Modifier.width(24.dp))
             }
         },
+        // Opaque: the swipe-to-remove background (red, with a bin icon) lies right underneath the row.
         colors = ListItemDefaults.colors(
-            containerColor = if (item.current) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface,
+            containerColor = if (item.current) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f).compositeOver(MaterialTheme.colorScheme.surface)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         ),
         modifier = Modifier.clickable(onClick = onClick),
     )
