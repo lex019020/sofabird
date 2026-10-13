@@ -18,8 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import dev.vlcremote.app.R
 import dev.vlcremote.app.data.companion.BluetoothSupport
+import dev.vlcremote.app.data.settings.SettingsRepository
+import org.koin.compose.koinInject
 
-/** System dialogs the Bluetooth features need; results come back through the callbacks given to [rememberBluetoothRequests]. */
+/**
+ * System dialogs the Bluetooth features need; results come back through the callbacks given to [rememberBluetoothRequests].
+ * The permission is normally granted on the first-run permissions screen; these in-context requests are the fallback
+ * and skip the dialog when it is already granted.
+ */
 class BluetoothRequests(
     /** Android 12+ "Nearby devices" (`BLUETOOTH_CONNECT`); older Android: reports `true` at once. */
     val requestPermission: () -> Unit,
@@ -36,6 +42,7 @@ fun rememberBluetoothRequests(
     onEnableResult: (Boolean) -> Unit,
 ): BluetoothRequests {
     val context = LocalContext.current
+    val settings: SettingsRepository = koinInject()
     val permissionCallback = rememberUpdatedState(onPermissionResult)
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionCallback.value(granted)
@@ -43,13 +50,14 @@ fun rememberBluetoothRequests(
     val enableLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         onEnableResult(result.resultCode == Activity.RESULT_OK)
     }
-    return remember(context, permissionLauncher, enableLauncher) {
+    return remember(context, settings, permissionLauncher, enableLauncher) {
         BluetoothRequests(
             requestPermission = {
                 val permission = BluetoothSupport.CONNECT_PERMISSION
                 if (permission == null || BluetoothSupport.hasConnectPermission(context)) {
                     permissionCallback.value(true)
                 } else {
+                    settings.noteRequested(listOf(permission)) // lets Settings → Permissions tell "refused for good"
                     permissionLauncher.launch(permission)
                 }
             },

@@ -67,6 +67,19 @@ public sealed class Settings
     /// <summary>Путь к <c>vlcrc</c>; <c>null</c> — <c>%APPDATA%\vlc\vlcrc</c> (другой путь — для тестов).</summary>
     public string? VlcrcPath { get; set; }
 
+    /// <summary>
+    /// The "Setup and permissions" window was completed (Apply) for <see cref="SetupVersion"/>. Until then it opens at
+    /// every start; a newer item set (<see cref="VlcRemote.Core.Setup.SetupPolicy.CurrentVersion"/>) shows it once more.
+    /// </summary>
+    public bool SetupCompleted { get; set; }
+    /// <summary>Item-set version of the setup window the user completed last.</summary>
+    public int SetupVersion { get; set; }
+    /// <summary>
+    /// Network access (firewall rules) was chosen in the setup window: the companion checks the rules at startup and
+    /// offers to fix them. <c>false</c> — the user manages the firewall on their own.
+    /// </summary>
+    public bool ManageFirewall { get; set; } = true;
+
     public void EnsureDefaults()
     {
         if (string.IsNullOrWhiteSpace(InstallationId) || !Guid.TryParse(InstallationId, out _))

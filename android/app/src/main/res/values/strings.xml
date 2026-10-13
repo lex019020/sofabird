@@ -272,4 +272,21 @@
     <string name="settings_bluetooth_fallback_hint">For a PC paired with the phone. Slower than Wi‑Fi; artwork is not loaded.</string>
     <string name="saved_via_bluetooth">Bluetooth · %1$s</string>
     <string name="pairing_connecting_bt">Connecting to %1$s over Bluetooth…</string>
+
+    <!-- First-run permissions screen and Settings → Permissions (domain/permissions/AppPermissions.kt) -->
+    <string name="perm_screen_title">Permissions</string>
+    <string name="perm_screen_intro">Before Android asks, here is what the remote needs and why. You can change this later in Settings.</string>
+    <string name="perm_continue">Continue</string>
+    <string name="perm_allow">Allow</string>
+    <string name="perm_open_settings">Open settings</string>
+    <string name="perm_status_granted">Allowed</string>
+    <string name="perm_status_not_granted">Not allowed</string>
+    <string name="perm_status_blocked">Blocked: it can now be allowed only in the app settings</string>
+    <string name="perm_notifications_title">Notifications</string>
+    <string name="perm_notifications_why">Shows what is playing with playback controls in the notification and on the lock screen while the remote keeps the connection to the PC in the background.</string>
+    <string name="perm_notifications_without">Without it, the controls outside the app may be missing or show stale information.</string>
+    <string name="perm_nearby_title">Nearby devices (Bluetooth)</string>
+    <string name="perm_nearby_why">Keeps controlling the PC over Bluetooth when Wi‑Fi is unavailable. Only a PC already paired with this phone is used: no scanning, no location.</string>
+    <string name="perm_nearby_without">Without it, the remote works only over Wi‑Fi.</string>
+    <string name="settings_permissions">Permissions</string>
 </resources>

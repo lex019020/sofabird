@@ -54,4 +54,54 @@
   <data name="BalloonLuaDeferred" xml:space="preserve"><value>VLC запущен — страницы будут установлены автоматически после его закрытия.</value></data>
   <data name="BalloonLuaFailed" xml:space="preserve"><value>Не удалось установить Lua-страницы (см. журнал).</value></data>
   <data name="BalloonAutostartFailed" xml:space="preserve"><value>Не удалось изменить автозапуск: {0}</value></data>
+  <data name="BalloonFirewallBlocked" xml:space="preserve"><value>Брандмауэр Windows не пускает телефон. Нажмите, чтобы исправить.</value></data>
+  <data name="BalloonFirewallMissing" xml:space="preserve"><value>Доступ телефона по сети не настроен. Нажмите, чтобы разрешить.</value></data>
+  <data name="TraySetup" xml:space="preserve"><value>Настройка и разрешения…</value></data>
+  <data name="SetupTitle" xml:space="preserve"><value>VLC Remote: настройка и разрешения</value></data>
+  <data name="SetupHeader" xml:space="preserve"><value>Подготовим ПК к работе с пультом</value></data>
+  <data name="SetupIntro" xml:space="preserve"><value>Чтобы телефон мог управлять VLC, компаньону нужны несколько разрешений и настроек на этом ПК. Ниже — что делает каждое из них и зачем оно нужно. Пока вы не нажмёте «Применить», ничего не меняется.</value></data>
+  <data name="SetupChecking" xml:space="preserve"><value>Проверяем…</value></data>
+  <data name="SetupOn" xml:space="preserve"><value>✓ Включено</value></data>
+  <data name="SetupOff" xml:space="preserve"><value>Выключено</value></data>
+  <data name="SetupFooterNote" xml:space="preserve"><value>Это окно всегда можно открыть из меню значка в трее: «Настройка и разрешения…».</value></data>
+  <data name="SetupApply" xml:space="preserve"><value>Применить</value></data>
+  <data name="SetupLater" xml:space="preserve"><value>Позже</value></data>
+  <data name="SetupClose" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="SetupFirewallTitle" xml:space="preserve"><value>Доступ по сети (брандмауэр Windows)</value></data>
+  <data name="SetupFirewallText" xml:space="preserve"><value>Телефон подключается к ПК по Wi‑Fi, а Windows блокирует входящие подключения, пока их не разрешить. Компаньон разрешит себе и VLC принимать подключения только в частных (домашних) сетях. Windows один раз запросит права администратора.</value></data>
+  <data name="SetupFirewallOk" xml:space="preserve"><value>✓ Разрешено в частных сетях</value></data>
+  <data name="SetupFirewallOff" xml:space="preserve"><value>✓ Брандмауэр Windows выключен для частных сетей — разрешать нечего</value></data>
+  <data name="SetupFirewallMissing" xml:space="preserve"><value>Ещё не разрешено — Windows будет блокировать телефон</value></data>
+  <data name="SetupFirewallBlocked" xml:space="preserve"><value>⚠ Правило брандмауэра блокирует {0} (обычно остаётся после «Отмена» в запросе Windows). «Применить» его удалит.</value></data>
+  <data name="SetupProgramCompanion" xml:space="preserve"><value>компаньон</value></data>
+  <data name="SetupProgramVlc" xml:space="preserve"><value>VLC</value></data>
+  <data name="SetupAnd" xml:space="preserve"><value>{0} и {1}</value></data>
+  <data name="SetupFirewallUnknown" xml:space="preserve"><value>Не удалось прочитать правила брандмауэра: {0}</value></data>
+  <data name="SetupFirewallWaiting" xml:space="preserve"><value>Ждём права администратора — подтвердите запрос Windows…</value></data>
+  <data name="SetupFirewallCancelled" xml:space="preserve"><value>⚠ Права администратора не получены. Нажмите «Применить» ещё раз или разрешите доступ, когда Windows спросит сама.</value></data>
+  <data name="SetupFirewallFailed" xml:space="preserve"><value>✗ Не удалось изменить правила брандмауэра ({0}). Подробности в журнале.</value></data>
+  <data name="SetupFirewallNotManaged" xml:space="preserve"><value>Компаньон не настраивает — разрешите доступ сами, когда Windows спросит</value></data>
+  <data name="SetupPublicNetwork" xml:space="preserve"><value>⚠ Сеть «{0}» отмечена как общедоступная. В таких сетях Windows не пускает телефон — сделайте её частной в параметрах сети.</value></data>
+  <data name="SetupOpenNetworkSettings" xml:space="preserve"><value>Открыть параметры сети</value></data>
+  <data name="SetupAutostartTitle" xml:space="preserve"><value>Запуск вместе с Windows</value></data>
+  <data name="SetupAutostartText" xml:space="preserve"><value>Компаньон запускается при входе в Windows, и телефоном можно управлять, не подходя к ПК. Используется ваш список автозагрузки, права администратора не нужны.</value></data>
+  <data name="SetupAutostartFailed" xml:space="preserve"><value>✗ Не удалось изменить автозапуск: {0}</value></data>
+  <data name="SetupVlcTitle" xml:space="preserve"><value>Настроить VLC для управления с телефона</value></data>
+  <data name="SetupVlcText" xml:space="preserve"><value>В VLC включается веб‑интерфейс с паролем, который создал компаньон, — так VLC, открытый как угодно (даже двойным щелчком по фильму), управляется с телефона. Компаньон правит файл настроек VLC (резервная копия сохраняется) и ставит вспомогательные страницы для звуковых дорожек и субтитров.</value></data>
+  <data name="SetupVlcConfigured" xml:space="preserve"><value>✓ VLC настроен</value></data>
+  <data name="SetupVlcNotConfigured" xml:space="preserve"><value>Ещё не настроен</value></data>
+  <data name="SetupVlcRunning" xml:space="preserve"><value>VLC запущен — настройки будут записаны после его закрытия</value></data>
+  <data name="SetupVlcNotInstalled" xml:space="preserve"><value>VLC не установлен. Установите VLC 3.x и снова откройте это окно из меню в трее.</value></data>
+  <data name="SetupVlcOff" xml:space="preserve"><value>Выключено — настройки VLC остаются как есть</value></data>
+  <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Не удалось настроить VLC (подробности в журнале)</value></data>
+  <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>
+  <data name="SetupKeepAwakeText" xml:space="preserve"><value>Пока идёт фильм, Windows не переведёт ПК в сон и не погасит экран. После остановки снова действуют обычные настройки электропитания.</value></data>
+  <data name="SetupBluetoothTitle" xml:space="preserve"><value>Bluetooth (необязательно)</value></data>
+  <data name="SetupBluetoothText" xml:space="preserve"><value>Без Wi‑Fi телефон может управлять ПК по Bluetooth. Разрешений Windows для этого не нужно, но телефон надо один раз сопрячь с этим ПК в параметрах Bluetooth Windows.</value></data>
+  <data name="SetupBluetoothOn" xml:space="preserve"><value>✓ Bluetooth включён — телефон сможет подключиться после сопряжения</value></data>
+  <data name="SetupBluetoothStarting" xml:space="preserve"><value>Bluetooth запускается…</value></data>
+  <data name="SetupBluetoothRadioOff" xml:space="preserve"><value>Bluetooth выключен на этом ПК</value></data>
+  <data name="SetupBluetoothNoAdapter" xml:space="preserve"><value>Адаптера Bluetooth нет — телефон будет подключаться только по Wi‑Fi</value></data>
+  <data name="SetupBluetoothDisabled" xml:space="preserve"><value>Выключен в настройках компаньона (bluetooth: false)</value></data>
+  <data name="SetupOpenBluetoothSettings" xml:space="preserve"><value>Открыть параметры Bluetooth</value></data>
 </root>

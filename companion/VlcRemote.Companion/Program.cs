@@ -4,10 +4,12 @@ using Serilog;
 using Serilog.Extensions.Logging;
 using VlcRemote.Companion.Net;
 using VlcRemote.Companion.Services;
+using VlcRemote.Companion.Setup;
 using VlcRemote.Companion.Tray;
 using VlcRemote.Companion.Vlc;
 using VlcRemote.Core.Lua;
 using VlcRemote.Core.Pairing;
+using VlcRemote.Core.Setup;
 using VlcRemote.Companion.Localization;
 
 namespace VlcRemote.Companion;
@@ -32,6 +34,14 @@ internal static class Program
                 shared: true,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
+
+        // Elevated firewall helper (started by the setup window with one UAC prompt): runs next to the main instance.
+        if (args.Contains(FirewallElevation.HelperArg, StringComparer.OrdinalIgnoreCase))
+        {
+            using var helperLf = new SerilogLoggerFactory(Log.Logger, dispose: false);
+            try { return FirewallElevation.RunHelper(args, helperLf.CreateLogger("FirewallHelper")); }
+            finally { Log.CloseAndFlush(); }
+        }
 
         using var mutex = new Mutex(initiallyOwned: true, "Local\\VlcRemoteCompanion_" + Hash(paths.DataDir), out var createdNew);
         if (!createdNew)
@@ -117,6 +127,49 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, power, bluetooth, lf.CreateLogger<SetupBackend>());
+
+        TrayContext? tray = null;
+        SetupForm? earlySetup = null;
+        var quitRequested = false;
+        var quitWait = ThreadPool.RegisterWaitForSingleObject(quitEvent, (_, _) =>
+        {
+            log.LogInformation("Shutdown requested by another process (--shutdown)");
+            Volatile.Write(ref quitRequested, true);
+            if (Volatile.Read(ref tray) is { } t) t.RequestExit();
+            else
+            {
+                try { ui.BeginInvoke(() => earlySetup?.CloseForExit()); }
+                catch (InvalidOperationException) { }
+            }
+        }, null, Timeout.Infinite, executeOnlyOnce: true);
+
+        // First start (or a new setup item): the "Setup and permissions" window. If the firewall has no rules for the
+        // companion/VLC yet, it is shown before the network listeners start: once its rules are applied, Windows does
+        // not show its own "allow access" prompt (whose "Cancel" silently creates block rules).
+        var showSetup = setup.ShouldShowOnStart;
+        var firewall = showSetup ? setup.InspectFirewall() : null;
+        var earlyShown = false;
+        if (SetupPolicy.DeferListeners(showSetup, firewall))
+        {
+            log.LogInformation("Showing the setup window before starting the network listeners");
+            var form = new SetupForm(setup, firstRun: true);
+            form.Shown += (_, _) => form.BringToFrontActivated();
+            earlySetup = form;
+            Application.Run(form);
+            earlySetup = null;
+            form.Dispose();
+            showSetup = false;
+            earlyShown = true;
+            if (Volatile.Read(ref quitRequested))
+            {
+                quitWait.Unregister(null);
+                display.Dispose();
+                ui.Dispose();
+                log.LogInformation("Exited before start");
+                return 0;
+            }
+        }
 
         var startupCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
@@ -157,14 +210,13 @@ internal static class Program
             sessions.Dispose();
         }
 
-        using var tray = new TrayContext(ui, paths, settings, settingsStore, vlc, pairing, display, sessions, host, power,
-            bluetooth, ShutdownAsync, lf.CreateLogger<TrayContext>());
-        var quitWait = ThreadPool.RegisterWaitForSingleObject(quitEvent, (_, _) =>
-        {
-            log.LogInformation("Shutdown requested by another process (--shutdown)");
-            tray.RequestExit();
-        }, null, Timeout.Infinite, executeOnlyOnce: true);
-        Application.Run(tray);
+        using var trayContext = new TrayContext(ui, paths, settings, settingsStore, vlc, pairing, display, sessions, host, power,
+            bluetooth, setup, ShutdownAsync, lf.CreateLogger<TrayContext>());
+        Volatile.Write(ref tray, trayContext);
+        if (Volatile.Read(ref quitRequested)) trayContext.RequestExit();
+        else if (showSetup) trayContext.ShowSetupOnStart();
+        else if (!earlyShown) trayContext.CheckFirewallOnStart();
+        Application.Run(trayContext);
         quitWait.Unregister(null);
         ui.Dispose();
         log.LogInformation("Exited");

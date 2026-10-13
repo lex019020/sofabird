@@ -214,4 +214,19 @@ public class VlcrcConfiguratorTests : IDisposable
         Assert.Equal(VlcrcResult.Skipped, new VlcrcConfigurator(path).Ensure(S));
         Assert.Equal(bytes, File.ReadAllBytes(path));
     }
+
+    [Fact]
+    public void IsConfigured_IsReadOnlyAndTracksEnsure()
+    {
+        var path = Path.Combine(_dir, "vlcrc");
+        var cfg = new VlcrcConfigurator(path);
+        Assert.False(cfg.IsConfigured(S)); // no file
+        File.WriteAllText(path, Sample);
+        Assert.False(cfg.IsConfigured(S));
+        Assert.Equal(Sample, File.ReadAllText(path));
+        Assert.False(File.Exists(cfg.BackupPath));
+        cfg.Ensure(S);
+        Assert.True(cfg.IsConfigured(S));
+        Assert.False(cfg.IsConfigured(S with { HttpPassword = "Other" }));
+    }
 }
