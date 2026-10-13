@@ -1,274 +1,274 @@
-# Мобильный стек и UX для Android‑пульта VLC (HTPC на Windows)
+# Mobile stack and UX for an Android VLC remote (HTPC on Windows)
 
-Дата: 2026‑10‑12. Статус: исследование (research), не спецификация.
+Date: 2026-10-12. Status: research, not a specification.
 
-Связанные документы:
-- [live-probe.md](live-probe.md) — живая проверка HTTP/RC‑интерфейсов VLC 3.0.23 на этом ПК (шкала громкости 0..512, ID дорожек `Stream N`, `browse.json`, `/art`, собственные Lua‑страницы). Здесь на него опираемся и не дублируем.
-- `vlc-protocols.md` — планируется (протоколы VLC и компаньона).
+Related documents:
+- [live-probe.md](live-probe.md) — a live check of the VLC 3.0.23 HTTP/RC interfaces on this PC (volume scale 0..512, track IDs `Stream N`, `browse.json`, `/art`, custom Lua pages). We rely on it here and do not duplicate it.
+- `vlc-protocols.md` — planned (VLC and companion protocols).
 
-Обозначения: **✅** — проверено по первоисточнику (ссылка рядом); **«не проверено»** — по памяти, вторичным источникам или требует эксперимента на устройстве.
+Notation: **✅** — verified against a primary source (link next to it); **"not verified"** — from memory, secondary sources, or requires an experiment on a device.
 
-Сценарий: ноутбук с Windows 11 подключён к телевизору, фильмы лежат в `D:\shared`, зритель сидит на диване с телефоном. Пульт должен работать в полутёмной комнате, одной рукой, не глядя на экран телефона дольше секунды.
-
----
-
-## 0. Кратко (TL;DR)
-
-1. **Стек: Kotlin + Jetpack Compose** (то, что уже есть в проекте). Все критичные для пульта возможности — RFCOMM, `NsdManager`, `MediaSession` с «удалённой громкостью», `TileService`, Glance‑виджет, foreground‑сервис, перехват клавиш громкости — это платформенные API без обёрток. Flutter / React Native / .NET MAUI добавляют слой плагинов ровно там, где у нас самая рискованная часть. Compose Multiplatform держать в уме структурно (чистый Kotlin‑модуль протокола и парсера имён без Android‑зависимостей), но UI в CMP не переводить: iOS не в планах, а Material 3 в CMP отстаёт от Jetpack.
-2. **Версии (октябрь 2026, проверены):** Kotlin 2.4.21, AGP 9.4.0 (Gradle 9.6, JDK 17), Compose BOM 2026.09.00 (ui 1.12.1, material3 1.4.0), Navigation 3 1.2.0, Media3 1.11.1, Ktor 3.6.0, OkHttp 5.5.0, kotlinx.serialization 1.11.0, Koin 4.2.2 / Hilt 2.60.1, Room 2.8.5, DataStore 1.2.1, Coil 3.6.3, Glance 1.2.0. Material 3 Expressive — только в `material3:1.5.0-beta01` под `@ExperimentalMaterial3ExpressiveApi`; для MVP остаёмся на 1.4.0.
-3. **Платформа:** клавиши громкости в foreground — `dispatchKeyEvent` в Activity; при погашенном экране — через `MediaSession` + `Player` с `DeviceInfo.PLAYBACK_TYPE_REMOTE` (Media3 сам подключает `VolumeProviderCompat`). Это документированный механизм (так работает Cast), но на Android 12 была регрессия и есть OEM‑нюансы — проверять на реальном телефоне. Соединение держать foreground‑сервисом типа `connectedDevice` (пререквизит: `BLUETOOTH_CONNECT` или manifest‑разрешение `CHANGE_WIFI_MULTICAST_STATE`), **не** `mediaPlayback`. Android 17 (API 37) вводит runtime‑разрешение `ACCESS_LOCAL_NETWORK` — без него ни mDNS, ни HTTP к 192.168.x.x не работают при targetSdk 37.
-4. **UX:** одна главная вкладка «Пульт» = Now Playing + транспорт + громкость; крупный play/pause внизу в зоне большого пальца; кнопки ±10/±30 с; scrub‑бар с главами; быстрые sheet’ы «Субтитры/Аудио» с языками и тонкой подстройкой задержки; «Продолжить просмотр»; тёмная тема с опцией true‑black; хаптика на каждом «тике». Главные жалобы на существующие VLC‑пульты: *отваливается соединение*, *мучительная настройка пароля HTTP‑интерфейса*, *навязчивая реклама и дроблёные покупки*, *слишком чувствительная перемотка*. Это и есть наше поле для отличия.
-5. **Метаданные:** парсить имена файлов по правилам guessit/PTN (regex‑срезы: год, SxxEyy, качество, кодеки, группа → остаток = название). Поскольку разработчик знает C#, разумно делать парсер и индексацию **в ПК‑компаньоне** (там же `Emby.Naming`‑подобные правила и ffmpeg‑миниатюры), а телефону отдавать готовый JSON; Kotlin‑порт — лёгкий fallback для режима «без компаньона». Постеры — TMDB (бесплатно для некоммерческого использования, обязательная атрибуция, кэш ≤ 6 месяцев, лимит ~40 rps без жёсткой цифры); кэш — Coil 3; fallback — `/art` VLC и миниатюры от компаньона. Субтитры (OpenSubtitles/Subdl) — **не в v1**.
-6. **IA:** 3 вкладки (Пульт · Библиотека · Плейлист) + экран «Подключение» + «Настройки». Состояния: `Disconnected → Connecting → Connected{VlcNotRunning | Idle | Playing/Paused}` + `Error(reason)`. Онбординг: «Найти ПК → Пароль/PIN → Тест (пауза на ТВ)».
-7. **Тесты:** Compose‑тесты + Robolectric/Roborazzi, Preview Screenshot Testing; fake‑VLC на Ktor, воспроизводящий причуды из `live-probe.md`; эмулятор ходит к хосту через `10.0.2.2` (mDNS в эмуляторе не работает); Bluetooth — только реальное устройство.
+Scenario: a Windows 11 laptop is connected to a TV, the movies are in `D:\shared`, the viewer sits on the couch with a phone. The remote must work in a dim room, one-handed, without looking at the phone screen for more than a second.
 
 ---
 
-## 1. Выбор стека для телефона
+## 0. Summary (TL;DR)
 
-### 1.1. Критерии и сравнение
+1. **Stack: Kotlin + Jetpack Compose** (what the project already has). All capabilities critical for a remote — RFCOMM, `NsdManager`, `MediaSession` with "remote volume", `TileService`, a Glance widget, a foreground service, volume key interception — are platform APIs without wrappers. Flutter / React Native / .NET MAUI add a plugin layer exactly where our riskiest part is. Keep Compose Multiplatform in mind structurally (a pure Kotlin module for the protocol and the file-name parser without Android dependencies), but do not move the UI to CMP: iOS is not planned, and Material 3 in CMP lags behind Jetpack.
+2. **Versions (October 2026, verified):** Kotlin 2.4.21, AGP 9.4.0 (Gradle 9.6, JDK 17), Compose BOM 2026.09.00 (ui 1.12.1, material3 1.4.0), Navigation 3 1.2.0, Media3 1.11.1, Ktor 3.6.0, OkHttp 5.5.0, kotlinx.serialization 1.11.0, Koin 4.2.2 / Hilt 2.60.1, Room 2.8.5, DataStore 1.2.1, Coil 3.6.3, Glance 1.2.0. Material 3 Expressive is only in `material3:1.5.0-beta01` under `@ExperimentalMaterial3ExpressiveApi`; for the MVP we stay on 1.4.0.
+3. **Platform:** volume keys in the foreground — `dispatchKeyEvent` in the Activity; with the screen off — via `MediaSession` + a `Player` with `DeviceInfo.PLAYBACK_TYPE_REMOTE` (Media3 wires up `VolumeProviderCompat` itself). This is a documented mechanism (that is how Cast works), but there was a regression on Android 12 and there are OEM nuances — check on a real phone. Keep the connection in a foreground service of type `connectedDevice` (prerequisite: `BLUETOOTH_CONNECT` or the manifest permission `CHANGE_WIFI_MULTICAST_STATE`), **not** `mediaPlayback`. Android 17 (API 37) introduces the runtime permission `ACCESS_LOCAL_NETWORK` — without it neither mDNS nor HTTP to 192.168.x.x works with targetSdk 37.
+4. **UX:** one main "Remote" tab = Now Playing + transport + volume; a large play/pause at the bottom in the thumb zone; ±10/±30 s buttons; a scrub bar with chapters; quick "Subtitles/Audio" sheets with languages and fine delay adjustment; "Continue watching"; a dark theme with a true-black option; haptics on every "tick". The main complaints about existing VLC remotes: *the connection drops*, *painful HTTP interface password setup*, *intrusive ads and fragmented purchases*, *overly sensitive seeking*. This is exactly our field for differentiation.
+5. **Metadata:** parse file names following the guessit/PTN rules (regex slices: year, SxxEyy, quality, codecs, group → the remainder = the title). Since the developer knows C#, it makes sense to do the parser and indexing **in the PC companion** (along with `Emby.Naming`-like rules and ffmpeg thumbnails) and give the phone ready JSON; a Kotlin port is a light fallback for the "no companion" mode. Posters — TMDB (free for non-commercial use, attribution required, cache ≤ 6 months, a limit of ~40 rps without a hard figure); cache — Coil 3; fallback — VLC's `/art` and thumbnails from the companion. Subtitles (OpenSubtitles/Subdl) — **not in v1**.
+6. **IA:** 3 tabs (Remote · Library · Playlist) + a "Connection" screen + "Settings". States: `Disconnected → Connecting → Connected{VlcNotRunning | Idle | Playing/Paused}` + `Error(reason)`. Onboarding: "Find PC → Password/PIN → Test (pause on the TV)".
+7. **Tests:** Compose tests + Robolectric/Roborazzi, Preview Screenshot Testing; a fake VLC on Ktor reproducing the quirks from `live-probe.md`; the emulator reaches the host via `10.0.2.2` (mDNS does not work in the emulator); Bluetooth — only on a real device.
 
-Критерии взяты из требований пульта: Bluetooth Classic (RFCOMM/SPP) как резервный канал, обнаружение ПК по mDNS (`NsdManager`), WebSocket к компаньону / HTTP к VLC, живучесть соединения в фоне, перехват аппаратных клавиш громкости, хаптика, виджет + плитка быстрых настроек, Wear OS потом, боль сборки, размер APK.
+---
 
-| Критерий | Kotlin + Jetpack Compose | Compose Multiplatform / KMP | Flutter | React Native | .NET MAUI |
+## 1. Choosing the phone stack
+
+### 1.1. Criteria and comparison
+
+The criteria come from the remote's requirements: Bluetooth Classic (RFCOMM/SPP) as a fallback channel, PC discovery via mDNS (`NsdManager`), WebSocket to the companion / HTTP to VLC, connection survival in the background, hardware volume key interception, haptics, a widget + a Quick Settings tile, Wear OS later, build pain, APK size.
+
+| Criterion | Kotlin + Jetpack Compose | Compose Multiplatform / KMP | Flutter | React Native | .NET MAUI |
 |---|---|---|---|---|---|
-| Bluetooth RFCOMM | Нативно: `BluetoothSocket`/`createRfcommSocketToServiceRecord`, runtime `BLUETOOTH_CONNECT` (API 31+) ✅ [[BluetoothSocket]](https://developer.android.com/reference/android/bluetooth/BluetoothSocket) | То же, в `androidMain` (expect/actual) | Плагины: `flutter_bluetooth_serial` заброшен (последний push янв. 2025, 102 issue, Android‑only); `flutter_classic_bluetooth` 0.1.x — молодой ✅ [[pub.dev]](https://pub.dev/packages/flutter_classic_bluetooth/versions/0.1.4) | `react-native-bluetooth-classic` 1.73.0‑rc — статус New Architecture не подтверждён ✅ [[jsdelivr]](https://www.jsdelivr.com/package/npm/react-native-bluetooth-classic) | Первой стороны нет; `Plugin.BLE` — только BLE ✅ [[nuget]](https://www.nuget.org/packages/plugin.ble). RFCOMM — писать руками через Android‑биндинги |
-| mDNS / `NsdManager` | Нативно; `MulticastLock` до T‑ext‑7; с Android 17 — `ACCESS_LOCAL_NETWORK` (см. §3.7) | То же | Плагины (`nsd`, `bonsoir`) — не проверено | `react-native-zeroconf` — статус New Arch не подтверждён | Платформенный код |
-| WebSocket / HTTP | OkHttp 5.5 или Ktor 3.6 (оба с WebSocket) | Ktor (мультиплатформенно) | `web_socket_channel`, `dio` — зрелые | `ws` встроен | `ClientWebSocket` в .NET — зрелый |
-| Фоновая связь (FGS, типы) | Нативно (`connectedDevice`) | То же | Плагин/нативный код для FGS‑типов Android 14+ | Нативный модуль | Платформенный код |
-| Клавиши громкости | `Activity.dispatchKeyEvent`; `MediaSession` + `VolumeProvider` | То же в `androidMain` | Плагин (`hardware_buttons`‑класс, часто заброшены); MediaSession — через `audio_service` | Нативный модуль | `OnKeyDown` override в `MainActivity` — просто (это Android‑класс) |
-| Хаптика | `LocalHapticFeedback` + `HapticFeedbackType.Confirm/Reject/SegmentTick/GestureEnd` ✅ [[API]](https://developer.android.com/reference/kotlin/androidx/compose/ui/hapticfeedback/HapticFeedbackType) | То же | `HapticFeedback.*` — базовое | `Vibration`/`expo-haptics` | `HapticFeedback.Perform` — базовое |
-| Виджет / QS‑плитка | Glance 1.2.0 + `TileService` | Только Android‑часть | `home_widget` + нативный `TileService` | Нативно | Платформенный код, RemoteViews руками |
-| Wear OS | Wear Compose 1.7.1 + ProtoLayout/Tiles, Data Layer | Android‑часть | Отдельный нативный модуль | Нативно | Практически нет |
-| Сборка/инструменты | Один Gradle‑проект, Studio, Compose Preview, Hot Reload (через CMP‑плагин) | + iOS‑toolchain, Xcode; Hot Reload «из коробки» | Отдельный SDK, Dart; стабильный DevTools; Flutter 3.47 (авг. 2026) ✅ [[docs]](https://docs.flutter.dev/release/whats-new.html) | Node + Gradle, New Architecture обязательна с RN 0.82 ✅ [[Expo]](https://docs.expo.dev/guides/new-architecture.md) | MAUI 10 (патч 10.0.90, июль 2026; EOL май 2027) ✅ [[policy]](https://dotnet.microsoft.com/ru-ru/platform/support/policy/maui) |
-| Размер APK | Минимальный: Compose использует системный Skia; тест 2023: ~1.5 МБ vs Flutter ~×5 ✅ [[Medium]](https://medium.com/@jacobras/android-ios-native-vs-flutter-vs-compose-multiplatform-7ef3d5ec2a56) (старый бенчмарк, не hello‑world) | На Android = как нативный | Движок в бандле, +несколько МБ | Hermes + JS bundle, +несколько МБ | .NET runtime, обычно 10+ МБ (не проверено) |
+| Bluetooth RFCOMM | Native: `BluetoothSocket`/`createRfcommSocketToServiceRecord`, runtime `BLUETOOTH_CONNECT` (API 31+) ✅ [[BluetoothSocket]](https://developer.android.com/reference/android/bluetooth/BluetoothSocket) | The same, in `androidMain` (expect/actual) | Plugins: `flutter_bluetooth_serial` is abandoned (last push Jan 2025, 102 issues, Android-only); `flutter_classic_bluetooth` 0.1.x is young ✅ [[pub.dev]](https://pub.dev/packages/flutter_classic_bluetooth/versions/0.1.4) | `react-native-bluetooth-classic` 1.73.0-rc — New Architecture status not confirmed ✅ [[jsdelivr]](https://www.jsdelivr.com/package/npm/react-native-bluetooth-classic) | No first-party option; `Plugin.BLE` is BLE only ✅ [[nuget]](https://www.nuget.org/packages/plugin.ble). RFCOMM — write by hand via Android bindings |
+| mDNS / `NsdManager` | Native; `MulticastLock` up to T-ext-7; from Android 17 — `ACCESS_LOCAL_NETWORK` (see §3.7) | The same | Plugins (`nsd`, `bonsoir`) — not verified | `react-native-zeroconf` — New Arch status not confirmed | Platform code |
+| WebSocket / HTTP | OkHttp 5.5 or Ktor 3.6 (both with WebSocket) | Ktor (multiplatform) | `web_socket_channel`, `dio` — mature | `ws` built in | `ClientWebSocket` in .NET — mature |
+| Background connection (FGS, types) | Native (`connectedDevice`) | The same | Plugin/native code for Android 14+ FGS types | Native module | Platform code |
+| Volume keys | `Activity.dispatchKeyEvent`; `MediaSession` + `VolumeProvider` | The same in `androidMain` | Plugin (`hardware_buttons`-style, often abandoned); MediaSession — via `audio_service` | Native module | `OnKeyDown` override in `MainActivity` — simple (it is an Android class) |
+| Haptics | `LocalHapticFeedback` + `HapticFeedbackType.Confirm/Reject/SegmentTick/GestureEnd` ✅ [[API]](https://developer.android.com/reference/kotlin/androidx/compose/ui/hapticfeedback/HapticFeedbackType) | The same | `HapticFeedback.*` — basic | `Vibration`/`expo-haptics` | `HapticFeedback.Perform` — basic |
+| Widget / QS tile | Glance 1.2.0 + `TileService` | Android part only | `home_widget` + native `TileService` | Native | Platform code, RemoteViews by hand |
+| Wear OS | Wear Compose 1.7.1 + ProtoLayout/Tiles, Data Layer | Android part | Separate native module | Native | Practically none |
+| Build/tooling | One Gradle project, Studio, Compose Preview, Hot Reload (via the CMP plugin) | + iOS toolchain, Xcode; Hot Reload "out of the box" | Separate SDK, Dart; stable DevTools; Flutter 3.47 (Aug 2026) ✅ [[docs]](https://docs.flutter.dev/release/whats-new.html) | Node + Gradle, New Architecture mandatory since RN 0.82 ✅ [[Expo]](https://docs.expo.dev/guides/new-architecture.md) | MAUI 10 (patch 10.0.90, July 2026; EOL May 2027) ✅ [[policy]](https://dotnet.microsoft.com/ru-ru/platform/support/policy/maui) |
+| APK size | Minimal: Compose uses the system Skia; a 2023 test: ~1.5 MB vs Flutter ~×5 ✅ [[Medium]](https://medium.com/@jacobras/android-ios-native-vs-flutter-vs-compose-multiplatform-7ef3d5ec2a56) (an old benchmark, not hello-world) | On Android = same as native | Engine in the bundle, + several MB | Hermes + JS bundle, + several MB | .NET runtime, usually 10+ MB (not verified) |
 
-Вывод по таблице: **каждая «сложная» строка (BT, mDNS, FGS, громкость, виджеты) — это Android‑API**, и в кроссплатформенных стеках она превращается либо в чужой плагин с неясной поддержкой, либо в тот же Kotlin‑код, завёрнутый в биндинг. Выигрыш кроссплатформы нулевой при нулевом спросе на iOS.
+Takeaway from the table: **every "hard" row (BT, mDNS, FGS, volume, widgets) is an Android API**, and in cross-platform stacks it turns either into someone else's plugin with unclear maintenance or into the same Kotlin code wrapped in a binding. The cross-platform gain is zero when demand for iOS is zero.
 
-### 1.2. Состояние Jetpack Compose в октябре 2026
+### 1.2. The state of Jetpack Compose in October 2026
 
 - **Compose BOM 2026.09.00** → `ui/foundation/runtime/animation 1.12.1`, `material3 1.4.0` ✅ [[BOM mapping]](https://developer.android.com/develop/ui/compose/bom/bom-mapping).
-- **Material 3 Expressive.** В стабильном `material3:1.4.0` публичны только `WideNavigationRail` и `ShortNavigationBar`; `MaterialExpressiveTheme`, `MotionScheme`, `ButtonGroup`, `FloatingToolbar`, `SplitButton`, `LoadingIndicator`, FAB‑menu и пр. — в линии **1.5.0** (beta01 от 07.10.2026) под `@ExperimentalMaterial3ExpressiveApi` ✅ [[release notes]](https://developer.android.com/jetpack/androidx/releases/compose-material3), [[composables.com]](https://composables.com/material3/materialexpressivetheme). Для MVP: 1.4.0; Expressive‑компоненты (особенно `ButtonGroup` для ±10/±30 и `FloatingToolbar`) — после выхода 1.5.0 stable. В 1.5.0‑alpha29 есть source‑breaking изменение `Slider` (`onValueChange` обязателен, переход на `SliderState`) — учесть при миграции.
-- **Адаптивные макеты:** `material3-adaptive 1.3.0` (12.08.2026) — `ListDetailPaneScaffold`, `SupportingPaneScaffold`, `NavigationSuiteScaffold`, `adaptive-navigation3` ✅ [[releases]](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive). Важно для пульта: телефон в ландшафте = ширина *medium*, высота *compact* → двухпанельный макет по одной ширине не работает, нужно учитывать и высоту ✅ [[ProAndroidDev]](https://proandroiddev.com/adaptive-compose-layouts-86b7f1e51338).
-- **Navigation 3 1.2.0** (23.09.2026): свой back‑stack как state, `NavDisplay`, Result API, predictive back через `NavigationBackHandler` ✅ [[releases]](https://developer.android.com/jetpack/androidx/releases/navigation3). Для 3 вкладок + sheet’ов — более чем достаточно; `navigation-compose` 2.x оставлять не нужно.
-- **Compose Preview Screenshot Testing** требует AGP ≥ 9.0, Kotlin ≥ 2.2.10, JDK 17 ✅ [[docs]](https://developer.android.com/studio/preview/compose-screenshot-testing).
-- Компилятор Compose — плагин `org.jetbrains.kotlin.plugin.compose` версии Kotlin (с 2.0), у нас уже подключён.
+- **Material 3 Expressive.** In the stable `material3:1.4.0` only `WideNavigationRail` and `ShortNavigationBar` are public; `MaterialExpressiveTheme`, `MotionScheme`, `ButtonGroup`, `FloatingToolbar`, `SplitButton`, `LoadingIndicator`, FAB menu, etc. are in the **1.5.0** line (beta01 of 07.10.2026) under `@ExperimentalMaterial3ExpressiveApi` ✅ [[release notes]](https://developer.android.com/jetpack/androidx/releases/compose-material3), [[composables.com]](https://composables.com/material3/materialexpressivetheme). For the MVP: 1.4.0; Expressive components (especially `ButtonGroup` for ±10/±30 and `FloatingToolbar`) — after 1.5.0 stable is out. 1.5.0-alpha29 has a source-breaking change to `Slider` (`onValueChange` is mandatory, a move to `SliderState`) — take it into account when migrating.
+- **Adaptive layouts:** `material3-adaptive 1.3.0` (12.08.2026) — `ListDetailPaneScaffold`, `SupportingPaneScaffold`, `NavigationSuiteScaffold`, `adaptive-navigation3` ✅ [[releases]](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive). Important for the remote: a phone in landscape = *medium* width, *compact* height → a two-pane layout based on width alone does not work, height must be taken into account too ✅ [[ProAndroidDev]](https://proandroiddev.com/adaptive-compose-layouts-86b7f1e51338).
+- **Navigation 3 1.2.0** (23.09.2026): your own back stack as state, `NavDisplay`, Result API, predictive back via `NavigationBackHandler` ✅ [[releases]](https://developer.android.com/jetpack/androidx/releases/navigation3). For 3 tabs + sheets it is more than enough; there is no need to keep `navigation-compose` 2.x.
+- **Compose Preview Screenshot Testing** requires AGP ≥ 9.0, Kotlin ≥ 2.2.10, JDK 17 ✅ [[docs]](https://developer.android.com/studio/preview/compose-screenshot-testing).
+- The Compose compiler is the `org.jetbrains.kotlin.plugin.compose` plugin at the Kotlin version (since 2.0), we already have it applied.
 
-### 1.3. Compose Multiplatform / KMP: зрелость для iOS в 2026
+### 1.3. Compose Multiplatform / KMP: iOS maturity in 2026
 
-- iOS в CMP стабилен с **1.8.0 (май 2025)**: нативная физика скролла, выделение текста, RTL, drag‑and‑drop; JetBrains заявляет паритет по старту и скроллу с SwiftUI и ~+9 МБ к размеру ✅ [[JetBrains blog]](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/).
-- Текущая версия **1.12.1 (22.09.2026)**; Material3 в CMP — `1.12.0-alpha03` на базе Jetpack `material3 1.5.0-alpha22`, т.е. **Material 3 в CMP идёт по alpha‑ветке**; Navigation3 1.1.2; Compose Hot Reload 1.2.0 + MCP‑сервер ✅ [[releases]](https://github.com/JetBrains/compose-multiplatform/releases).
-- Практика: единичные сообщения о проблемах `TextField` с сторонними IME на iOS (2025, не воспроизведено другими) ✅ [[Zenn]](https://zenn.dev/bcc/articles/45170a8518ef78) — не критично для пульта, но показывает, что edge‑cases ещё живы.
-- **Решение:** UI остаётся Jetpack Compose. Но слои **протокол VLC/компаньона, модель состояния плеера, парсер имён файлов** оформить как чистый Kotlin‑модуль (`commonMain`‑совместимый: без `android.*`, на Ktor + kotlinx.serialization + coroutines). Это бесплатно, упрощает JVM‑тесты и оставляет дверь в CMP.
+- iOS in CMP has been stable since **1.8.0 (May 2025)**: native scroll physics, text selection, RTL, drag-and-drop; JetBrains claims parity with SwiftUI in startup and scrolling and ~+9 MB in size ✅ [[JetBrains blog]](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/).
+- The current version is **1.12.1 (22.09.2026)**; Material3 in CMP is `1.12.0-alpha03` based on Jetpack `material3 1.5.0-alpha22`, i.e. **Material 3 in CMP follows the alpha branch**; Navigation3 1.1.2; Compose Hot Reload 1.2.0 + an MCP server ✅ [[releases]](https://github.com/JetBrains/compose-multiplatform/releases).
+- In practice: isolated reports of `TextField` problems with third-party IMEs on iOS (2025, not reproduced by others) ✅ [[Zenn]](https://zenn.dev/bcc/articles/45170a8518ef78) — not critical for a remote, but it shows that edge cases are still alive.
+- **Decision:** the UI stays Jetpack Compose. But the **VLC/companion protocol, the player state model, and the file-name parser** layers should be packaged as a pure Kotlin module (`commonMain`-compatible: no `android.*`, on Ktor + kotlinx.serialization + coroutines). This is free, simplifies JVM tests and keeps the door to CMP open.
 
 ### 1.4. Hilt vs Koin
 
 | | Hilt (Dagger 2.60.1) | Koin 4.2.2 |
 |---|---|---|
-| Проверка графа | Compile‑time (KSP 2.3.12) | Runtime (есть `koin-annotations` с compile‑time проверкой, не проверено на 4.2) |
-| Требования | AGP ≥ 9.0, minSdk 23 (мультидекс выпилен в 2.60) ✅ [[releases]](https://github.com/google/dagger/releases) | Нет; есть `koin-compose-navigation3` для Navigation 3 ✅ [[releases]](https://github.com/InsertKoinIO/koin/releases) |
-| KMP | Нет (JVM/Android) | Да |
-| Boilerplate | `@HiltViewModel`, `@AndroidEntryPoint`, модули | `module { viewModelOf(::X) }`, `koinViewModel()` |
-| Сервисы/TileService/Glance | `@AndroidEntryPoint` для сервисов; для Glance — `EntryPointAccessors` | `KoinComponent` / `get()` везде |
+| Graph verification | Compile-time (KSP 2.3.12) | Runtime (there is `koin-annotations` with compile-time verification, not verified on 4.2) |
+| Requirements | AGP ≥ 9.0, minSdk 23 (multidex removed in 2.60) ✅ [[releases]](https://github.com/google/dagger/releases) | None; there is `koin-compose-navigation3` for Navigation 3 ✅ [[releases]](https://github.com/InsertKoinIO/koin/releases) |
+| KMP | No (JVM/Android) | Yes |
+| Boilerplate | `@HiltViewModel`, `@AndroidEntryPoint`, modules | `module { viewModelOf(::X) }`, `koinViewModel()` |
+| Services/TileService/Glance | `@AndroidEntryPoint` for services; for Glance — `EntryPointAccessors` | `KoinComponent` / `get()` everywhere |
 
-Рекомендация: **Koin** — приложение небольшое, много точек входа вне Activity (FGS, `TileService`, Glance‑коллбеки, `MediaSessionService`), где Hilt требует обходных путей; плюс KMP‑совместимость чистого модуля. Если важна compile‑time проверка — Hilt тоже нормально, но тогда минимум AGP 9 и Kotlin‑версия, которую Dagger уже поддерживает (2.60 собран с Kotlin 2.3.21; с 2.4.x — проверить).
+Recommendation: **Koin** — the app is small, with many entry points outside an Activity (FGS, `TileService`, Glance callbacks, `MediaSessionService`), where Hilt requires workarounds; plus KMP compatibility of the pure module. If compile-time verification matters, Hilt is fine too, but then at least AGP 9 and a Kotlin version that Dagger already supports (2.60 is built with Kotlin 2.3.21; with 2.4.x — to be checked).
 
-### 1.5. Версии библиотек (проверено 2026‑10‑12)
+### 1.5. Library versions (verified 2026-10-12)
 
-| Компонент | Стабильная версия | Дата | Источник |
+| Component | Stable version | Date | Source |
 |---|---|---|---|
 | Kotlin | **2.4.21** | 08.10.2026 | ✅ [github](https://github.com/JetBrains/kotlin/releases) |
-| Android Gradle Plugin | **9.4.0**; Gradle 9.6.0, JDK 17, Build‑Tools 36.0.0, maxSdk 37 | сент. 2026 | ✅ [dev.android](https://developer.android.com/build/releases/gradle-plugin) |
-| Compose BOM | **2026.09.00** (ui 1.12.1, material3 1.4.0) | сент. 2026 | ✅ [mapping](https://developer.android.com/develop/ui/compose/bom/bom-mapping) |
-| Material 3 | 1.4.0; 1.5.0‑beta01 (Expressive) | 07.10.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/compose-material3) |
-| material3‑adaptive | **1.3.0** | 12.08.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive) |
+| Android Gradle Plugin | **9.4.0**; Gradle 9.6.0, JDK 17, Build-Tools 36.0.0, maxSdk 37 | Sep 2026 | ✅ [dev.android](https://developer.android.com/build/releases/gradle-plugin) |
+| Compose BOM | **2026.09.00** (ui 1.12.1, material3 1.4.0) | Sep 2026 | ✅ [mapping](https://developer.android.com/develop/ui/compose/bom/bom-mapping) |
+| Material 3 | 1.4.0; 1.5.0-beta01 (Expressive) | 07.10.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/compose-material3) |
+| material3-adaptive | **1.3.0** | 12.08.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive) |
 | Navigation 3 | **1.2.0** | 23.09.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/navigation3) |
 | Media3 (session) | **1.11.1** | 10.09.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/media3) |
 | Ktor | **3.6.0** | 16.09.2026 | ✅ [github](https://github.com/ktorio/ktor/releases) |
 | OkHttp | **5.5.0** | 16.08.2026 | ✅ [changelog](https://github.com/square/okhttp/blob/master/CHANGELOG.md) |
-| kotlinx.serialization | **1.11.0** (1.12.0‑RC 04.09) | 09.04.2026 | ✅ [github](https://github.com/Kotlin/kotlinx.serialization/releases) |
+| kotlinx.serialization | **1.11.0** (1.12.0-RC 04.09) | 09.04.2026 | ✅ [github](https://github.com/Kotlin/kotlinx.serialization/releases) |
 | kotlinx.coroutines | **1.11.0** | 08.05.2026 | ✅ [github](https://github.com/Kotlin/kotlinx.coroutines/releases) |
-| KSP | **2.3.12** (версия больше не привязана к Kotlin) | 09.09.2026 | ✅ [github](https://github.com/google/ksp/releases), [PR](https://github.com/google/ksp/pull/3107) |
+| KSP | **2.3.12** (the version is no longer tied to Kotlin) | 09.09.2026 | ✅ [github](https://github.com/google/ksp/releases), [PR](https://github.com/google/ksp/pull/3107) |
 | Dagger/Hilt | **2.60.1**; androidx.hilt 1.4.0 | 06.07.2026 | ✅ [github](https://github.com/google/dagger/releases) |
 | Koin | **4.2.2** | 15.06.2026 | ✅ [github](https://github.com/InsertKoinIO/koin/releases) |
-| Room | **2.8.5**; Room 3.0.1 (`androidx.room3`, KMP‑ориентированный) | 09.09.2026 / 29.07.2026 | ✅ [room](https://developer.android.com/jetpack/androidx/releases/room), [room3](https://developer.android.com/jetpack/androidx/releases/room3) |
-| DataStore | **1.2.1** (1.3.0‑alpha11) | 11.03.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/datastore) |
+| Room | **2.8.5**; Room 3.0.1 (`androidx.room3`, KMP-oriented) | 09.09.2026 / 29.07.2026 | ✅ [room](https://developer.android.com/jetpack/androidx/releases/room), [room3](https://developer.android.com/jetpack/androidx/releases/room3) |
+| DataStore | **1.2.1** (1.3.0-alpha11) | 11.03.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/datastore) |
 | Coil | **3.6.3** (`coil-network-okhttp` / `coil-network-ktor3`) | 18.09.2026 | ✅ [github](https://github.com/coil-kt/coil/releases) |
-| Glance | **1.2.0** (1.3.0‑alpha02) | 26.08.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/glance) |
-| Wear Compose | **1.7.1** (Material 3 для Wear стабилен) | 07.10.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/wear-compose) |
+| Glance | **1.2.0** (1.3.0-alpha02) | 26.08.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/glance) |
+| Wear Compose | **1.7.1** (Material 3 for Wear is stable) | 07.10.2026 | ✅ [releases](https://developer.android.com/jetpack/androidx/releases/wear-compose) |
 | Compose Multiplatform | **1.12.1** | 22.09.2026 | ✅ [github](https://github.com/JetBrains/compose-multiplatform/releases) |
-| Android 17 (API 37) | выпущен | июнь 2026 | ✅ [OkHttp changelog](https://github.com/square/okhttp/blob/master/CHANGELOG.md) (упоминание) |
+| Android 17 (API 37) | released | June 2026 | ✅ [OkHttp changelog](https://github.com/square/okhttp/blob/master/CHANGELOG.md) (mention) |
 
-Замечания:
-- Room 3 (`androidx.room3`) — новый пакет с фокусом на KMP; для Android‑only приложения Room 2.8.x остаётся актуальным (на странице Room 2 deprecation‑нотиса нет). Для нашей БД (позиции просмотра, кэш метаданных, список ПК) достаточно Room 2.8.5 или даже DataStore + файл JSON; Room берём ради запросов «продолжить просмотр».
-- Media3 1.10 убрал команды изменения *локальной* громкости из `MediaController`; удалённая (`DeviceInfo.PLAYBACK_TYPE_REMOTE`) — работает (см. §3.1).
-- Ktor 3.5 чинил пинг WebSocket в OkHttp‑движке, 3.4.x — зацикливание на битых фреймах; брать ≥ 3.6.0.
+Notes:
+- Room 3 (`androidx.room3`) is a new package focused on KMP; for an Android-only app Room 2.8.x remains current (the Room 2 page has no deprecation notice). For our DB (watch positions, metadata cache, the list of PCs) Room 2.8.5 or even DataStore + a JSON file is enough; we take Room for the "continue watching" queries.
+- Media3 1.10 removed the commands for changing *local* volume from `MediaController`; remote volume (`DeviceInfo.PLAYBACK_TYPE_REMOTE`) works (see §3.1).
+- Ktor 3.5 fixed WebSocket ping in the OkHttp engine, 3.4.x fixed looping on broken frames; take ≥ 3.6.0.
 
-### 1.6. Рекомендация по стеку
+### 1.6. Stack recommendation
 
-**Kotlin 2.4.21 + Jetpack Compose (BOM 2026.09.00, Material 3 1.4.0) + Navigation 3 + Media3 Session + Ktor‑client 3.6 (OkHttp‑engine) + kotlinx.serialization + Koin + Room 2.8 + DataStore + Coil 3 + Glance.** Разделить на модули: `:core:protocol` (чистый Kotlin), `:core:naming` (парсер имён, чистый Kotlin), `:app`. Почему Ktor, а не «голый» OkHttp: один клиент для HTTP‑поллинга VLC, WebSocket к компаньону и (позже) TMDB; `MockEngine` для тестов; движок всё равно OkHttp. Coil подключить через `coil-network-okhttp` на том же `OkHttpClient`, что и Ktor (общий пул соединений, заголовок `Authorization` для `/art`).
+**Kotlin 2.4.21 + Jetpack Compose (BOM 2026.09.00, Material 3 1.4.0) + Navigation 3 + Media3 Session + Ktor client 3.6 (OkHttp engine) + kotlinx.serialization + Koin + Room 2.8 + DataStore + Coil 3 + Glance.** Split into modules: `:core:protocol` (pure Kotlin), `:core:naming` (the name parser, pure Kotlin), `:app`. Why Ktor rather than "bare" OkHttp: one client for VLC HTTP polling, WebSocket to the companion and (later) TMDB; `MockEngine` for tests; the engine is OkHttp anyway. Wire Coil through `coil-network-okhttp` on the same `OkHttpClient` as Ktor (a shared connection pool, the `Authorization` header for `/art`).
 
 ---
 
-## 2. Платформенные особенности Android для пульта
+## 2. Android platform specifics for a remote
 
-### 2.1. Аппаратные клавиши громкости
+### 2.1. Hardware volume keys
 
-**Приложение на переднем плане.** Переопределить `dispatchKeyEvent` в `ComponentActivity`: на `KEYCODE_VOLUME_UP/DOWN` с `ACTION_DOWN` отправить команду VLC и вернуть `true` (системный слайдер не покажется). Это стандартный механизм: необработанные события падают в `PhoneFallbackEventHandler`, где и обрабатывается громкость ✅ [[Tuts+]](https://code.tutsplus.com/android-sdk-intercepting-physical-key-events--mobile-10379t). `Modifier.onKeyEvent` в Compose ненадёжен для этих клавиш (нужен фокус) — не проверено, но лучше Activity‑уровень. Автоповтор при удержании: `event.repeatCount`. Сделать это **настройкой** («Клавиши громкости управляют: ПК / телефоном»), т.к. иногда нужно регулировать уведомления телефона.
+**App in the foreground.** Override `dispatchKeyEvent` in the `ComponentActivity`: on `KEYCODE_VOLUME_UP/DOWN` with `ACTION_DOWN`, send a command to VLC and return `true` (the system slider will not appear). This is the standard mechanism: unhandled events fall through to `PhoneFallbackEventHandler`, where the volume is handled ✅ [[Tuts+]](https://code.tutsplus.com/android-sdk-intercepting-physical-key-events--mobile-10379t). `Modifier.onKeyEvent` in Compose is unreliable for these keys (it needs focus) — not verified, but the Activity level is better. Auto-repeat on hold: `event.repeatCount`. Make this a **setting** ("Volume keys control: PC / phone"), since sometimes you need to adjust the phone's notification volume.
 
-**Экран погашен / приложение в фоне (главный вопрос).** Механизм — `MediaSession` с «удалённой» громкостью, так работает Cast:
+**Screen off / app in the background (the main question).** The mechanism is a `MediaSession` with "remote" volume; this is how Cast works:
 
-- Legacy: `MediaSessionCompat.setPlaybackToRemote(VolumeProviderCompat)`; провайдер получает `onAdjustVolume(direction)` / `onSetVolumeTo(volume)` и **обязан** вызывать `setCurrentVolume()` после каждого изменения ✅ [[VolumeProvider]](https://developer.android.com/reference/android/media/VolumeProvider.html). Сессия должна быть `active` и иметь `PlaybackState` ✅ [[MediaSession]](https://developer.android.com/reference/android/media/session/MediaSession).
-- Media3: пишем свой `Player` (наследник `SimpleBasePlayer`, который отражает состояние VLC), в `State` возвращаем `DeviceInfo(PLAYBACK_TYPE_REMOTE, min=0, max=100)` и команды `COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS` + `COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS`. `MediaSessionLegacyStub` сам создаёт `VolumeProviderCompat` для любого `playbackType != PLAYBACK_TYPE_LOCAL`, вызывает `player.increaseDeviceVolume/decreaseDeviceVolume/setDeviceVolume` и пробрасывает `setCurrentVolume` ✅ [[источник MediaSessionLegacyStub.java]](https://github.com/androidx/media/blob/release/libraries/session/src/main/java/androidx/media3/session/MediaSessionLegacyStub.java). Тип контроля: relative при `ADJUST`, absolute при `ADJUST`+`SET`.
-- Известные грабли: в Android 12 (beta 5) ключи громкости перестали доходить до удалённых сессий; починено в 12.0.0_r26 через `canHandleVolumeKey` — разрешено, если playback локальный, **или** у приложения один маршрут, **или** включён `config_volumeAdjustmentForRemoteGroupSessions` (на Pixel выключен для групп) ✅ [[esper.io]](https://esper.io/blog/android-12-cast-volume-changes-explained). Для нас (один маршрут) должно проходить. OEM‑прошивки с «управлением треками при выключенном экране» (LineageOS) могут перехватывать ✅ [[Poweramp forum]](https://forum.powerampapp.com/topic/21716-volume-keys-control-does-not-work-when-the-screen-is-off/). Пользователи Chromecast сообщают, что на заблокированном экране кнопки работают при включённом «Media Session usage» и ломались на некоторых QPR‑бетах ✅ [[Nest community]](https://www.googlenestcommunity.com/t5/Streaming/Enhancing-Chromecast-Experience-Simplifying-Media-Volume-Control-during/m-p/462235).
-- Условия, чтобы сессия оставалась «верхней» и активной с погашенным экраном: `MediaSessionService` + foreground‑уведомление, `PlaybackState = PLAYING` (мы отражаем состояние VLC), `isActive = true`. Поскольку наш `Player` ничего не воспроизводит локально, аудиофокус не нужен.
-- **Android 17 (все приложения):** «background audio hardening» ограничивает фоновые вызовы *воспроизведения, аудиофокуса и изменения громкости*; при targetSdk 37 фоновый аудио‑доступ требует FGS с while‑in‑use ✅ [[behavior-changes-all]](https://developer.android.com/about/versions/17/behavior-changes-all), [[behavior-changes-17]](https://developer.android.com/about/versions/17/behavior-changes-17). Относится ли это к `VolumeProvider` удалённой сессии (мы не трогаем `AudioManager`) — **не проверено**; риск, что при targetSdk 37 придётся держать FGS с WIU‑возможностью. Держать targetSdk 36 до проверки.
-- **Doze.** Телефон на диване неподвижен → через ~30+ минут с погашенным экраном входит в Doze, сеть приостанавливается (кроме окон обслуживания) ✅ [[Doze]](https://developer.android.com/training/monitoring-device-state/doze-standby). Распространяется ли это на процесс с FGS — источники расходятся (третьи стороны говорят «да, всем») — **не проверено**. Практика: нажатие клавиши громкости вызывает `onAdjustVolume` в нашем процессе; если сокет заснул — послать одноразовый HTTP‑запрос с коротким таймаутом; если и он заблокирован — предложить в настройках «Не ограничивать батарею» (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; для личного приложения допустимо, для Play — требует обоснования).
+- Legacy: `MediaSessionCompat.setPlaybackToRemote(VolumeProviderCompat)`; the provider receives `onAdjustVolume(direction)` / `onSetVolumeTo(volume)` and **must** call `setCurrentVolume()` after every change ✅ [[VolumeProvider]](https://developer.android.com/reference/android/media/VolumeProvider.html). The session must be `active` and have a `PlaybackState` ✅ [[MediaSession]](https://developer.android.com/reference/android/media/session/MediaSession).
+- Media3: we write our own `Player` (a `SimpleBasePlayer` subclass mirroring the VLC state), return `DeviceInfo(PLAYBACK_TYPE_REMOTE, min=0, max=100)` in `State`, and the commands `COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS` + `COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS`. `MediaSessionLegacyStub` itself creates a `VolumeProviderCompat` for any `playbackType != PLAYBACK_TYPE_LOCAL`, calls `player.increaseDeviceVolume/decreaseDeviceVolume/setDeviceVolume` and forwards `setCurrentVolume` ✅ [[MediaSessionLegacyStub.java source]](https://github.com/androidx/media/blob/release/libraries/session/src/main/java/androidx/media3/session/MediaSessionLegacyStub.java). Control type: relative with `ADJUST`, absolute with `ADJUST`+`SET`.
+- Known pitfalls: in Android 12 (beta 5) volume keys stopped reaching remote sessions; fixed in 12.0.0_r26 via `canHandleVolumeKey` — allowed if playback is local, **or** the app has a single route, **or** `config_volumeAdjustmentForRemoteGroupSessions` is enabled (disabled for groups on Pixel) ✅ [[esper.io]](https://esper.io/blog/android-12-cast-volume-changes-explained). For us (a single route) it should pass. OEM firmwares with "track control when the screen is off" (LineageOS) may intercept ✅ [[Poweramp forum]](https://forum.powerampapp.com/topic/21716-volume-keys-control-does-not-work-when-the-screen-is-off/). Chromecast users report that the buttons work on the lock screen with "Media Session usage" enabled and broke on some QPR betas ✅ [[Nest community]](https://www.googlenestcommunity.com/t5/Streaming/Enhancing-Chromecast-Experience-Simplifying-Media-Volume-Control-during/m-p/462235).
+- Conditions for the session to remain "top" and active with the screen off: `MediaSessionService` + a foreground notification, `PlaybackState = PLAYING` (we mirror the VLC state), `isActive = true`. Since our `Player` plays nothing locally, audio focus is not needed.
+- **Android 17 (all apps):** "background audio hardening" restricts background calls for *playback, audio focus, and volume changes*; with targetSdk 37 background audio access requires an FGS with while-in-use ✅ [[behavior-changes-all]](https://developer.android.com/about/versions/17/behavior-changes-all), [[behavior-changes-17]](https://developer.android.com/about/versions/17/behavior-changes-17). Whether this applies to the `VolumeProvider` of a remote session (we do not touch `AudioManager`) is **not verified**; the risk is that with targetSdk 37 we would have to hold an FGS with the WIU capability. Keep targetSdk 36 until verified.
+- **Doze.** A phone on the couch is stationary → after ~30+ minutes with the screen off it enters Doze, the network is suspended (except for maintenance windows) ✅ [[Doze]](https://developer.android.com/training/monitoring-device-state/doze-standby). Whether this applies to a process with an FGS — sources disagree (third parties say "yes, to everyone") — **not verified**. In practice: a volume key press calls `onAdjustVolume` in our process; if the socket has gone to sleep, send a one-off HTTP request with a short timeout; if that is blocked too, offer "Don't restrict battery" in the settings (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`; acceptable for a personal app, for Play it requires justification).
 
-**Итог по feasibility:** управление громкостью ПК с погашенным экраном **реализуемо и документировано** (Cast‑путь), но зависит от версии Android/прошивки и Doze. В MVP — foreground‑перехват (гарантированно) + MediaSession‑путь как «работает там, где работает», с тестом на реальном устройстве и чек‑листом в §6.4.
+**Feasibility verdict:** controlling the PC volume with the screen off is **feasible and documented** (the Cast path), but depends on the Android version/firmware and Doze. In the MVP — foreground interception (guaranteed) + the MediaSession path as "works where it works", with a test on a real device and a checklist in §6.4.
 
-### 2.2. Поддержание соединения: foreground‑сервис и его тип
+### 2.2. Keeping the connection alive: the foreground service and its type
 
-С Android 14 (API 34) тип FGS обязателен, плюс соответствующее `FOREGROUND_SERVICE_*` разрешение и декларация в Play Console ✅ [[FGS types]](https://developer.android.com/develop/background-work/services/fgs/service-types).
+Since Android 14 (API 34) the FGS type is mandatory, plus the corresponding `FOREGROUND_SERVICE_*` permission and a declaration in the Play Console ✅ [[FGS types]](https://developer.android.com/develop/background-work/services/fgs/service-types).
 
-| Тип | Разрешение | Пререквизиты во время запуска | Подходит? |
+| Type | Permission | Prerequisites at start time | Fits? |
 |---|---|---|---|
-| `connectedDevice` | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Хотя бы одно: manifest `CHANGE_NETWORK_STATE` / `CHANGE_WIFI_STATE` / **`CHANGE_WIFI_MULTICAST_STATE`** / `NFC` / `TRANSMIT_IR`, **или** granted runtime `BLUETOOTH_CONNECT`/`SCAN`/`ADVERTISE`, или `UsbManager.requestPermission()` | **Да.** `CHANGE_WIFI_MULTICAST_STATE` нам и так нужен для `MulticastLock` (mDNS); `BLUETOOTH_CONNECT` — для RFCOMM. Описание типа: «взаимодействие с внешними устройствами по Bluetooth/NFC/IR/USB **или сети**» |
-| `mediaPlayback` | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Нет | Формально — «продолжение аудио/видео в фоне»; мы ничего не воспроизводим; с targetSdk 15 нельзя стартовать из `BOOT_COMPLETED`. Использовать **только если** MediaSession‑путь громкости потребует именно этого типа (не проверено) |
-| `dataSync` | `FOREGROUND_SERVICE_DATA_SYNC` | Нет | Нет: лимит 6 ч/сутки с targetSdk 35 ✅ [[Android 15]](https://developer.android.com/about/versions/15/behavior-changes-15) |
-| `specialUse` | `FOREGROUND_SERVICE_SPECIAL_USE` | `<property PROPERTY_SPECIAL_USE_FGS_SUBTYPE>` с объяснением; ревью в Play | Запасной вариант |
+| `connectedDevice` | `FOREGROUND_SERVICE_CONNECTED_DEVICE` | At least one of: manifest `CHANGE_NETWORK_STATE` / `CHANGE_WIFI_STATE` / **`CHANGE_WIFI_MULTICAST_STATE`** / `NFC` / `TRANSMIT_IR`, **or** granted runtime `BLUETOOTH_CONNECT`/`SCAN`/`ADVERTISE`, or `UsbManager.requestPermission()` | **Yes.** We need `CHANGE_WIFI_MULTICAST_STATE` anyway for the `MulticastLock` (mDNS); `BLUETOOTH_CONNECT` — for RFCOMM. Type description: "interaction with external devices over Bluetooth/NFC/IR/USB **or the network**" |
+| `mediaPlayback` | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | None | Formally "continuing audio/video in the background"; we play nothing; with targetSdk 15 it cannot be started from `BOOT_COMPLETED`. Use it **only if** the MediaSession volume path requires exactly this type (not verified) |
+| `dataSync` | `FOREGROUND_SERVICE_DATA_SYNC` | None | No: a limit of 6 h/day with targetSdk 35 ✅ [[Android 15]](https://developer.android.com/about/versions/15/behavior-changes-15) |
+| `specialUse` | `FOREGROUND_SERVICE_SPECIAL_USE` | `<property PROPERTY_SPECIAL_USE_FGS_SUBTYPE>` with an explanation; review in Play | Fallback option |
 
-Стратегия:
-- FGS **не висит постоянно**. Запускается при подключении из UI (`startForeground` разрешён, пока приложение видно), держится пока: приложение на экране **или** идёт воспроизведение на ПК и пользователь не выходил из сеанса (уведомление MediaSession с кнопками). Останавливается через N минут после `stopped`/отключения VLC или по кнопке «Отключиться» в уведомлении.
-- Android 16: задания JobScheduler, идущие параллельно с FGS, теперь тоже под квотой ✅ [[Android 16 all]](https://developer.android.com/about/versions/16/behavior-changes-all) — на нас не влияет (WorkManager не используем для связи).
-- Android 17: `AbandonedJob`, `MessageQueue` lock‑free, лимит памяти на `RemoteViews` в виджетах `1.5×W×H×4` байт ✅ [[Android 17]](https://developer.android.com/about/versions/17/behavior-changes-17) — важно для Glance‑виджета с постером (ужимать до ≤ 300 px).
+Strategy:
+- The FGS **does not run permanently**. It starts on connecting from the UI (`startForeground` is allowed while the app is visible) and stays up while: the app is on screen **or** playback is running on the PC and the user has not left the session (a MediaSession notification with buttons). It stops N minutes after `stopped`/VLC disconnecting or via the "Disconnect" button in the notification.
+- Android 16: JobScheduler jobs running in parallel with an FGS are now also subject to quota ✅ [[Android 16 all]](https://developer.android.com/about/versions/16/behavior-changes-all) — does not affect us (we do not use WorkManager for the connection).
+- Android 17: `AbandonedJob`, lock-free `MessageQueue`, a memory limit on `RemoteViews` in widgets of `1.5×W×H×4` bytes ✅ [[Android 17]](https://developer.android.com/about/versions/17/behavior-changes-17) — important for a Glance widget with a poster (shrink to ≤ 300 px).
 
-### 2.3. Уведомление и экран блокировки как у медиаплеера
+### 2.3. Notification and lock screen like a media player
 
-`MediaSessionService` (Media3) + наш `SimpleBasePlayer`‑обёртка над состоянием VLC даёт: карточку в шторке с обложкой (из `/art` или TMDB), кнопками prev/±10/play‑pause/+30/next, прогрессом (мы знаем `time/length`), управлением с заблокированного экрана и из Android Auto/Wear бесплатно. Media3 1.11 ужесточил threading `MediaSession` и сделал `onConnect` read‑only для недоверенных контроллеров ✅ [[Media3 1.11]](https://developer.android.com/jetpack/androidx/releases/media3). Kore 3.0 сделал ровно это («интеграция с медиа‑уведомлениями Android») ✅ [[Kore 3.0]](https://kodi.tv/article/kore-3-0), а один из запросов к Kore — «вести себя как медиаплеер, принимать Media Buttons» ✅ [[issues]](https://github.com/xbmc/Kore/issues) — т.е. нужно и Bluetooth‑гарнитурам/часам.
+`MediaSessionService` (Media3) + our `SimpleBasePlayer` wrapper over the VLC state gives: a card in the notification shade with artwork (from `/art` or TMDB), prev/±10/play-pause/+30/next buttons, progress (we know `time/length`), control from the lock screen and from Android Auto/Wear for free. Media3 1.11 tightened `MediaSession` threading and made `onConnect` read-only for untrusted controllers ✅ [[Media3 1.11]](https://developer.android.com/jetpack/androidx/releases/media3). Kore 3.0 did exactly this ("integration with Android media notifications") ✅ [[Kore 3.0]](https://kodi.tv/article/kore-3-0), and one of the requests to Kore is "behave like a media player, accept Media Buttons" ✅ [[issues]](https://github.com/xbmc/Kore/issues) — i.e. Bluetooth headsets/watches need it too.
 
 ### 2.4. Quick Settings tile
 
-`TileService` с `BIND_QUICK_SETTINGS_TILE` и фильтром `QS_TILE`; на API 33+ предлагать добавить плитку через `StatusBarManager.requestAddTileService()` из видимой Activity ✅ [[API diff 33]](https://developer.android.com/sdk/api_diff/33/changes/android.app.StatusBarManager), [[docs]](https://developer.android.com/develop/ui/views/quicksettings-tiles). Режим `META_DATA_ACTIVE_TILE` + `requestListeningState()` при смене состояния VLC, чтобы плитка показывала ▶/❚❚ без биндинга при каждом открытии шторки. `onClick` → команда `pl_pause` (через наш репозиторий, а не через `MediaSessionManager` — тогда не нужен `NotificationListener`). Если нет соединения — `Tile.STATE_UNAVAILABLE` с подписью «ПК не найден».
+A `TileService` with `BIND_QUICK_SETTINGS_TILE` and a `QS_TILE` filter; on API 33+ offer to add the tile via `StatusBarManager.requestAddTileService()` from a visible Activity ✅ [[API diff 33]](https://developer.android.com/sdk/api_diff/33/changes/android.app.StatusBarManager), [[docs]](https://developer.android.com/develop/ui/views/quicksettings-tiles). `META_DATA_ACTIVE_TILE` mode + `requestListeningState()` when the VLC state changes, so the tile shows ▶/❚❚ without binding every time the shade opens. `onClick` → the `pl_pause` command (through our repository, not through `MediaSessionManager` — then no `NotificationListener` is needed). If there is no connection — `Tile.STATE_UNAVAILABLE` with the label "PC not found".
 
-### 2.5. Виджет на Glance
+### 2.5. Glance widget
 
-Glance 1.2.0: лямбда‑действия стабильны, `GlanceTheme`/`glance-material3`, `SizeMode.Responsive`, `providePreview` ✅ [[Glance]](https://developer.android.com/jetpack/androidx/releases/glance). Содержимое: постер (маленький, ≤ 300 px — лимит `RemoteViews` на Android 17), название, ▶/❚❚, −/+ громкость, «+30». Состояние — из `DataStore` через `GlanceStateDefinition`, обновление — из FGS при каждом изменении статуса. Нажатия идут через `actionRunCallback` → репозиторий → HTTP. Без соединения — одна кнопка «Подключиться» (открывает приложение).
+Glance 1.2.0: lambda actions are stable, `GlanceTheme`/`glance-material3`, `SizeMode.Responsive`, `providePreview` ✅ [[Glance]](https://developer.android.com/jetpack/androidx/releases/glance). Content: a poster (small, ≤ 300 px — the `RemoteViews` limit on Android 17), title, ▶/❚❚, −/+ volume, "+30". State — from `DataStore` via `GlanceStateDefinition`, updates — from the FGS on every status change. Taps go through `actionRunCallback` → repository → HTTP. Without a connection — a single "Connect" button (opens the app).
 
-### 2.6. Wear OS (позже)
+### 2.6. Wear OS (later)
 
-Wear Compose 1.7.1; `compose-material` для Wear объявлен superseded в пользу `compose-material3` ✅ [[Wear Compose]](https://developer.android.com/jetpack/androidx/releases/wear-compose). Tiles — через ProtoLayout + `protolayout-material3` (Expressive) ✅ [[codelab]](https://developer.android.com/codelabs/wear-tiles). Самый дешёвый путь — вообще без watch‑приложения: MediaSession из §2.3 даёт стандартное медиа‑управление на часах. Отдельный Tile с play/pause/громкостью — когда появится компаньон и стабильный протокол. `glance-wear-tiles` deprecated, не использовать ✅.
+Wear Compose 1.7.1; `compose-material` for Wear is declared superseded in favour of `compose-material3` ✅ [[Wear Compose]](https://developer.android.com/jetpack/androidx/releases/wear-compose). Tiles — via ProtoLayout + `protolayout-material3` (Expressive) ✅ [[codelab]](https://developer.android.com/codelabs/wear-tiles). The cheapest path is no watch app at all: the MediaSession from §2.3 gives standard media controls on the watch. A separate Tile with play/pause/volume — once the companion and a stable protocol exist. `glance-wear-tiles` is deprecated, do not use ✅.
 
-### 2.7. Локальная сеть и mDNS
+### 2.7. Local network and mDNS
 
-- **Android 17 / targetSdk 37:** новое runtime‑разрешение **`ACCESS_LOCAL_NETWORK`** (группа `NEARBY_DEVICES`), обязательно для любого трафика к локальным адресам: mDNS/SSDP сырыми сокетами, `NsdManager`, **OkHttp/Cronet к 192.168.0.0/16, 10/8, 172.16/12, link‑local, multicast/broadcast**. Исключения — только DNS:53 и Output Switcher. На Android 16 это opt‑in через временное `NEARBY_WIFI_DEVICES`; тест: `adb shell am compat enable RESTRICT_LOCAL_NETWORK <pkg>`; при блокировке — `EPERM`/`ECONNABORTED` ✅ [[Android 16 targeting]](https://developer.android.com/about/versions/16/behavior-changes-16), [[Android 17 targeting]](https://developer.android.com/about/versions/17/behavior-changes-17), [[local network permission]](https://developer.android.com/privacy-and-security/local-network-permission). Не запрашивать до перехода на targetSdk 37; в онбординге объяснять, зачем («чтобы видеть ваш ПК в домашней сети»).
-- **`NsdManager`:** до SDK‑extension T‑7 приложение само берёт `WifiManager.MulticastLock` даже на переднем плане; с T‑ext‑7 система делает это сама для foreground‑приложений; проверять `SdkExtensions`, а не `Build.VERSION` ✅ [[NsdManager]](https://developer.android.com/reference/kotlin/android/net/nsd/NsdManager). Исторически «капризен» (одна сессия discovery за раз, зависшие listener’ы после краша) ✅ [[CommonsWare]](https://commonsware.com/office-hours/2021-04-27); Kore использует JmDNS ✅ [[Kore README]](https://github.com/xbmc/Kore). Для нас: `NsdManager` + ручной ввод IP + «последний удачный адрес» как fallback; компаньон публикует `_vlc-remote._tcp` с TXT (`vlc=3.0.23`, `companion=1`, `http=8080`).
-- Эмулятор изолирован за виртуальным роутером — multicast не проходит, mDNS в эмуляторе **не работает**; хост = `10.0.2.2` ✅ [[emulator networking]](https://developer.android.com/studio/run/emulator-networking-address).
+- **Android 17 / targetSdk 37:** a new runtime permission **`ACCESS_LOCAL_NETWORK`** (the `NEARBY_DEVICES` group), mandatory for any traffic to local addresses: mDNS/SSDP over raw sockets, `NsdManager`, **OkHttp/Cronet to 192.168.0.0/16, 10/8, 172.16/12, link-local, multicast/broadcast**. The only exceptions are DNS:53 and the Output Switcher. On Android 16 this is opt-in via the temporary `NEARBY_WIFI_DEVICES`; test: `adb shell am compat enable RESTRICT_LOCAL_NETWORK <pkg>`; when blocked — `EPERM`/`ECONNABORTED` ✅ [[Android 16 targeting]](https://developer.android.com/about/versions/16/behavior-changes-16), [[Android 17 targeting]](https://developer.android.com/about/versions/17/behavior-changes-17), [[local network permission]](https://developer.android.com/privacy-and-security/local-network-permission). Do not request it before moving to targetSdk 37; explain why during onboarding ("to see your PC on the home network").
+- **`NsdManager`:** before SDK extension T-7 the app takes a `WifiManager.MulticastLock` itself, even in the foreground; from T-ext-7 the system does it itself for foreground apps; check `SdkExtensions`, not `Build.VERSION` ✅ [[NsdManager]](https://developer.android.com/reference/kotlin/android/net/nsd/NsdManager). Historically "capricious" (one discovery session at a time, stuck listeners after a crash) ✅ [[CommonsWare]](https://commonsware.com/office-hours/2021-04-27); Kore uses JmDNS ✅ [[Kore README]](https://github.com/xbmc/Kore). For us: `NsdManager` + manual IP entry + "last successful address" as a fallback; the companion publishes `_vlc-remote._tcp` with TXT (`vlc=3.0.23`, `companion=1`, `http=8080`).
+- The emulator is isolated behind a virtual router — multicast does not pass, mDNS in the emulator **does not work**; the host = `10.0.2.2` ✅ [[emulator networking]](https://developer.android.com/studio/run/emulator-networking-address).
 
 ### 2.8. Bluetooth Classic (RFCOMM)
 
-- API 31+: runtime `BLUETOOTH_CONNECT` для `createRfcommSocketToServiceRecord()`; `BLUETOOTH_SCAN` только если ищем устройства (нам достаточно `bondedDevices`) ✅ [[BluetoothSocket]](https://developer.android.com/reference/android/bluetooth/BluetoothSocket).
-- **Android 17:** `InputStream.read()` на RFCOMM возвращает `-1` при закрытии/обрыве вместо `IOException` — цикл чтения должен проверять оба ✅ [[Android 17]](https://developer.android.com/about/versions/17/behavior-changes-17). Android 16: `ACTION_KEY_MISSING` при потере bond, Android 17 — автономное повторное сопряжение с диалогом пользователю ✅.
-- Windows‑сторона (компаньон на C#): `RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(...))` + `StreamSocketListener` (WinRT, работает из desktop .NET) либо 32feet.NET ✅ [[MS docs]](https://msdn.microsoft.com/library/windows/apps/dn263511), [[32feet]](https://inthehand.com/components/32feet/). Сопряжение делается в настройках Windows/Android, приложение только подключается к SPP‑UUID. Bluetooth — **резервный канал** (Wi‑Fi упал, роутер перезагружается) и для «разбудить ноутбук» — не основной.
+- API 31+: runtime `BLUETOOTH_CONNECT` for `createRfcommSocketToServiceRecord()`; `BLUETOOTH_SCAN` only if we search for devices (`bondedDevices` is enough for us) ✅ [[BluetoothSocket]](https://developer.android.com/reference/android/bluetooth/BluetoothSocket).
+- **Android 17:** `InputStream.read()` on RFCOMM returns `-1` on close/disconnect instead of an `IOException` — the read loop must check both ✅ [[Android 17]](https://developer.android.com/about/versions/17/behavior-changes-17). Android 16: `ACTION_KEY_MISSING` when the bond is lost; Android 17 — autonomous re-pairing with a dialog for the user ✅.
+- Windows side (the C# companion): `RfcommServiceProvider.CreateAsync(RfcommServiceId.FromUuid(...))` + `StreamSocketListener` (WinRT, works from desktop .NET) or 32feet.NET ✅ [[MS docs]](https://msdn.microsoft.com/library/windows/apps/dn263511), [[32feet]](https://inthehand.com/components/32feet/). Pairing is done in the Windows/Android settings, the app only connects to the SPP UUID. Bluetooth is a **fallback channel** (Wi-Fi went down, the router is rebooting) and for "wake the laptop" — not the main one.
 
-### 2.9. Батарея и когда отключаться
+### 2.9. Battery and when to disconnect
 
-Правила:
-1. Экран приложения виден → соединение держим (WebSocket/поллинг 500–1000 мс по `status.json`, см. `live-probe.md`: ~21 мс на localhost).
-2. Приложение ушло в фон, на ПК идёт воспроизведение → FGS + MediaSession, поллинг реже (2–5 с) или только push от компаньона.
-3. На ПК `stopped` > 10 мин **или** телефон потерял Wi‑Fi → закрыть сокет, остановить FGS, оставить «тихое» уведомление не нужно. Возобновление — по открытию приложения, плитке, виджету или клавише громкости (через MediaSession, если сессия ещё жива).
-4. Doze: не бороться; реконнект с экспоненциальным backoff + jitter при возвращении; тест `adb shell dumpsys deviceidle force-idle`.
+Rules:
+1. The app screen is visible → keep the connection (WebSocket/polling `status.json` every 500–1000 ms, see `live-probe.md`: ~21 ms on localhost).
+2. The app went to the background, playback is running on the PC → FGS + MediaSession, poll less often (2–5 s) or only push from the companion.
+3. The PC is `stopped` > 10 min **or** the phone lost Wi-Fi → close the socket, stop the FGS; there is no need to leave a "quiet" notification. Resume on opening the app, the tile, the widget, or a volume key (via MediaSession, if the session is still alive).
+4. Doze: do not fight it; reconnect with exponential backoff + jitter on return; test with `adb shell dumpsys deviceidle force-idle`.
 
-### 2.10. Прочие изменения платформы, влияющие на UI
+### 2.10. Other platform changes affecting the UI
 
-- **Edge‑to‑edge обязателен** при targetSdk 36 на Android 16 (opt‑out отключён) ✅ — в Compose это `enableEdgeToEdge()` + `WindowInsets`; для пульта это плюс: контент под статус‑баром, кнопки над навигационной панелью.
-- **Predictive back** включён по умолчанию при targetSdk 36; `onBackPressed`/`KEYCODE_BACK` не приходят ✅ — использовать `BackHandler`/Navigation 3.
-- **Ориентация:** на экранах ≥ sw600dp (планшеты, Chromebook) `screenOrientation` игнорируется при targetSdk 36, временный opt‑out не действует для 37 ✅ — ландшафтный макет нужен в любом случае (§4.2).
+- **Edge-to-edge is mandatory** with targetSdk 36 on Android 16 (the opt-out is disabled) ✅ — in Compose this is `enableEdgeToEdge()` + `WindowInsets`; for a remote it is a plus: content under the status bar, buttons above the navigation bar.
+- **Predictive back** is on by default with targetSdk 36; `onBackPressed`/`KEYCODE_BACK` are not delivered ✅ — use `BackHandler`/Navigation 3.
+- **Orientation:** on screens ≥ sw600dp (tablets, Chromebooks) `screenOrientation` is ignored with targetSdk 36, the temporary opt-out does not work for 37 ✅ — a landscape layout is needed in any case (§4.2).
 
 ---
 
-## 3. UX‑исследование: что берём у лучших пультов
+## 3. UX research: what we take from the best remotes
 
-### 3.1. Обзор приложений
+### 3.1. App overview
 
-| Приложение | Что устроено хорошо (паттерны) | Что ругают / чего не хватает |
+| App | What is done well (patterns) | What is criticized / missing |
 |---|---|---|
-| **Kore** (Kodi, open source, Apache‑2.0, v3.1.0 янв. 2024) ✅ [[F‑Droid]](https://f-droid.org/en/packages/org.xbmc.kore/), [[Kore 3.0]](https://kodi.tv/article/kore-3-0) | Пульт с *текущим состоянием воспроизведения прямо на экране пульта*; Now Playing с деталями фильма/сериала; смена/синхронизация/загрузка субтитров и аудиодорожек; плейлист; библиотека с постерами; WoL; «Отправить в Kodi» (YouTube/URL через share‑sheet + ввод текста); Material 3 + dynamic color; медиа‑уведомления Android | Запросы: «Resume playing» (6 👍), «Playback speed» (2), «показывать диалоги Kodi в Kore», «вести себя как медиаплеер (media buttons)», «регулятор громкости слишком мелкий»; на бете 3.0 просили **большие прямоугольные кнопки вместо мелких иконок** ✅ [[issues]](https://github.com/xbmc/Kore/issues), [[forum]](https://forum.kodi.tv/showthread.php?tid=369711) |
-| **Plex** (спецификация Companion/remote) ✅ [[wiki]](https://github.com/plexinc/plex-media-player/wiki/Remote-control-API), [[Android 7.14]](https://apkmirror.com/apk/plex-inc/plex/plex-7-14-1-9954-release) | Кнопка Now Playing *серая, когда ничего не играет*; при остановке на ТВ остаёмся на экране Now Playing в состоянии «остановлено», не выкидываем; ошибка команды → toast + считать плеер отключённым; удалённое управление размером/цветом/позицией/смещением субтитров | Companion фактически «почти deprecated», публичного API нет ✅ [[forum]](https://forums.plex.tv/t/feature-request-supported-server-mediated-api-for-controlling-remote-plex-plexamp-sessions/942315) |
-| **Jellyfin** (Android) ✅ [[Symfonium]](https://support.symfonium.app/t/allow-symfonium-to-control-jellyfin-on-other-devices/7973) | «Cast to session»: пульт — просто ещё один пункт в меню Cast; список активных сессий | Зависит от возможностей целевого клиента; команды могут молча игнорироваться |
-| **Google TV Remote** (M3 Expressive, v4.39, авг. 2025) ✅ [[9to5google]](https://9to5google.com/2025/08/23/google-tv-app-material-3-expressive/), [[TechHive]](https://www.techhive.com/article/582309/the-android-tv-remote-app-for-ios-is-as-bare-bones-as-the-android-version.html) | Пульт — полноэкранная страница, а не выезжающая панель; переключатель **D‑pad ↔ свайп‑тачпад**; голос; выбор устройства внизу крупными кнопками | Регрессия: long‑press на «select» сломался после редизайна — урок: тестировать долгие нажатия |
-| **Apple TV Remote** (Control Center) ✅ [[HowToGeek]](https://www.howtogeek.com/720922/how-to-use-your-iphone-or-ipad-as-an-apple-tv-remote/), [[HIG]](https://developer-mdn.apple.com/design/human-interface-guidelines/inputs/remotes) | Большая жестовая поверхность; **физические кнопки громкости телефона управляют ТВ**; HIG: не реагировать на случайный тап во время воспроизведения, не переопределять стандартные жесты | D‑pad иногда доступен только из Control Center (баг) |
-| **Infuse** ✅ [[support]](https://support.firecore.com/hc/en-us/articles/215090907), [[community]](https://community.firecore.com/t/subtitle-delay/14737.md), [[2x]](https://community.firecore.com/t/temporary-2x-speed-on-apple-tv-like-ios-has/57701.md) | Меню Playback с вкладкой Subtitles: язык/файл, внешний вид, позиция, **offset**; временная 2× при удержании (8.3.2) | Смещение субтитров приходится подбирать для каждого файла — просят запоминать; удержание > 10 с утомляет — просят toggle; OSD закрывает субтитры — прятать контролы быстро; просят список пресетов скорости |
-| **Unified Remote** ✅ [[App Store]](https://apps.apple.com/us/app/825534179), [[Softpedia]](https://mobile.softpedia.com/android/Unified-Remote-Android-Review-2859.html) | Медиа‑пульт «play/pause/громкость/треки всегда в один тап»; хаптика (настраиваемая); без логина; list/grid; тёмная тема | Дёргания трекпада; drag отпускается; серверная часть глючит на lock‑screen Windows |
-| **KDE Connect** (MPRIS) ✅ [[bug 390414]](https://bugs.kde.org/show_bug.cgi?id=390414), [[D12559]](https://phabricator.kde.org/D12559) | Слайдер громкости на каждый аудиовыход (sink) + mute по иконке; слайдер позиции = перемотка | Отказались добавлять FF/RW‑кнопки «ради простоты поддержки» — пользователи просили; MPRIS у VLC «kinda broken» |
-| **Sonos** (редизайн 2024 → фикс 2026) ✅ [[CMSWire]](https://www.cmswire.com/customer-experience/sonos-app-redesign-fail-customer-outrage-and-falling-stock-prices), [[forum]](https://en.community.sonos.com/controllers-and-music-services-229131/apps-fiddly-volume-control-6933330), [[eCoustics]](https://www.ecoustics.com/news/sonos-app-update-2026/) | Урок «как не надо»: лаг/прыжки громкости; слайдер‑«тир»: надо попасть в точку, хотят **относительный** жест; случайный mute на малой громкости; убрали **цифры громкости**; убрали функции без объяснений; «всё в лицо сразу»; в 2026 вернули нижние вкладки и переделали громкость, выпускали как opt‑in бету | — |
+| **Kore** (Kodi, open source, Apache-2.0, v3.1.0 Jan 2024) ✅ [[F-Droid]](https://f-droid.org/en/packages/org.xbmc.kore/), [[Kore 3.0]](https://kodi.tv/article/kore-3-0) | A remote with *the current playback state right on the remote screen*; Now Playing with movie/series details; switching/syncing/downloading subtitles and audio tracks; playlist; library with posters; WoL; "Send to Kodi" (YouTube/URL via the share sheet + text input); Material 3 + dynamic color; Android media notifications | Requests: "Resume playing" (6 👍), "Playback speed" (2), "show Kodi dialogs in Kore", "behave like a media player (media buttons)", "the volume control is too small"; on the 3.0 beta people asked for **large rectangular buttons instead of small icons** ✅ [[issues]](https://github.com/xbmc/Kore/issues), [[forum]](https://forum.kodi.tv/showthread.php?tid=369711) |
+| **Plex** (Companion/remote specification) ✅ [[wiki]](https://github.com/plexinc/plex-media-player/wiki/Remote-control-API), [[Android 7.14]](https://apkmirror.com/apk/plex-inc/plex/plex-7-14-1-9954-release) | The Now Playing button is *grey when nothing is playing*; when playback stops on the TV we stay on the Now Playing screen in the "stopped" state, we do not kick the user out; a command error → toast + treat the player as disconnected; remote control of subtitle size/color/position/offset | Companion is effectively "almost deprecated", there is no public API ✅ [[forum]](https://forums.plex.tv/t/feature-request-supported-server-mediated-api-for-controlling-remote-plex-plexamp-sessions/942315) |
+| **Jellyfin** (Android) ✅ [[Symfonium]](https://support.symfonium.app/t/allow-symfonium-to-control-jellyfin-on-other-devices/7973) | "Cast to session": the remote is just another item in the Cast menu; a list of active sessions | Depends on the target client's capabilities; commands may be silently ignored |
+| **Google TV Remote** (M3 Expressive, v4.39, Aug 2025) ✅ [[9to5google]](https://9to5google.com/2025/08/23/google-tv-app-material-3-expressive/), [[TechHive]](https://www.techhive.com/article/582309/the-android-tv-remote-app-for-ios-is-as-bare-bones-as-the-android-version.html) | The remote is a full-screen page, not a slide-out panel; a **D-pad ↔ swipe touchpad** toggle; voice; device selection at the bottom with large buttons | Regression: long-press on "select" broke after the redesign — lesson: test long presses |
+| **Apple TV Remote** (Control Center) ✅ [[HowToGeek]](https://www.howtogeek.com/720922/how-to-use-your-iphone-or-ipad-as-an-apple-tv-remote/), [[HIG]](https://developer-mdn.apple.com/design/human-interface-guidelines/inputs/remotes) | A large gesture surface; **the phone's physical volume buttons control the TV**; HIG: do not react to an accidental tap during playback, do not override standard gestures | The D-pad is sometimes available only from Control Center (a bug) |
+| **Infuse** ✅ [[support]](https://support.firecore.com/hc/en-us/articles/215090907), [[community]](https://community.firecore.com/t/subtitle-delay/14737.md), [[2x]](https://community.firecore.com/t/temporary-2x-speed-on-apple-tv-like-ios-has/57701.md) | A Playback menu with a Subtitles tab: language/file, appearance, position, **offset**; temporary 2× on hold (8.3.2) | The subtitle offset has to be tuned for every file — people ask for it to be remembered; holding > 10 s is tiring — people ask for a toggle; the OSD covers subtitles — hide controls quickly; people ask for a list of speed presets |
+| **Unified Remote** ✅ [[App Store]](https://apps.apple.com/us/app/825534179), [[Softpedia]](https://mobile.softpedia.com/android/Unified-Remote-Android-Review-2859.html) | A media remote with "play/pause/volume/tracks always one tap away"; haptics (configurable); no login; list/grid; dark theme | Trackpad jitter; drag gets released; the server side glitches on the Windows lock screen |
+| **KDE Connect** (MPRIS) ✅ [[bug 390414]](https://bugs.kde.org/show_bug.cgi?id=390414), [[D12559]](https://phabricator.kde.org/D12559) | A volume slider per audio output (sink) + mute via the icon; position slider = seeking | Refused to add FF/RW buttons "to keep maintenance simple" — users asked for them; VLC's MPRIS is "kinda broken" |
+| **Sonos** (2024 redesign → 2026 fix) ✅ [[CMSWire]](https://www.cmswire.com/customer-experience/sonos-app-redesign-fail-customer-outrage-and-falling-stock-prices), [[forum]](https://en.community.sonos.com/controllers-and-music-services-229131/apps-fiddly-volume-control-6933330), [[eCoustics]](https://www.ecoustics.com/news/sonos-app-update-2026/) | A "how not to do it" lesson: volume lag/jumps; a "shooting range" slider: you have to hit the exact point, people want a **relative** gesture; accidental mute at low volume; **volume numbers** removed; features removed without explanation; "everything in your face at once"; in 2026 they brought back the bottom tabs and reworked volume, released as an opt-in beta | — |
 
-### 3.2. Жалобы на существующие VLC‑пульты (Android/iOS)
+### 3.2. Complaints about existing VLC remotes (Android/iOS)
 
-Источники: App Store‑страницы (Play Store не отдаёт содержимое без JS; Android‑версии тех же приложений — те же авторы и функции), VideoLAN‑форум, агрегатор отзывов.
+Sources: App Store pages (the Play Store does not serve content without JS; the Android versions of the same apps have the same authors and features), the VideoLAN forum, a review aggregator.
 
-- **Соединение отваливается** «после коротких периодов использования, нужен перезапуск приложения» — главная жалоба на VLC Remote (агрегат 84 из 563 отзывов) ✅ [[marlvel.ai]](https://marlvel.ai/apps/vlc-remote/reviews). Урок: авто‑реконнект незаметно для пользователя, индикатор состояния, никогда не терять экран.
-- **Пароль HTTP‑интерфейса.** С VLC 2.1 интерфейс без пароля не отвечает; клиенты запрашивают *имя пользователя*, которое должно быть пустым — люди не понимают ✅ [[форум 2013]](https://forum.videolan.org/viewtopic.php?p=392423), [[форум 2015]](https://forum.videolan.org/viewtopic.php?p=425210). Оба коммерческих пульта решили это **ПК‑помощником**: «Setup Wizard» + «VMR Connect» у Adarsh Urs; «free setup helper configures VLC» у Hobbyist ✅ [[App Store VMR]](https://apps.apple.com/us/app/vlc-mobile-remote/id1140931401), [[App Store Hobbyist]](https://apps.apple.com/us/app/id297244048). Наш компаньон обязан делать это сам (включить `http` в `vlcrc`, задать пароль, показать QR).
-- **Реклама и дроблёные покупки.** У VMR 10 разных IAP ($0.99–$7.99), «incredibly intrusive advertising» после обновления; у VLC Remote — «подписка на уже купленное» ✅. Для нас не актуально (личное приложение), но объясняет, почему люди ищут open‑source.
-- **Перемотка слишком чувствительна:** «‑10s иногда отбрасывает в начало» ✅ [[Hobbyist reviews]](https://apps.apple.com/us/app/id297244048) — у VLC `seek&val=-10` относительный, но если команда ушла дважды или состояние рассинхронизировалось, получаем прыжок. Урок: debounce, оптимистичное обновление с подтверждением по `status.json`, не слать `seek` с абсолютной позицией из устаревшего состояния.
-- **Несколько ПК в сети:** «видит только один сервер, настройки перезаписываются» ✅ — список хостов с именами, как в Remote for VLC (nickname, test connection) ✅ [[android-vlc-remote]](https://github.com/samicemalone/android-vlc-remote).
-- **Плейлист возвращается к первому элементу, пропадает громкость после загрузки новых файлов** ✅ — следствие полного перезапроса состояния; держать стабильные `id` из `playlist.json`.
-- Что уже умеет open‑source Remote for VLC (GPL‑3, Java, заброшен): уведомление с контролами, кнопки crop/subtitle/fullscreen/audio/aspect в action bar, браузер с «библиотекой» из нескольких папок, главы, **пресеты задержки аудио/субтитров**, парсинг имён файлов на фильмы/серии ✅ — хороший чек‑лист паритета.
+- **The connection drops** "after short periods of use, the app needs a restart" — the main complaint about VLC Remote (aggregate: 84 of 563 reviews) ✅ [[marlvel.ai]](https://marlvel.ai/apps/vlc-remote/reviews). Lesson: auto-reconnect invisible to the user, a status indicator, never lose the screen.
+- **The HTTP interface password.** Since VLC 2.1 the interface does not respond without a password; clients ask for a *user name*, which must be empty — people do not get it ✅ [[forum 2013]](https://forum.videolan.org/viewtopic.php?p=392423), [[forum 2015]](https://forum.videolan.org/viewtopic.php?p=425210). Both commercial remotes solved this with a **PC helper**: "Setup Wizard" + "VMR Connect" from Adarsh Urs; "free setup helper configures VLC" from Hobbyist ✅ [[App Store VMR]](https://apps.apple.com/us/app/vlc-mobile-remote/id1140931401), [[App Store Hobbyist]](https://apps.apple.com/us/app/id297244048). Our companion must do this itself (enable `http` in `vlcrc`, set a password, show a QR code).
+- **Ads and fragmented purchases.** VMR has 10 different IAPs ($0.99–$7.99), "incredibly intrusive advertising" after an update; VLC Remote has "a subscription for what was already bought" ✅. Not relevant for us (a personal app), but it explains why people look for open source.
+- **Seeking is too sensitive:** "-10s sometimes throws you back to the start" ✅ [[Hobbyist reviews]](https://apps.apple.com/us/app/id297244048) — in VLC `seek&val=-10` is relative, but if the command went out twice or the state got out of sync, we get a jump. Lesson: debounce, optimistic update with confirmation via `status.json`, never send a `seek` with an absolute position from stale state.
+- **Several PCs on the network:** "sees only one server, settings get overwritten" ✅ — a list of hosts with names, as in Remote for VLC (nickname, test connection) ✅ [[android-vlc-remote]](https://github.com/samicemalone/android-vlc-remote).
+- **The playlist goes back to the first item, the volume disappears after loading new files** ✅ — a consequence of re-requesting the whole state; keep stable `id`s from `playlist.json`.
+- What the open-source Remote for VLC (GPL-3, Java, abandoned) can already do: a notification with controls, crop/subtitle/fullscreen/audio/aspect buttons in the action bar, a browser with a "library" from several folders, chapters, **audio/subtitle delay presets**, parsing file names into movies/episodes ✅ — a good parity checklist.
 
-### 3.3. Извлечённые паттерны и наши решения
+### 3.3. Extracted patterns and our decisions
 
-**Поверхность для перемотки и громкости.**
-- *Слайдер* (Plex/Kore/KDE) — точен для абсолютной позиции, плох для «на 10 секунд назад, не глядя». *Свайп‑тачпад* (Apple TV/Google TV) — хорош для навигации по меню, но для перемотки без визуальной обратной связи на телефоне непредсказуем. *Кнопки‑скачки* — единственное, что работает в темноте не глядя.
-- Решение: **три слоя.** (1) Кнопки ⟲10 / ⟳30 (настраиваемые: 10/30/60/90 с; в сериалах 90 с = «пропустить заставку»), автоповтор при удержании с ускорением; (2) scrub‑бар с главами (насечки по `information.chapters`, хаптика `SegmentTick` при пересечении главы), при перетаскивании — крупная подпись времени над пальцем; «зоны скорости» как в iOS: чем дальше палец ушёл вниз от бара, тем медленнее масштаб (1×, ½×, ¼×) — не проверено на Compose, реализуется через `pointerInput`; (3) опциональная жестовая поверхность поверх постера: горизонтальный свайп = ±10 с за каждые N dp, вертикальный = громкость, тап = play/pause, двойной тап слева/справа = ±10 с (конвенция мобильного VLC/YouTube). Обязательно: игнорировать случайный тап первые 300 мс после появления экрана (Apple HIG).
-- Громкость: **относительные** жесты и ±кнопки, слайдер с **цифрой** (Sonos‑урок), защита от mute (mute — отдельная кнопка, слайдер в 0 не уводит). Шкала VLC 0..512 показывать как 0–200 % (256 = 100 %) с мягким ограничителем на 100 %; см. `live-probe.md`.
+**The surface for seeking and volume.**
+- A *slider* (Plex/Kore/KDE) is precise for an absolute position, bad for "10 seconds back without looking". A *swipe touchpad* (Apple TV/Google TV) is good for menu navigation, but unpredictable for seeking without visual feedback on the phone. *Skip buttons* are the only thing that works in the dark without looking.
+- Decision: **three layers.** (1) ⟲10 / ⟳30 buttons (configurable: 10/30/60/90 s; for series 90 s = "skip intro"), auto-repeat on hold with acceleration; (2) a scrub bar with chapters (tick marks from `information.chapters`, `SegmentTick` haptics when crossing a chapter), while dragging — a large time label above the finger; "speed zones" as in iOS: the further the finger moves down from the bar, the slower the scale (1×, ½×, ¼×) — not verified in Compose, implemented via `pointerInput`; (3) an optional gesture surface over the poster: horizontal swipe = ±10 s per N dp, vertical = volume, tap = play/pause, double tap left/right = ±10 s (the mobile VLC/YouTube convention). Mandatory: ignore an accidental tap during the first 300 ms after the screen appears (Apple HIG).
+- Volume: **relative** gestures and ± buttons, a slider with a **number** (the Sonos lesson), protection against mute (mute is a separate button, the slider does not go down to 0). Show the VLC scale 0..512 as 0–200 % (256 = 100 %) with a soft stop at 100 %; see `live-probe.md`.
 
-**Play/Pause и досягаемость.**
-- Хубер: 49 % держат телефон одной рукой, ⅔ из них — правой; «зона большого пальца» — модель, а не шаблон; пользователи сами подтягивают контент к центру ✅ [[A List Apart]](https://alistapart.com/1-2-phone-grips-jpg/), [[Osmani]](https://addyosmani.com/blog/touch-friendly-design/).
-- Решение: транспортный ряд в **нижней трети** экрана, play/pause ≥ 88 dp по центру, соседние 64 dp; верх экрана — информационный (постер, название), вниз не тянется ничего критичного. **Левша‑режим** — зеркалирование ряда быстрых действий и положения слайдера громкости (настройка, не автоопределение). Для планшета/ландшафта — `SupportingPaneScaffold`: слева Now Playing, справа транспорт; учитывать *height class compact* на телефоне в ландшафте — там два ряда кнопок вместо постера.
+**Play/Pause and reachability.**
+- Hoober: 49 % hold the phone with one hand, ⅔ of them with the right hand; the "thumb zone" is a model, not a template; users pull content towards the centre themselves ✅ [[A List Apart]](https://alistapart.com/1-2-phone-grips-jpg/), [[Osmani]](https://addyosmani.com/blog/touch-friendly-design/).
+- Decision: the transport row in the **bottom third** of the screen, play/pause ≥ 88 dp in the centre, neighbours 64 dp; the top of the screen is informational (poster, title), nothing critical requires reaching down. **Left-handed mode** — mirroring the quick-action row and the position of the volume slider (a setting, not auto-detection). For tablet/landscape — `SupportingPaneScaffold`: Now Playing on the left, transport on the right; account for the *height class compact* of a phone in landscape — there, two rows of buttons instead of the poster.
 
-**Now Playing.** Постер/backdrop (TMDB) с затемнением, название + год, чипы «1080p · AC3 5.1 RU · SRT RU» (тап по чипу = соответствующий sheet), прогресс «00:42:17 / 2:58:25 · осталось 2:16», название главы (с компаньоном или Lua‑страницей — `live-probe.md`). В состоянии `stopped` экран **не пропадает** (Plex): показываем последний фильм и кнопку «Продолжить с 00:42».
+**Now Playing.** A poster/backdrop (TMDB) with a dim overlay, title + year, chips "1080p · AC3 5.1 RU · SRT RU" (tapping a chip = the corresponding sheet), progress "00:42:17 / 2:58:25 · 2:16 left", the chapter name (with the companion or a Lua page — `live-probe.md`). In the `stopped` state the screen **does not disappear** (Plex): we show the last movie and a "Resume from 00:42" button.
 
-**Быстрые переключатели дорожек.** Sheet с радио‑списком; формат строки: `Язык · Описание (кодек, каналы)`; сортировка: предпочитаемые языки пользователя первыми; «Выкл.» наверху для субтитров. Данные — из `information.category` (`Stream N` → ID), текущая — из Lua‑страницы/компаньона либо оптимистично (см. `live-probe.md`).
+**Quick track switchers.** A sheet with a radio list; row format: `Language · Description (codec, channels)`; sorting: the user's preferred languages first; "Off" at the top for subtitles. Data comes from `information.category` (`Stream N` → ID), the current one — from a Lua page/the companion or optimistically (see `live-probe.md`).
 
-**Тонкая подстройка задержки.** Кнопки ±50 мс и ±500 мс + «сброс» + отображение текущего значения; кнопка «запомнить для этого файла» (Infuse‑боль) — хранить в Room по пути файла; применять при следующем запуске того же файла. Для аудио — то же.
+**Fine delay adjustment.** ±50 ms and ±500 ms buttons + "reset" + display of the current value; a "remember for this file" button (the Infuse pain point) — store in Room by file path; apply the next time the same file is started. The same for audio.
 
-**Таймер сна.** 15/30/45/60 мин и «в конце фильма/серии»; по истечении — `pl_pause` (не `stop`, чтобы сохранить позицию) и, с компаньоном, погасить монитор/усыпить ПК.
+**Sleep timer.** 15/30/45/60 min and "at the end of the movie/episode"; when it expires — `pl_pause` (not `stop`, to keep the position) and, with the companion, turn off the monitor/put the PC to sleep.
 
-**Главы.** Список глав с названиями (при наличии) и временем; текущая подсвечена; тап = `chapter&val=N`.
+**Chapters.** A list of chapters with names (if any) and times; the current one highlighted; tap = `chapter&val=N`.
 
-**Скорость.** Пресеты 0.75/1/1.25/1.5/2 + «удержание ▶▶ = временная 2×» (Infuse), помня, что `rate` квантуется (сравнивать с допуском, `live-probe.md`).
+**Speed.** Presets 0.75/1/1.25/1.5/2 + "hold ▶▶ = temporary 2×" (Infuse), remembering that `rate` is quantized (compare with a tolerance, `live-probe.md`).
 
-**Аспект/зум/кроп.** Список из README (`16:9`, `4:3`, `221:100`, `235:100`, `239:100`, …) ✅ [[README]](https://github.com/videolan/vlc/tree/master/share/lua/http/requests); «по умолчанию» первым; кроп — отдельно; предпросмотр невозможен — просто подписи «Убрать чёрные полосы (2.35:1 → 16:9)».
+**Aspect/zoom/crop.** The list from the README (`16:9`, `4:3`, `221:100`, `235:100`, `239:100`, …) ✅ [[README]](https://github.com/videolan/vlc/tree/master/share/lua/http/requests); "default" first; crop — separately; a preview is impossible — just labels like "Remove black bars (2.35:1 → 16:9)".
 
-**Продолжить просмотр.** VLC не хранит позиции per‑file по HTTP; делаем сами: каждые 10 с писать `path → time` в Room, при `stopped` — финальную; карточка «Продолжить» наверху библиотеки и на пульте; запуск = `in_play&input=<uri>` + `seek&val=<sec>` после смены `currentplid`. Если < 5 % или > 95 % — считать «не начат» / «просмотрен».
+**Continue watching.** VLC does not store per-file positions over HTTP; we do it ourselves: every 10 s write `path → time` to Room, on `stopped` — the final one; a "Continue" card at the top of the library and on the remote; start = `in_play&input=<uri>` + `seek&val=<sec>` after `currentplid` changes. If < 5 % or > 95 % — treat as "not started" / "watched".
 
-**Библиотека.** Два вида: *папки* (`browse.json?uri=file:///D:/shared/`, сортировка «папки сначала», хлебные крошки) и *постеры* (сетка 3×, 2:3, год, полоса прогресса). Сериалы = папка → список серий с SxxEyy. Fast‑scroll с буквой; поиск по названию (и по имени файла); фильтр «не просмотрено». Файлы без метаданных — иконка + имя файла, не ломать сетку.
+**Library.** Two views: *folders* (`browse.json?uri=file:///D:/shared/`, sorted "folders first", breadcrumbs) and *posters* (a 3× grid, 2:3, year, a progress bar). Series = a folder → a list of episodes with SxxEyy. Fast scroll with a letter; search by title (and by file name); a "not watched" filter. Files without metadata — an icon + the file name, do not break the grid.
 
-**Тёмная тема.** Material: фон `#121212`, не чистый чёрный; текст не чисто белый (87 % белого) ✅ [[Android Devs]](https://medium.com/androiddevelopers/dark-theme-with-mdc-4c6fc357d956). Для OLED в тёмной комнате — **опция «True black»** (фон `#000000`, поверхности `#0A0A0A`) и приглушённые акценты; заявление о «смазывании» чёрного — из вторичных источников, не проверено. Яркость кнопок снижать по датчику освещённости — не проверено, опционально. Dynamic color (Material You) — да, но с проверкой контраста на тёмном.
+**Dark theme.** Material: background `#121212`, not pure black; text not pure white (87 % white) ✅ [[Android Devs]](https://medium.com/androiddevelopers/dark-theme-with-mdc-4c6fc357d956). For OLED in a dark room — a **"True black" option** (background `#000000`, surfaces `#0A0A0A`) and muted accents; the claim about black "smearing" is from secondary sources, not verified. Dimming the buttons based on the light sensor — not verified, optional. Dynamic color (Material You) — yes, but with a contrast check on dark.
 
-**Хаптика.** `Confirm` на play/pause, `SegmentTick` на каждые 10 с удержания и на границе главы, `Reject` при ошибке команды (ПК не ответил), `GestureEnd` при отпускании scrub‑бара. Всё — выключаемо.
+**Haptics.** `Confirm` on play/pause, `SegmentTick` on every 10 s of holding and at a chapter boundary, `Reject` on a command error (the PC did not respond), `GestureEnd` on releasing the scrub bar. All of it can be turned off.
 
-**Состояние соединения** — всегда видно одной строкой сверху (имя ПК · пинг · значок), тап → экран «Подключение». Ошибка команды → снэкбар с действием «Повторить», не модалка.
+**Connection state** — always visible as one line at the top (PC name · ping · icon), tap → the "Connection" screen. A command error → a snackbar with a "Retry" action, not a modal.
 
-**Антипаттерны (Sonos):** не прятать цифры, не убирать функции молча, не грузить всё сразу, не ломать то, что работало (Google TV long‑press).
+**Anti-patterns (Sonos):** do not hide the numbers, do not remove features silently, do not load everything at once, do not break what used to work (Google TV long-press).
 
 ---
 
-## 4. Метаданные, обложки, субтитры
+## 4. Metadata, artwork, subtitles
 
-### 4.1. Парсинг имён файлов
+### 4.1. Parsing file names
 
-Эталон — Python‑библиотека **guessit** (title, year, season/episode, screen_size `720p/1080p/2160p`, source `Blu-ray/Web/HDTV/DVD`, video_codec `H.264/H.265`, audio_codec `AAC/Dolby Digital/DTS`, audio_channels, release_group, container, edition `Director's Cut/Extended`, other `Proper/Remux/HDR10/Dolby Vision`, language, subtitle_language, country) ✅ [[guessit properties]](https://guessit.readthedocs.io/en/latest/properties.html). JVM‑порта guessit нет (есть TypeScript/WASM `guessit-js` от OpenSubtitles) ✅.
+The reference is the Python library **guessit** (title, year, season/episode, screen_size `720p/1080p/2160p`, source `Blu-ray/Web/HDTV/DVD`, video_codec `H.264/H.265`, audio_codec `AAC/Dolby Digital/DTS`, audio_channels, release_group, container, edition `Director's Cut/Extended`, other `Proper/Remux/HDR10/Dolby Vision`, language, subtitle_language, country) ✅ [[guessit properties]](https://guessit.readthedocs.io/en/latest/properties.html). There is no JVM port of guessit (there is a TypeScript/WASM `guessit-js` from OpenSubtitles) ✅.
 
-Варианты для Kotlin:
-1. **PTN‑подход** (parse‑torrent‑name): цепочка regex’ов, каждое совпадение *вырезается* из строки, остаток после нормализации разделителей — название ✅ [[parse-torrent-title]](https://pypi.org/project/parse-torrent-title/2.4/). Go‑порт `jhin` извлекает 46 полей и байт‑в‑байт совпадает с PTT на golden‑корпусе ✅ [[pkg.go.dev]](https://pkg.go.dev/github.com/dreulavelle/jhin) — удобный источник тестовых кейсов.
-2. **Java‑библиотека** `io.github.mdaubie:torrent-name-parser` (MIT, Java 17, Maven Central) ✅ [[Sonatype]](https://central.sonatype.com/artifact/io.github.mdaubie/torrent-name-parser) — полнота полей не проверена.
-3. **Emby.Naming (C#, Jellyfin)** — разработчик знает C#. Ключевое правило «очистки даты»: `(.+[^_\,\.\(\)\[\]\-])[_\,\.\(\)\[\]\-](19[0-9]{2}|20[0-9]{2})(?![0-9]+|\W[0-9]{2}\W[0-9]{2})([ _\,\.\(\)\[\]\-][^0-9]|$)` + ленивые варианты + `VideoVersionExpressions` (всё до последнего ` - `) ✅ [[Emby.Naming]](https://dev.emby.media/reference/pluginapi/Emby.Naming.Video.VideoResolver.html), [[diff]](https://gitea.hptrow.me/pt/jellyfin/compare/53d432852c9380e57f36adfebd4432c743028127...84f0c5fbe1a5f0352bba0396abff7ae5e3123ad6). Известная ловушка: CleanStrings‑regex с «se» обрезал названия ✅ [[Emby forum]](https://emby.media/community/topic/20947-se-keyword-for-home-videos/).
+Options for Kotlin:
+1. **The PTN approach** (parse-torrent-name): a chain of regexes, each match is *cut out* of the string, the remainder after normalizing separators is the title ✅ [[parse-torrent-title]](https://pypi.org/project/parse-torrent-title/2.4/). The Go port `jhin` extracts 46 fields and matches PTT byte-for-byte on a golden corpus ✅ [[pkg.go.dev]](https://pkg.go.dev/github.com/dreulavelle/jhin) — a handy source of test cases.
+2. **A Java library** `io.github.mdaubie:torrent-name-parser` (MIT, Java 17, Maven Central) ✅ [[Sonatype]](https://central.sonatype.com/artifact/io.github.mdaubie/torrent-name-parser) — field completeness not verified.
+3. **Emby.Naming (C#, Jellyfin)** — the developer knows C#. The key "date cleaning" rule: `(.+[^_\,\.\(\)\[\]\-])[_\,\.\(\)\[\]\-](19[0-9]{2}|20[0-9]{2})(?![0-9]+|\W[0-9]{2}\W[0-9]{2})([ _\,\.\(\)\[\]\-][^0-9]|$)` + lazy variants + `VideoVersionExpressions` (everything up to the last ` - `) ✅ [[Emby.Naming]](https://dev.emby.media/reference/pluginapi/Emby.Naming.Video.VideoResolver.html), [[diff]](https://gitea.hptrow.me/pt/jellyfin/compare/53d432852c9380e57f36adfebd4432c743028127...84f0c5fbe1a5f0352bba0396abff7ae5e3123ad6). A known trap: a CleanStrings regex with "se" truncated titles ✅ [[Emby forum]](https://emby.media/community/topic/20947-se-keyword-for-home-videos/).
 
-**Где парсить.** Рекомендация — **в ПК‑компаньоне (C#)**: там есть `D:\shared` целиком, можно хэшировать файлы, кэшировать TMDB‑ответы для всех телефонов, генерировать миниатюры ffmpeg и отдавать телефону готовый `library.json` (`path, title, year, s/e, quality, tmdbId, poster, backdrop, duration`). На телефоне — лёгкий Kotlin‑парсер для режима «без компаньона» (только `browse.json`) — ~60 строк regex по PTN‑схеме:
+**Where to parse.** The recommendation is **in the PC companion (C#)**: it has all of `D:\shared`, can hash files, cache TMDB responses for all phones, generate ffmpeg thumbnails and give the phone a ready `library.json` (`path, title, year, s/e, quality, tmdbId, poster, backdrop, duration`). On the phone — a light Kotlin parser for the "no companion" mode (only `browse.json`) — ~60 lines of regex following the PTN scheme:
 
 ```kotlin
-// :core:naming — набросок, порядок важен (сначала вырезаем «шум», потом ищем год/SxxEyy)
+// :core:naming — a sketch, order matters (first cut out the "noise", then look for the year/SxxEyy)
 object ReleaseNameParser {
     private val sxe   = Regex("""(?i)\bS(\d{1,2})[ ._-]?E(\d{1,3})\b|\b(\d{1,2})x(\d{2,3})\b""")
     private val year  = Regex("""(?<![\d])(19\d{2}|20\d{2})(?![\d])""")
@@ -282,245 +282,245 @@ object ReleaseNameParser {
     fun parse(fileName: String): Parsed {
         var s = fileName.substringBeforeLast('.').replace('_', ' ')
         val se = sxe.find(s)
-        val yr = year.findAll(s).lastOrNull()            // последний год: «2001 Space Odyssey (1968)»
+        val yr = year.findAll(s).lastOrNull()            // the last year: "2001 Space Odyssey (1968)"
         val tags = listOf(res, src, vcod, acod, other).mapNotNull { it.find(s)?.value }
-        // Название = всё до первого «якоря» (SxxEyy, год или первый тег качества)
+        // Title = everything before the first "anchor" (SxxEyy, the year, or the first quality tag)
         val cut = listOfNotNull(se?.range?.first, yr?.range?.first,
             tags.firstOrNull()?.let { s.indexOf(it) }).minOrNull() ?: s.length
         var title = s.substring(0, cut).replace(Regex("""[.\[\](){}]"""), " ").trim(' ', '-', '.')
-        if (title.isBlank()) title = s.substringBefore(" -").trim()   // «Название - 1080p.mkv»
+        if (title.isBlank()) title = s.substringBefore(" -").trim()   // "Title - 1080p.mkv"
         return Parsed(title, yr?.value?.toInt(), se?.let { seasonOf(it) }, se?.let { episodeOf(it) }, tags)
     }
 }
 ```
 
-Golden‑тесты брать из корпуса PTT/jhin + свои имена из `D:\shared`. Для сериалов папка `Сериал/Season 01/` — сезон из папки, если в имени только `E05`.
+Take golden tests from the PTT/jhin corpus + our own names from `D:\shared`. For series, a `Series/Season 01/` folder — the season comes from the folder if the name only has `E05`.
 
-### 4.2. TMDB: условия, лимиты, картинки
+### 4.2. TMDB: terms, limits, images
 
-- **Условия (API Terms of Use):** бесплатно только для **некоммерческого** использования; коммерческое — отдельный договор. Обязательна атрибуция: логотип TMDB *менее заметный*, чем ваш, и текст «This [application] uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB». **Кэшировать данные не дольше 6 месяцев.** Использование в AI/ML‑приложениях запрещено. Не использовать TMDB как хостинг картинок для рекламы ✅ [[Terms]](https://www.themoviedb.org/api-terms-of-use).
-- **Лимиты:** жёсткого лимита нет с декабря 2019; «где‑то в районе 40 запросов в секунду», уважать `429` ✅ [[rate limiting]](https://developer.themoviedb.org/docs/rate-limiting). Для домашней библиотеки на 500 фильмов — один проход с паузой 100 мс.
-- **Аутентификация:** `Authorization: Bearer <API Read Access Token>` (v4‑токен), либо `api_key` query (legacy) ✅ [[search-movie]](https://developer.themoviedb.org/reference/search-movie). Ключ — в компаньоне (не в APK), телефон получает уже URL картинок. Для режима без компаньона — ключ в `local.properties`/BuildConfig, понимая, что он извлекаем.
-- **Поиск:** `GET /3/search/movie?query=&year=&primary_release_year=&language=ru-RU&include_adult=false&page=1`; `GET /3/search/tv`; затем `/3/movie/{id}?append_to_response=images&include_image_language=ru,null` для постеров на нужном языке; `/3/configuration` для `base_url` и размеров.
-- **Картинки:** `https://image.tmdb.org/t/p/{size}{file_path}`; `poster_sizes: w92 w154 w185 w342 w500 w780 original`; `backdrop_sizes: w300 w780 w1280 original`; `still_sizes: w92 w185 w300 original` ✅ [[image basics]](https://developer.themoviedb.org/docs/image-basics), [[sample config]](https://community.kde.org/Macaw-Movies/TMDB-json-responses) (размеры читать из `/configuration` в рантайме, несуществующий размер → ошибка ✅ [[TMDB talk]](https://themoviedb.org/talk/5a6986550e0a260d6400d6c0)). Для сетки 3× на телефоне — `w342`; для Now Playing — `w780` постер или `w1280` backdrop; для виджета — `w185`.
-- **Fallback‑цепочка:** TMDB → `GET /art` (обложка из кэша VLC, `image/jpeg`; `/art?item=<id>` для элемента плейлиста — `live-probe.md`, README) → миниатюра от компаньона (`ffmpeg -ss 00:05:00 -i f.mkv -frames:v 1 -vf scale=480:-1 thumb.jpg` или VLC `--video-filter=scene`) → плейсхолдер с первой буквой названия.
+- **Terms (API Terms of Use):** free only for **non-commercial** use; commercial use needs a separate agreement. Attribution is mandatory: the TMDB logo must be *less prominent* than yours, and the text "This [application] uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB". **Cache data for no longer than 6 months.** Use in AI/ML applications is prohibited. Do not use TMDB as image hosting for advertising ✅ [[Terms]](https://www.themoviedb.org/api-terms-of-use).
+- **Limits:** there has been no hard limit since December 2019; "somewhere around 40 requests per second", respect `429` ✅ [[rate limiting]](https://developer.themoviedb.org/docs/rate-limiting). For a home library of 500 movies — one pass with a 100 ms pause.
+- **Authentication:** `Authorization: Bearer <API Read Access Token>` (a v4 token), or the `api_key` query parameter (legacy) ✅ [[search-movie]](https://developer.themoviedb.org/reference/search-movie). The key lives in the companion (not in the APK), the phone already receives image URLs. For the no-companion mode — a key in `local.properties`/BuildConfig, understanding that it can be extracted.
+- **Search:** `GET /3/search/movie?query=&year=&primary_release_year=&language=ru-RU&include_adult=false&page=1`; `GET /3/search/tv`; then `/3/movie/{id}?append_to_response=images&include_image_language=ru,null` for posters in the desired language; `/3/configuration` for `base_url` and sizes.
+- **Images:** `https://image.tmdb.org/t/p/{size}{file_path}`; `poster_sizes: w92 w154 w185 w342 w500 w780 original`; `backdrop_sizes: w300 w780 w1280 original`; `still_sizes: w92 w185 w300 original` ✅ [[image basics]](https://developer.themoviedb.org/docs/image-basics), [[sample config]](https://community.kde.org/Macaw-Movies/TMDB-json-responses) (read the sizes from `/configuration` at runtime; a non-existent size → an error ✅ [[TMDB talk]](https://themoviedb.org/talk/5a6986550e0a260d6400d6c0)). For a 3× grid on the phone — `w342`; for Now Playing — a `w780` poster or a `w1280` backdrop; for the widget — `w185`.
+- **Fallback chain:** TMDB → `GET /art` (artwork from the VLC cache, `image/jpeg`; `/art?item=<id>` for a playlist item — `live-probe.md`, README) → a thumbnail from the companion (`ffmpeg -ss 00:05:00 -i f.mkv -frames:v 1 -vf scale=480:-1 thumb.jpg` or VLC `--video-filter=scene`) → a placeholder with the first letter of the title.
 
-### 4.3. Кэширование на телефоне (Coil 3)
+### 4.3. Caching on the phone (Coil 3)
 
-`coil-network-okhttp:3.6.3` на общем `OkHttpClient`; по умолчанию Coil **пишет всё в дисковый кэш, игнорируя `Cache-Control`** — для TMDB (иммутабельные пути) это идеально; `coil-network-cache-control` не нужен ✅ [[Coil network]](https://coil-kt.github.io/coil/network/). Ключ кэша — `file_path` TMDB (стабилен), `/art` — ключ `host + currentplid + filename`. Размер дискового кэша 100–250 МБ. Память: `crossfade`, `placeholder` цветом из палитры предыдущей картинки (не проверено, `Palette` API). Учитывать TMDB‑требование: **6 месяцев** — ставить `maxAge` на записи в Room и инвалидировать.
+`coil-network-okhttp:3.6.3` on the shared `OkHttpClient`; by default Coil **writes everything to the disk cache, ignoring `Cache-Control`** — for TMDB (immutable paths) this is ideal; `coil-network-cache-control` is not needed ✅ [[Coil network]](https://coil-kt.github.io/coil/network/). The cache key is the TMDB `file_path` (stable); for `/art` the key is `host + currentplid + filename`. Disk cache size 100–250 MB. Memory: `crossfade`, a `placeholder` in a colour from the previous image's palette (not verified, `Palette` API). Respect the TMDB requirement: **6 months** — set `maxAge` on the records in Room and invalidate.
 
-### 4.4. Субтитры: OpenSubtitles и Subdl — v1 или позже
+### 4.4. Subtitles: OpenSubtitles and Subdl — v1 or later
 
-- **OpenSubtitles REST API v1** (`api.opensubtitles.com/api/v1`): нужен API‑ключ consumer‑приложения, заголовки `Api-Key` и `User-Agent`, логин по JWT, лимит на логин 1/с, 10/мин, 30/ч (третьи источники) ✅ [[glama]](https://glama.ai/mcp/servers/@opensubtitles/mcp.opensubtitles.com/blob/607a9eb0ecd1d2e908642f9ecf5dd4335d997db0/README.md), [[termo]](https://termo.ai/skills/opensubtitles). **Квоты на скачивание расходятся по источникам:** 5/сутки на IP анонимно, 10/сутки для зарегистрированных, 1000 VIP ✅ [[Reddit 2024]](https://redlib.hbubli.cc/r/learnprogramming/comments/1bd0rxx/using_subtitles_api), [[VideoLAN forum]](https://forum.videolan.org/viewtopic.php?p=545241) против «200/сутки free» ✅ [[Mintlify]](https://www.mintlify.com/logscore/plank/integrations/opensubtitles) — официальная страница (`opensubtitles.stoplight.io`, `/consumers`) не отдаётся без JS/логина — **не проверено**. VLsub в 2024 упирался в VIP‑стену ✅. Вывод: API пригоден только с **аккаунтом пользователя** (логин в приложении) и аккуратным UX квоты.
-- **Subdl:** `GET https://api.subdl.com/api/v1/subtitles?api_key=&film_name=|tmdb_id=|imdb_id=&season_number=&episode_number=&year=&languages=ru,en`, ответ — ссылки на zip ✅ [[cloudstream commit]](https://gitdab.com/recloudstream/cloudstream/commit/469a71236b6e78018f3f72c83f0b051bdab189c3); лимит ~2000 вызовов/сутки на ключ — из вторичного источника ✅ [[tMM issue]](https://gitlab.com/tinyMediaManager/tinyMediaManager/-/issues/2631), **не проверено**; официальная `subdl.com/api-doc` возвращает 403 для бота.
-- **Решение: не в v1.** В v1 — выбор уже имеющихся дорожек + `addsubtitle&val=<uri>` для файлов рядом с видео (VLC сам подхватывает `.srt` с тем же именем). Загрузка субтитров — **в компаньоне (v1.x):** он знает путь, может посчитать OpenSubtitles‑hash файла, положить `.srt` рядом и дёрнуть `addsubtitle`; телефон только показывает список результатов и жмёт «скачать». Так ключи и квоты живут на ПК, а не в APK.
+- **OpenSubtitles REST API v1** (`api.opensubtitles.com/api/v1`): needs a consumer app API key, the `Api-Key` and `User-Agent` headers, login via JWT, a login limit of 1/s, 10/min, 30/h (third-party sources) ✅ [[glama]](https://glama.ai/mcp/servers/@opensubtitles/mcp.opensubtitles.com/blob/607a9eb0ecd1d2e908642f9ecf5dd4335d997db0/README.md), [[termo]](https://termo.ai/skills/opensubtitles). **Download quotas differ between sources:** 5/day per IP anonymously, 10/day for registered users, 1000 VIP ✅ [[Reddit 2024]](https://redlib.hbubli.cc/r/learnprogramming/comments/1bd0rxx/using_subtitles_api), [[VideoLAN forum]](https://forum.videolan.org/viewtopic.php?p=545241) versus "200/day free" ✅ [[Mintlify]](https://www.mintlify.com/logscore/plank/integrations/opensubtitles) — the official page (`opensubtitles.stoplight.io`, `/consumers`) is not served without JS/login — **not verified**. In 2024 VLsub hit a VIP wall ✅. Conclusion: the API is usable only with a **user account** (login in the app) and careful quota UX.
+- **Subdl:** `GET https://api.subdl.com/api/v1/subtitles?api_key=&film_name=|tmdb_id=|imdb_id=&season_number=&episode_number=&year=&languages=ru,en`, the response is links to zips ✅ [[cloudstream commit]](https://gitdab.com/recloudstream/cloudstream/commit/469a71236b6e78018f3f72c83f0b051bdab189c3); a limit of ~2000 calls/day per key — from a secondary source ✅ [[tMM issue]](https://gitlab.com/tinyMediaManager/tinyMediaManager/-/issues/2631), **not verified**; the official `subdl.com/api-doc` returns 403 to a bot.
+- **Decision: not in v1.** In v1 — choosing among existing tracks + `addsubtitle&val=<uri>` for files next to the video (VLC picks up a `.srt` with the same name itself). Downloading subtitles — **in the companion (v1.x):** it knows the path, can compute the OpenSubtitles hash of the file, put the `.srt` next to it and call `addsubtitle`; the phone only shows the list of results and presses "download". This way the keys and quotas live on the PC, not in the APK.
 
 ---
 
-## 5. Информационная архитектура
+## 5. Information architecture
 
-### 5.1. Состояния соединения
+### 5.1. Connection states
 
 ```
-                 ┌──────────────┐  найти/выбрать ПК   ┌──────────────┐
-   старт ───────▶│ Disconnected │────────────────────▶│  Connecting  │
+                 ┌──────────────┐   find/pick PC      ┌──────────────┐
+   start ───────▶│ Disconnected │────────────────────▶│  Connecting  │
                  └──────▲───────┘                     └──────┬───────┘
-                        │ «Отключиться» / Wi‑Fi пропал       │ 401 → PasswordRequired
+                        │ "Disconnect" / Wi-Fi lost          │ 401 → PasswordRequired
                         │                                    │ timeout/refused → Error(reason)
                         │                                    ▼ 200 status.json
                  ┌──────┴────────────────────────────────────────────────┐
                  │ Connected                                             │
-                 │  ├─ VlcNotRunning   (компаньон есть, VLC нет → «Запустить VLC»)│
-                 │  ├─ Idle(stopped)   (последний фильм + «Продолжить»)  │
-                 │  ├─ Playing / Paused (Now Playing, транспорт)         │
-                 │  └─ Degraded       (нет ответа 3 опроса → спиннер в строке состояния, команды в очередь ≤ 5 с)│
+                 │  ├─ VlcNotRunning   (companion up, no VLC → "Start VLC")│
+                 │  ├─ Idle(stopped)   (last movie + "Resume")           │
+                 │  ├─ Playing / Paused (Now Playing, transport)         │
+                 │  └─ Degraded       (3 polls unanswered → spinner in the status line, commands queued ≤ 5 s)│
                  └───────────────────────────────────────────────────────┘
 ```
 
-Правила: `Degraded` не выбрасывает с экрана (Plex); три неудачных опроса подряд → `Connecting` с backoff 1‑2‑4‑8 с + jitter, без модалок; при `401` — поле пароля прямо в строке состояния. Команда при `Degraded` ставится в очередь на 5 с, иначе снэкбар «ПК не отвечает · Повторить».
+Rules: `Degraded` does not kick the user off the screen (Plex); three failed polls in a row → `Connecting` with a 1-2-4-8 s backoff + jitter, no modals; on `401` — a password field right in the status line. A command in `Degraded` is queued for 5 s, otherwise a snackbar "PC is not responding · Retry".
 
-### 5.2. Экраны и навигация
+### 5.2. Screens and navigation
 
 ```
-NavigationBar (3): [▣ Пульт] [▤ Библиотека] [≡ Плейлист]
-   Пульт ── sheet: Субтитры/Аудио · Главы · Скорость · Аспект/Кроп · Таймер сна · ⋯(Ещё: fullscreen, звук.выход*, экран*, VLC quit*)
-   Библиотека ── Папка/Сетка → Сведения о фильме (постер, описание, «Воспроизвести», «С начала», «В очередь») → sheet
-   Плейлист ── reorder/удалить/очистить, мини‑плеер
-Отдельные экраны: Подключение (список ПК, ручной ввод, Bluetooth), Настройки, Онбординг (3 шага)
-* — только с компаньоном
+NavigationBar (3): [▣ Remote] [▤ Library] [≡ Playlist]
+   Remote ── sheet: Subtitles/Audio · Chapters · Speed · Aspect/Crop · Sleep timer · ⋯(More: fullscreen, audio output*, display*, VLC quit*)
+   Library ── Folder/Grid → Movie details (poster, description, "Play", "From the start", "Queue") → sheet
+   Playlist ── reorder/remove/clear, mini player
+Separate screens: Connection (list of PCs, manual entry, Bluetooth), Settings, Onboarding (3 steps)
+* — only with the companion
 ```
 
-Навигация — Navigation 3: back‑stack `[Remote]` по умолчанию; вкладки — три корневых ключа с сохранением состояния; sheet’ы — `ModalBottomSheet` без записи в back‑stack (закрываются predictive‑back). Deep links: `vlcremote://play?uri=…` (из share‑sheet: «Отправить в VLC на ТВ» для ссылок YouTube — паттерн Kore; VLC умеет `in_play&input=<url>`).
+Navigation — Navigation 3: back stack `[Remote]` by default; the tabs are three root keys with state saving; sheets are a `ModalBottomSheet` without a back-stack entry (closed with predictive back). Deep links: `vlcremote://play?uri=…` (from the share sheet: "Send to VLC on the TV" for YouTube links — the Kore pattern; VLC supports `in_play&input=<url>`).
 
-### 5.3. Онбординг: «Найти ПК → Связать → Проверить»
+### 5.3. Onboarding: "Find PC → Pair → Verify"
 
-1. **Найти.** Автопоиск mDNS (`_vlc-remote._tcp` компаньона и/или `_http._tcp` с TXT `vlc`); показать найденные ПК с именем и IP; «Ввести адрес вручную». На Android 17 перед этим — запрос `ACCESS_LOCAL_NETWORK` с объяснением.
-2. **Связать.** Если компаньон: он показывает на ТВ 6‑значный PIN/QR (QR содержит `host, port, token`), телефон сканирует/вводит → токен сохраняется в `EncryptedSharedPreferences`/DataStore. Без компаньона: поле «Пароль HTTP‑интерфейса VLC» + подсказка со скриншотом, где его включить (Preferences → All → Main interfaces → Lua → HTTP), и кнопка «Скопировать команду запуска VLC с `--extraintf http --http-password …`».
-3. **Проверить.** Кнопка «Поставить на паузу на ТВ» → ожидаем изменение `state` → «Работает ✓». Затем предложить: добавить плитку (`requestAddTileService`), виджет, разрешить «клавиши громкости управляют ПК».
+1. **Find.** Automatic mDNS discovery (the companion's `_vlc-remote._tcp` and/or `_http._tcp` with a `vlc` TXT); show the PCs found with name and IP; "Enter the address manually". On Android 17, before this — request `ACCESS_LOCAL_NETWORK` with an explanation.
+2. **Pair.** If there is a companion: it shows a 6-digit PIN/QR on the TV (the QR contains `host, port, token`), the phone scans/enters it → the token is saved in `EncryptedSharedPreferences`/DataStore. Without a companion: a "VLC HTTP interface password" field + a hint with a screenshot of where to enable it (Preferences → All → Main interfaces → Lua → HTTP), and a "Copy the VLC launch command with `--extraintf http --http-password …`" button.
+3. **Verify.** A "Pause on the TV" button → we wait for `state` to change → "Works ✓". Then offer: add the tile (`requestAddTileService`), the widget, allow "volume keys control the PC".
 
-### 5.4. Настройки
+### 5.4. Settings
 
-Соединение (ПК, порт, пароль, компаньон, Bluetooth‑резерв, авто‑подключение при входе в Wi‑Fi), Управление (клавиши громкости: ПК/телефон; шаги перемотки 10/30/60/90; жестовая поверхность вкл/выкл; левша; хаптика), Библиотека (корневые папки, язык метаданных, «скрывать просмотренные», переиндексировать), Вид (тема: система/тёмная/true‑black; dynamic color; держать экран включённым на Пульте), Фон (FGS при воспроизведении; «не ограничивать батарею»), О программе (атрибуция TMDB с логотипом — обязательна по условиям).
+Connection (PC, port, password, companion, Bluetooth fallback, auto-connect on joining Wi-Fi), Controls (volume keys: PC/phone; seek steps 10/30/60/90; gesture surface on/off; left-handed; haptics), Library (root folders, metadata language, "hide watched", reindex), Appearance (theme: system/dark/true-black; dynamic color; keep the screen on in Remote), Background (FGS during playback; "don't restrict battery"), About (TMDB attribution with the logo — mandatory under the terms).
 
-### 5.5. Тон сообщений об ошибках
+### 5.5. Tone of error messages
 
-Коротко, по‑человечески, с действием: «ПК не отвечает · Повторить», «VLC не запущен на HTPC‑Lounge · Запустить», «Неверный пароль HTTP‑интерфейса · Изменить», «Нет Wi‑Fi · Проверить сеть / Bluetooth». Без кодов и стек‑трейсов в основном тексте (они — в «Подробнее»). Ошибка команды → снэкбар, не диалог; потеря связи → строка состояния, не модалка; успех — хаптика, не тост.
+Short, human, with an action: "PC is not responding · Retry", "VLC is not running on HTPC-Lounge · Start", "Wrong HTTP interface password · Change", "No Wi-Fi · Check network / Bluetooth". No codes or stack traces in the main text (they go under "Details"). A command error → a snackbar, not a dialog; loss of connection → the status line, not a modal; success — haptics, not a toast.
 
-### 5.6. Низкодетальные макеты (ASCII)
+### 5.6. Low-fidelity mockups (ASCII)
 
-**Пульт / Now Playing (портрет)**
+**Remote / Now Playing (portrait)**
 
 ```
 ┌──────────────────────────────────┐
-│ ● HTPC‑Lounge · 24 мс         ⋮ │ ← строка состояния; тап → Подключение
+│ ● HTPC-Lounge · 24 ms         ⋮ │ ← status line; tap → Connection
 │ ┌──────────────────────────────┐ │
-│ │        backdrop (TMDB)       │ │ ← затемнён; жестовая поверхность (опц.)
-│ │      затемнение 60 %         │ │
+│ │        backdrop (TMDB)       │ │ ← dimmed; gesture surface (opt.)
+│ │        dimmed 60 %           │ │
 │ └──────────────────────────────┘ │
-│ Властелин колец: Братство… 2001  │
-│ [1080p] [AC3 5.1 RU] [SRT RU]    │ ← чипы → sheet дорожек
-│ 00:42:17 ──────●───────── 2:58:25│ ← scrub‑бар, насечки глав
-│  Гл. 12 «Мория»       −2:16:08   │
+│ Lord of the Rings: Fellow… 2001  │
+│ [1080p] [AC3 5.1 RU] [SRT RU]    │ ← chips → track sheet
+│ 00:42:17 ──────●───────── 2:58:25│ ← scrub bar, chapter ticks
+│  Ch. 12 "Moria"       −2:16:08   │
 │                                  │
 │  ⟲10     ◀◀      ▶❚❚     ▶▶  ⟳30 │ ← 64 / 64 / 88 / 64 / 64 dp
 │                                  │
-│ 🔈 −  ──────────●────── +  52 %  │ ← громкость ПК, цифра обязательна
+│ 🔈 −  ──────────●────── +  52 %  │ ← PC volume, the number is mandatory
 │                                  │
-│ [CC Субтитры] [♪ Аудио] [⏱ 1.0×] │ ← быстрые действия → sheet’ы
-│ [▭ 16:9]  [⏾ Таймер]  [⋯ Ещё]    │
-│  ▣ Пульт   ▤ Библиотека ≡ Плейлист│
+│ [CC Subtitles] [♪ Audio] [⏱ 1.0×]│ ← quick actions → sheets
+│ [▭ 16:9]  [⏾ Timer]  [⋯ More]    │
+│  ▣ Remote  ▤ Library  ≡ Playlist │
 └──────────────────────────────────┘
 ```
 
-Состояние `Idle/stopped`: тот же экран, постер последнего фильма, вместо транспорта — «▶ Продолжить с 00:42» и «С начала». Состояние `Disconnected`: экран остаётся, поверх контента — карточка «Нет связи с HTPC‑Lounge · Подключить».
+`Idle/stopped` state: the same screen, the poster of the last movie, instead of the transport — "▶ Resume from 00:42" and "From the start". `Disconnected` state: the screen stays, on top of the content — a card "No connection to HTPC-Lounge · Connect".
 
-**Пульт (ландшафт, телефон; height = compact)**
+**Remote (landscape, phone; height = compact)**
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ ● HTPC‑Lounge        Властелин колец: Братство… 2001        ⋮ │
-│ ┌──────────┐  00:42:17 ─────●──────────── 2:58:25  Гл. 12     │
+│ ● HTPC-Lounge        Lord of the Rings: Fellow… 2001        ⋮ │
+│ ┌──────────┐  00:42:17 ─────●──────────── 2:58:25  Ch. 12     │
 │ │  poster  │   ⟲10    ◀◀    ▶❚❚    ▶▶   ⟳30                   │
 │ │          │  🔈 − ────────●──────── + 52 %  [CC] [♪] [⏱] [▭]  │
 │ └──────────┘                                                  │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-**Библиотека (сетка + папки)**
+**Library (grid + folders)**
 
 ```
 ┌──────────────────────────────────┐
-│ ← D:\shared › Фильмы      🔍  ⊞☰ │ ← крошки; переключатель сетка/список
+│ ← D:\shared › Movies      🔍  ⊞☰ │ ← breadcrumbs; grid/list toggle
 │ ┌────────────────────────────┐   │
-│ │ ▶ Продолжить: Дюна (2021)  │   │ ← resume‑карточка, 37 %
-│ │   00:58 из 2:35       ▬▬▬░ │   │
+│ │ ▶ Continue: Dune (2021)    │   │ ← resume card, 37 %
+│ │   00:58 of 2:35       ▬▬▬░ │   │
 │ └────────────────────────────┘   │
 │ ┌──────┐ ┌──────┐ ┌──────┐       │
 │ │poster│ │poster│ │poster│       │ ← 2:3, w342
-│ │      │ │      │ │ ▬▬░░ │       │ ← полоса прогресса
+│ │      │ │      │ │ ▬▬░░ │       │ ← progress bar
 │ └──────┘ └──────┘ └──────┘       │
-│  Дюна     Матрица   Интерст…     │
+│  Dune     Matrix    Interst…     │
 │  2021     1999      2014         │
 │ ┌──────┐ ┌──────┐ ┌──────┐       │
-│ │ 📁   │ │poster│ │  ▶   │       │ ← папка «Сериалы»; файл без метаданных
+│ │ 📁   │ │poster│ │  ▶   │       │ ← "Series" folder; a file without metadata
 │ │ 12   │ │      │ │ .mp4 │       │
 │ └──────┘ └──────┘ └──────┘       │
-│  Сериалы  Оппенг…   IMG_2041.mp4 │
-│                              [Д] │ ← fast‑scroll с буквой
-│  ▣ Пульт   ▤ Библиотека ≡ Плейлист│
+│  Series   Oppenh…   IMG_2041.mp4 │
+│                              [D] │ ← fast scroll with a letter
+│  ▣ Remote  ▤ Library  ≡ Playlist │
 └──────────────────────────────────┘
 ```
 
-Long‑press по карточке → sheet: ▶ Воспроизвести · ▶ С начала · + В очередь · ⓘ Сведения · 👁 Отметить просмотренным.
+Long-press on a card → sheet: ▶ Play · ▶ From the start · + Queue · ⓘ Details · 👁 Mark as watched.
 
-**Плейлист**
+**Playlist**
 
 ```
 ┌──────────────────────────────────┐
-│ Плейлист · 3            🔀 🔁 🗑 │
-│ ▶ 1  Дюна (2021)            2:35 │ ← текущий: акцентная полоса слева
-│ ≡ 2  Дюна: Часть вторая     2:46 │ ← ≡ drag‑handle; swipe ← удалить
-│ ≡ 3  Making‑of.mkv          0:48 │
+│ Playlist · 3            🔀 🔁 🗑 │
+│ ▶ 1  Dune (2021)            2:35 │ ← current: accent bar on the left
+│ ≡ 2  Dune: Part Two         2:46 │ ← ≡ drag handle; swipe ← to remove
+│ ≡ 3  Making-of.mkv          0:48 │
 │                                  │
-│          (пусто → «Очередь пуста.│
-│           Выберите фильм в       │
-│           Библиотеке»)           │
+│          (empty → "Queue empty.  │
+│           Pick a movie in the    │
+│           Library")              │
 │                                  │
 │ ┌────────────────────────────┐   │
-│ │ ▶❚❚ Дюна · 00:42 / 2:35  ⟳30│   │ ← мини‑плеер; тап → Пульт
+│ │ ▶❚❚ Dune · 00:42 / 2:35  ⟳30│   │ ← mini player; tap → Remote
 │ └────────────────────────────┘   │
-│  ▣ Пульт   ▤ Библиотека ≡ Плейлист│
+│  ▣ Remote  ▤ Library  ≡ Playlist │
 └──────────────────────────────────┘
 ```
 
-**Sheet «Субтитры и аудио»**
+**"Subtitles and audio" sheet**
 
 ```
 ┌──────────────────────────────────┐
 │ ━━━━                              │
-│ [ Субтитры ]   [ Аудио ]          │ ← две вкладки (или два раздела)
+│ [ Subtitles ]   [ Audio ]         │ ← two tabs (or two sections)
 │ ─────────────────────────────────│
-│ ○ Выкл.                           │
-│ ● Русский · Мосфильм (SRT)        │ ← язык первым, кодек серым
-│ ○ Русский · форсированные (PGS)   │
+│ ○ Off                             │
+│ ● Russian · Mosfilm (SRT)         │ ← language first, codec in grey
+│ ○ Russian · forced (PGS)          │
 │ ○ English (PGS)                   │
-│ ○ Ещё 3…                          │
+│ ○ 3 more…                         │
 │ ─────────────────────────────────│
-│ Задержка субтитров       −0.50 с  │
-│ [ −500 ] [ −50 ]  [ +50 ] [ +500 ]│ ← мс; хаптика SegmentTick
-│ [ Сброс ]   [ Запомнить для файла]│
+│ Subtitle delay           −0.50 s  │
+│ [ −500 ] [ −50 ]  [ +50 ] [ +500 ]│ ← ms; SegmentTick haptics
+│ [ Reset ]   [ Remember for file ] │
 │ ─────────────────────────────────│
-│ + Добавить файл .srt рядом с видео│
-│ + Найти субтитры онлайн   (позже) │
+│ + Add .srt file next to the video │
+│ + Find subtitles online   (later) │
 └──────────────────────────────────┘
-   Вкладка «Аудио»: ● Dub Мосфильм · AC3 5.1 · RU / ○ Original · DTS‑HD · EN / …
-   Задержка аудио [−50][+50]; «Вывод звука: HDMI (TV) ▾» — только с компаньоном (RC adev)
+   "Audio" tab: ● Dub Mosfilm · AC3 5.1 · RU / ○ Original · DTS-HD · EN / …
+   Audio delay [−50][+50]; "Audio output: HDMI (TV) ▾" — only with the companion (RC adev)
 ```
 
-**Подключение / сопряжение**
+**Connection / pairing**
 
 ```
 ┌──────────────────────────────────┐
-│ ← Подключение                    │
-│ В сети Wi‑Fi «Home»:             │
+│ ← Connection                     │
+│ On Wi-Fi network "Home":         │
 │ ┌────────────────────────────┐   │
-│ │ 🖥 HTPC‑Lounge 192.168.1.20│ ▶ │ ← найдено по mDNS
-│ │    VLC 3.0.23 · компаньон ✓│   │
+│ │ 🖥 HTPC-Lounge 192.168.1.20│ ▶ │ ← found via mDNS
+│ │    VLC 3.0.23 · companion ✓│   │
 │ └────────────────────────────┘   │
 │ ┌────────────────────────────┐   │
-│ │ 🖥 DESKTOP‑7F  192.168.1.31│ ▶ │
-│ │    VLC не запущен          │   │
+│ │ 🖥 DESKTOP-7F  192.168.1.31│ ▶ │
+│ │    VLC not running         │   │
 │ └────────────────────────────┘   │
-│   ⟳ Ищу…                          │
+│   ⟳ Searching…                    │
 │ ─────────────────────────────────│
-│ Добавить вручную                 │
-│  Адрес [192.168.1.20] Порт [8080]│
-│  Пароль HTTP [••••••] [Проверить]│
+│ Add manually                     │
+│  Host [192.168.1.20]  Port [8080]│
+│  HTTP password [••••••] [Verify] │
 │ ─────────────────────────────────│
-│ Bluetooth (резерв)        Связать│
-│  Сопряжённые: HTPC‑Lounge        │
+│ Bluetooth (fallback)         Pair│
+│  Paired: HTPC-Lounge             │
 │ ─────────────────────────────────│
-│ ① Найти  ② Пароль/PIN  ③ Тест ✓  │ ← прогресс онбординга
+│ ① Find  ② Password/PIN  ③ Test ✓ │ ← onboarding progress
 └──────────────────────────────────┘
 ```
 
 ---
 
-## 6. Тестирование и инструменты
+## 6. Testing and tooling
 
-### 6.1. Compose‑тесты
+### 6.1. Compose tests
 
-- `createComposeRule()` / `createAndroidComposeRule<MainActivity>()`, семантические матчеры `onNodeWithText/Tag`, `useUnmergedTree` для составных кнопок; `ui-test-manifest` в debug ✅ [[docs]](https://developer.android.com/develop/ui/compose/testing/common-patterns). Тестировать: состояние кнопок при `Disconnected/Degraded`, формат времени, чипы дорожек, sheet задержки (±50 → команда `subdelay&val=…` в fake‑репозиторий).
-- **JVM‑уровень:** Robolectric + **Roborazzi** для скриншотов Compose в тёмной/true‑black теме и в ландшафте; Paparazzi — альтернатива без Robolectric ✅ [[resumegeni guide]](https://resumegeni.com/blog/android-engineer/testing-and-ci) (вторичный источник).
-- **Compose Preview Screenshot Testing** (`@PreviewTest`, HTML‑отчёт диффов): AGP ≥ 9.0, Kotlin ≥ 2.2.10, плагин в alpha ✅ [[docs]](https://developer.android.com/studio/preview/compose-screenshot-testing) — удобно для «золотых» макетов из §5.6.
-- Логика: `:core:protocol` и `:core:naming` — чистые JUnit/kotlin‑test без Android; `MockEngine` Ktor для парсера `status.json` (включая `fullscreen` как `true/false/0`, пустой `equalizer: []`, пропавшие поля в `stopped` — см. `live-probe.md`).
+- `createComposeRule()` / `createAndroidComposeRule<MainActivity>()`, the semantic matchers `onNodeWithText/Tag`, `useUnmergedTree` for composite buttons; `ui-test-manifest` in debug ✅ [[docs]](https://developer.android.com/develop/ui/compose/testing/common-patterns). Test: button state in `Disconnected/Degraded`, the time format, track chips, the delay sheet (±50 → the `subdelay&val=…` command into a fake repository).
+- **JVM level:** Robolectric + **Roborazzi** for Compose screenshots in the dark/true-black theme and in landscape; Paparazzi is an alternative without Robolectric ✅ [[resumegeni guide]](https://resumegeni.com/blog/android-engineer/testing-and-ci) (a secondary source).
+- **Compose Preview Screenshot Testing** (`@PreviewTest`, an HTML diff report): AGP ≥ 9.0, Kotlin ≥ 2.2.10, the plugin is in alpha ✅ [[docs]](https://developer.android.com/studio/preview/compose-screenshot-testing) — handy for "golden" mockups from §5.6.
+- Logic: `:core:protocol` and `:core:naming` — plain JUnit/kotlin-test without Android; Ktor's `MockEngine` for the `status.json` parser (including `fullscreen` as `true/false/0`, an empty `equalizer: []`, missing fields in `stopped` — see `live-probe.md`).
 
-### 6.2. Fake‑VLC для разработки
+### 6.2. A fake VLC for development
 
-Цель — поднимать локально за секунду и воспроизводить **реальные причуды VLC 3.0.23**, а не идеализированный API. Вариант на Ktor‑server (тот же стек, можно встроить в debug‑сборку как «демо‑режим»):
+The goal is to start it locally in a second and reproduce the **real quirks of VLC 3.0.23**, not an idealized API. A Ktor server variant (the same stack, it can be embedded into the debug build as a "demo mode"):
 
 ```kotlin
-// tools/fake-vlc/src/main/kotlin/Main.kt — набросок
+// tools/fake-vlc/src/main/kotlin/Main.kt — a sketch
 fun main() = embeddedServer(CIO, port = 8080) {
     install(Authentication) { basic("vlc") { realm = "VLC stream"
         validate { if (it.name == "" && it.password == "probe") UserIdPrincipal("vlc") else null } } }
@@ -528,7 +528,7 @@ fun main() = embeddedServer(CIO, port = 8080) {
     routing { authenticate("vlc") {
         get("/requests/status.json") {
             call.parameters["command"]?.let { state.apply(it, call.parameters) }   // pl_pause, seek, volume, rate, subdelay…
-            call.respondText(state.statusJson(), ContentType.Text.Plain)           // да, text/plain — как у VLC
+            call.respondText(state.statusJson(), ContentType.Text.Plain)           // yes, text/plain — just like VLC
         }
         get("/requests/playlist.json") { call.respondText(state.playlistJson(), ContentType.Text.Plain) }
         get("/requests/browse.json")   { call.respondText(state.browseJson(call.parameters["uri"]!!), ContentType.Text.Plain) }
@@ -537,77 +537,77 @@ fun main() = embeddedServer(CIO, port = 8080) {
 }.start(wait = true)
 ```
 
-Что должен эмулировать `FakeVlcState` (из `live-probe.md`): `volume&val=+10` → 266; `seek&val=+30`/`-10`/`1000` (проценты — не работают, как в жизни); `rate` возвращать с «квантованием» `1.5015…`; `fullscreen` — boolean при игре, `0` в `stopped`; в `stopped` убирать `information/stats`, `currentplid=-1`; `audio_track/subtitle_track&val=<StreamN>`; `pl_pause` из `stopped` запускает последний элемент; неизвестная команда → `200` без ошибки; первые 500 мс после старта — пустой ответ (для теста ретрая); `401` с `WWW-Authenticate: Basic realm="VLC stream"`. Сэмплы ответов — `samples/status-playing.json`, `samples/status-stopped.json`, `samples/playlist.json`. Параметризовать задержку ответа (0/50/500 мс) и «потерю» каждого N‑го запроса для теста `Degraded`. Альтернатива на Python (`http.server`, ~80 строк) — если нужно запускать на ПК без JDK; но Ktor‑вариант переиспользует наши же DTO.
+What `FakeVlcState` must emulate (from `live-probe.md`): `volume&val=+10` → 266; `seek&val=+30`/`-10`/`1000` (percentages do not work, as in real life); return `rate` with "quantization" `1.5015…`; `fullscreen` — a boolean while playing, `0` in `stopped`; in `stopped` remove `information/stats`, `currentplid=-1`; `audio_track/subtitle_track&val=<StreamN>`; `pl_pause` from `stopped` starts the last item; an unknown command → `200` without an error; for the first 500 ms after start — an empty response (for testing retries); `401` with `WWW-Authenticate: Basic realm="VLC stream"`. Response samples — `samples/status-playing.json`, `samples/status-stopped.json`, `samples/playlist.json`. Parameterize the response delay (0/50/500 ms) and "losing" every Nth request to test `Degraded`. An alternative in Python (`http.server`, ~80 lines) — if it needs to run on a PC without a JDK; but the Ktor variant reuses our own DTOs.
 
-Для компаньона — второй fake: WebSocket‑эхо с push‑событиями (`{"type":"status","state":"playing",...}`), чтобы отлаживать реактивный UI без ПК.
+For the companion — a second fake: a WebSocket echo with push events (`{"type":"status","state":"playing",...}`), to debug the reactive UI without a PC.
 
-### 6.3. Сеть эмулятора
+### 6.3. Emulator networking
 
-- Хост = `10.0.2.2`; `localhost` внутри эмулятора — сам эмулятор ✅ [[emulator]](https://developer.android.com/studio/run/emulator-networking-address). Fake‑VLC на хосте `:8080` → в приложении `http://10.0.2.2:8080`. Alternatively `adb reverse tcp:8080 tcp:8080` → `127.0.0.1:8080` (не проверено в этом контексте, стандартная команда).
-- **Cleartext HTTP** к VLC (он не умеет TLS) → `network_security_config` с `cleartextTrafficPermitted="true"` для локальных диапазонов, не глобально.
-- mDNS в эмуляторе не работает (изоляция) — в debug‑сборке «демо‑ПК» с фиксированным адресом.
-- Фаервол Windows может блокировать входящие к Ktor‑fake от эмулятора — разрешить порт при первом запуске.
+- Host = `10.0.2.2`; `localhost` inside the emulator is the emulator itself ✅ [[emulator]](https://developer.android.com/studio/run/emulator-networking-address). A fake VLC on the host at `:8080` → in the app `http://10.0.2.2:8080`. Alternatively `adb reverse tcp:8080 tcp:8080` → `127.0.0.1:8080` (not verified in this context, a standard command).
+- **Cleartext HTTP** to VLC (it cannot do TLS) → a `network_security_config` with `cleartextTrafficPermitted="true"` for local ranges, not globally.
+- mDNS does not work in the emulator (isolation) — in the debug build, a "demo PC" with a fixed address.
+- The Windows firewall may block incoming connections to the Ktor fake from the emulator — allow the port on first launch.
 
-### 6.4. Реальное устройство: Bluetooth, громкость, фон
+### 6.4. Real device: Bluetooth, volume, background
 
-Эмулятор не умеет Bluetooth (`BluetoothAdapter` null). Чек‑лист на реальном телефоне (минимум два: Pixel/стоковый Android 15–17 и Samsung/OneUI):
-1. RFCOMM: подключение к SPP‑серверу компаньона, обрыв (выключить BT на ПК) → `read() == -1`/`IOException`, реконнект.
-2. Громкость в foreground: `dispatchKeyEvent`, автоповтор, переключение «ПК/телефон».
-3. Громкость с погашенным экраном: сразу после выключения экрана; через 5 мин; через 40 мин (Doze); с `force-idle`; после сворачивания другого медиа‑приложения (кто «верхняя» сессия).
-4. Уведомление MediaSession на lock‑screen: кнопки, прогресс, обложка; Bluetooth‑гарнитура play/pause.
-5. FGS `connectedDevice` на Android 14/15/16/17: старт из UI, остановка по таймауту, поведение при убийстве процесса.
-6. Android 17 с targetSdk 37 на тестовой сборке: диалог `ACCESS_LOCAL_NETWORK`, mDNS, HTTP к 192.168.x.x; `am compat enable RESTRICT_LOCAL_NETWORK` на Android 16.
-7. Glance‑виджет на Android 17: лимит `RemoteViews` с постером.
-8. Ландшафт на телефоне и планшете (sw600dp с игнорированием `screenOrientation`).
+The emulator does not support Bluetooth (`BluetoothAdapter` is null). Checklist on a real phone (at least two: a Pixel/stock Android 15–17 and a Samsung/One UI):
+1. RFCOMM: connecting to the companion's SPP server, a disconnect (turn off BT on the PC) → `read() == -1`/`IOException`, reconnect.
+2. Volume in the foreground: `dispatchKeyEvent`, auto-repeat, the "PC/phone" toggle.
+3. Volume with the screen off: right after turning the screen off; after 5 min; after 40 min (Doze); with `force-idle`; after backgrounding another media app (who is the "top" session).
+4. The MediaSession notification on the lock screen: buttons, progress, artwork; Bluetooth headset play/pause.
+5. FGS `connectedDevice` on Android 14/15/16/17: start from the UI, stop on timeout, behaviour when the process is killed.
+6. Android 17 with targetSdk 37 on a test build: the `ACCESS_LOCAL_NETWORK` dialog, mDNS, HTTP to 192.168.x.x; `am compat enable RESTRICT_LOCAL_NETWORK` on Android 16.
+7. The Glance widget on Android 17: the `RemoteViews` limit with a poster.
+8. Landscape on a phone and a tablet (sw600dp with `screenOrientation` ignored).
 
 ### 6.5. CI
 
-GitHub Actions: `./gradlew :core:*:test :app:testDebugUnitTest :app:verifyRoborazziDebug`; screenshot‑диффы как артефакты; `lint`; сборка APK с R8 и отчёт размера (`apkanalyzer apk file-size`). Инструментальные тесты — вручную на устройстве (Bluetooth/громкость не автоматизируются).
+GitHub Actions: `./gradlew :core:*:test :app:testDebugUnitTest :app:verifyRoborazziDebug`; screenshot diffs as artifacts; `lint`; an APK build with R8 and a size report (`apkanalyzer apk file-size`). Instrumented tests — manually on a device (Bluetooth/volume cannot be automated).
 
 ---
 
-## 7. Рекомендации
+## 7. Recommendations
 
-### 7.1. Решение по стеку
-Остаться на **Kotlin + Jetpack Compose**, вынести протокол и парсер имён в чистые Kotlin‑модули (CMP‑ready), **не** переходить на Flutter/RN/MAUI/CMP‑UI. targetSdk 36 сейчас, подготовить ветку с 37 для проверки `ACCESS_LOCAL_NETWORK` и аудио‑ограничений.
+### 7.1. Stack decision
+Stay on **Kotlin + Jetpack Compose**, move the protocol and the name parser into pure Kotlin modules (CMP-ready), do **not** move to Flutter/RN/MAUI/CMP UI. targetSdk 36 now; prepare a branch with 37 to check `ACCESS_LOCAL_NETWORK` and the audio restrictions.
 
-### 7.2. Библиотеки и версии (октябрь 2026)
-`kotlin 2.4.21` · `agp 9.4.0` · `compose-bom 2026.09.00` (material3 1.4.0) · `material3-adaptive 1.3.0` · `navigation3 1.2.0` · `media3 1.11.1` (session) · `ktor 3.6.0` (client-okhttp, websockets, content-negotiation, serialization-kotlinx-json) · `okhttp 5.5.0` · `kotlinx-serialization-json 1.11.0` · `kotlinx-coroutines 1.11.0` · `ksp 2.3.12` · `koin 4.2.2` (koin-androidx-compose, koin-compose-navigation3) · `room 2.8.5` · `datastore 1.2.1` · `coil 3.6.3` (coil-compose, coil-network-okhttp) · `glance 1.2.0` (glance-appwidget, glance-material3) · тесты: `roborazzi` (версия — проверить), Robolectric, `ui-test-junit4`, `ui-test-manifest`. Material 3 Expressive — после 1.5.0 stable.
+### 7.2. Libraries and versions (October 2026)
+`kotlin 2.4.21` · `agp 9.4.0` · `compose-bom 2026.09.00` (material3 1.4.0) · `material3-adaptive 1.3.0` · `navigation3 1.2.0` · `media3 1.11.1` (session) · `ktor 3.6.0` (client-okhttp, websockets, content-negotiation, serialization-kotlinx-json) · `okhttp 5.5.0` · `kotlinx-serialization-json 1.11.0` · `kotlinx-coroutines 1.11.0` · `ksp 2.3.12` · `koin 4.2.2` (koin-androidx-compose, koin-compose-navigation3) · `room 2.8.5` · `datastore 1.2.1` · `coil 3.6.3` (coil-compose, coil-network-okhttp) · `glance 1.2.0` (glance-appwidget, glance-material3) · tests: `roborazzi` (version — to be checked), Robolectric, `ui-test-junit4`, `ui-test-manifest`. Material 3 Expressive — after 1.5.0 stable.
 
-### 7.3. Принципы UX
-1. Пульт работает **не глядя**: крупный play/pause внизу, ±10/±30 кнопки с автоповтором, хаптика на каждом «тике».
-2. Громкость — относительные жесты + цифра; mute отдельно; клавиши телефона управляют ПК (настраиваемо), в т.ч. с погашенным экраном, где платформа позволяет.
-3. Соединение **никогда не выбрасывает** с экрана: строка состояния, тихий реконнект, очередь команд на 5 с, снэкбар вместо диалога.
-4. Now Playing остаётся и после `stop` («Продолжить с 00:42»).
-5. Дорожки и задержки — один sheet, язык первым, ±50/±500 мс, «запомнить для файла».
-6. Библиотека с постерами и «Продолжить просмотр»; файлы без метаданных не ломают сетку; fast‑scroll и поиск.
-7. Тёмная тема по умолчанию, опция true‑black; dynamic color с проверкой контраста.
-8. Ландшафт и планшет — отдельный макет (платформа всё равно заставит).
-9. Онбординг в 3 шага, компаньон сам включает HTTP‑интерфейс и показывает PIN/QR; без компаньона — честная инструкция с паролем.
-10. Ничего не убирать молча и не прятать цифры (Sonos); тестировать long‑press и автоповтор (Google TV).
-11. Атрибуция TMDB — в «О программе» и на экране сведений о фильме; кэш метаданных ≤ 6 мес.
+### 7.3. UX principles
+1. The remote works **without looking**: a large play/pause at the bottom, ±10/±30 buttons with auto-repeat, haptics on every "tick".
+2. Volume — relative gestures + a number; mute is separate; the phone keys control the PC (configurable), including with the screen off, where the platform allows it.
+3. The connection **never kicks the user** off the screen: a status line, a quiet reconnect, a 5 s command queue, a snackbar instead of a dialog.
+4. Now Playing stays even after `stop` ("Resume from 00:42").
+5. Tracks and delays — one sheet, language first, ±50/±500 ms, "remember for this file".
+6. A library with posters and "Continue watching"; files without metadata do not break the grid; fast scroll and search.
+7. Dark theme by default, a true-black option; dynamic color with a contrast check.
+8. Landscape and tablet — a separate layout (the platform will force it anyway).
+9. Onboarding in 3 steps, the companion enables the HTTP interface itself and shows a PIN/QR; without the companion — honest instructions with the password.
+10. Remove nothing silently and do not hide numbers (Sonos); test long-press and auto-repeat (Google TV).
+11. TMDB attribution — in "About" and on the movie details screen; metadata cache ≤ 6 months.
 
-### 7.4. Набор экранов MVP
-1. **Пульт / Now Playing** (портрет + ландшафт) с транспортом, громкостью, scrub‑баром, чипами дорожек.
-2. **Sheet «Субтитры и аудио»** (выбор + задержки).
-3. **Sheet «Ещё»**: главы, скорость, аспект/кроп, fullscreen, таймер сна.
-4. **Библиотека**: папки (`browse.json`) + сетка с постерами (TMDB через компаньон или на телефоне) + «Продолжить».
-5. **Плейлист** с мини‑плеером.
-6. **Подключение** (mDNS + ручной ввод + пароль) и **онбординг** в 3 шага.
-7. **Настройки** (минимум: клавиши громкости, шаги перемотки, тема, FGS).
-8. **Фон:** `MediaSessionService` + FGS `connectedDevice`, уведомление с контролами; **QS‑плитка** play/pause.
-Отложить: Glance‑виджет (v1.1), Bluetooth‑резерв (v1.1, после компаньона), Wear OS tile (v2), загрузка субтитров через компаньон (v1.x), жестовая поверхность (эксперимент за флагом).
+### 7.4. MVP screen set
+1. **Remote / Now Playing** (portrait + landscape) with transport, volume, a scrub bar, track chips.
+2. **"Subtitles and audio" sheet** (selection + delays).
+3. **"More" sheet**: chapters, speed, aspect/crop, fullscreen, sleep timer.
+4. **Library**: folders (`browse.json`) + a poster grid (TMDB via the companion or on the phone) + "Continue".
+5. **Playlist** with a mini player.
+6. **Connection** (mDNS + manual entry + password) and 3-step **onboarding**.
+7. **Settings** (minimum: volume keys, seek steps, theme, FGS).
+8. **Background:** `MediaSessionService` + FGS `connectedDevice`, a notification with controls; a play/pause **QS tile**.
+Deferred: the Glance widget (v1.1), the Bluetooth fallback (v1.1, after the companion), a Wear OS tile (v2), subtitle download via the companion (v1.x), the gesture surface (an experiment behind a flag).
 
 ---
 
-## 8. Источники
+## 8. Sources
 
-Версии: [Kotlin releases](https://github.com/JetBrains/kotlin/releases) · [AGP release notes](https://developer.android.com/build/releases/gradle-plugin) · [Compose BOM mapping](https://developer.android.com/develop/ui/compose/bom/bom-mapping) · [Compose Material 3 releases](https://developer.android.com/jetpack/androidx/releases/compose-material3) · [material3‑adaptive](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive) · [Navigation 3](https://developer.android.com/jetpack/androidx/releases/navigation3) · [Media3](https://developer.android.com/jetpack/androidx/releases/media3) · [Ktor releases](https://github.com/ktorio/ktor/releases) · [OkHttp CHANGELOG](https://github.com/square/okhttp/blob/master/CHANGELOG.md) · [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization/releases) · [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines/releases) · [KSP releases](https://github.com/google/ksp/releases), [KSP PR #3107](https://github.com/google/ksp/pull/3107) · [Dagger releases](https://github.com/google/dagger/releases) · [Koin releases](https://github.com/InsertKoinIO/koin/releases) · [Room](https://developer.android.com/jetpack/androidx/releases/room), [Room 3](https://developer.android.com/jetpack/androidx/releases/room3) · [DataStore](https://developer.android.com/jetpack/androidx/releases/datastore) · [Coil releases](https://github.com/coil-kt/coil/releases), [Coil network docs](https://coil-kt.github.io/coil/network/) · [Glance](https://developer.android.com/jetpack/androidx/releases/glance) · [Wear Compose](https://developer.android.com/jetpack/androidx/releases/wear-compose) · [Compose Multiplatform releases](https://github.com/JetBrains/compose-multiplatform/releases), [CMP 1.8.0 blog](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/) · [MaterialExpressiveTheme](https://composables.com/material3/materialexpressivetheme) · [Flutter what's new](https://docs.flutter.dev/release/whats-new.html) · [Expo New Architecture](https://docs.expo.dev/guides/new-architecture.md) · [MAUI support policy](https://dotnet.microsoft.com/ru-ru/platform/support/policy/maui) · [Plugin.BLE](https://www.nuget.org/packages/plugin.ble) · [flutter_classic_bluetooth](https://pub.dev/packages/flutter_classic_bluetooth/versions/0.1.4) · [flutter_bluetooth_serial](https://github.com/edufolly/flutter_bluetooth_serial) · [react-native-bluetooth-classic](https://www.jsdelivr.com/package/npm/react-native-bluetooth-classic) · [APK size comparison (Medium, 2023)](https://medium.com/@jacobras/android-ios-native-vs-flutter-vs-compose-multiplatform-7ef3d5ec2a56).
+Versions: [Kotlin releases](https://github.com/JetBrains/kotlin/releases) · [AGP release notes](https://developer.android.com/build/releases/gradle-plugin) · [Compose BOM mapping](https://developer.android.com/develop/ui/compose/bom/bom-mapping) · [Compose Material 3 releases](https://developer.android.com/jetpack/androidx/releases/compose-material3) · [material3-adaptive](https://developer.android.com/jetpack/androidx/releases/compose-material3-adaptive) · [Navigation 3](https://developer.android.com/jetpack/androidx/releases/navigation3) · [Media3](https://developer.android.com/jetpack/androidx/releases/media3) · [Ktor releases](https://github.com/ktorio/ktor/releases) · [OkHttp CHANGELOG](https://github.com/square/okhttp/blob/master/CHANGELOG.md) · [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization/releases) · [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines/releases) · [KSP releases](https://github.com/google/ksp/releases), [KSP PR #3107](https://github.com/google/ksp/pull/3107) · [Dagger releases](https://github.com/google/dagger/releases) · [Koin releases](https://github.com/InsertKoinIO/koin/releases) · [Room](https://developer.android.com/jetpack/androidx/releases/room), [Room 3](https://developer.android.com/jetpack/androidx/releases/room3) · [DataStore](https://developer.android.com/jetpack/androidx/releases/datastore) · [Coil releases](https://github.com/coil-kt/coil/releases), [Coil network docs](https://coil-kt.github.io/coil/network/) · [Glance](https://developer.android.com/jetpack/androidx/releases/glance) · [Wear Compose](https://developer.android.com/jetpack/androidx/releases/wear-compose) · [Compose Multiplatform releases](https://github.com/JetBrains/compose-multiplatform/releases), [CMP 1.8.0 blog](https://blog.jetbrains.com/kotlin/2025/05/compose-multiplatform-1-8-0-released-compose-multiplatform-for-ios-is-stable-and-production-ready/) · [MaterialExpressiveTheme](https://composables.com/material3/materialexpressivetheme) · [Flutter what's new](https://docs.flutter.dev/release/whats-new.html) · [Expo New Architecture](https://docs.expo.dev/guides/new-architecture.md) · [MAUI support policy](https://dotnet.microsoft.com/ru-ru/platform/support/policy/maui) · [Plugin.BLE](https://www.nuget.org/packages/plugin.ble) · [flutter_classic_bluetooth](https://pub.dev/packages/flutter_classic_bluetooth/versions/0.1.4) · [flutter_bluetooth_serial](https://github.com/edufolly/flutter_bluetooth_serial) · [react-native-bluetooth-classic](https://www.jsdelivr.com/package/npm/react-native-bluetooth-classic) · [APK size comparison (Medium, 2023)](https://medium.com/@jacobras/android-ios-native-vs-flutter-vs-compose-multiplatform-7ef3d5ec2a56).
 
-Платформа: [FGS types](https://developer.android.com/develop/background-work/services/fgs/service-types) · [Android 14 FGS types required](https://developer.android.com/about/versions/14/changes/fgs-types-required) · [Android 15 behavior changes](https://developer.android.com/about/versions/15/behavior-changes-15) · [Android 16 all apps](https://developer.android.com/about/versions/16/behavior-changes-all), [Android 16 targeting](https://developer.android.com/about/versions/16/behavior-changes-16) · [Android 17 all apps](https://developer.android.com/about/versions/17/behavior-changes-all), [Android 17 targeting](https://developer.android.com/about/versions/17/behavior-changes-17) · [Local network permission](https://developer.android.com/privacy-and-security/local-network-permission) · [NsdManager](https://developer.android.com/reference/kotlin/android/net/nsd/NsdManager) · [BluetoothSocket](https://developer.android.com/reference/android/bluetooth/BluetoothSocket) · [VolumeProvider](https://developer.android.com/reference/android/media/VolumeProvider.html) · [MediaSession](https://developer.android.com/reference/android/media/session/MediaSession) · [MediaSessionLegacyStub.java](https://github.com/androidx/media/blob/release/libraries/session/src/main/java/androidx/media3/session/MediaSessionLegacyStub.java) · [Android 12 cast volume regression (esper.io)](https://esper.io/blog/android-12-cast-volume-changes-explained) · [Poweramp screen‑off volume](https://forum.powerampapp.com/topic/21716-volume-keys-control-does-not-work-when-the-screen-is-off/) · [Nest community: lock screen volume](https://www.googlenestcommunity.com/t5/Streaming/Enhancing-Chromecast-Experience-Simplifying-Media-Volume-Control-during/m-p/462235) · [Intercepting key events](https://code.tutsplus.com/android-sdk-intercepting-physical-key-events--mobile-10379t) · [Quick Settings tiles](https://developer.android.com/develop/ui/views/quicksettings-tiles), [API 33 StatusBarManager](https://developer.android.com/sdk/api_diff/33/changes/android.app.StatusBarManager) · [Doze](https://developer.android.com/training/monitoring-device-state/doze-standby) · [HapticFeedbackType](https://developer.android.com/reference/kotlin/androidx/compose/ui/hapticfeedback/HapticFeedbackType) · [Wear tiles codelab](https://developer.android.com/codelabs/wear-tiles) · [RfcommServiceProvider](https://msdn.microsoft.com/library/windows/apps/dn263511), [32feet](https://inthehand.com/components/32feet/) · [Emulator networking](https://developer.android.com/studio/run/emulator-networking-address) · [Adaptive layouts (ProAndroidDev)](https://proandroiddev.com/adaptive-compose-layouts-86b7f1e51338).
+Platform: [FGS types](https://developer.android.com/develop/background-work/services/fgs/service-types) · [Android 14 FGS types required](https://developer.android.com/about/versions/14/changes/fgs-types-required) · [Android 15 behavior changes](https://developer.android.com/about/versions/15/behavior-changes-15) · [Android 16 all apps](https://developer.android.com/about/versions/16/behavior-changes-all), [Android 16 targeting](https://developer.android.com/about/versions/16/behavior-changes-16) · [Android 17 all apps](https://developer.android.com/about/versions/17/behavior-changes-all), [Android 17 targeting](https://developer.android.com/about/versions/17/behavior-changes-17) · [Local network permission](https://developer.android.com/privacy-and-security/local-network-permission) · [NsdManager](https://developer.android.com/reference/kotlin/android/net/nsd/NsdManager) · [BluetoothSocket](https://developer.android.com/reference/android/bluetooth/BluetoothSocket) · [VolumeProvider](https://developer.android.com/reference/android/media/VolumeProvider.html) · [MediaSession](https://developer.android.com/reference/android/media/session/MediaSession) · [MediaSessionLegacyStub.java](https://github.com/androidx/media/blob/release/libraries/session/src/main/java/androidx/media3/session/MediaSessionLegacyStub.java) · [Android 12 cast volume regression (esper.io)](https://esper.io/blog/android-12-cast-volume-changes-explained) · [Poweramp screen-off volume](https://forum.powerampapp.com/topic/21716-volume-keys-control-does-not-work-when-the-screen-is-off/) · [Nest community: lock screen volume](https://www.googlenestcommunity.com/t5/Streaming/Enhancing-Chromecast-Experience-Simplifying-Media-Volume-Control-during/m-p/462235) · [Intercepting key events](https://code.tutsplus.com/android-sdk-intercepting-physical-key-events--mobile-10379t) · [Quick Settings tiles](https://developer.android.com/develop/ui/views/quicksettings-tiles), [API 33 StatusBarManager](https://developer.android.com/sdk/api_diff/33/changes/android.app.StatusBarManager) · [Doze](https://developer.android.com/training/monitoring-device-state/doze-standby) · [HapticFeedbackType](https://developer.android.com/reference/kotlin/androidx/compose/ui/hapticfeedback/HapticFeedbackType) · [Wear tiles codelab](https://developer.android.com/codelabs/wear-tiles) · [RfcommServiceProvider](https://msdn.microsoft.com/library/windows/apps/dn263511), [32feet](https://inthehand.com/components/32feet/) · [Emulator networking](https://developer.android.com/studio/run/emulator-networking-address) · [Adaptive layouts (ProAndroidDev)](https://proandroiddev.com/adaptive-compose-layouts-86b7f1e51338).
 
-UX: [Kore F‑Droid](https://f-droid.org/en/packages/org.xbmc.kore/), [Kore 3.0](https://kodi.tv/article/kore-3-0), [Kore issues](https://github.com/xbmc/Kore/issues), [Kore 3.0 feedback](https://forum.kodi.tv/showthread.php?tid=369711), [Kore README](https://github.com/xbmc/Kore) · [Plex Remote control API](https://github.com/plexinc/plex-media-player/wiki/Remote-control-API), [Plex Android 7.14](https://apkmirror.com/apk/plex-inc/plex/plex-7-14-1-9954-release), [Plex companion thread](https://forums.plex.tv/t/feature-request-supported-server-mediated-api-for-controlling-remote-plex-plexamp-sessions/942315) · [Jellyfin remote (Symfonium)](https://support.symfonium.app/t/allow-symfonium-to-control-jellyfin-on-other-devices/7973) · [Google TV M3 Expressive](https://9to5google.com/2025/08/23/google-tv-app-material-3-expressive/), [Android TV remote review](https://www.techhive.com/article/582309/the-android-tv-remote-app-for-ios-is-as-bare-bones-as-the-android-version.html) · [Apple TV remote](https://www.howtogeek.com/720922/how-to-use-your-iphone-or-ipad-as-an-apple-tv-remote/), [Apple HIG remotes](https://developer-mdn.apple.com/design/human-interface-guidelines/inputs/remotes) · [Infuse subtitles](https://support.firecore.com/hc/en-us/articles/215090907), [Infuse subtitle delay](https://community.firecore.com/t/subtitle-delay/14737.md), [Infuse 2x](https://community.firecore.com/t/temporary-2x-speed-on-apple-tv-like-ios-has/57701.md) · [Unified Remote App Store](https://apps.apple.com/us/app/825534179), [Softpedia](https://mobile.softpedia.com/android/Unified-Remote-Android-Review-2859.html) · [KDE Connect bug 390414](https://bugs.kde.org/show_bug.cgi?id=390414), [D12559](https://phabricator.kde.org/D12559) · [Sonos (CMSWire)](https://www.cmswire.com/customer-experience/sonos-app-redesign-fail-customer-outrage-and-falling-stock-prices), [Sonos forum volume](https://en.community.sonos.com/controllers-and-music-services-229131/apps-fiddly-volume-control-6933330), [Sonos 2026 update](https://www.ecoustics.com/news/sonos-app-update-2026/) · [VLC Mobile Remote (App Store)](https://apps.apple.com/us/app/vlc-mobile-remote/id1140931401), [VLC Remote Pro (App Store)](https://apps.apple.com/us/app/id297244048), [VLC Remote reviews (marlvel)](https://marlvel.ai/apps/vlc-remote/reviews), [VideoLAN forum 2013](https://forum.videolan.org/viewtopic.php?p=392423), [VideoLAN forum 2015](https://forum.videolan.org/viewtopic.php?p=425210), [android-vlc-remote](https://github.com/samicemalone/android-vlc-remote) · [Hoober grips (A List Apart)](https://alistapart.com/1-2-phone-grips-jpg/), [Osmani touch design](https://addyosmani.com/blog/touch-friendly-design/) · [Dark theme with MDC](https://medium.com/androiddevelopers/dark-theme-with-mdc-4c6fc357d956).
+UX: [Kore F-Droid](https://f-droid.org/en/packages/org.xbmc.kore/), [Kore 3.0](https://kodi.tv/article/kore-3-0), [Kore issues](https://github.com/xbmc/Kore/issues), [Kore 3.0 feedback](https://forum.kodi.tv/showthread.php?tid=369711), [Kore README](https://github.com/xbmc/Kore) · [Plex Remote control API](https://github.com/plexinc/plex-media-player/wiki/Remote-control-API), [Plex Android 7.14](https://apkmirror.com/apk/plex-inc/plex/plex-7-14-1-9954-release), [Plex companion thread](https://forums.plex.tv/t/feature-request-supported-server-mediated-api-for-controlling-remote-plex-plexamp-sessions/942315) · [Jellyfin remote (Symfonium)](https://support.symfonium.app/t/allow-symfonium-to-control-jellyfin-on-other-devices/7973) · [Google TV M3 Expressive](https://9to5google.com/2025/08/23/google-tv-app-material-3-expressive/), [Android TV remote review](https://www.techhive.com/article/582309/the-android-tv-remote-app-for-ios-is-as-bare-bones-as-the-android-version.html) · [Apple TV remote](https://www.howtogeek.com/720922/how-to-use-your-iphone-or-ipad-as-an-apple-tv-remote/), [Apple HIG remotes](https://developer-mdn.apple.com/design/human-interface-guidelines/inputs/remotes) · [Infuse subtitles](https://support.firecore.com/hc/en-us/articles/215090907), [Infuse subtitle delay](https://community.firecore.com/t/subtitle-delay/14737.md), [Infuse 2x](https://community.firecore.com/t/temporary-2x-speed-on-apple-tv-like-ios-has/57701.md) · [Unified Remote App Store](https://apps.apple.com/us/app/825534179), [Softpedia](https://mobile.softpedia.com/android/Unified-Remote-Android-Review-2859.html) · [KDE Connect bug 390414](https://bugs.kde.org/show_bug.cgi?id=390414), [D12559](https://phabricator.kde.org/D12559) · [Sonos (CMSWire)](https://www.cmswire.com/customer-experience/sonos-app-redesign-fail-customer-outrage-and-falling-stock-prices), [Sonos forum volume](https://en.community.sonos.com/controllers-and-music-services-229131/apps-fiddly-volume-control-6933330), [Sonos 2026 update](https://www.ecoustics.com/news/sonos-app-update-2026/) · [VLC Mobile Remote (App Store)](https://apps.apple.com/us/app/vlc-mobile-remote/id1140931401), [VLC Remote Pro (App Store)](https://apps.apple.com/us/app/id297244048), [VLC Remote reviews (marlvel)](https://marlvel.ai/apps/vlc-remote/reviews), [VideoLAN forum 2013](https://forum.videolan.org/viewtopic.php?p=392423), [VideoLAN forum 2015](https://forum.videolan.org/viewtopic.php?p=425210), [android-vlc-remote](https://github.com/samicemalone/android-vlc-remote) · [Hoober grips (A List Apart)](https://alistapart.com/1-2-phone-grips-jpg/), [Osmani touch design](https://addyosmani.com/blog/touch-friendly-design/) · [Dark theme with MDC](https://medium.com/androiddevelopers/dark-theme-with-mdc-4c6fc357d956).
 
-Метаданные: [VLC HTTP requests README](https://github.com/videolan/vlc/tree/master/share/lua/http/requests) · [guessit properties](https://guessit.readthedocs.io/en/latest/properties.html) · [parse-torrent-title](https://pypi.org/project/parse-torrent-title/2.4/), [jhin](https://pkg.go.dev/github.com/dreulavelle/jhin), [torrent-name-parser (Java)](https://central.sonatype.com/artifact/io.github.mdaubie/torrent-name-parser) · [Emby.Naming VideoResolver](https://dev.emby.media/reference/pluginapi/Emby.Naming.Video.VideoResolver.html), [Jellyfin naming diff](https://gitea.hptrow.me/pt/jellyfin/compare/53d432852c9380e57f36adfebd4432c743028127...84f0c5fbe1a5f0352bba0396abff7ae5e3123ad6), [Emby «se» bug](https://emby.media/community/topic/20947-se-keyword-for-home-videos/) · [TMDB API terms](https://www.themoviedb.org/api-terms-of-use), [TMDB rate limiting](https://developer.themoviedb.org/docs/rate-limiting), [TMDB image basics](https://developer.themoviedb.org/docs/image-basics), [TMDB search movie](https://developer.themoviedb.org/reference/search-movie), [TMDB config sample](https://community.kde.org/Macaw-Movies/TMDB-json-responses), [TMDB sizes talk](https://themoviedb.org/talk/5a6986550e0a260d6400d6c0) · [OpenSubtitles MCP README](https://glama.ai/mcp/servers/@opensubtitles/mcp.opensubtitles.com/blob/607a9eb0ecd1d2e908642f9ecf5dd4335d997db0/README.md), [OpenSubtitles limits (Reddit 2024)](https://redlib.hbubli.cc/r/learnprogramming/comments/1bd0rxx/using_subtitles_api), [VLsub VIP wall](https://forum.videolan.org/viewtopic.php?p=545241), [Mintlify OS guide](https://www.mintlify.com/logscore/plank/integrations/opensubtitles) · [Subdl via cloudstream](https://gitdab.com/recloudstream/cloudstream/commit/469a71236b6e78018f3f72c83f0b051bdab189c3), [Subdl limit (tMM)](https://gitlab.com/tinyMediaManager/tinyMediaManager/-/issues/2631).
+Metadata: [VLC HTTP requests README](https://github.com/videolan/vlc/tree/master/share/lua/http/requests) · [guessit properties](https://guessit.readthedocs.io/en/latest/properties.html) · [parse-torrent-title](https://pypi.org/project/parse-torrent-title/2.4/), [jhin](https://pkg.go.dev/github.com/dreulavelle/jhin), [torrent-name-parser (Java)](https://central.sonatype.com/artifact/io.github.mdaubie/torrent-name-parser) · [Emby.Naming VideoResolver](https://dev.emby.media/reference/pluginapi/Emby.Naming.Video.VideoResolver.html), [Jellyfin naming diff](https://gitea.hptrow.me/pt/jellyfin/compare/53d432852c9380e57f36adfebd4432c743028127...84f0c5fbe1a5f0352bba0396abff7ae5e3123ad6), [Emby "se" bug](https://emby.media/community/topic/20947-se-keyword-for-home-videos/) · [TMDB API terms](https://www.themoviedb.org/api-terms-of-use), [TMDB rate limiting](https://developer.themoviedb.org/docs/rate-limiting), [TMDB image basics](https://developer.themoviedb.org/docs/image-basics), [TMDB search movie](https://developer.themoviedb.org/reference/search-movie), [TMDB config sample](https://community.kde.org/Macaw-Movies/TMDB-json-responses), [TMDB sizes talk](https://themoviedb.org/talk/5a6986550e0a260d6400d6c0) · [OpenSubtitles MCP README](https://glama.ai/mcp/servers/@opensubtitles/mcp.opensubtitles.com/blob/607a9eb0ecd1d2e908642f9ecf5dd4335d997db0/README.md), [OpenSubtitles limits (Reddit 2024)](https://redlib.hbubli.cc/r/learnprogramming/comments/1bd0rxx/using_subtitles_api), [VLsub VIP wall](https://forum.videolan.org/viewtopic.php?p=545241), [Mintlify OS guide](https://www.mintlify.com/logscore/plank/integrations/opensubtitles) · [Subdl via cloudstream](https://gitdab.com/recloudstream/cloudstream/commit/469a71236b6e78018f3f72c83f0b051bdab189c3), [Subdl limit (tMM)](https://gitlab.com/tinyMediaManager/tinyMediaManager/-/issues/2631).
 
-Тесты: [Compose testing patterns](https://developer.android.com/develop/ui/compose/testing/common-patterns) · [Compose Preview Screenshot Testing](https://developer.android.com/studio/preview/compose-screenshot-testing) · [Android testing guide 2026 (вторичный)](https://resumegeni.com/blog/android-engineer/testing-and-ci).
+Tests: [Compose testing patterns](https://developer.android.com/develop/ui/compose/testing/common-patterns) · [Compose Preview Screenshot Testing](https://developer.android.com/studio/preview/compose-screenshot-testing) · [Android testing guide 2026 (secondary)](https://resumegeni.com/blog/android-engineer/testing-and-ci).

@@ -1,29 +1,29 @@
-# ADR-0002. Транспорты и обнаружение
+# ADR-0002. Transports and discovery
 
-Статус: принято (2026-10-12). Основание: [research/transport-and-companion.md](../research/transport-and-companion.md), [research/prior-art.md](../research/prior-art.md).
+Status: accepted (2026-10-12). Basis: [research/transport-and-companion.md](../research/transport-and-companion.md), [research/prior-art.md](../research/prior-art.md).
 
-## Решение
+## Decision
 
-1. **LAN без компаньона** — HTTP к VLC (`/requests/*.json`, Basic с пустым логином). Обнаружение:
-   сохранённый адрес + имя хоста, параллельный HTTP‑свип `/24` от своего IP наружу с таймаутом ~1 с
-   (узнаём VLC по `401` с realm `VLC stream`), ручной ввод `host[:port]`, `имя-пк.local`.
-   mDNS без компаньона бесполезен: VLC себя не анонсирует.
-2. **LAN с компаньоном** — WebSocket `ws://pc:47555`, NDJSON, токен. Обнаружение: DNS‑SD
-   `_vlcremote._tcp` (на Windows — встроенный responder через `DnsServiceRegister`; на Android —
-   `NsdManager`) плюс UDP‑маяк на `:47556` как запасной путь, плюс QR с ТВ.
-3. **Bluetooth** — Classic RFCOMM (SPP) к компаньону: Windows `RfcommServiceProvider` (работает из
-   обычного .NET‑приложения без прав администратора — проверено), Android
-   `createRfcommSocketToServiceRecord` + `BLUETOOTH_CONNECT`, выбор устройства через
-   `CompanionDeviceManager`. Тот же NDJSON, тот же `Session` на ПК.
-4. **Bluetooth PAN** (tethering телефона → Windows «Join PAN») — документированный запасной путь
-   без компаньона: обычный IP‑маршрут, HTTP к VLC. В приложении — подсказка, не автоматизация.
-5. **Выбор канала**: WS, если ПК найден в LAN за ~3 с; иначе RFCOMM, если есть сопряжённый ПК;
-   иначе экран «Подключение». Переключение без потери состояния, команды буферизуются 5 с.
+1. **LAN without the companion** — HTTP to VLC (`/requests/*.json`, Basic auth with an empty user name). Discovery:
+   the saved address + host name, a parallel HTTP sweep of the `/24` outward from our own IP with a ~1 s timeout
+   (VLC is recognized by a `401` with the realm `VLC stream`), manual entry of `host[:port]`, `pc-name.local`.
+   mDNS is useless without the companion: VLC does not announce itself.
+2. **LAN with the companion** — WebSocket `ws://pc:47555`, NDJSON, token. Discovery: DNS-SD
+   `_vlcremote._tcp` (on Windows — the built-in responder via `DnsServiceRegister`; on Android —
+   `NsdManager`) plus a UDP beacon on `:47556` as a fallback, plus a QR code on the TV.
+3. **Bluetooth** — Classic RFCOMM (SPP) to the companion: Windows `RfcommServiceProvider` (works from
+   a regular .NET application without administrator rights — verified), Android
+   `createRfcommSocketToServiceRecord` + `BLUETOOTH_CONNECT`, device selection via
+   `CompanionDeviceManager`. The same NDJSON, the same `Session` on the PC.
+4. **Bluetooth PAN** (phone tethering → Windows "Join PAN") — a documented fallback
+   without the companion: a regular IP route, HTTP to VLC. In the app — a hint, not automation.
+5. **Channel selection**: WS if the PC is found on the LAN within ~3 s; otherwise RFCOMM if there is a paired PC;
+   otherwise the "Connection" screen. Switching without losing state, commands are buffered for 5 s.
 
-## Отвергнуто
+## Rejected
 
-- **BLE GATT‑периферия на Windows** — работает, но сообщения 20–512 байт, своя фрагментация,
-  нет API отключения; оставлено как план Б.
-- **Эмуляция клавиатуры/хоткеев как транспорт** — требует фокуса окна, не даёт состояния.
-- **mDNS‑библиотеки для .NET** (Makaretu, Zeroconf, Tmds.MDns, Mono.Zeroconf) — мертвы или только browse.
-- **TLS в v1** — домашняя сеть, токен достаточен; в QR зарезервировано поле `fp` для пиннинга.
+- **A BLE GATT peripheral on Windows** — works, but messages are 20–512 bytes, needs its own fragmentation,
+  no disconnect API; kept as plan B.
+- **Keyboard/hotkey emulation as a transport** — requires window focus, provides no state.
+- **mDNS libraries for .NET** (Makaretu, Zeroconf, Tmds.MDns, Mono.Zeroconf) — dead or browse-only.
+- **TLS in v1** — home network, a token is enough; the `fp` field in the QR code is reserved for pinning.

@@ -1,53 +1,55 @@
-# vlc-remote — правила проекта
+# vlc-remote — project rules
 
-Android‑пульт для VLC на Windows‑ПК у телевизора + Windows‑компаньон.
+An Android remote for VLC on a Windows PC at the TV + a Windows companion.
 
-**Языки.** Общение с пользователем, документация в `docs/`, README, сообщения скриптов — по‑русски.
-**Коммиты, заголовки и описания PR (включая release notes) — по‑английски.** Идентификаторы, код, журналы — по‑английски.
+**Languages.** Repository documentation, code comments, logs, commit messages, PR titles/descriptions and release
+notes are in English. The apps' UI follows the system language with English as the default; Russian is an
+additional UI translation. Talk to the user in Russian. Identifiers and code are in English too, and so are the
+messages printed by the scripts in `scripts/`.
 
-**Интерфейс приложения и компаньона следует языку системы, запасной язык — английский; сейчас есть перевод на русский.**
-Никаких литералов UI в коде:
-- Android: `res/values/strings.xml` — английский (по умолчанию), `res/values-ru/strings.xml` — русский, наборы ключей
-  одинаковые; языки для настройки «язык приложения» Android 13+ — `res/xml/locales_config.xml`.
-- Компаньон: строки в таблицах `companion/tools/gen_localization.py` (en + ru) → `python companion/tools/gen_localization.py`
-  генерирует `Strings*.resx` + `UiText` (UI на ПК, язык Windows) и `ProtocolText*.resx` + `ProtocolText` (тексты `err.msg`,
-  которые сессия рисует на языке телефона из `hello.device.locale`). Сгенерированные файлы руками не править.
-- Новый язык: столбец в генераторе + `values-<lang>/strings.xml` + строка в `locales_config.xml`.
+**The UI of the app and the companion follows the system language, the fallback language is English; a Russian
+translation is available.** No UI literals in code:
+- Android: `res/values/strings.xml` — English (default), `res/values-ru/strings.xml` — Russian, the key sets
+  are identical; languages for the Android 13+ "app language" setting — `res/xml/locales_config.xml`.
+- Companion: strings in the tables of `companion/tools/gen_localization.py` (en + ru) → `python companion/tools/gen_localization.py`
+  generates `Strings*.resx` + `UiText` (the PC UI, Windows language) and `ProtocolText*.resx` + `ProtocolText` (the `err.msg`
+  texts that the session renders in the phone's language from `hello.device.locale`). Do not edit generated files by hand.
+- New language: a column in the generator + `values-<lang>/strings.xml` + a line in `locales_config.xml`.
 
-## Где что
+## Where things are
 
-- `docs/PLAN.md` — план и этапы (M0–M5), `docs/adr/` — архитектурные решения, `docs/research/` — исследования
-  и живые замеры VLC 3.0.23 (`samples/` — реальные ответы, они же фикстуры тестов).
-- `protocol/README.md` — протокол телефон ↔ компаньон v1 (источник истины для обеих сторон),
-  `protocol/vlc-http.md` — прямой HTTP‑режим VLC и все его причуды.
+- `docs/PLAN.md` — plan and milestones (M0–M5), `docs/adr/` — architecture decisions, `docs/research/` — research
+  and live measurements of VLC 3.0.23 (`samples/` — real responses, also used as test fixtures).
+- `protocol/README.md` — the phone ↔ companion protocol v1 (the source of truth for both sides),
+  `protocol/vlc-http.md` — VLC's direct HTTP mode and all its quirks.
 - `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 9 (`VlcRemote.Core`,
-  `VlcRemote.Companion`, тесты), `companion/lua/` — Lua‑страницы для VLC.
-- `scripts/deploy-windows.ps1` — компаньон на Windows, `scripts/deploy-android.ps1` — приложение на телефон,
-  `scripts/deploy-lib.ps1` — их общий код; `scripts/release_notes.py` — проверка PR и сборка release notes.
+  `VlcRemote.Companion`, tests), `companion/lua/` — Lua pages for VLC.
+- `scripts/deploy-windows.ps1` — the companion on Windows, `scripts/deploy-android.ps1` — the app on the phone,
+  `scripts/deploy-lib.ps1` — their shared code; `scripts/release_notes.py` — PR checks and release notes assembly.
 
-## Сборка и тесты
+## Build and tests
 
 ```powershell
 dotnet build companion\VlcRemote.sln -c Release
 dotnet test  companion\VlcRemote.sln
-$env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # на этом ПК; подойдёт любой JDK 17/21
+$env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # on this PC; any JDK 17/21 will do
 android\gradlew.bat -p android test :app:assembleDebug
 ```
 
-Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 — привязаны к установленному SDK (без папки licenses
-ничего нового не скачать); не поднимать без необходимости. Компаньон — SDK из `companion/global.json`.
+Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 are pinned to the installed SDK (without the licenses folder
+nothing new can be downloaded); do not bump them unless necessary. Companion — the SDK from `companion/global.json`.
 
-Изменения протокола делать одновременно в `protocol/`, `android/core/protocol` и `companion/VlcRemote.Core`
-(+ тесты на обеих сторонах). Живые проверки с VLC — только отдельным экземпляром на `127.0.0.1`
-(`--no-one-instance -I dummy … --http-host 127.0.0.1`), не трогая `%APPDATA%\vlc`, звук, экраны и питание ПК.
+Make protocol changes simultaneously in `protocol/`, `android/core/protocol` and `companion/VlcRemote.Core`
+(+ tests on both sides). Live checks with VLC — only with a separate instance on `127.0.0.1`
+(`--no-one-instance -I dummy … --http-host 127.0.0.1`), without touching `%APPDATA%\vlc`, sound, displays or the PC's power.
 
-## Ветки и коммиты
+## Branches and commits
 
-- В `main` — только через PR со **squash‑мержем** (настроено в репозитории: заголовок коммита = заголовок PR,
-  тело = описание PR, ветка удаляется после мержа). Прямые пуши в `main` не делать.
-- Ветка: `<type>/<short-kebab-case>`, например `feat/bt-transport`, `fix/companion-port`.
-- Сообщения коммитов — по‑английски, в стиле заголовка PR (`fix(android): handle empty playlist`);
-  в историю `main` попадает заголовок PR.
+- Into `main` only via a PR with a **squash merge** (configured in the repository: commit title = PR title,
+  body = PR description, the branch is deleted after the merge). No direct pushes to `main`.
+- Branch: `<type>/<short-kebab-case>`, e.g. `feat/bt-transport`, `fix/companion-port`.
+- Commit messages are in English, in the style of a PR title (`fix(android): handle empty playlist`);
+  the PR title is what ends up in the history of `main`.
 
 ## Pull requests and release notes
 
@@ -82,88 +84,89 @@ $env:PR_TITLE='feat(android): …'; $env:PR_BODY=Get-Content body.md -Raw; pytho
 
 Create from the console: `gh pr create --title "<title>" --body-file <file>`; merge: `gh pr merge --squash`.
 
-## Версии и сборки
+## Versions and builds
 
-- Базовая версия — файл `VERSION` (SemVer `MAJOR.MINOR.PATCH`), из него берут версию компаньон (`VersionPrefix`)
-  и Android (`versionName`). `versionCode` = число коммитов в `main` × 10 (CI), у локальных сборок `deploy-android -Local` — коммиты
-  `origin/main` × 10 + 5: новее текущей тестовой, старше следующей.
-- **Тестовая сборка** (pre‑release `v<VERSION>-beta.<N>`) создаётся автоматически на каждый мерж в `main`
-  (`.github/workflows/release.yml`). Описание — release notes смёрдженного PR + инструкция по установке.
-  Файлы: `VlcRemote.Companion-<версия>-win-x64.zip`, `VlcRemote-<версия>.apk`, `deploy-*.ps1/.cmd`.
-- **Релиз** `v<VERSION>`: Actions → Release → Run workflow → `stable` (или
-  `gh workflow run release.yml -f channel=stable`). Заметки собираются из всех PR, смёрдженных после
-  предыдущего релиза, по разделам. Если тег уже есть — workflow падает.
-- **После релиза** первый PR поднимает `VERSION`: `feat` → MINOR, только `fix` → PATCH, `!` → MAJOR
-  (пока версия `0.x` — MINOR). Можно поднимать и в PR с самой фичей.
+- The base version is the `VERSION` file (SemVer `MAJOR.MINOR.PATCH`); the companion (`VersionPrefix`) and
+  Android (`versionName`) take their version from it. `versionCode` = number of commits in `main` × 10 (CI); for local
+  `deploy-android -Local` builds — commits in `origin/main` × 10 + 5: newer than the current test build, older than the next one.
+- A **test build** (pre-release `v<VERSION>-beta.<N>`) is created automatically on every merge to `main`
+  (`.github/workflows/release.yml`). Description — the release notes of the merged PR + installation instructions.
+  Files: `VlcRemote.Companion-<version>-win-x64.zip`, `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
+- **Release** `v<VERSION>`: Actions → Release → Run workflow → `stable` (or
+  `gh workflow run release.yml -f channel=stable`). The notes are collected from all PRs merged since the
+  previous release, by section. If the tag already exists, the workflow fails.
+- **After a release** the first PR bumps `VERSION`: `feat` → MINOR, only `fix` → PATCH, `!` → MAJOR
+  (while the version is `0.x` — MINOR). It can also be bumped in the PR with the feature itself.
 
-## Развёртывание: Windows
+## Deployment: Windows
 
-`scripts\deploy-windows.ps1` (или двойной клик по `deploy-windows.cmd`):
+`scripts\deploy-windows.ps1` (or double-click `deploy-windows.cmd`); like all scripts in `scripts/`, it prints its
+messages in English:
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `deploy-windows.ps1` | последняя тестовая сборка компаньона из GitHub Releases (нужен `gh auth login`) |
-| `-Channel stable` / `-Tag v0.2.0-beta.12` | последний релиз / конкретная сборка |
-| `-Local` | собрать из рабочей копии и поставить |
-| `-CheckOnly` | сравнить установленную версию с последней |
-| `-Firewall` / `-Autostart` | правила брандмауэра для компаньона и VLC (частная сеть, один UAC) / автозапуск |
-| `-Rollback` | вернуть предыдущую версию (`app.prev`) |
-| `-Uninstall [-Purge]` | удалить (с `-Purge` — и настройки, сопряжения, журналы) |
+| `deploy-windows.ps1` | the latest test build of the companion from GitHub Releases (requires `gh auth login`) |
+| `-Channel stable` / `-Tag v0.2.0-beta.12` | the latest release / a specific build |
+| `-Local` | build from the working copy and install |
+| `-CheckOnly` | compare the installed version with the latest one |
+| `-Firewall` / `-Autostart` | firewall rules for the companion and VLC (private network, one UAC prompt) / autostart |
+| `-Rollback` | restore the previous version (`app.prev`) |
+| `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs) |
 
-Компаньон ставится в `%LOCALAPPDATA%\VlcRemote\app` без прав администратора; перед заменой файлов старый
-экземпляр закрывается штатно (`VlcRemote.Companion.exe --shutdown`). При нехватке .NET 9 Desktop/ASP.NET Core
-Runtime скрипт ставит их через winget.
+The companion is installed into `%LOCALAPPDATA%\VlcRemote\app` without administrator rights; before replacing the
+files the old instance is shut down gracefully (`VlcRemote.Companion.exe --shutdown`). If the .NET 9 Desktop/ASP.NET Core
+Runtime is missing, the script installs it via winget.
 
-## Развёртывание: Android
+## Deployment: Android
 
-`scripts\deploy-android.ps1` (или `deploy-android.cmd`) ставит APK по adb **только на разрешённые устройства**
-из `%USERPROFILE%\.vlc-remote\devices.json` (вне git, по серийному номеру `ro.serialno`). Остальные подключённые
-устройства — например, велокомпьютер Karoo из соседнего проекта — пропускаются с сообщением; пустой список =
-отказ. Сейчас разрешён Samsung Galaxy S24 (`RFCWC0SSKZK`).
+`scripts\deploy-android.ps1` (or `deploy-android.cmd`) installs the APK via adb **only on allowed devices**
+from `%USERPROFILE%\.vlc-remote\devices.json` (outside git, by the serial number `ro.serialno`). Other connected
+devices — for example, the Karoo bike computer from a neighbouring project — are skipped with a message; an empty list =
+refusal. Currently allowed: Samsung Galaxy S24 (`RFCWC0SSKZK`).
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `deploy-android.ps1` | последняя тестовая сборка на разрешённые подключённые телефоны (та же версия — пропуск) |
-| `-Connect <ip>:<порт>` | явно указать адрес; обычно не нужно — телефон ищется сам (см. ниже) |
-| `-Channel stable` / `-Tag …` / `-Local` | релиз / конкретная сборка / сборка из исходников (нужен `keystore.properties`) |
-| `-CheckOnly` / `-Force` | показать версии на телефонах / переустановить ту же версию |
-| `-ListDevices` | подключённые и разрешённые устройства |
-| `-AllowDevice <serial>` / `-DisallowDevice <serial>` | добавить / убрать устройство |
+| `deploy-android.ps1` | the latest test build on the allowed connected phones (same version — skipped) |
+| `-Connect <ip>:<port>` | specify the address explicitly; usually not needed — the phone is found automatically (see below) |
+| `-Channel stable` / `-Tag …` / `-Local` | a release / a specific build / a build from source (requires `keystore.properties`) |
+| `-CheckOnly` / `-Force` | show the versions on the phones / reinstall the same version |
+| `-ListDevices` | connected and allowed devices |
+| `-AllowDevice <serial>` / `-DisallowDevice <serial>` | add / remove a device |
 
-Wi‑Fi‑отладка (Android 11+): «Для разработчиков» → «Отладка по Wi‑Fi». Сопряжение один раз
-(`adb pair <ip>:<порт сопряжения> <код>`). Порт отладки меняется при каждом включении, поэтому скрипт ищет телефон
-сам: последний удачный адрес → mDNS adb (`ADB_MDNS_OPENSCREEN=1`; в этой сети провайдерский роутер его не
-пропускает) → IP по MAC из ARP (после пинга /24) или прежний IP → скан портов 30000–49999 (~10 с). Удачный
-адрес, порт и MAC запоминаются в `devices.json`. Телефон должен не спать и быть в той же сети (`-NoAutoConnect`
-отключает поиск).
-Если разрешённого телефона нет, APK сохраняется в `%LOCALAPPDATA%\VlcRemote\apk`.
+Wi-Fi debugging (Android 11+): "Developer options" → "Wireless debugging". Pair once
+(`adb pair <ip>:<pairing port> <code>`). The debugging port changes every time it is turned on, so the script finds the
+phone by itself: the last successful address → adb mDNS (`ADB_MDNS_OPENSCREEN=1`; on this network the ISP router does not
+pass it) → the IP by MAC from ARP (after pinging the /24) or the previous IP → a scan of ports 30000–49999 (~10 s). The
+successful address, port and MAC are remembered in `devices.json`. The phone must be awake and on the same network
+(`-NoAutoConnect` disables the search).
+If no allowed phone is present, the APK is saved to `%LOCALAPPDATA%\VlcRemote\apk`.
 
-## Подпись APK
+## APK signing
 
-Тестовые сборки и релизы подписываются **одним** ключом, иначе обновление не встанет поверх. Debug‑сборка
-(`dev.vlcremote.app.debug`, «VLC Remote (dev)») подписана debug‑ключом и ставится рядом.
+Test builds and releases are signed with **one** key, otherwise an update will not install over the previous version.
+The debug build (`dev.vlcremote.app.debug`, "VLC Remote (dev)") is signed with the debug key and installs side by side.
 
-- Ключ: `%USERPROFILE%\.vlc-remote\signing\vlcremote.jks` (+ `keystore.properties` рядом). **Сделать резервную
-  копию**: потеря ключа = переустановка приложения на телефонах с потерей сопряжений.
-- Локально: скопировать `keystore.properties` в `android\` (в git не попадает).
-- CI: секреты репозитория `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+- Key: `%USERPROFILE%\.vlc-remote\signing\vlcremote.jks` (+ `keystore.properties` next to it). **Make a backup**:
+  losing the key = reinstalling the app on the phones and losing the pairings.
+- Locally: copy `keystore.properties` into `android\` (it is not committed to git).
+- CI: repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
   `ANDROID_KEY_PASSWORD`.
 
-## Отладка на ноутбуке у ТВ (SSH)
+## Debugging on the TV laptop (SSH)
 
-Компаньон тестируется на отдельном ноутбуке, подключённом к телевизору. С ПК разработчика к нему ходим по SSH
-(встроенный OpenSSH Server Windows, вход только по ключу, порт 22 открыт только в частной сети):
+The companion is tested on a separate laptop connected to the TV. From the developer PC we reach it over SSH
+(the built-in Windows OpenSSH Server, key-only login, port 22 open only on the private network):
 
-| Команда (на ПК разработчика) | Что делает |
+| Command (on the developer PC) | What it does |
 |---|---|
-| `scripts\dev-laptop.ps1 -Init` | ключ `~\.ssh\id_ed25519_vlcremote` + файлы настройки в `D:\shared\vlc-remote-setup` |
-| на ноутбуке: `\DESKTOP-9SO2EON\shared\vlc-remote-setup\laptop-setup.cmd` | разовая настройка sshd (запросит права администратора), печатает IP и пользователя |
-| `dev-laptop.ps1 -Connect <IP> -User <имя>` | запись `Host vlcremote-laptop` в `~\.ssh\config` и проверка связи |
-| `dev-laptop.ps1` (`-Status`) | компаньон, `/info`, процессы VLC с командной строкой, ключи `vlcrc`, профили сети |
-| `dev-laptop.ps1 -Deploy -Local` / `-Deploy [-Tag …]` | собрать здесь (или взять из релиза) и поставить на ноутбук |
-| `dev-laptop.ps1 -Logs [-Tail N] [-Follow]` | журнал компаньона |
-| `dev-laptop.ps1 -Exec '<PowerShell>'` / `-Shell` | произвольная команда / интерактивная сессия |
+| `scripts\dev-laptop.ps1 -Init` | the key `~\.ssh\id_ed25519_vlcremote` + setup files in `D:\shared\vlc-remote-setup` |
+| on the laptop: `\DESKTOP-9SO2EON\shared\vlc-remote-setup\laptop-setup.cmd` | one-time sshd setup (asks for administrator rights), prints the IP and user |
+| `dev-laptop.ps1 -Connect <IP> -User <name>` | writes `Host vlcremote-laptop` into `~\.ssh\config` and checks the connection |
+| `dev-laptop.ps1` (`-Status`) | companion, `/info`, VLC processes with their command lines, `vlcrc` keys, network profiles |
+| `dev-laptop.ps1 -Deploy -Local` / `-Deploy [-Tag …]` | build here (or take from a release) and install on the laptop |
+| `dev-laptop.ps1 -Logs [-Tail N] [-Follow]` | the companion's log |
+| `dev-laptop.ps1 -Exec '<PowerShell>'` / `-Shell` | an arbitrary command / an interactive session |
 
-По SSH процессы запускаются вне рабочего стола пользователя, поэтому `deploy-windows.ps1` в SSH‑сеансе запускает и
-останавливает компаньон через задачу планировщика в интерактивном сеансе (пользователь должен быть залогинен).
-Отключить доступ: на ноутбуке `laptop-setup.ps1 -Remove`.
+Over SSH processes start outside the user's desktop, so `deploy-windows.ps1` in an SSH session starts and
+stops the companion through a scheduled task in the interactive session (the user must be logged in).
+To disable access: on the laptop, `laptop-setup.ps1 -Remove`.

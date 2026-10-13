@@ -1,8 +1,8 @@
 <?vlc --[[
-  setvar.json — vlc-remote: установить переменную VLC.
+  setvar.json — vlc-remote: set a VLC variable.
   GET /requests/setvar.json?obj=input|aout|vout&name=<var>&val=<value>
-  Числовые значения передаются как числа, если val целиком число; иначе строкой.
-  Ответ: {"ok":true,"current":<значение после установки>} или {"ok":false,"err":"..."}.
+  Numeric values are passed as numbers if val is entirely a number; otherwise as a string.
+  Response: {"ok":true,"current":<value after setting>} or {"ok":false,"err":"..."}.
 ]]?>
 <?vlc
 local dkjson = require("dkjson")

@@ -1,332 +1,391 @@
-# vlc-remote — план проекта
+# vlc-remote — project plan
 
-Дата: 2026-10-12. Статус: M1 и M2 (LAN) реализованы, не проверены на реальном телефоне и ноутбуке у ТВ; далее M3.
+Date: 2026-10-13. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+implemented, along with automatic pairing, companion-side library browsing, localization and choosing the monitor
+for the VLC window. In progress: first-run permissions and setup. Next: watch history and "Continue watching".
 
-## 0. Суть
+## 0. Essence
 
-Android‑пульт для VLC, который работает на Windows‑ноутбуке, подключённом к телевизору.
-Сценарий один: сесть на диван, выбрать фильм из `D:\shared`, запустить его на ТВ, выбрать
-русскую дорожку и субтитры, подкрутить громкость и перемотать, не вставая и не трогая ноутбук.
+An Android remote for VLC running on a Windows laptop connected to a TV.
+There is one scenario: sit on the couch, pick a movie from `D:\shared`, start it on the TV, choose the
+Russian audio track and subtitles, adjust the volume and seek, without getting up or touching the laptop.
 
-Три уровня, от простого к полному (подробно — [ADR‑0001](adr/0001-control-paths.md)):
+Three levels, from simple to full (details in [ADR-0001](adr/0001-control-paths.md)):
 
-| Уровень | Что нужно на ПК | Что умеет пульт |
+| Level | What the PC needs | What the remote can do |
 |---|---|---|
-| 0 «только VLC» | включённый веб‑интерфейс VLC + пароль | транспорт, громкость, главы, скорость, задержки, **выбор дорожек**, обзор файлов и запуск, плейлист, обложка |
-| 1 «VLC + Lua‑страницы» | копия штатной папки `lua\http` + наши страницы в `%APPDATA%\vlc\lua\http\`, перезапуск VLC | + текущая дорожка, названия глав, аспект/кроп/деинтерлейс |
-| 2 «компаньон» | трей‑приложение на .NET | + Bluetooth, автообнаружение, push‑события, аудиоустройство, запуск VLC, окно на ТВ, «не спать», сон ПК, постеры/метаданные |
+| 0 "VLC only" | VLC web interface enabled + password | transport, volume, chapters, rate, delays, **track selection**, file browsing and launching, playlist, cover art |
+| 1 "VLC + Lua pages" | a copy of the stock `lua\http` folder + our pages in `%APPDATA%\vlc\lua\http\`, VLC restart | + current track, chapter names, aspect/crop/deinterlace |
+| 2 "companion" | a .NET tray application | + Bluetooth, auto-discovery, push events, audio device, launching VLC, window on the TV, "keep awake", PC sleep, posters/metadata |
 
-Главное отличие от существующих пультов (см. [prior-art](research/prior-art.md)): не циклический
-перебор дорожек, а список с языками; соединение, которое не «отваливается»; настройка, которую
-за пользователя делает компаньон; и Bluetooth как резерв, когда Wi‑Fi подводит.
+The main difference from existing remotes (see [prior-art](research/prior-art.md)): not cycling through
+tracks blindly but a list with languages; a connection that does not "drop"; setup that the companion
+does for the user; and Bluetooth as a fallback when Wi-Fi lets you down.
 
-## 1. Цели и не‑цели
+## 1. Goals and non-goals
 
-**Цели v1**
-- Управлять настоящим VLC 3.0.x на Windows 11 (не встраивать свой плеер).
-- Работать без компаньона (уровень 0/1) и с ним (уровень 2); возможности включаются по факту.
-- Два транспорта: LAN (HTTP к VLC или WebSocket к компаньону) и Bluetooth RFCOMM к компаньону.
-- Пульт «вслепую»: крупные кнопки, хаптика, аппаратные клавиши громкости.
-- Библиотека с постерами и «продолжить просмотр».
+**v1 goals**
+- Control the real VLC 3.0.x on Windows 11 (no embedded player of our own).
+- Work without the companion (level 0/1) and with it (level 2); features are enabled based on what is available.
+- Two transports: LAN (HTTP to VLC or WebSocket to the companion) and Bluetooth RFCOMM to the companion.
+- An "eyes-free" remote: large buttons, haptics, hardware volume keys.
+- A library with posters and "Continue watching".
 
-**Не‑цели v1**
-- iOS, Wear OS, Android TV, виджеты (оставлены на потом; протокол и модель — в чистых Kotlin‑модулях).
-- Скачивание субтитров из интернета, транскодирование, стриминг видео на телефон.
-- Поддержка VLC 4.x (готовимся: ветвление по `apiversion`, не падаем на новых полях).
-- Доступ извне домашней сети, TLS (в протоколе зарезервировано поле для будущего пиннинга).
+**v1 non-goals**
+- iOS, Wear OS, Android TV, widgets (left for later; the protocol and model live in pure Kotlin modules).
+- Downloading subtitles from the internet, transcoding, streaming video to the phone.
+- VLC 4.x support (we prepare for it: branching on `apiversion`, not crashing on new fields).
+- Access from outside the home network, TLS (a field is reserved in the protocol for future pinning).
+- Controlling the TV itself (postponed, see § 6 "Postponed").
 
-## 2. Сценарии («с дивана»)
+## 2. Scenarios ("from the couch")
 
-1. Открыл приложение → оно само нашло ПК и показало «что играет» (или «VLC не запущен — запустить?»).
-2. Библиотека → постер → «Смотреть» → VLC стартует на ТВ‑мониторе в полный экран.
-3. Sheet «Аудио и субтитры» → выбрал «Русский (Dub Мосфильм)» и выключил субтитры.
-4. Клавиши громкости телефона меняют громкость VLC; долгое нажатие ±10 с; главы на шкале.
-5. Пропал Wi‑Fi → приложение молча переключилось на Bluetooth (если компаньон установлен).
-6. Таймер сна: через 40 минут пауза и выключение монитора.
-7. Фильм закончился → «Продолжить просмотр» помнит позицию для следующего раза.
+1. Open the app → it finds the PC by itself and shows "what is playing" (or "VLC is not running — start it?").
+2. Library → poster → "Watch" → VLC starts on the TV monitor in fullscreen.
+3. "Audio and subtitles" sheet → pick "Russian (Dub Mosfilm)" and turn subtitles off.
+4. The phone's volume keys change VLC's volume; a long press seeks ±10 s; chapters on the seek bar.
+5. Wi-Fi drops → the app silently switches to Bluetooth (if the companion is installed).
+6. Sleep timer: after 40 minutes, pause and turn off the monitor.
+7. The movie is interrupted or finished → "Continue watching" remembers the position for next time.
 
-## 3. Что показало исследование (кратко)
+## 3. What the research showed (in brief)
 
-Полные отчёты в `docs/research/`:
+Full reports in `docs/research/`:
 [live-probe](research/live-probe.md) · [vlc-protocols](research/vlc-protocols.md) ·
 [prior-art](research/prior-art.md) · [transport-and-companion](research/transport-and-companion.md) ·
-[mobile-stack-and-ux](research/mobile-stack-and-ux.md).
+[mobile-stack-and-ux](research/mobile-stack-and-ux.md) · [tv-control](research/tv-control.md).
 
-- **HTTP‑интерфейс VLC** — единственный стабильный канал; `status.json?command=…` возвращает
-  свежий статус. Проверено на VLC 3.0.23: ID дорожки = номер `Stream N` в `information.category`;
-  задержка ~20 мс; keep‑alive есть; ошибок команды не возвращает; `fullscreen` то `bool`, то `0`;
-  в `stopped` нет `information`; громкость 0..512 (256 = 100 %), процентная форма не сработала.
-- **Собственная Lua‑страница** в пользовательской папке подхватывается VLC без прав администратора
-  и отдаёт текущую дорожку, названия глав, списки аспект/кроп; аудиоустройства через Lua недоступны.
-  Пользовательская папка **заменяет** системную, поэтому вместе с нашими страницами копируются
-  штатные, и VLC перезапускается.
-- **VLC 4** по‑прежнему `4.0.0-dev`, стабильная — 3.0.23 (январь 2026). В 4.x `audio_track`
-  становится toggle, `playlist.json` — плоским массивом, в RC `atrack N` — индекс, а не ID.
-- **Полезные мелочи**: закрыть VLC по HTTP можно через `in_play&input=vlc://quit`; RC отказывает
-  в большинстве команд на паузе («Press pause to continue») — seek/volume/дорожки на паузе только
-  по HTTP; keep‑alive HTTP работает, только если клиент не шлёт заголовок `Connection` (OkHttp
-  добавляет `Keep-Alive` сам — убрать сетевым интерцептором); ошибки Lua приходят как `200` с
-  HTML‑телом «Error loading».
-- **RC‑интерфейс** (TCP 4212, без авторизации) даёт `atrack *`, `adev` со списком устройств Windows,
-  push‑события `status change:`; один клиент за раз — только через компаньон на `127.0.0.1`.
-- **VLC сам себя не анонсирует** (патч с mDNS отклонён); без компаньона — скан `/24` по 8080
-  (ответ `401` с realm `VLC stream`) + ручной ввод + `имя-пк.local`.
-- **Bluetooth RFCOMM‑сервер** на Windows из обычного .NET‑приложения работает без манифеста и
-  прав администратора (проверено на этом ПК); на Android — `createRfcommSocketToServiceRecord`
-  + `BLUETOOTH_CONNECT`, сопряжение вызывает сама система. Bluetooth PAN — запасной путь без кода.
-- **mDNS на Windows** — встроенный responder через `DnsServiceRegister` (проверено), библиотеки мертвы.
-- **Брандмауэр** — любое добавление правила требует UAC; план: одноразовый помощник с UAC.
-- **Мобильный стек** — Kotlin + Jetpack Compose (как в существующем проекте пользователя),
-  Media3 для уведомления и «удалённой громкости», foreground‑сервис типа `connectedDevice`,
-  targetSdk 36 (в 37 появляется runtime‑разрешение `ACCESS_LOCAL_NETWORK`).
-- **Главные жалобы на конкурентов**: обрывы соединения, мучительная настройка пароля, реклама,
-  слишком чувствительная перемотка, выбор дорожек «вслепую».
+- **The VLC HTTP interface** is the only stable channel; `status.json?command=…` returns a
+  fresh status. Verified on VLC 3.0.23: track ID = the `Stream N` number in `information.category`;
+  latency ~20 ms; keep-alive works; command errors are not reported; `fullscreen` is sometimes a `bool`, sometimes `0`;
+  there is no `information` in `stopped`; volume is 0..512 (256 = 100 %), the percent form did not work.
+- **Our own Lua page** in the user folder is picked up by VLC without administrator rights
+  and returns the current track, chapter names, aspect/crop lists; audio devices are not available through Lua.
+  The user folder **replaces** the system one, so the stock pages are copied together with ours,
+  and VLC is restarted.
+- **VLC 4** is still `4.0.0-dev`, the stable one is 3.0.23 (January 2026). In 4.x `audio_track`
+  becomes a toggle, `playlist.json` a flat array, and in RC `atrack N` is an index, not an ID.
+- **Useful details**: VLC can be closed over HTTP via `in_play&input=vlc://quit`; RC refuses
+  most commands while paused ("Press pause to continue") — seek/volume/tracks while paused only
+  over HTTP; HTTP keep-alive works only if the client does not send a `Connection` header (OkHttp
+  adds `Keep-Alive` by itself — remove it with a network interceptor); Lua errors arrive as `200` with
+  an "Error loading" HTML body.
+- **The RC interface** (TCP 4212, no authentication) provides `atrack *`, `adev` with the list of Windows devices,
+  `status change:` push events; one client at a time — only through the companion on `127.0.0.1`.
+- **VLC does not announce itself** (the mDNS patch was rejected); without the companion — a `/24` scan on 8080
+  (a `401` response with the realm `VLC stream`) + manual entry + `pc-name.local`.
+- **A Bluetooth RFCOMM server** on Windows from a regular .NET application works without a manifest or
+  administrator rights (verified on this PC); on Android — `createRfcommSocketToServiceRecord`
+  + `BLUETOOTH_CONNECT`, pairing is handled by the system itself. Bluetooth PAN is a no-code fallback.
+- **mDNS on Windows** — the built-in responder via `DnsServiceRegister` (verified); the libraries are dead.
+- **Firewall** — adding any rule requires UAC; plan: a one-time helper with UAC.
+- **Mobile stack** — Kotlin + Jetpack Compose (as in the user's existing project),
+  Media3 for the notification and "remote volume", a foreground service of type `connectedDevice`,
+  targetSdk 36 (37 introduces the runtime permission `ACCESS_LOCAL_NETWORK`).
+- **The main complaints about competitors**: dropped connections, painful password setup, ads,
+  overly sensitive seeking, choosing tracks "blindly".
+- **TV control** (Samsung UE55H6200, 2014, Orsay): no HDMI-CEC on the laptop's GTX 1050 output and no DDC/CI;
+  volume is possible via UPnP RenderingControl, power-off via the encrypted H-series protocol, power-on only with a
+  Pulse-Eight CEC adapter ([tv-control](research/tv-control.md)).
 
-## 4. Архитектура
+## 4. Architecture
 
-### 4.1. Компоненты
+### 4.1. Components
 
 ```
 ┌─────────────────────────────┐          ┌──────────────────────────────────────────┐
-│ Android‑приложение          │          │ Windows 11 (ноутбук у ТВ)                │
+│ Android app                 │          │ Windows 11 (laptop at the TV)            │
 │  UI (Compose)               │          │                                          │
 │  PlayerController           │  LAN     │  VLC 3.0.x ── http intf :8080 (Lua)      │
 │   ├ VlcHttpBackend ─────────┼──────────┼─▶  + requests/tracks.json, setvar.json   │
-│   │   (уровни 0/1)          │          │    + rc intf 127.0.0.1:4212              │
+│   │   (levels 0/1)          │          │    + rc intf 127.0.0.1:4212              │
 │   └ CompanionBackend        │          │            ▲            ▲                │
-│       ├ WsTransport ────────┼─ ws ─────┼─▶ Companion (.NET 9, трей)               │
+│       ├ WsTransport ────────┼─ ws ─────┼─▶ Companion (.NET 9, tray)               │
 │       └ BtTransport ────────┼─ RFCOMM ─┼─▶   Kestrel WS :47555 · RFCOMM · mDNS    │
-│  Discovery: NSD + UDP + scan│          │     VlcManager (процесс, vlcrc, RC‑мост)  │
-│  MediaSessionService (FGS)  │          │     Win32: окна/мониторы/питание/звук     │
-│  Room (библиотека, позиции) │          │     Library (имена файлов, TMDB, thumbs)  │
+│  Discovery: NSD + UDP + scan│          │     VlcManager (process, vlcrc, RC bridge)│
+│  MediaSessionService (FGS)  │          │     Win32: windows/monitors/power/sound   │
+│  Settings (DataStore)       │          │     Library (browse, names, TMDB, thumbs) │
 └─────────────────────────────┘          └──────────────────────────────────────────┘
 ```
 
-- **Android‑приложение** — единственный обязательный компонент.
-- **Lua‑страницы** — наши `requests/tracks.json`, `requests/setvar.json` плюс копия штатных
-  страниц VLC; кладёт компаньон или скрипт `companion/lua/install.ps1`, работают и без компаньона.
-- **Компаньон** — один exe в трее, без прав администратора (кроме одноразового помощника
-  для брандмауэра), автозапуск через HKCU\Run, обновления через Velopack.
+- **The Android app** is the only mandatory component.
+- **Lua pages** — our `requests/tracks.json`, `requests/setvar.json` plus a copy of VLC's stock
+  pages; installed by the companion or by the `companion/lua/install.ps1` script, they also work without the companion.
+- **The companion** — a single exe in the tray, without administrator rights (except for a one-time helper
+  for the firewall), autostart via HKCU\Run, updates via Velopack (planned).
 
-### 4.2. Уровни возможностей и `PlayerBackend`
+### 4.2. Capability levels and `PlayerBackend`
 
-Интерфейс `PlayerBackend` (чистый Kotlin, `:core:protocol`):
+The `PlayerBackend` interface (pure Kotlin, `:core:protocol`):
 
 ```kotlin
 interface PlayerBackend {
-    val capabilities: StateFlow<Capabilities>      // что умеет текущее соединение
-    val state: StateFlow<PlayerState>              // единая модель состояния
+    val capabilities: StateFlow<Capabilities>      // what the current connection can do
+    val state: StateFlow<PlayerState>              // the single state model
     suspend fun send(cmd: PlayerCommand): Result<Unit>
     suspend fun browse(uri: String): Result<List<Entry>>
     suspend fun playlist(): Result<List<PlaylistItem>>
 }
 ```
 
-`Capabilities` — набор флагов: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`,
-`launchVlc`, `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`. UI показывает
-элементы только при наличии флага. `VlcHttpBackend` после подключения пробует
-`GET /requests/tracks.json`: `200` → уровень 1, `404` → уровень 0.
+`Capabilities` is a set of flags: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`,
+`launchVlc`, `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`. The UI shows
+elements only when the flag is present. After connecting, `VlcHttpBackend` tries
+`GET /requests/tracks.json`: `200` → level 1, `404` → level 0.
 
-### 4.3. Транспорты и обнаружение ([ADR‑0002](adr/0002-transports-and-discovery.md))
+### 4.3. Transports and discovery ([ADR-0002](adr/0002-transports-and-discovery.md))
 
-Порядок при старте: сохранённый ПК по LAN (WS к компаньону → иначе HTTP к VLC) →
-mDNS `_vlcremote._tcp` + UDP‑маяк (компаньон) → при отсутствии сети и наличии сопряжённого ПК —
-RFCOMM → иначе экран «Подключение» со сканом `/24`, ручным вводом и QR. Реконнект тихий,
-с экспоненциальной паузой, команды буферизуются 5 с, статус соединения всегда в шапке.
+Order at startup: the saved PC over LAN (WS to the companion → otherwise HTTP to VLC) →
+mDNS `_vlcremote._tcp` + UDP beacon (companion) → with no network and a paired PC —
+RFCOMM, switching back to Wi-Fi automatically when it returns → otherwise the "Connection" screen with a `/24` scan,
+manual entry and QR. Reconnecting is silent, with exponential backoff, commands are buffered for 5 s, the connection
+status is always in the header.
 
-### 4.4. Протокол телефон ↔ компаньон
+### 4.4. Phone ↔ companion protocol
 
-NDJSON (одна JSON‑строка на сообщение, UTF‑8, `\n`) одинаково поверх WebSocket и RFCOMM.
-Сообщения имеют `t` (тип), `id` (для ответов), `v` (версия протокола, в `hello`).
+NDJSON (one JSON line per message, UTF-8, `\n`), identical over WebSocket and RFCOMM.
+Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`). The source of truth is
+[protocol/README.md](../protocol/README.md).
 
-| Направление | Тип | Назначение |
+| Direction | Type | Purpose |
 |---|---|---|
-| → ПК | `hello {token or pairCode, device, v}` | рукопожатие; ответ `welcome {caps, vlc: {running, version}, token?}` |
-| → ПК | `cmd {name, args}` | команды плеера: `play`, `pause`, `seek`, `volume`, `track`, `chapter`, `rate`, `delay`, `fullscreen`, `open {uri, subtitle?, audio?}`, `enqueue`, `launch`, `quit` |
-| → ПК | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume` |
-| → ПК | `browse {uri}` / `library {query}` | списки файлов / библиотека с метаданными |
-| ← ПК | `state {…diff}` | push изменений `PlayerState` (не чаще 4 Гц, seek/volume коалесцируются) |
-| ← ПК | `event {name, …}` | `vlcStarted`, `vlcExited`, `inputChanged`, `endReached` |
-| ↔ | `ping`/`pong` | каждые 15 с по RFCOMM, 30 с по WS |
-| ← ПК | `err {id, code, msg}` | ошибка команды |
+| → PC | `hello {token or pairCode, device, v}` | handshake; reply `welcome {caps, vlc: {running, version}, token?}` |
+| → PC | `cmd {name, args}` | player commands: `play`, `pause`, `seek`, `volume`, `track`, `chapter`, `rate`, `delay`, `fullscreen`, `open {uri, subtitle?, audio?}`, `enqueue`, `launch`, `quit` |
+| → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume` |
+| → PC | `browse {uri}` / `library {query}` | file lists / library with metadata |
+| ← PC | `state {…diff}` | push of `PlayerState` changes (at most 4 Hz, seek/volume are coalesced) |
+| ← PC | `event {name, …}` | `vlcStarted`, `vlcExited`, `inputChanged`, `endReached` |
+| ↔ | `ping`/`pong` | every 15 s over RFCOMM, 30 s over WS |
+| ← PC | `err {id, code, msg}` | command error (`msg` in the phone's language) |
 
-Сопряжение: компаньон показывает на ТВ 6‑значный код и QR (`vlcr://pair?host=&port=&code=&bt=&fp=`);
-телефон получает долгоживущий токен, ПК хранит его хэш. Без TLS в v1 (домашняя сеть, токен),
-поле `fp` зарезервировано под пиннинг самоподписанного сертификата.
+Pairing: the phone asks to pair, a window with a 6-digit code pops up on the PC (and on the TV), the user enters
+the code on the phone (QR `vlcr://pair?host=&port=&code=&bt=&fp=` is an alternative);
+the phone receives a long-lived token, the PC stores its hash. No TLS in v1 (home network, token);
+the `fp` field is reserved for pinning a self-signed certificate.
 
-### 4.5. Модель состояния
+### 4.5. State model
 
 `PlayerState { connection, vlc: {running, version, apiVersion}, playback: {state, time, length,
 position, rate, updatedAt}, item: {uri, title, artUri}, tracks: {audio[], subtitle[], video[],
 currentAudio?, currentSubtitle?}, chapters: {index, count, names?}, volume: {vlc0_512, muted,
 system?}, video: {fullscreen, aspect, crop}, delays: {audio, subtitle}, playlist: [...],
-audioDevices?: [...] }`. Позиция между опросами интерполируется локально по `time` + монотонным
-часам; при `seek` показываем цель с флагом `seeking` до подтверждения.
+audioDevices?: [...] }`. The position between polls is interpolated locally from `time` + a monotonic
+clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
 
-### 4.6. Android‑приложение
+### 4.6. Android app
 
-- Модули: `:app` (Compose UI, сервисы), `:core:protocol` (чистый Kotlin: модели, парсер
-  `status.json`, клиент компаньона, NDJSON), `:core:naming` (разбор имён файлов), `:core:testing`
-  (fake‑VLC на Ktor, воспроизводящий причуды из live‑probe).
-- Стек: Kotlin 2.x, Compose BOM 2026.x (Material 3), Navigation 3, Media3 Session, Ktor‑client
-  (OkHttp), kotlinx.serialization, Koin, Room, DataStore, Coil 3. Точные версии уточнить при
-  создании проекта (ориентиры в [mobile-stack-and-ux § 1.5](research/mobile-stack-and-ux.md);
-  выборочная проверка показала, что часть номеров там не подтверждается поиском).
-- Сеть: опрос VLC раз в 1 с при воспроизведении, 3 с в паузе/стопе, нет опроса в фоне без FGS;
-  один запрос в полёте на тип, порядковые номера, устаревшие ответы отбрасываются; ответ на
-  команду сразу применяется как статус, плюс «чистый» статус через 500 мс. Заголовок
-  `Connection` не отправлять (иначе VLC закрывает соединение после каждого запроса); тело
-  с `<title>Error loading` считать ошибкой команды, несмотря на `200`.
-- ID дорожки: `Original_ID` из `Stream N`, если есть, иначе `N` (ключи категорий локализованы —
-  искать по `Type`, а не по названию ключа).
-- Громкость: `dispatchKeyEvent` в активности; при погашенном экране — Media3 `Player` с
-  `DeviceInfo.PLAYBACK_TYPE_REMOTE` (проверить на реальном телефоне).
-- Секреты: пароль VLC и токен компаньона — в `EncryptedSharedPreferences`/Keystore.
-- Ошибки по классам: `403` «в VLC не задан пароль», `401` «неверный пароль», refused «веб‑интерфейс
-  выключен/порт», timeout «брандмауэр/другая сеть/ПК спит», пустой ответ «VLC только стартует».
+- Modules: `:app` (Compose UI, services) and `:core:protocol` (pure Kotlin: models, `status.json`
+  parser, companion client, NDJSON). Planned: `:core:naming` (file name parsing), `:core:testing`
+  (a Ktor fake VLC reproducing the quirks from live-probe; for now the fixtures in `docs/research/samples/`
+  are used directly in tests).
+- Stack: Kotlin 2.x, Compose (Material 3), Media3 Session, Ktor client (OkHttp), kotlinx.serialization,
+  Koin, DataStore, Coil 3. The exact versions are pinned to the installed SDK (see `CLAUDE.md`); reference points in
+  [mobile-stack-and-ux § 1.5](research/mobile-stack-and-ux.md) (a spot check showed that some of the
+  numbers there could not be confirmed by search).
+- Network: poll VLC once per 1 s while playing, 3 s when paused/stopped, no polling in the background without an FGS;
+  one request in flight per type, sequence numbers, stale responses are discarded; a command's response is
+  applied immediately as status, plus a "clean" status after 500 ms. Do not send the `Connection`
+  header (otherwise VLC closes the connection after each request); treat a body with
+  `<title>Error loading` as a command error despite the `200`.
+- Track ID: `Original_ID` from `Stream N` if present, otherwise `N` (category keys are localized —
+  search by `Type`, not by the key name).
+- Volume: `dispatchKeyEvent` in the activity; with the screen off — a Media3 `Player` with
+  `DeviceInfo.PLAYBACK_TYPE_REMOTE` (check on a real phone).
+- Secrets: the VLC password and the companion token — in `EncryptedSharedPreferences`/Keystore.
+- Errors by class: `403` "no password set in VLC", `401` "wrong password", refused "web interface
+  off/port", timeout "firewall/other network/PC asleep", empty response "VLC is just starting".
+- UI language follows the system (Android 13+ per-app language too), English by default, Russian translation.
 
-### 4.7. Компаньон (Windows)
+### 4.7. Companion (Windows)
 
-- Проект `companion/VlcRemote.Companion` — `net9.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
-  Kestrel (`CreateSlimBuilder`) для WS и REST‑диагностики, WinRT `RfcommServiceProvider`,
-  `DnsServiceRegister` через P/Invoke, UDP‑маяк `:47556`, NAudio, CsWin32 для Win32, Serilog.
-- `VlcManager`: находит VLC по `HKLM\SOFTWARE\VideoLAN\VLC`, запускает `vlc.exe --extraintf http:rc
+- Project `companion/VlcRemote.Companion` — `net9.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
+  Kestrel (`CreateSlimBuilder`) for WS and REST diagnostics, WinRT `RfcommServiceProvider`,
+  `DnsServiceRegister` via P/Invoke, UDP beacon `:47556`, NAudio, CsWin32 for Win32, Serilog.
+- `VlcManager`: finds VLC via `HKLM\SOFTWARE\VideoLAN\VLC`, starts `vlc.exe --extraintf http:rc
   --http-host 0.0.0.0 --http-password <generated> --rc-host 127.0.0.1:4212 --rc-quiet
-  --qt-fullscreen-screennumber N`, держит один RC‑сокет и мультиплексирует, опрашивает HTTP
-  локально и шлёт телефону diff; при внешнем запуске VLC (из Проводника) — правит `vlcrc` только
-  когда VLC не запущен (VLC переписывает файл целиком). RC используется только для того, чего
-  нет в HTTP (`adev`, события, `quit`); на паузе RC отказывает в командах, поэтому состояние
-  дорожек берётся из Lua‑страницы, а все действия идут по HTTP. Команды RC, начинающиеся с `f`,
-  переключают полный экран — слать только точные имена.
-- `DisplayService`: `EnumDisplayMonitors`, перенос окна VLC по PID (`EnumWindows` + `SetWindowPos`)
-  и `fullscreen`; `SetDisplayConfig` для режима проекции; `SetThreadExecutionState` на время
-  воспроизведения; `SC_MONITORPOWER`; сон через `SetSuspendState`.
-- `AudioService`: устройство вывода VLC через RC `adev`; системная громкость через NAudio;
-  системное устройство по умолчанию через `IPolicyConfig` (недокументированный COM, за флагом).
-- `LibraryService`: индекс `D:\shared` (настраиваемые корни), разбор имён (правила guessit/PTN),
-  TMDB с кэшем ≤ 6 мес. и атрибуцией, миниатюры через `vlc.exe` snapshot или ffmpeg (если есть).
-- Установка: Velopack (`%LocalAppData%\VlcRemote\current`), HKCU\Run, одноразовый UAC‑помощник
-  для правил брандмауэра (компаньон + vlc.exe, частный профиль). Lua‑страницы копируются в
-  `%APPDATA%\vlc\lua\http\requests\` при первом запуске.
+  --qt-fullscreen-screennumber N`, holds one RC socket and multiplexes it, polls HTTP
+  locally and sends the phone a diff; for VLC started externally (from Explorer) it configures `vlcrc`
+  automatically, only while VLC is not running (VLC rewrites the file entirely). It reports VLC's status honestly,
+  including "open without control" (VLC running without the web interface) with a restart that reopens the same
+  file. RC is used only for what HTTP lacks (`adev`, events, `quit`); RC refuses commands while paused, so the
+  track state comes from the Lua page, and all actions go over HTTP. RC commands starting with `f`
+  toggle fullscreen — send only exact names.
+- `DisplayService`: `EnumDisplayMonitors` with friendly EDID names and stable ids; moving the VLC window by PID
+  (`EnumWindows` + `SetWindowPos`) and `fullscreen` on the chosen monitor; any new VLC window (including files opened
+  by double-click) is placed there automatically; the monitor is chosen from the phone or the tray;
+  `SetThreadExecutionState` during playback; `SC_MONITORPOWER`; sleep via `SetSuspendState`.
+- `AudioService`: VLC's output device via RC `adev`; system volume via NAudio;
+  the system default device via `IPolicyConfig` (undocumented COM, behind a flag).
+- `LibraryService`: browsing is done by the companion (works without VLC running, including network shares);
+  planned: an index of `D:\shared` (configurable roots), name parsing (guessit/PTN rules),
+  TMDB with a cache of ≤ 6 months and attribution, thumbnails via `vlc.exe` snapshot or ffmpeg (if present);
+  watch history and resume positions (the companion is the source of truth, shared by all phones).
+- Installation: today `scripts/deploy-windows.ps1` (`%LOCALAPPDATA%\VlcRemote\app`, no admin rights), HKCU\Run,
+  one UAC prompt for the firewall rules (companion + vlc.exe, private profile); planned: Velopack. Lua pages are
+  copied into `%APPDATA%\vlc\lua\http\requests\` at the first start.
+- UI language follows Windows, English by default, Russian translation; `err.msg` is rendered in the phone's
+  language.
 
 ## 5. UX
 
-Экраны MVP (макеты в [mobile-stack-and-ux § 5.6](research/mobile-stack-and-ux.md)):
-1. **Пульт / Now Playing** — обложка, название, шкала с главами, play/pause внизу в зоне большого
-   пальца, ±10/±30 с с автоповтором, громкость с цифрой, чипы «Аудио: RU · Субтитры: выкл».
-2. **Sheet «Аудио и субтитры»** — радио‑списки с языком первым, задержка ±50/±500 мс, «запомнить для файла».
-3. **Sheet «Ещё»** — главы (с названиями на уровне ≥1), скорость, аспект/кроп, полный экран,
-   таймер сна, аудиоустройство/монитор (уровень 2).
-4. **Библиотека** — папки (`browse.json`) + сетка постеров + «Продолжить просмотр»; избранные папки.
-5. **Плейлист** с мини‑плеером.
-6. **Подключение/онбординг** — «Найти ПК → Пароль или код → Проверить (пауза на ТВ)»;
-   при отсутствии компаньона — честная пошаговая инструкция с кнопкой «проверить сейчас».
-7. **Настройки** — клавиши громкости, шаги перемотки, тема (тёмная по умолчанию, true‑black),
-   поведение в фоне.
-8. **Фон** — `MediaSessionService` + уведомление с кнопками, Quick Settings плитка play/pause.
+MVP screens (mockups in [mobile-stack-and-ux § 5.6](research/mobile-stack-and-ux.md)):
+1. **Remote / Now Playing** — cover art, title, seek bar with chapters, play/pause at the bottom in the
+   thumb zone, ±10/±30 s with auto-repeat, volume with a number, chips "Audio: RU · Subtitles: off".
+2. **"Audio and subtitles" sheet** — radio lists with the language first, delay ±50/±500 ms, "remember for this file".
+3. **"More" sheet** — chapters (with names at level ≥ 1), rate, aspect/crop, fullscreen,
+   sleep timer, audio device/monitor (level 2).
+4. **Library** — folders (`browse.json` or the companion's browsing) + a poster grid + "Continue watching";
+   favourite folders.
+5. **Playlist** with a mini player.
+6. **Connection/onboarding** — "Find the PC → Password or code → Check (pause on the TV)";
+   without the companion — an honest step-by-step guide with a "check now" button.
+7. **Settings** — volume keys, seek steps, theme (dark by default, true black),
+   background behaviour.
+8. **Background** — `MediaSessionService` + a notification with buttons, a Quick Settings play/pause tile.
+9. **First run** — an explanation screen and all permissions at once (notifications, Bluetooth).
 
-Принципы: пульт работает не глядя; соединение никогда не выбрасывает с экрана; ничего не
-прячется молча (недоступное — серое с подсказкой «нужен компаньон»); хаптика на каждом тике;
-Now Playing остаётся после stop.
+Principles: the remote works without looking; the connection never kicks you off the screen; nothing
+is hidden silently (unavailable means grey with a "needs the companion" hint); haptics on every tick;
+Now Playing stays after stop.
 
-## 6. Этапы
+## 6. Milestones
 
-### M0 — Спайки (≈1 неделя)
-Цель: снять технические риски до того, как писать UI.
-- [ ] Android ↔ Windows RFCOMM: сопряжение, обмен NDJSON, реконнект после сна ноутбука.
-- [ ] `NsdManager` находит службу, объявленную `DnsServiceRegister`; UDP‑маяк как запасной путь.
-- [ ] Перенос окна VLC на второй монитор + `fullscreen`; `--qt-fullscreen-screennumber`.
-- [ ] Media3 «удалённая громкость» с погашенным экраном на целевом телефоне.
-- [ ] Fake‑VLC (Ktor) с фикстурами из `docs/research/samples/`.
+### M0 — Spikes
+Goal: remove technical risks before writing the UI. In practice the spikes were done directly in the implementation
+(no separate `spikes/` folder).
+- [x] Android ↔ Windows RFCOMM: pairing, NDJSON exchange, reconnect (verified on Galaxy S24 ↔ TV laptop).
+- [x] `NsdManager` finds the service announced by `DnsServiceRegister`; UDP beacon as a fallback.
+- [x] Moving the VLC window to a second monitor + `fullscreen`; `--qt-fullscreen-screennumber`.
+- [ ] Media3 "remote volume" with the screen off on the target phone.
+- [ ] Ktor fake VLC with fixtures from `docs/research/samples/` (the fixtures are used directly in unit tests).
 
-Критерий: каждый спайк — маленький проект в `spikes/` с README «работает/не работает/как».
+### M1 — MVP "Lite" (levels 0/1) — done
+- [x] `:core:protocol`: `status.json`/`playlist.json`/`browse.json` parser, commands, `Capabilities`.
+- [x] Connection screen: `/24` scan, manual entry, test with distinguishable errors, Keystore.
+- [x] Remote: transport, seek bar, volume, phone keys, chapters by number.
+- [x] Track sheet by `Stream N`; at level 1 — current track and chapter names.
+- [x] File browsing with a "drives" root, favourite folders, play/enqueue without duplicates.
+- [x] Playlist; `MediaSessionService` + notification.
+- [x] Script `companion/lua/install.ps1`: copies the stock `lua\http` + our pages into
+      `%APPDATA%\vlc\lua\http`, offers to restart VLC; "Close VLC" via `vlc://quit`.
 
-### M1 — MVP «Lite» (уровни 0/1)
-- [x] `:core:protocol`: парсер `status.json`/`playlist.json`/`browse.json`, команды, `Capabilities`.
-- [x] Экран подключения: скан `/24`, ручной ввод, тест с различимыми ошибками, Keystore.
-- [x] Пульт: транспорт, шкала, громкость, клавиши телефона, главы по номерам.
-- [x] Sheet дорожек по `Stream N`; при уровне 1 — текущая дорожка и названия глав.
-- [x] Обзор файлов с корнем «диски», избранные папки, запуск/enqueue без дубликатов.
-- [x] Плейлист; `MediaSessionService` + уведомление.
-- [x] Скрипт `companion/lua/install.ps1`: копирует штатную `lua\http` + наши страницы в
-      `%APPDATA%\vlc\lua\http`, предлагает перезапустить VLC; «Закрыть VLC» через `vlc://quit`.
+Criterion: a movie from `D:\shared` starts and is fully controlled from the phone without the companion.
 
-Критерий: фильм из `D:\shared` запускается и полностью управляется с телефона без компаньона.
+### M2 — Companion v1 (level 2, LAN) — done
+- [x] Tray + Kestrel WS + NDJSON session + pairing by code/QR.
+- [x] Automatic pairing: the code window pops up on the PC, the 6-digit code is entered on the phone.
+- [x] `VlcManager`: starting/stopping VLC, RC bridge (current track, `adev`, events), diff push.
+- [x] Automatic `vlcrc` configuration; honest VLC status including "open without control" and a restart with the
+      same file.
+- [x] mDNS + UDP beacon; `CompanionBackend` on the phone with automatic channel selection.
+- [x] Library browsing by the companion (works without VLC, network shares).
+- [x] Window on the TV, keep-awake, PC sleep, monitor power-off.
+- [x] Choosing the monitor for the VLC window from the phone and the tray (friendly EDID names, stable ids,
+      automatic placement of any new VLC window including double-click opens, fullscreen on the chosen monitor).
+- [x] Autostart (HKCU\Run), installing the Lua pages from the companion, single-file publishing.
+- [x] Localization: system language, English by default, Russian translation; `err.msg` in the phone's language.
+- [ ] First-run setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
+      VLC configuration, keep-awake (in progress).
+- [ ] Velopack installer and auto-update (next, see § 10).
 
-### M2 — Компаньон v1 (уровень 2, LAN)
-- [x] Трей + Kestrel WS + NDJSON‑сессия + сопряжение кодом/QR.
-- [x] `VlcManager`: запуск/остановка VLC, RC‑мост (текущая дорожка, `adev`, события), diff‑push.
-- [x] mDNS + UDP‑маяк; `CompanionBackend` на телефоне с автоматическим выбором канала.
-- [x] Окно на ТВ, keep‑awake, сон ПК, выключение монитора.
-- [x] Автозапуск (HKCU\Run), установка Lua‑страниц из компаньона, публикация single‑file.
-- [ ] Velopack‑установщик и UAC‑помощник для брандмауэра (отложено, см. companion/README.md).
+Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the audio device.
 
-Критерий: телефон сам находит ПК, запускает VLC на ТВ, переключает аудиоустройство.
+### M3 — Bluetooth — done
+- [x] RFCOMM server in the companion, Bluetooth transport on the phone (choosing from paired devices instead of
+      `CompanionDeviceManager`).
+- [x] Automatic LAN ↔ BT switching without losing state, including the switch back to Wi-Fi
+      (verified on Galaxy S24 ↔ TV laptop).
+- [ ] First-run permissions on the phone: notifications + Bluetooth with an explanation screen (in progress).
 
-### M3 — Bluetooth
-- [x] RFCOMM‑сервер в компаньоне, Bluetooth‑транспорт на телефоне (выбор из сопряжённых устройств вместо `CompanionDeviceManager`).
-- [x] Автопереключение LAN ↔ BT без потери состояния. Подсказка про PAN — отложена.
+Criterion: with Wi-Fi off on the phone, the remote keeps working.
 
-Критерий: при выключенном Wi‑Fi на телефоне пульт продолжает работать.
+### M4 — Library, history and polish
+- [ ] **Watch history and resume ("Continue watching")**: the companion records every played item (including
+      files opened manually on the PC) with position, length, a finished flag and the last-watched time, offers to
+      resume on open; the phone shows a "Continue watching" row and a history screen. The companion is the source
+      of truth, so several phones share it.
+- [ ] **Polish the app layout** (user request): no truncated text or line breaks in the middle of a
+      word, alignment and spacing on the Material 3 grid, long names (movies, tracks, PCs) on one line with an
+      ellipsis or neatly on two; check Russian and English, large font scales (1.3–2.0),
+      a narrow screen and landscape. Method: screenshots of all screens from the phone via adb → list of defects →
+      fixes → screenshot tests (Roborazzi) for the key screens so that it does not regress.
+- [ ] Library metadata: name parsing, TMDB posters/backdrops via the companion (and a light fallback on the
+      phone), cache.
+- [ ] Installer and auto-update for the companion (Velopack).
+- [ ] Sleep timer, landscape/tablet, settings, true black.
+- [ ] Tests: Compose + Roborazzi screenshots, fake-VLC scenarios, a checklist on real devices.
 
-### M4 — Библиотека и полировка
-- [ ] Разбор имён, TMDB‑постеры/фоны через компаньон (и лёгкий fallback на телефоне), кэш.
-- [ ] «Продолжить просмотр» (позиции в Room, синхронизация с компаньоном), таймер сна.
-- [ ] Quick Settings плитка, ландшафт/планшет, настройки, true‑black.
-- [ ] **Вылизать вёрстку приложения** (просьба пользователя): никакого обрезанного текста и переносов посреди
-      слова, выравнивания и отступы по сетке Material 3, длинные названия (фильмы, дорожки, ПК) — в одну строку с
-      многоточием или аккуратно в две; проверить русский и английский, крупный шрифт (масштаб 1.3–2.0),
-      узкий экран и ландшафт. Метод: скриншоты всех экранов с телефона по adb → список дефектов → правки →
-      скриншот‑тесты (Roborazzi) на ключевые экраны, чтобы не регрессировало.
-- [ ] Тесты: Compose + Roborazzi скриншоты, fake‑VLC сценарии, чек‑лист на реальных устройствах.
+### M5 — Later
+Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x, TLS pinning,
+iOS via Compose Multiplatform.
 
-### M5 — Потом
-Glance‑виджет, Wear OS, субтитры через компаньон (OpenSubtitles/Subdl), VLC 4.x, TLS‑пиннинг,
-HDMI‑CEC с адаптером Pulse‑Eight, iOS через Compose Multiplatform.
+### Postponed
+- **TV control** (user decision 2026-10-13): Samsung UE55H6200 (2014, Orsay) — no HDMI-CEC on the laptop's
+  GTX 1050 output and no DDC/CI; volume is possible via UPnP RenderingControl, power-off via the encrypted
+  H-series protocol, power-on only with a Pulse-Eight CEC adapter. See [tv-control](research/tv-control.md).
+- **BLE transport** — RFCOMM covers the fallback; BLE would only add complexity.
+- **Bluetooth PAN hint** — not needed while RFCOMM works.
 
-## 7. Риски и открытые вопросы
+### Development tooling — done
+- [x] Release pipeline: a test build (`v<VERSION>-beta.<N>`) on every merge to `main`, release notes collected
+      from PRs, stable releases on demand.
+- [x] Deploy scripts for Windows and Android (device allowlist, automatic phone discovery over Wi-Fi debugging).
+- [x] SSH-based remote debugging of the TV laptop (`scripts/dev-laptop.ps1`).
 
-| Риск | Как снимаем |
+## 7. Risks and open questions
+
+| Risk | Mitigation |
 |---|---|
-| `NsdManager` капризен на разных прошивках | всегда UDP‑маяк + сохранённый IP + ручной ввод |
-| RFCOMM‑listener не переживает сон ноутбука | спайк M0; перезапуск listener по событию питания |
-| Удалённая громкость при погашенном экране не работает на целевом телефоне | fallback: FGS‑уведомление с кнопками, клавиши только в foreground |
-| VLC 4 меняет ID дорожек и поля | ветвление по `apiversion`; поддержка 4.x — отдельный этап |
-| Брандмауэр блокирует VLC/компаньон | детект (ответ есть с localhost, нет из сети) + UAC‑помощник + инструкция |
-| `IPolicyConfig` недокументирован и может сломаться | за флагом; основной путь — `adev` внутри VLC |
-| TMDB — только некоммерческое использование | атрибуция, свой ключ пользователя, без монетизации |
-| Процентная форма `volume` не работает | только абсолют/относительные значения |
-| Обновление VLC меняет штатные Lua‑страницы, а пользовательская копия устаревает | установщик сверяет версию VLC и пересобирает копию; компаньон делает это сам при старте |
-| `in_play&input=vlc://quit` закрывает VLC любому, кто знает пароль HTTP | пароль генерируется компаньоном, интерфейс слушает только LAN; напоминание в онбординге |
+| `NsdManager` is capricious on different firmwares | always the UDP beacon + saved IP + manual entry |
+| The RFCOMM listener does not survive the laptop's sleep | restart the listener on a power event; the phone falls back and reconnects |
+| Remote volume with the screen off does not work on the target phone | fallback: FGS notification with buttons, keys only in the foreground |
+| VLC 4 changes track IDs and fields | branching on `apiversion`; 4.x support is a separate milestone |
+| The firewall blocks VLC/the companion | detection (responds from localhost, not from the network) + UAC helper + instructions |
+| Windows firewall prompt on first start, or "block" rules created when the user dismissed it | the setup window adds explicit allow rules (private profile) via one UAC prompt; a "block" rule for the companion or VLC is reported with instructions |
+| `IPolicyConfig` is undocumented and may break | behind a flag; the main path is `adev` inside VLC |
+| TMDB — non-commercial use only | attribution, the user's own key, no monetization |
+| The percent form of `volume` does not work | only absolute/relative values |
+| A VLC update changes the stock Lua pages, and the user copy becomes outdated | the installer checks the VLC version and rebuilds the copy; the companion does this itself at start |
+| `in_play&input=vlc://quit` lets anyone who knows the HTTP password close VLC | the password is generated by the companion, the interface listens only on the LAN; a reminder in onboarding |
 
-## 8. Окружение разработчика (этот ПК)
+Note: the BSODs seen on the developer PC are unrelated to the project and are not a risk for the remote or the
+companion.
 
-- Android SDK `D:\Android\android-sdk` (platforms 34/35, build‑tools 35.0.0), JDK в
-  `C:\Program Files\Android\jdk`; Android Studio не найдена (возможно, IntelliJ/VS).
-- .NET SDK 9.0.310 и 10.0.102; Visual Studio 18.2 с MAUI‑воркloads (не используем).
-- VLC 3.0.23 в `C:\Program Files\VideoLAN\VLC`; Bluetooth‑адаптер MediaTek; есть PAN‑адаптер.
-- Целевой ноутбук у ТВ — отдельное устройство; на нём проверяем мониторы/аудио/сон.
+## 8. Developer environment (this PC)
 
-## 9. Структура репозитория (целевая)
+- Android SDK `D:\Android\android-sdk` (platforms 34/35, build-tools 35.0.0), JDK in
+  `C:\Program Files\Android\jdk`; Android Studio was not found (possibly IntelliJ/VS).
+- .NET SDK 9.0.310 and 10.0.102; Visual Studio 18.2 with MAUI workloads (not used).
+- VLC 3.0.23 in `C:\Program Files\VideoLAN\VLC`; MediaTek Bluetooth adapter; a PAN adapter is present.
+- The target laptop at the TV is a separate device, reachable over SSH (`scripts/dev-laptop.ps1`); monitors, audio,
+  sleep and Bluetooth are checked there. Test phone: Samsung Galaxy S24.
+
+## 9. Repository structure
 
 ```
 vlc-remote/
-  README.md
-  docs/            PLAN.md, adr/, research/
-  protocol/        схема сообщений (JSON Schema) + примеры
-  android/         Gradle‑проект: app, core/protocol, core/naming, core/testing
-  companion/       VlcRemote.Companion (.NET), lua/ (tracks.json, setvar.json, install.ps1)
-  spikes/          M0‑прототипы с README
+  README.md, CLAUDE.md, VERSION
+  docs/            PLAN.md, adr/, research/ (+ samples/ — real VLC responses, test fixtures)
+  protocol/        protocol description, message schema (JSON Schema), direct VLC HTTP reference
+  android/         Gradle project: app, core/protocol
+  companion/       VlcRemote.Core, VlcRemote.Companion, tests (.NET), lua/ (tracks.json, setvar.json,
+                   install.ps1), tools/ (localization generator)
+  scripts/         deploy-windows, deploy-android, deploy-lib, dev-laptop, laptop-setup, release_notes.py
+  .github/         CI, PR checks, release workflow, PR template
 ```
 
-## 10. Ближайшие шаги
+## 10. Next steps
 
-1. Проверить на реальном телефоне и ноутбуке у ТВ чек‑листы из `android/README.md` и `companion/README.md` (NSD, FGS, перенос окна, `adev`).
-2. Выбор монитора для окна VLC с телефона (в работе).
-3. Окно и экран первого запуска с объяснением и запросом всех разрешений сразу (телефон: уведомления, Bluetooth;
-   ПК: брандмауэр для компаньона и VLC одним запросом UAC, автозапуск, настройка VLC).
-4. Вёрстка приложения: обрезанный текст, переносы, выравнивания (см. M4).
-5. ~~Управление телевизором~~ — отложено (решение пользователя 2026-10-13): Samsung UE55H6200 (2014, Orsay) без
-   CEC на HDMI ноутбука (GTX 1050) и без DDC/CI; громкость возможна по UPnP RenderingControl, выключение — по
-   зашифрованному протоколу H‑серии, включение — только адаптером Pulse‑Eight. См. `docs/research/tv-control.md`.
-6. Установщик Velopack.
+1. **Finish first-run permissions** (in progress): on the phone — notifications + Bluetooth with an explanation
+   screen; on the PC — a setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
+   VLC configuration, keep-awake.
+2. **Watch history and resume ("Continue watching")** — see M4: the companion records every played item (also manual
+   opens) with position, length, finished flag and last-watched time, offers to resume on open; the phone shows a
+   "Continue watching" row and a history screen; the companion is the source of truth so several phones share it.
+3. **UI layout polish**: no truncated or broken text, alignment, large font scales, both languages, landscape;
+   screenshot tests.
+4. **Library metadata**: file name parsing, posters/backdrops (TMDB) via the companion, cache.
+5. **Installer and auto-update for the companion** (Velopack).
+6. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+
+Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.
