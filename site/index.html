@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLC Remote — Android remote for VLC on a Windows PC at the TV</title>
+<meta name="description" content="Free, open-source Android remote for VLC media player on a Windows PC or laptop at the TV: movie and series library with posters, continue watching, automatic discovery, Bluetooth fallback. No media server needed.">
+<meta name="keywords" content="VLC remote, VLC remote control, Android VLC remote, control VLC from phone, HTPC remote, Windows media center, VLC library posters, continue watching VLC">
+<link rel="canonical" href="https://lex019020.github.io/vlc-remote/">
+<link rel="alternate" hreflang="en" href="https://lex019020.github.io/vlc-remote/">
+<link rel="alternate" hreflang="ru" href="https://lex019020.github.io/vlc-remote/?lang=ru">
+<meta property="og:type" content="website">
+<meta property="og:title" content="VLC Remote — Android remote for VLC on a Windows PC at the TV">
+<meta property="og:description" content="Posters, continue watching, auto-discovery and a Bluetooth fallback for plain VLC. Free and open source (GPL-3.0).">
+<meta property="og:url" content="https://lex019020.github.io/vlc-remote/">
+<meta property="og:image" content="https://lex019020.github.io/vlc-remote/images/library.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "VLC Remote",
+  "description": "Android remote for VLC media player on a Windows PC at the TV, with a Windows companion: library with posters, continue watching, automatic discovery, Bluetooth fallback.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Android 8+, Windows 10/11",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+  "url": "https://lex019020.github.io/vlc-remote/",
+  "downloadUrl": "https://github.com/lex019020/vlc-remote/releases/latest",
+  "codeRepository": "https://github.com/lex019020/vlc-remote",
+  "screenshot": "https://lex019020.github.io/vlc-remote/images/library.png",
+  "inLanguage": ["en", "ru"]
+}
+</script>
+<style>
+  :root { --bg: #121010; --card: #1d1a19; --text: #f1e7e2; --dim: #c9b9b1; --accent: #ff8a3d; --line: #3a3230; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
+  header, main, footer { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; justify-content: space-between; align-items: center; padding-top: 18px; }
+  .brand { font-weight: 700; letter-spacing: .2px; }
+  .lang button { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  .lang button[aria-pressed="true"] { color: var(--text); border-color: var(--accent); }
+  .hero { padding: 48px 0 24px; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 0 0 14px; }
+  .lead { color: var(--dim); font-size: 19px; max-width: 760px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 8px; }
+  .btn { display: inline-block; padding: 12px 18px; border-radius: 12px; text-decoration: none; font-weight: 600; }
+  .btn.primary { background: var(--accent); color: #2a1406; }
+  .btn.ghost { border: 1px solid var(--line); color: var(--text); }
+  .note { color: var(--dim); font-size: 14px; }
+  .shots { display: flex; gap: 16px; overflow-x: auto; padding: 24px 0; scroll-snap-type: x mandatory; }
+  .shots img { width: 230px; flex: 0 0 auto; border-radius: 18px; border: 1px solid var(--line); scroll-snap-align: start; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 12px 0 40px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--dim); font-size: 15px; }
+  h2 { font-size: 26px; margin: 40px 0 12px; }
+  ol li { margin: 6px 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 20px; color: var(--dim); font-size: 14px; }
+  [data-lang] { display: none; }
+  html[lang="en"] [data-lang="en"], html[lang="ru"] [data-lang="ru"] { display: revert; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">VLC Remote</div>
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" data-set-lang="en">EN</button>
+    <button type="button" data-set-lang="ru">RU</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1 data-lang="en">Your phone as a remote for VLC on the TV&nbsp;PC</h1>
+    <h1 data-lang="ru">Телефон — пульт для VLC на компьютере у&nbsp;телевизора</h1>
+    <p class="lead" data-lang="en">A free Android remote for VLC media player on a Windows PC or laptop connected to a TV. With the small Windows companion it shows your movies and series as posters, remembers where you stopped, finds the PC by itself and keeps working over Bluetooth when Wi‑Fi is gone. No media server, no transcoding — VLC plays your files as they are.</p>
+    <p class="lead" data-lang="ru">Бесплатный пульт на Android для VLC на компьютере или ноутбуке у телевизора. С небольшим компаньоном для Windows он показывает фильмы и сериалы постерами, помнит, где вы остановились, сам находит ПК и продолжает работать по Bluetooth, если пропал Wi‑Fi. Без медиасервера и перекодирования — VLC играет файлы как есть.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/lex019020/vlc-remote/releases/latest/download/VlcRemote-Companion-Setup.exe">
+        <span data-lang="en">Download for Windows</span><span data-lang="ru">Скачать для Windows</span></a>
+      <a class="btn ghost" href="https://github.com/lex019020/vlc-remote/releases/latest">
+        <span data-lang="en">Android app (APK)</span><span data-lang="ru">Приложение для Android (APK)</span></a>
+      <a class="btn ghost" href="https://github.com/lex019020/vlc-remote">
+        <span data-lang="en">Source code</span><span data-lang="ru">Исходный код</span></a>
+    </div>
+    <p class="note" data-lang="en">Windows 10/11 with VLC 3.0.x · Android 8+ · Free and open source (GNU GPL v3)</p>
+    <p class="note" data-lang="ru">Windows 10/11 с VLC 3.0.x · Android 8+ · Бесплатно, открытый код (GNU GPL v3)</p>
+  </section>
+
+  <section class="shots" aria-label="Screenshots">
+    <img src="images/remote.png" alt="Remote screen with playback controls, tracks and chapters" loading="lazy">
+    <img src="images/library.png" alt="Library with movie posters and Continue watching" loading="lazy">
+    <img src="images/movie.png" alt="Movie card with backdrop, rating, description and Play" loading="lazy">
+    <img src="images/series.png" alt="Series page with seasons and episodes" loading="lazy">
+  </section>
+
+  <h2 data-lang="en">What it does</h2>
+  <h2 data-lang="ru">Что умеет</h2>
+  <div class="grid">
+    <div class="card" data-lang="en"><h3>A real remote</h3><p>Play/pause, ±10/30 s seeking, scrub bar with chapters, volume keys, audio and subtitle tracks with languages, delays, speed, fullscreen.</p></div>
+    <div class="card" data-lang="ru"><h3>Настоящий пульт</h3><p>Пауза, перемотка ±10/30 с, полоса с главами, кнопки громкости телефона, дорожки и субтитры с языками, задержки, скорость, полный экран.</p></div>
+    <div class="card" data-lang="en"><h3>Library with posters</h3><p>Pick your media folders on the PC; movies and series appear with posters, descriptions and ratings from TMDB. Folders and network shares stay one tap away.</p></div>
+    <div class="card" data-lang="ru"><h3>Медиатека с постерами</h3><p>Выберите медиапапки на ПК — фильмы и сериалы появятся с постерами, описаниями и рейтингами из TMDB. Папки и сетевые диски тоже под рукой.</p></div>
+    <div class="card" data-lang="en"><h3>Continue watching</h3><p>Resume where you stopped, the next episode is offered, watched marks everywhere, and the voice-over and subtitles you chose are kept for the whole series.</p></div>
+    <div class="card" data-lang="ru"><h3>Продолжить просмотр</h3><p>Продолжение с места остановки, следующая серия, отметки «просмотрено», а выбранные озвучка и субтитры запоминаются для всего сериала.</p></div>
+    <div class="card" data-lang="en"><h3>Made for the TV</h3><p>VLC opens fullscreen on the TV, the right audio device is restored, the laptop works with the lid closed and survives the TV being switched off.</p></div>
+    <div class="card" data-lang="ru"><h3>Сделано для телевизора</h3><p>VLC открывается на весь экран телевизора, нужное аудиоустройство возвращается само, ноутбук работает с закрытой крышкой и переживает выключение ТВ.</p></div>
+    <div class="card" data-lang="en"><h3>Just works</h3><p>The app finds the PC, the code appears on the TV, done. Bluetooth takes over when Wi‑Fi drops. The companion sets up the firewall with one prompt and updates itself.</p></div>
+    <div class="card" data-lang="ru"><h3>Просто работает</h3><p>Приложение находит ПК, код появляется на телевизоре — готово. Если пропал Wi‑Fi, работает Bluetooth. Компаньон настраивает брандмауэр одним запросом и обновляется сам.</p></div>
+    <div class="card" data-lang="en"><h3>Open and private</h3><p>Everything stays in your home network; no account, no cloud, no ads. GPL-3.0 source code on GitHub.</p></div>
+    <div class="card" data-lang="ru"><h3>Открыто и приватно</h3><p>Всё внутри домашней сети: без аккаунтов, облака и рекламы. Исходный код на GitHub под GPL-3.0.</p></div>
+  </div>
+
+  <h2 data-lang="en">Get started</h2>
+  <h2 data-lang="ru">Как начать</h2>
+  <ol data-lang="en">
+    <li>On the PC at the TV, run <b>VlcRemote-Companion-Setup.exe</b> and allow the setup window to configure the firewall; choose your media folders.</li>
+    <li>On the phone, install the APK from the latest release.</li>
+    <li>Open the app, tap your PC and type the code shown on the TV.</li>
+  </ol>
+  <ol data-lang="ru">
+    <li>На ПК у телевизора запустите <b>VlcRemote-Companion-Setup.exe</b>, разрешите окну настройки настроить брандмауэр и выберите медиапапки.</li>
+    <li>На телефон поставьте APK из последнего релиза.</li>
+    <li>Откройте приложение, выберите ПК и введите код, который появится на телевизоре.</li>
+  </ol>
+</main>
+
+<footer>
+  <span data-lang="en">VLC Remote is free software under the GNU GPL v3 or later, without any warranty. Posters and descriptions: TMDB — this product uses the TMDB API but is not endorsed or certified by TMDB. VLC is a trademark of VideoLAN; this project is not affiliated with VideoLAN.</span>
+  <span data-lang="ru">VLC Remote — свободная программа под GNU GPL v3 или более поздней версии, без каких-либо гарантий. Постеры и описания: TMDB — этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB. VLC — товарный знак VideoLAN; проект не связан с VideoLAN.</span>
+</footer>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var stored = null;
+    try { stored = localStorage.getItem("lang"); } catch (e) {}
+    var lang = params.get("lang") || stored || ((navigator.language || "en").toLowerCase().indexOf("ru") === 0 ? "ru" : "en");
+    function apply(l) {
+      document.documentElement.lang = l;
+      document.querySelectorAll("[data-set-lang]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.setLang === l)); });
+    }
+    document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        apply(b.dataset.setLang);
+        try { localStorage.setItem("lang", b.dataset.setLang); } catch (e) {}
+      });
+    });
+    apply(lang === "ru" ? "ru" : "en");
+  })();
+</script>
+</body>
+</html>

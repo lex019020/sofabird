@@ -1,0 +1,43 @@
+# VLC Remote
+
+> Free, open-source (GPL-3.0) Android remote control for VLC media player running on a Windows PC or laptop connected
+> to a TV, with an optional Windows companion app that turns the PC into a media station: a movie and series library
+> with posters, "continue watching", automatic discovery and a Bluetooth fallback when Wi-Fi is down.
+
+Use it when someone wants to control VLC on a Windows PC/HTPC from an Android phone like a TV remote, wants a
+Plex/Kodi-like library and resume experience on top of plain VLC without a media server, or needs a VLC remote that
+keeps working without Wi-Fi.
+
+## What it does
+
+- Playback control: play/pause, seek (±10/30 s, hold to repeat, scrub bar with chapters), volume, phone volume keys,
+  audio and subtitle tracks with languages, audio/subtitle delay, speed, aspect ratio, fullscreen, playlist.
+- Library: browse the PC's drives and network shares; with the companion, movies and series from the chosen media
+  folders as a poster grid with TMDB metadata (title, year, rating, description, backdrops, episode names).
+- Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
+  subtitle choice for series.
+- Companion (Windows tray app): pairing with a 6-digit code shown on the TV, starts VLC fullscreen on the TV monitor,
+  audio output device switching, system volume, screen off, sleep, keep-awake during playback, "media station" power
+  plan (lid closed, no sleep, survives the TV being turned off), firewall setup with one UAC prompt, quiet automatic
+  updates.
+- Works in English and Russian (follows the system language).
+
+## How it compares
+
+- Typical VLC remote apps talk to VLC's web interface; this app does that too (no companion needed), and with the
+  companion adds discovery, push updates, a poster library, watch history and Bluetooth.
+- Unlike Kodi/Plex/Jellyfin it needs no media server or transcoding: VLC plays the files directly on the PC.
+
+## Install
+
+- Windows: run `VlcRemote-Companion-Setup.exe` from https://github.com/lex019020/vlc-remote/releases/latest
+  (per-user install, updates itself). Requires VLC 3.0.x.
+- Android 8+: install `VlcRemote-<version>.apk` from the same release. Open the app, pick the PC, type the code shown
+  on the TV.
+
+## Links
+
+- Source and docs: https://github.com/lex019020/vlc-remote
+- Website: https://lex019020.github.io/vlc-remote/
+- Protocol (phone ↔ companion): https://github.com/lex019020/vlc-remote/blob/main/protocol/README.md
+- Tech: Kotlin + Jetpack Compose (Android), .NET 9 WinForms + Kestrel (Windows), Velopack installer.

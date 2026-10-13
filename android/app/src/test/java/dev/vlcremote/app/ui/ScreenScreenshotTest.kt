@@ -111,7 +111,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
 
     @Test
     fun remoteOffline() = snapshot("remote_offline") {
-        val state = RemoteUiState(connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "WIN-BBARDOEIJL4", companionMode = true)
+        val state = RemoteUiState(connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true)
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 
@@ -191,9 +191,9 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 ),
                 chapters = Chapters(index = 7, count = 40, names = List(40) { if (it == 7) "The Shadow of the Past" else "Chapter ${it + 1}" }),
             ),
-            connection = ConnectionState.Connected("WIN-BBARDOEIJL4", level = 2),
+            connection = ConnectionState.Connected("LIVING-ROOM-PC", level = 2),
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
-            hostName = "WIN-BBARDOEIJL4",
+            hostName = "LIVING-ROOM-PC",
             companionMode = true,
         )
 
@@ -277,12 +277,12 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
         )
 
         private val savedPc = SavedServer(
-            id = "pc", name = "WIN-BBARDOEIJL4", host = "192.168.1.17", mode = ServerMode.COMPANION, pcId = "guid-1",
+            id = "pc", name = "LIVING-ROOM-PC", host = "192.168.1.17", mode = ServerMode.COMPANION, pcId = "guid-1",
         )
         private val connection = ConnectionUiState(
             nearby = listOf(
                 NearbyPc(
-                    DiscoveredHost("192.168.1.17", "WIN-BBARDOEIJL4", hasCompanion = true, vlcStatus = VlcProcessStatus.RUNNING),
+                    DiscoveredHost("192.168.1.17", "LIVING-ROOM-PC", hasCompanion = true, vlcStatus = VlcProcessStatus.RUNNING),
                     saved = savedPc,
                     paired = true,
                 ),
@@ -291,7 +291,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             saved = listOf(savedPc.copy(id = "old", name = "Office PC", host = "192.168.1.30", pcId = "guid-2")),
             activeServerId = savedPc.id,
             activeServer = savedPc,
-            connection = ConnectionState.Connected("WIN-BBARDOEIJL4", level = 2),
+            connection = ConnectionState.Connected("LIVING-ROOM-PC", level = 2),
         )
 
         @JvmStatic
