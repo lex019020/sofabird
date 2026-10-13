@@ -6,5 +6,7 @@
     <AnalysisLevel>9.0-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Needed for IDE0005 (unnecessary usings) to be reported in the build. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 </Project>

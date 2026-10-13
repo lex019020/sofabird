@@ -7,7 +7,6 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>VlcRemote.Core</RootNamespace>
     <IsAotCompatible>false</IsAotCompatible>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
