@@ -12,8 +12,9 @@
     <AssemblyName>VlcRemote.Companion</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.2.0</Version>
-    <InformationalVersion>0.2.0</InformationalVersion>
+    <!-- Версия берётся из файла VERSION в корне репозитория; CI добавляет суффикс: -p:VersionSuffix=beta.42 -->
+    <VersionPrefix>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</VersionPrefix>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>VLC Remote Companion</Product>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

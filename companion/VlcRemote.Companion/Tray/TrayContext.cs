@@ -136,7 +136,7 @@ public sealed class TrayContext : ApplicationContext
         _statusItem.Text = vlc;
         _phonesItem.Text = $"Телефонов подключено: {_sessions.Count}";
         _icon.Icon = _vlc.RunState == VlcRunState.Running ? _iconActive : _iconIdle;
-        var tip = $"VLC Remote Companion\n{vlc}\nТелефонов: {_sessions.Count}";
+        var tip = $"VLC Remote {AppVersion.Informational}\n{vlc}\nТелефонов: {_sessions.Count}";
         _icon.Text = tip.Length > 127 ? tip[..127] : tip;
     }
 
@@ -271,6 +271,12 @@ public sealed class TrayContext : ApplicationContext
             }
             Invoke(RefreshStatus);
         });
+    }
+
+    /// <summary>Потокобезопасный запрос на выход (например, от <c>--shutdown</c>).</summary>
+    public void RequestExit()
+    {
+        try { _ui.BeginInvoke(Exit); } catch (InvalidOperationException) { Environment.Exit(0); }
     }
 
     private void Exit()

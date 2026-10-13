@@ -1,9 +1,9 @@
 name: CI
 
+# Сборка и тесты на каждый PR. Сборки из main собирает и публикует release.yml.
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   companion:
@@ -20,12 +20,6 @@ jobs:
         run: dotnet build companion/VlcRemote.sln -c Release --no-restore
       - name: Test
         run: dotnet test companion/VlcRemote.sln -c Release --no-build --logger "trx;LogFileName=test-results.trx"
-      - name: Publish (single file, framework-dependent)
-        run: dotnet publish companion/VlcRemote.Companion/VlcRemote.Companion.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o artifacts/companion
-      - uses: actions/upload-artifact@v4
-        with:
-          name: companion-win-x64
-          path: artifacts/companion
 
   android:
     name: Android (Gradle)
@@ -51,7 +45,3 @@ jobs:
         run: ./gradlew test --no-daemon
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk

@@ -207,4 +207,5 @@
     <string name="display_vlc_here">VLC здесь</string>
     <string name="section_power">Питание</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
+    <string name="settings_version">Версия %1$s (сборка %2$d)</string>
 </resources>
