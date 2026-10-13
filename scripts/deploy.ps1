@@ -13,9 +13,15 @@
   версия сохраняется в app.prev (откат: -Rollback). Настройки, сопряжённые телефоны и журналы
   лежат в %LOCALAPPDATA%\VlcRemote и при обновлении не трогаются.
 
+  APK ставится ТОЛЬКО на устройства из списка разрешённых (%USERPROFILE%\.vlc-remote\devices.json,
+  по серийному номеру ro.serialno). Остальные подключённые по adb устройства (например, велокомпьютер)
+  пропускаются.
+
 .EXAMPLE
   .\deploy.ps1                       # последняя тестовая сборка компаньона
-  .\deploy.ps1 -Apk                  # + APK на телефон, подключённый по USB (adb)
+  .\deploy.ps1 -Apk                  # + APK на разрешённые телефоны, подключённые по adb
+  .\deploy.ps1 -ListDevices          # какие устройства подключены и какие разрешены
+  .\deploy.ps1 -AllowDevice RFCWC0SSKZK   # разрешить установку APK на устройство (серийный номер)
   .\deploy.ps1 -Channel stable       # последний релиз
   .\deploy.ps1 -Tag v0.2.0-beta.12   # конкретная сборка
   .\deploy.ps1 -Local -Apk           # собрать из исходников и поставить
@@ -39,6 +45,10 @@ param(
     [switch]$Uninstall,
     [switch]$Purge,
     [switch]$NoStart,
+    [switch]$ListDevices,
+    [string]$AllowDevice,
+    [string]$DisallowDevice,
+    [string]$DevicesFile = (Join-Path $env:USERPROFILE '.vlc-remote\devices.json'),
     [string]$Repo = 'lex019020/vlc-remote',
     [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'VlcRemote')
 )
@@ -266,28 +276,108 @@ function Find-Adb {
     throw 'adb не найден. Установите Android platform-tools: winget install --id Google.PlatformTools -e'
 }
 
-function Install-Apk([string]$ApkPath) {
+function Get-AllowedDevices {
+    if (-not (Test-Path $DevicesFile)) { return @() }
+    $cfg = Get-Content $DevicesFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $cfg.apkDevices) { return @() }
+    return @($cfg.apkDevices)
+}
+
+function Save-AllowedDevices([object[]]$Devices) {
+    $dir = Split-Path $DevicesFile
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+    $json = ConvertTo-Json -InputObject @{ apkDevices = @($Devices) } -Depth 4
+    [IO.File]::WriteAllText($DevicesFile, $json, (New-Object Text.UTF8Encoding($false)))
+}
+
+function Get-ConnectedDevices {
+    # Устройства в состоянии "device" с их настоящим серийным номером (у Wi‑Fi‑отладки id = ip:port).
     $adb = Find-Adb
+    $result = @()
+    $lines = & $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' }
+    foreach ($line in $lines) {
+        $id = ($line -split "`t")[0]
+        $props = & $adb -s $id shell 'getprop ro.serialno; getprop ro.product.manufacturer; getprop ro.product.model' 2>$null
+        $props = @($props | ForEach-Object { "$_".Trim() })
+        $result += [pscustomobject]@{
+            Id     = $id
+            Serial = $(if ($props.Count -gt 0) { $props[0] } else { '' })
+            Model  = (($props | Select-Object -Skip 1) -join ' ').Trim()
+        }
+    }
+    return $result
+}
+
+function Show-Devices {
+    $allowed = Get-AllowedDevices
+    Write-Step "Разрешённые устройства ($DevicesFile)"
+    if ($allowed.Count -eq 0) { Write-Note 'список пуст' }
+    foreach ($a in $allowed) { Write-Host "    $($a.serial)  $($a.name)" }
+    Write-Step 'Подключённые по adb'
+    $connected = Get-ConnectedDevices
+    if ($connected.Count -eq 0) { Write-Note 'нет' }
+    foreach ($d in $connected) {
+        $ok = [bool]($allowed | Where-Object { $_.serial -eq $d.Serial })
+        $mark = if ($ok) { '[разрешено]' } else { '[пропускается]' }
+        Write-Host "    $($d.Serial)  $($d.Model)  ($($d.Id))  $mark"
+    }
+}
+
+function Install-Apk([string]$ApkPath) {
     Write-Step "Установка $(Split-Path $ApkPath -Leaf) на телефон"
-    $devices = & $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' }
-    if (-not $devices) {
-        Write-Note 'Телефон не найден. Включите «Отладку по USB» (или по Wi‑Fi: adb pair / adb connect) и повторите с -ApkOnly.'
-        Write-Note "APK сохранён: $ApkPath — его можно и просто передать на телефон."
+    $allowed = Get-AllowedDevices
+    if ($allowed.Count -eq 0) {
+        throw "Список разрешённых устройств пуст ($DevicesFile). Подключите телефон, посмотрите его серийный номер (-ListDevices) и добавьте: -AllowDevice <серийный номер>."
+    }
+    $adb = Find-Adb
+    $connected = Get-ConnectedDevices
+    $targets = @()
+    foreach ($d in $connected) {
+        if ($allowed | Where-Object { $_.serial -eq $d.Serial }) { $targets += $d }
+        else { Write-Note "Пропущено: $($d.Model) ($($d.Serial)) — нет в списке разрешённых" }
+    }
+    if ($targets.Count -eq 0) {
+        Write-Note "Разрешённый телефон не подключён ($(($allowed | ForEach-Object { $_.name }) -join ', ')). Отладка по Wi‑Fi: adb connect <ip>:<порт>, затем -ApkOnly."
+        $keep = Join-Path $InstallRoot 'apk'
+        if (-not (Test-Path $keep)) { New-Item -ItemType Directory -Path $keep | Out-Null }
+        Copy-Item $ApkPath $keep -Force
+        Write-Note "APK сохранён: $(Join-Path $keep (Split-Path $ApkPath -Leaf)) — его можно и просто передать на телефон."
         return
     }
-    if (@($devices).Count -gt 1) { Write-Note 'Подключено несколько устройств — ставлю на первое (ANDROID_SERIAL задаёт конкретное).' }
-    $out = & $adb install -r $ApkPath 2>&1 | Out-String
-    if ($out -match 'Success') { Write-Ok 'APK установлен'; return }
-    if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') {
-        throw "На телефоне стоит сборка с другой подписью. Удалите её (adb uninstall $PackageId — сопряжения и настройки пропадут) и повторите."
+    foreach ($t in $targets) {
+        $out = & $adb -s $t.Id install -r $ApkPath 2>&1 | Out-String
+        if ($out -match 'Success') { Write-Ok "APK установлен: $($t.Model) ($($t.Serial))"; continue }
+        if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') {
+            throw "$($t.Model): стоит сборка с другой подписью. Удалите её (adb -s $($t.Id) uninstall $PackageId — сопряжения и настройки пропадут) и повторите."
+        }
+        if ($out -match 'INSTALL_FAILED_VERSION_DOWNGRADE') {
+            throw "$($t.Model): стоит более новая сборка. Удалите её или поставьте сборку новее."
+        }
+        throw "adb install ($($t.Model)): $out"
     }
-    if ($out -match 'INSTALL_FAILED_VERSION_DOWNGRADE') {
-        throw 'На телефоне более новая сборка. Удалите её или поставьте сборку новее.'
-    }
-    throw "adb install: $out"
 }
 
 # ---------------------------------------------------------------- основное
+
+if ($AllowDevice -or $DisallowDevice) {
+    $list = @(Get-AllowedDevices)
+    if ($DisallowDevice) {
+        $list = @($list | Where-Object { $_.serial -ne $DisallowDevice })
+        Write-Ok "Удалено из разрешённых: $DisallowDevice"
+    }
+    if ($AllowDevice) {
+        $name = $AllowDevice
+        $hit = Get-ConnectedDevices | Where-Object { $_.Serial -eq $AllowDevice } | Select-Object -First 1
+        if ($hit) { $name = $hit.Model } else { Write-Note "Устройство $AllowDevice сейчас не подключено — добавляю без проверки" }
+        $list = @($list | Where-Object { $_.serial -ne $AllowDevice }) + @([pscustomobject]@{ serial = $AllowDevice; name = $name })
+        Write-Ok "Разрешено: $AllowDevice ($name)"
+    }
+    Save-AllowedDevices $list
+    Show-Devices
+    return
+}
+
+if ($ListDevices) { Show-Devices; return }
 
 if ($Uninstall) {
     Write-Step 'Удаление компаньона'

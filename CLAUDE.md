@@ -90,7 +90,9 @@ $env:PR_TITLE='feat(android): …'; $env:PR_BODY=Get-Content body.md -Raw; pytho
 | Команда | Что делает |
 |---|---|
 | `deploy.ps1` | последняя тестовая сборка компаньона из GitHub Releases (нужен `gh auth login`) |
-| `deploy.ps1 -Apk` | + APK на телефон по adb (USB‑отладка или `adb connect`) |
+| `deploy.ps1 -Apk` / `-ApkOnly` | + APK по adb (USB или `adb connect <ip>:<порт>`) — **только на разрешённые устройства** |
+| `deploy.ps1 -ListDevices` | подключённые по adb устройства и список разрешённых |
+| `deploy.ps1 -AllowDevice <serial>` / `-DisallowDevice <serial>` | добавить/убрать устройство (серийный номер `ro.serialno`) |
 | `deploy.ps1 -Channel stable` / `-Tag v0.2.0-beta.12` | последний релиз / конкретная сборка |
 | `deploy.ps1 -Local [-Apk]` | собрать из рабочей копии и поставить |
 | `deploy.ps1 -CheckOnly` | сравнить установленную версию с последней |
@@ -102,6 +104,11 @@ $env:PR_TITLE='feat(android): …'; $env:PR_BODY=Get-Content body.md -Raw; pytho
 Компаньон ставится в `%LOCALAPPDATA%\VlcRemote\app` без прав администратора; перед заменой файлов старый
 экземпляр закрывается штатно (`VlcRemote.Companion.exe --shutdown`). При нехватке .NET 9 Desktop/ASP.NET Core
 Runtime скрипт ставит их через winget. На ноутбуке без клона репозитория — команда из описания любого релиза.
+
+APK ставится только на устройства из `%USERPROFILE%\.vlc-remote\devices.json` (вне git): остальные подключённые
+по adb устройства — например, велокомпьютер Karoo из соседнего проекта — пропускаются с сообщением. Пустой список =
+отказ. Сейчас разрешён один телефон: Samsung Galaxy S24 (`RFCWC0SSKZK`). Wi‑Fi‑отладка: сопряжение один раз
+(`adb pair <ip>:<порт> <код>`), после перезагрузки телефона или смены сети — `adb connect <ip>:<новый порт>`.
 
 ## Подпись APK
 
