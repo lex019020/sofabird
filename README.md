@@ -1,10 +1,11 @@
-# vlc-remote
+# Sofabird
 
-An Android remote for [VLC media player](https://www.videolan.org/vlc/) on a Windows PC connected to a TV, plus a
-small Windows companion that makes the PC a proper media station.
+Sofabird turns a Windows PC or laptop connected to a TV into a media station you run from the couch with your
+Android phone: an Android remote for [VLC media player](https://www.videolan.org/vlc/) plus a small Windows companion.
+Formerly called *VLC Remote*.
 
-[![CI](https://github.com/lex019020/vlc-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/vlc-remote/actions/workflows/ci.yml)
-[![Release](https://github.com/lex019020/vlc-remote/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/vlc-remote/releases)
+[![CI](https://github.com/lex019020/sofabird/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/sofabird/actions/workflows/ci.yml)
+[![Release](https://github.com/lex019020/sofabird/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/sofabird/releases)
 
 <p align="center">
   <img src="docs/images/remote.png" width="250" alt="Remote: cover, playback controls, tracks and chapters">
@@ -17,8 +18,8 @@ small Windows companion that makes the PC a proper media station.
   <img src="docs/images/settings.png" width="250" alt="Settings: volume keys, seek steps, vibration, theme">
 </p>
 
-**Website:** [lex019020.github.io/vlc-remote](https://lex019020.github.io/vlc-remote/) ·
-**Download:** [latest release](https://github.com/lex019020/vlc-remote/releases/latest)
+**Website:** [sofabird.app](https://sofabird.app/) ·
+**Download:** [latest release](https://github.com/lex019020/sofabird/releases/latest)
 
 The phone controls VLC over the local network. Without anything installed on the PC it talks to VLC's own web
 interface; with the companion it finds the PC by itself, starts VLC on the TV, keeps working over Bluetooth when
@@ -48,23 +49,26 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 
 ## Install
 
-Everything is on the [Releases](https://github.com/lex019020/vlc-remote/releases) page. Every merge to `main`
+Everything is on the [Releases](https://github.com/lex019020/sofabird/releases) page. Every merge to `main`
 publishes a test build; releases are published from time to time.
 
-1. **PC:** download and run `VlcRemote-Companion-Setup.exe`. It installs for the current user (the .NET 9
+1. **PC:** download and run `Sofabird-Setup.exe`. It installs for the current user (the .NET 9
    runtime is added when missing, with one administrator prompt), opens the setup window — allow the firewall rules
    there — and then keeps itself up to date. VLC media player must be installed (3.0.x).
-2. **Phone (Android 8+):** install `VlcRemote-<version>.apk` from the same release.
+2. **Phone (Android 8+):** install `Sofabird-<version>.apk` from the same release.
 3. Open the app: it finds the PC, the PC shows a code on the TV, enter it on the phone. Done.
+
+**Coming from VLC Remote?** Install both parts as above. On the PC, Sofabird replaces VLC Remote Companion and keeps
+its settings, history and media folders; on the phone it is a new app — pair it once and remove the old one.
 
 <details>
 <summary>Installing with scripts (also installs VLC and puts the APK on a phone via adb)</summary>
 
 ```powershell
-$d = "$env:TEMP\vlcremote"; New-Item -ItemType Directory -Force $d | Out-Null
-$tag = @(Invoke-RestMethod 'https://api.github.com/repos/lex019020/vlc-remote/releases?per_page=1')[0].tag_name
+$d = "$env:TEMP\sofabird"; New-Item -ItemType Directory -Force $d | Out-Null
+$tag = @(Invoke-RestMethod 'https://api.github.com/repos/lex019020/sofabird/releases?per_page=1')[0].tag_name
 'deploy-lib.ps1', 'deploy-windows.ps1', 'deploy-android.ps1' | ForEach-Object {
-    Invoke-WebRequest "https://github.com/lex019020/vlc-remote/releases/download/$tag/$_" -OutFile "$d\$_" -UseBasicParsing }
+    Invoke-WebRequest "https://github.com/lex019020/sofabird/releases/download/$tag/$_" -OutFile "$d\$_" -UseBasicParsing }
 & $d\deploy-windows.ps1 -Firewall -Autostart   # the companion on this PC
 & $d\deploy-android.ps1                         # the app on an allowed phone via adb (see CLAUDE.md)
 ```
@@ -101,8 +105,8 @@ the current tracks and chapter names (level 1).
 
 ```powershell
 # Companion (.NET SDK 9)
-dotnet build companion\VlcRemote.sln -c Release
-dotnet test  companion\VlcRemote.sln
+dotnet build companion\Sofabird.sln -c Release
+dotnet test  companion\Sofabird.sln
 
 # Android (JDK 17/21, Android SDK 35)
 android\gradlew.bat -p android detekt test :app:assembleDebug
@@ -121,7 +125,7 @@ subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLA
 
 Copyright (C) 2026 lex019020
 
-VLC Remote is free software: you can redistribute it and/or modify it under the terms of the
+Sofabird is free software: you can redistribute it and/or modify it under the terms of the
 [GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License,
 or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

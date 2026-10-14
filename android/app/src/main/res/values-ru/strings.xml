@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">VLC Remote</string>
+    <string name="app_name">Sofabird</string>
 
     <!-- Navigation -->
     <string name="tab_remote">Пульт</string>
@@ -51,7 +51,7 @@
     <string name="hint_refused">Проверьте, что в VLC включён «Веб» в основных интерфейсах и что порт совпадает (по умолчанию 8080).</string>
     <string name="hint_timeout">Телефон и ПК должны быть в одной Wi‑Fi‑сети. Брандмауэр Windows должен разрешать vlc.exe в частной сети.</string>
     <string name="hint_empty_body">Подождите, пока VLC полностью запустится, и нажмите «Проверить» ещё раз.</string>
-    <string name="hint_pairing_required">Нажмите на компьютер в списке — на его экране появится код. Если окна нет: значок VLC Remote в трее → «Сопряжение телефона…».</string>
+    <string name="hint_pairing_required">Нажмите на компьютер в списке — на его экране появится код. Если окна нет: значок Sofabird в трее → «Сопряжение телефона…».</string>
 
     <!-- Remote -->
     <string name="not_connected_title">Нет подключения</string>
@@ -177,9 +177,9 @@
     <string name="settings_keep_connection">Держать соединение в фоне</string>
     <string name="settings_keep_connection_hint">Уведомление с кнопками, пока на ПК идёт воспроизведение; снимается через 10 минут после остановки.</string>
     <string name="settings_about">О программе</string>
-    <string name="about_license">VLC Remote — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
+    <string name="about_license">Sofabird — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
     <string name="about_source">Исходный код</string>
-    <string name="about_text">VLC Remote — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
+    <string name="about_text">Sofabird — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Управление VLC</string>
@@ -222,7 +222,7 @@
     <string name="collapse">Свернуть</string>
     <string name="more_actions">Ещё действия</string>
     <string name="nearby_pcs">Компьютеры рядом</string>
-    <string name="nearby_not_found">Компьютер не найден. Проверьте, что на ПК запущен компаньон VLC Remote (значок в трее) и телефон в той же Wi‑Fi‑сети. Ниже — другие способы подключения.</string>
+    <string name="nearby_not_found">Компьютер не найден. Проверьте, что на ПК запущен компаньон Sofabird (значок в трее) и телефон в той же Wi‑Fi‑сети. Ниже — другие способы подключения.</string>
     <string name="nearby_tap_to_pair">Нажмите — на экране компьютера появится код</string>
     <string name="badge_paired">сопряжён</string>
     <string name="badge_connected">подключён</string>
@@ -238,7 +238,7 @@
     <string name="pairing_failed_title">Не удалось подключиться к %1$s</string>
     <string name="pair_dialog_title">Введите код с экрана компьютера</string>
     <string name="pair_dialog_hint">Код показан на экране ПК %1$s.</string>
-    <string name="pair_dialog_fallback">Окна с кодом нет? На ПК: значок VLC Remote в трее → «Сопряжение телефона…».</string>
+    <string name="pair_dialog_fallback">Окна с кодом нет? На ПК: значок Sofabird в трее → «Сопряжение телефона…».</string>
     <string name="pair_dialog_checking">Проверяю код…</string>
     <string name="err_invalid_pair_code">Неверный или устаревший код</string>
     <string name="hint_invalid_pair_code">Введите код, который сейчас на экране ПК. Код действует 5 минут.</string>

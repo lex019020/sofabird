@@ -1,6 +1,6 @@
-# VLC Remote Companion (Windows)
+# Sofabird (Windows)
 
-The companion for the `vlc-remote` Android remote: a .NET 9 tray app that owns the lifecycle of
+The companion for the `sofabird` Android remote: a .NET 9 tray app that owns the lifecycle of
 VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
 ([protocol/README.md](../protocol/README.md)): current tracks, chapter names, audio devices,
 push events, starting VLC, moving the window to the TV, power, system volume.
@@ -13,8 +13,8 @@ itself (see "Installing and updates"); the media library with posters (TMDB) is 
 
 ```
 companion/
-├── VlcRemote.sln
-├── VlcRemote.Core/            net9.0 library without Windows APIs (tested on any OS)
+├── Sofabird.sln
+├── Sofabird.Core/            net9.0 library without Windows APIs (tested on any OS)
 │   ├── Protocol/              protocol messages (System.Text.Json, source-generated, polymorphism by "t")
 │   ├── Vlc/                   VlcHttpClient, VlcJsonParser, VlcRcClient, RcParser
 │   ├── State/                 StateBuilder (status.json + tracks.json + RC → state), StateCoalescer (≤ 4/s)
@@ -26,7 +26,7 @@ companion/
 │   ├── Lua/                   LuaPagesInstaller (copy of VLC's stock pages + ours in %APPDATA%)
 │   └── Setup/                 FirewallPlanner (which firewall rules allow/block, what to remove/add), SetupPolicy
 │                              (when the setup window and the startup notice appear)
-├── VlcRemote.Companion/       WinExe net9.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
+├── Sofabird.Companion/       WinExe net9.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (RFCOMM service, M3)
 │   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), EmbeddedLuaPages
@@ -35,7 +35,7 @@ companion/
 │   ├── Setup/                 SetupForm (setup and permissions window), SetupBackend, ComFirewallRuleSource (COM
 │   │                          HNetCfg.FwPolicy2), FirewallElevation (elevated --apply-firewall helper), NetworkCategories
 │   └── Tray/                  TrayContext (menu), PairingForm (code on the TV screen), TrayIconFactory
-├── VlcRemote.Core.Tests/      xunit: parsers on real VLC 3.0.23 responses (docs/research/samples), session, pairing
+├── Sofabird.Core.Tests/      xunit: parsers on real VLC 3.0.23 responses (docs/research/samples), session, pairing
 └── lua/                       level 1 Lua pages and install.ps1 (they work without the companion too)
 ```
 
@@ -48,8 +48,8 @@ session (framing of the RFCOMM stream is `StreamLineTransport` in `Core`, tested
 Requires the .NET SDK 9.0 (verified with 9.0.310) and Windows for the companion project.
 
 ```powershell
-dotnet build companion\VlcRemote.sln -c Release
-dotnet test  companion\VlcRemote.sln
+dotnet build companion\Sofabird.sln -c Release
+dotnet test  companion\Sofabird.sln
 ```
 
 Code analysis runs in every build (`Directory.Build.props`: `AnalysisLevel` 9.0-recommended (pinned), warnings are
@@ -58,16 +58,16 @@ errors). Exceptions live in `companion/.editorconfig`, each with its reason.
 Running from source:
 
 ```powershell
-dotnet run --project companion\VlcRemote.Companion -c Release
+dotnet run --project companion\Sofabird.Companion -c Release
 ```
 
-For debugging with a separate data folder: `VlcRemote.Companion.exe --data-dir D:\tmp\vlcremote`
-(or the `VLCREMOTE_DATA_DIR` environment variable).
+For debugging with a separate data folder: `Sofabird.exe --data-dir D:\tmp\sofabird`
+(or the `SOFABIRD_DATA_DIR` environment variable).
 
 ## Installing and updates
 
-The companion is installed by `VlcRemote-Companion-Setup.exe` from GitHub Releases (Velopack; per user, into
-`%LOCALAPPDATA%\VlcRemoteCompanion`, with the .NET 9 runtime when it is missing) — by hand or through
+The companion is installed by `Sofabird-Setup.exe` from GitHub Releases (Velopack; per user, into
+`%LOCALAPPDATA%\Sofabird`, with the .NET 9 runtime when it is missing) — by hand or through
 `scripts\deploy-windows.ps1` (which adds VLC, the firewall rules and autostart; `-Local` builds the installer from
 source). Then it updates itself (`Services/UpdateService.cs`): a few minutes after the start and every 6 hours it checks
 GitHub Releases, downloads the update in the background and restarts into it as soon as VLC is not playing; the first
@@ -86,7 +86,7 @@ tray icon tooltip and in `/info`.
 
 `dotnet publish` (framework-dependent, a folder of ~27 MB, 24 MB of which is the Windows SDK projection
 `Microsoft.Windows.SDK.NET.dll`, pulled in by the `net9.0-windows10.0.19041.0` TFM for the WinRT Bluetooth) packed
-by `dotnet vpk pack` into `VlcRemoteCompanion-win-Setup.exe` (~17 MB) and a ~9 MB update package. The PC needs the
+by `dotnet vpk pack` into `Sofabird-win-x64-Setup.exe` (~17 MB, published as `Sofabird-Setup.exe`) and a ~9 MB update package. The PC needs the
 **.NET Desktop Runtime 9** and the **ASP.NET Core Runtime 9** (Kestrel): the installer installs them when they are
 missing. A self-contained build would be ~160 MB.
 
@@ -103,8 +103,8 @@ differently and produces a 150 MB self-contained build (the csproj also sets
    notification (see below).
 1. Starts Kestrel on `0.0.0.0:47555`: `ws://…/ws` (NDJSON session), `GET /info` (no
    authorization), `GET /art?plId=N` (header `Authorization: Bearer <token>`, proxies VLC's `/art`).
-2. Answers the UDP beacon `VLCREMOTE_DISCOVER 1` on port 47556 with unicast JSON `{"t":"beacon",…}`.
-3. Advertises `_vlcremote._tcp` through the built-in Windows DNS-SD responder (`DnsServiceRegister`);
+2. Answers the UDP beacon `SOFABIRD_DISCOVER 1` on port 47556 with unicast JSON `{"t":"beacon",…}`.
+3. Advertises `_sofabird._tcp` through the built-in Windows DNS-SD responder (`DnsServiceRegister`);
    on error it writes to the log and keeps working (the beacon and manual address entry remain).
 4. Finds VLC (`HKLM\SOFTWARE\VideoLAN\VLC`, then Program Files). If VLC is not running, it writes
    the web interface and RC into `vlcrc` (see "VLC auto-configuration"). If VLC is running and answers over HTTP with our
@@ -115,10 +115,10 @@ differently and produces a 150 MB self-contained build (the csproj also sets
    `tracks.json` is missing, `quit`), builds the full `state` object and sends it to all phones on
    changes, at most 4 times per second.
 6. Installs the level 1 Lua pages into `%APPDATA%\vlc\lua\http` (a copy of VLC's stock folder +
-   `requests/tracks.json`, `requests/setvar.json`, the `vlcremote.version` file). Reinstalls them when the
+   `requests/tracks.json`, `requests/setvar.json`, the `sofabird.version` file). Reinstalls them when the
    VLC version or the pages themselves change. Does this only when VLC is not running; otherwise postpones it
    until VLC closes (the menu item shows "after VLC closes").
-7. Publishes the "VLC Remote" Bluetooth RFCOMM service for a phone without Wi‑Fi (see "Bluetooth"). No adapter or
+7. Publishes the "Sofabird" Bluetooth RFCOMM service for a phone without Wi‑Fi (see "Bluetooth"). No adapter or
    Bluetooth off — it writes to the log and works without it.
 
 VLC launched by the companion:
@@ -150,7 +150,7 @@ phone right away, the companion writes into `%APPDATA%\vlc\vlcrc` (into the file
   end of its section, a missing section — to the end of the file. The encoding (UTF-8 with BOM) and line endings are
   preserved, the write is atomic (temp file + replace). If there is no file (VLC has never been started), a
   minimal file with these sections is created.
-- Before the **first** change a copy `%APPDATA%\vlc\vlcrc.vlcremote-backup` is made (it is never overwritten afterwards).
+- Before the **first** change a copy `%APPDATA%\vlc\vlcrc.sofabird-backup` is made (it is never overwritten afterwards).
   To restore everything: close VLC, delete `vlcrc` and rename the copy back.
 - If everything is already configured, the file is not touched; only the fact of a change is logged.
 - To disable: `"configureVlc": false` in `settings.json` (restart the companion). `"vlcrcPath"` — a different path
@@ -197,7 +197,7 @@ A fallback channel when the phone has no network in common with the PC (protocol
 "Discovery → Bluetooth").
 
 **How it works.** The companion publishes an RFCOMM service in SDP with UUID `47fe5bd6-98ad-4d9f-9812-174b3394037d` and
-the name `VLC Remote` (WinRT `RfcommServiceProvider` + `StreamSocketListener`, no administrator rights). The PC does
+the name `Sofabird` (WinRT `RfcommServiceProvider` + `StreamSocketListener`, no administrator rights). The PC does
 **not** become discoverable: only a phone already paired with it can connect. The channel carries the same NDJSON as
 the WebSocket (UTF-8, one line per message, separator `\n`, at most 1 MiB per line), the same `hello` with the
 token and the same code window for a new phone; in the log the session looks like `bt <phone name> (<address>)`. Up to
@@ -284,7 +284,7 @@ it is opened by hand (double-clicking a movie in Explorer).
 ## Watch history
 
 The companion is the source of truth for what was watched (protocol: "Watch history and resume", capability
-`history`). Code: `VlcRemote.Core/History/` — `HistoryStore` (the file), `HistoryTracker` (decisions from VLC polls),
+`history`). Code: `Sofabird.Core/History/` — `HistoryStore` (the file), `HistoryTracker` (decisions from VLC polls),
 `HistoryRules` (pure rules), `MediaUri` (URI normalization); `VlcManager` performs the tracker's actions on VLC.
 
 - **What is recorded.** Every *file* VLC plays (opened from a phone, from Explorer, from VLC's playlist; streams and
@@ -330,7 +330,7 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
 ## Library
 
 The **media folders** (setup window → "Media folders", `mediaRoots` in `settings.json`; local disks or network
-shares) are the phone's library of movies and series (`Services/LibraryService.cs`, `VlcRemote.Core/Library/`):
+shares) are the phone's library of movies and series (`Services/LibraryService.cs`, `Sofabird.Core/Library/`):
 
 - **Scan** at the start, every 30 minutes and right after the folders change: every video file under them (hidden,
   system and unreadable entries, `sample` files and `Extras`/`Featurettes`/`Trailers` folders are skipped).
@@ -365,7 +365,9 @@ shares) are the phone's library of movies and series (`Services/LibraryService.c
 
 ## Where settings and logs are stored
 
-`%LocalAppData%\VlcRemote\`:
+`%AppData%\Sofabird\` (`%LocalAppData%\Sofabird\` is the installation itself, which updates replace). The first start of
+Sofabird takes `settings.json`, `history.json` and `library-metadata.json` over from the companion's earlier name,
+VLC Remote Companion (`%LocalAppData%\VlcRemote\`), stops and uninstalls it and moves its autostart; phones pair again.
 
 | File | What |
 |---|---|
@@ -412,17 +414,17 @@ creates **block** rules, and block wins over allow — the phone then cannot fin
 manages the rules itself:
 
 - **Detection** (no admin rights): COM `HNetCfg.FwPolicy2` (`ComFirewallRuleSource`), only rules bound to
-  `VlcRemote.Companion.exe` / `vlc.exe`. A program is *allowed* when an enabled inbound allow rule for its path covers
+  `Sofabird.exe` / `vlc.exe`. A program is *allowed* when an enabled inbound allow rule for its path covers
   the private profile and TCP (plus UDP for the companion's discovery beacon); it is *blocked* when an enabled inbound
   block rule for it covers the private profile. Block rules for the public profile only (left by "Allow" with only
   "Private networks" ticked) are fine and kept. Decisions are pure functions in Core (`FirewallPlanner`,
   `SetupPolicy`) with unit tests.
 - **Applying** needs admin rights, the companion runs without them. It starts **one elevated copy of itself**
   (`Verb=runas`, one UAC prompt):
-  `VlcRemote.Companion.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>"`.
+  `Sofabird.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>"`.
   The helper removes the blocking rules, replaces our own rules for these paths with fresh ones — inbound allow,
-  **private profile**, any protocol, names `VLC Remote Companion` and `VLC (VLC Remote)` (the same as
-  `deploy-windows.ps1 -Firewall`), group `VLC Remote` — reads the rules again and exits: `0` OK, `2` bad arguments,
+  **private profile**, any protocol, names `Sofabird` and `VLC (Sofabird)` (the same as
+  `deploy-windows.ps1 -Firewall`), group `Sofabird` — reads the rules again and exits: `0` OK, `2` bad arguments,
   `3` error, `4` rules still not right (e.g. a Group Policy rule). It logs every change to the companion log and never
   starts the tray, the listeners or VLC. Declined UAC → the window says so; Apply can be pressed again.
 - **Every start** (when `manageFirewall` is on): if a block rule exists, or the allow rules are gone after the window
@@ -431,8 +433,8 @@ manages the rules itself:
 Manual equivalent (administrator PowerShell):
 
 ```powershell
-netsh advfirewall firewall add rule name="VLC Remote Companion" dir=in action=allow profile=private program="<path to VlcRemote.Companion.exe>" enable=yes
-netsh advfirewall firewall add rule name="VLC (VLC Remote)" dir=in action=allow profile=private program="C:\Program Files\VideoLAN\VLC\vlc.exe" enable=yes
+netsh advfirewall firewall add rule name="Sofabird" dir=in action=allow profile=private program="<path to Sofabird.exe>" enable=yes
+netsh advfirewall firewall add rule name="VLC (Sofabird)" dir=in action=allow profile=private program="C:\Program Files\VideoLAN\VLC\vlc.exe" enable=yes
 ```
 
 ## What has been verified on this PC (one monitor, VLC 3.0.23)
@@ -467,8 +469,8 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 ### To check on the TV laptop
 
 - Setup window: first start with a fresh data dir (`--data-dir`) — the window appears before the listeners when rules
-  are missing; Apply → exactly one UAC prompt, rules `VLC Remote Companion` / `VLC (VLC Remote)` (private profile,
-  group "VLC Remote") appear, no Windows "allow access" prompt afterwards, the phone connects. Declining UAC → "not
+  are missing; Apply → exactly one UAC prompt, rules `Sofabird` / `VLC (Sofabird)` (private profile,
+  group "Sofabird") appear, no Windows "allow access" prompt afterwards, the phone connects. Declining UAC → "not
   given" status, Apply again works. With the existing allow rules (current state of the laptop) the window opens
   next to the running companion with ✓ for network access. A block rule created by hand
   (`netsh advfirewall firewall add rule name=test dir=in action=block profile=private program=<companion exe>`) →
@@ -486,7 +488,7 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 - `displayPower` (`SC_MONITORPOWER`) under Modern Standby, `sleep` (`SetSuspendState`), `shutdown.exe`
   and keep-awake during a movie — deliberately not invoked on this PC.
 - System volume via NAudio: reading verified (`system.volume`), writing — not.
-- Discovery of `_vlcremote._tcp` from the phone (`NsdManager`) and receiving the broadcast beacon through the Wi‑Fi router.
+- Discovery of `_sofabird._tcp` from the phone (`NsdManager`) and receiving the broadcast beacon through the Wi‑Fi router.
 - Launching the GUI VLC from the companion (`--fullscreen`) and restarting a VLC started from Explorer without the API
   (closing the Qt main window, restoring the file from the command line, the notification and clicking it).
 - Auto-configuration of the real `%APPDATA%\vlc\vlcrc` and starting VLC from Explorer afterwards (here — only a copy

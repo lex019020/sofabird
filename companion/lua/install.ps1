@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Installs the vlc-remote Lua pages into the VLC user folder (level 1).
+  Installs the sofabird Lua pages into the VLC user folder (level 1).
 
 .DESCRIPTION
   VLC 3.0.x takes HTTP pages from the FIRST existing folder: %APPDATA%\vlc\lua\http,
@@ -42,7 +42,7 @@ New-Item -ItemType Directory -Force -Path $userHttp | Out-Null
 Copy-Item -Path (Join-Path $stockHttp '*') -Destination $userHttp -Recurse -Force
 $src = Join-Path $PSScriptRoot 'requests'
 Copy-Item -Path (Join-Path $src 'tracks.json'), (Join-Path $src 'setvar.json') -Destination (Join-Path $userHttp 'requests') -Force
-Set-Content -Path (Join-Path $userHttp 'vlcremote.version') -Value "vlc=$version`ninstalled=$(Get-Date -Format o)" -Encoding ascii
+Set-Content -Path (Join-Path $userHttp 'sofabird.version') -Value "vlc=$version`ninstalled=$(Get-Date -Format o)" -Encoding ascii
 Write-Host "Pages installed in $userHttp"
 
 $running = Get-Process vlc -ErrorAction SilentlyContinue

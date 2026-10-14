@@ -1,6 +1,9 @@
-# vlc-remote protocol
+# Sofabird protocol
 
 Protocol version: **1**. This document is the source of truth for the Android app and the companion.
+Since the rename from VLC Remote the discovery names are `_sofabird._tcp`, `SOFABIRD_DISCOVER` and the `sofabird://`
+pairing link (were `_vlcremote._tcp`, `VLCREMOTE_DISCOVER`, `vlcr://`): apps and companions of the two names do not
+find each other; the messages themselves did not change.
 
 Two levels:
 
@@ -13,15 +16,15 @@ Two levels:
 
 - WebSocket: `ws://<host>:47555/ws`. Text frames, one JSON object per frame. The same NDJSON
   (a trailing `\n`) is allowed and ignored when parsing.
-- RFCOMM (Bluetooth Classic): service with UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, SDP name `VLC Remote`.
+- RFCOMM (Bluetooth Classic): service with UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, SDP name `Sofabird`.
   A UTF-8 byte stream, one JSON line per message, `\n` as the separator, at most 1 MiB per line. The same messages,
   handshake and token as over WebSocket. The channel is encrypted by Bluetooth pairing; the token is still required.
 - Diagnostics without WebSocket: `GET http://<host>:47555/info` → `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool}` (no authorization, only for display in the list of discovered PCs).
 
 ## Discovery
 
-- DNS-SD: service type `_vlcremote._tcp`, name = PC name, port 47555, TXT: `v=1`, `name=<PC name>`, `id=<stable installation GUID>`.
-- UDP beacon: the app broadcasts the text `VLCREMOTE_DISCOVER 1` to `255.255.255.255:47556`;
+- DNS-SD: service type `_sofabird._tcp`, name = PC name, port 47555, TXT: `v=1`, `name=<PC name>`, `id=<stable installation GUID>`.
+- UDP beacon: the app broadcasts the text `SOFABIRD_DISCOVER 1` to `255.255.255.255:47556`;
   the companion replies with unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
 
 ### Bluetooth

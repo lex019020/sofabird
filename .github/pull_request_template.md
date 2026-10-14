@@ -18,7 +18,7 @@ If users won't notice anything (refactoring, CI, tests), write the single word: 
 -
 
 ## Testing
-- [ ] `dotnet test companion/VlcRemote.sln`
+- [ ] `dotnet test companion/Sofabird.sln`
 - [ ] `android\gradlew.bat -p android test`
 -
 

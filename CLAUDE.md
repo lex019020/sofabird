@@ -1,6 +1,11 @@
-# vlc-remote — project rules
+# Sofabird — project rules
 
-An Android remote for VLC on a Windows PC at the TV + a Windows companion.
+Sofabird (formerly VLC Remote): an Android remote for VLC on a Windows PC at the TV + a Windows companion. The audience
+is international.
+
+**Name.** The product is *Sofabird* (the PC part: *Sofabird for Windows*); identifiers use `sofabird` / `Sofabird` /
+`app.sofabird`, the site is `sofabird.app`. VLC is VideoLAN's trademark: describe the relation as "for VLC" / "remote
+for VLC media player", never use the VLC cone, keep the "not affiliated with VideoLAN" notice ([ADR-0006](docs/adr/0006-rename-to-sofabird.md)).
 
 **Languages.** Repository documentation, code comments, logs, commit messages, PR titles/descriptions and release
 notes are in English. The apps' UI follows the system language with English as the default; Russian is an
@@ -22,16 +27,16 @@ translation is available.** No UI literals in code:
   and live measurements of VLC 3.0.23 (`samples/` — real responses, also used as test fixtures).
 - `protocol/README.md` — the phone ↔ companion protocol v1 (the source of truth for both sides),
   `protocol/vlc-http.md` — VLC's direct HTTP mode and all its quirks.
-- `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 9 (`VlcRemote.Core`,
-  `VlcRemote.Companion`, tests), `companion/lua/` — Lua pages for VLC.
+- `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 9 (`Sofabird.Core`,
+  `Sofabird.Companion`, tests), `companion/lua/` — Lua pages for VLC.
 - `scripts/deploy-windows.ps1` — the companion on Windows, `scripts/deploy-android.ps1` — the app on the phone,
   `scripts/deploy-lib.ps1` — their shared code; `scripts/release_notes.py` — PR checks and release notes assembly.
 
 ## Build and tests
 
 ```powershell
-dotnet build companion\VlcRemote.sln -c Release
-dotnet test  companion\VlcRemote.sln
+dotnet build companion\Sofabird.sln -c Release
+dotnet test  companion\Sofabird.sln
 $env:JAVA_HOME = 'C:\Program Files\Android\openjdk\jdk-21.0.8'   # on this PC; any JDK 17/21 will do
 android\gradlew.bat -p android detekt test :app:assembleDebug   # detekt: --auto-correct fixes formatting
 android\gradlew.bat -p android :app:verifyRoborazziDebug   # layout screenshots; recordRoborazziDebug updates them
@@ -49,7 +54,7 @@ blocks), then elements shrink; no `verticalScroll`/lazy lists on the remote. Opt
 Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 are pinned to the installed SDK (without the licenses folder
 nothing new can be downloaded); do not bump them unless necessary. Companion — the SDK from `companion/global.json`.
 
-Make protocol changes simultaneously in `protocol/`, `android/core/protocol` and `companion/VlcRemote.Core`
+Make protocol changes simultaneously in `protocol/`, `android/core/protocol` and `companion/Sofabird.Core`
 (+ tests on both sides). Live checks with VLC — only with a separate instance on `127.0.0.1`
 (`--no-one-instance -I dummy … --http-host 127.0.0.1`), without touching `%APPDATA%\vlc`, sound, displays or the PC's power.
 
@@ -101,8 +106,8 @@ Create from the console: `gh pr create --title "<title>" --body-file <file>`; me
   `deploy-android -Local` builds — commits in `origin/main` × 10 + 5: newer than the current test build, older than the next one.
 - A **test build** (pre-release `v<VERSION>-beta<NNNN>`, e.g. `v0.2.0-beta0040`, so that GitHub lists the newest on top) is created automatically on every merge to `main`
   (`.github/workflows/release.yml`). Description — the release notes of the merged PR + installation instructions.
-  Files: `VlcRemote-Companion-Setup.exe` (linked from the notes) + the Velopack update feed (`*-full.nupkg`,
-  `*-delta.nupkg`, `releases.win.json`), `VlcRemote-<version>.apk`, `deploy-*.ps1/.cmd`.
+  Files: `Sofabird-Setup.exe` (linked from the notes) + the Velopack update feed (`*-full.nupkg`,
+  `*-delta.nupkg`, `releases.win-x64.json`), `Sofabird-<version>.apk`, `deploy-*.ps1/.cmd`.
 - **The companion updates itself** (Velopack, `UpdateService`): a few minutes after the start and every 6 h it checks
   GitHub Releases, downloads in the background and restarts into the new version when VLC is not playing. Test builds
   stay on test builds, releases on releases (tray: "Get test builds"); `-local` builds never update themselves.
@@ -127,12 +132,13 @@ messages in English:
 | `-Firewall` / `-Autostart` | firewall rules for the companion and VLC (private network, one UAC prompt) / autostart |
 | `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs) |
 
-The companion is installed by its Velopack installer (`VlcRemote-Companion-Setup.exe`, which a user can also just
-run) into `%LOCALAPPDATA%\VlcRemoteCompanion` (`current\VlcRemote.Companion.exe` — a stable path for the firewall
+The companion is installed by its Velopack installer (`Sofabird-Setup.exe`, which a user can also just
+run) into `%LOCALAPPDATA%\Sofabird` (`current\Sofabird.exe` — a stable path for the firewall
 rules and autostart) for the current user; the .NET 9 runtime, when missing, is installed by it with one administrator
 prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the
-companion and replaces an install made by its earlier versions (`%LOCALAPPDATA%\VlcRemote\app`). Settings, pairings
-and logs stay in `%LOCALAPPDATA%\VlcRemote`. If VLC media player is not installed, the script installs it via winget
+companion and replaces the companion under its earlier name, VLC Remote Companion (`%LOCALAPPDATA%\VlcRemoteCompanion`;
+Sofabird takes its settings and history over at the first start). Settings, pairings, history and logs stay in
+`%APPDATA%\Sofabird`. If VLC media player is not installed, the script installs it via winget
 (`VideoLAN.VLC`, one administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
 Packing (`dotnet vpk`, pinned in `dotnet-tools.json`) is `New-CompanionPackage` in `deploy-lib.ps1`, shared by the
 release workflow and `-Local`.
@@ -140,7 +146,7 @@ release workflow and `-Local`.
 ## Deployment: Android
 
 `scripts\deploy-android.ps1` (or `deploy-android.cmd`) installs the APK via adb **only on allowed devices**
-from `%USERPROFILE%\.vlc-remote\devices.json` (outside git, by the serial number `ro.serialno`). Other connected
+from `%USERPROFILE%\.sofabird\devices.json` (outside git, by the serial number `ro.serialno`). Other connected
 devices — for example, the Karoo bike computer from a neighbouring project — are skipped with a message; an empty list =
 refusal. The list is kept per developer PC, so it is not in the repository.
 
@@ -159,14 +165,14 @@ phone by itself: the last successful address → adb mDNS (`ADB_MDNS_OPENSCREEN=
 pass it) → the IP by MAC from ARP (after pinging the /24) or the previous IP → a scan of ports 30000–49999 (~10 s). The
 successful address, port and MAC are remembered in `devices.json`. The phone must be awake and on the same network
 (`-NoAutoConnect` disables the search).
-If no allowed phone is present, the APK is saved to `%LOCALAPPDATA%\VlcRemote\apk`.
+If no allowed phone is present, the APK is saved to `%APPDATA%\Sofabird\apk`.
 
 ## APK signing
 
 Test builds and releases are signed with **one** key, otherwise an update will not install over the previous version.
-The debug build (`dev.vlcremote.app.debug`, "VLC Remote (dev)") is signed with the debug key and installs side by side.
+The debug build (`app.sofabird.debug`, "Sofabird (dev)") is signed with the debug key and installs side by side.
 
-- Key: `%USERPROFILE%\.vlc-remote\signing\vlcremote.jks` (+ `keystore.properties` next to it). **Make a backup**:
+- Key: `%USERPROFILE%\.sofabird\signing\sofabird.jks` (+ `keystore.properties` next to it). **Make a backup**:
   losing the key = reinstalling the app on the phones and losing the pairings.
 - Locally: copy `keystore.properties` into `android\` (it is not committed to git).
 - CI: repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
@@ -179,9 +185,9 @@ The companion is tested on a separate laptop connected to the TV. From the devel
 
 | Command (on the developer PC) | What it does |
 |---|---|
-| `scripts\dev-laptop.ps1 -Init` | the key `~\.ssh\id_ed25519_vlcremote` + setup files in `D:\shared\vlc-remote-setup` |
-| on the laptop: `\\<dev PC>\shared\vlc-remote-setup\laptop-setup.cmd` | one-time sshd setup (asks for administrator rights), prints the IP and user |
-| `dev-laptop.ps1 -Connect <IP> -User <name>` | writes `Host vlcremote-laptop` into `~\.ssh\config` and checks the connection |
+| `scripts\dev-laptop.ps1 -Init` | the key `~\.ssh\id_ed25519_sofabird` + setup files in `D:\shared\sofabird-setup` |
+| on the laptop: `\\<dev PC>\shared\sofabird-setup\laptop-setup.cmd` | one-time sshd setup (asks for administrator rights), prints the IP and user |
+| `dev-laptop.ps1 -Connect <IP> -User <name>` | writes `Host sofabird-laptop` into `~\.ssh\config` and checks the connection |
 | `dev-laptop.ps1` (`-Status`) | companion, `/info`, VLC processes with their command lines, `vlcrc` keys, network profiles |
 | `dev-laptop.ps1 -Deploy -Local` / `-Deploy [-Tag …]` | build here (or take from a release) and install on the laptop |
 | `dev-laptop.ps1 -Logs [-Tail N] [-Follow]` | the companion's log |

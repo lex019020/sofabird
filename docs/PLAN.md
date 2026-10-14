@@ -1,4 +1,4 @@
-# vlc-remote — project plan
+# Sofabird — project plan
 
 Date: 2026-10-14. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
@@ -137,7 +137,7 @@ elements only when the flag is present. After connecting, `VlcHttpBackend` tries
 ### 4.3. Transports and discovery ([ADR-0002](adr/0002-transports-and-discovery.md))
 
 Order at startup: the saved PC over LAN (WS to the companion → otherwise HTTP to VLC) →
-mDNS `_vlcremote._tcp` + UDP beacon (companion) → with no network and a paired PC —
+mDNS `_sofabird._tcp` + UDP beacon (companion) → with no network and a paired PC —
 RFCOMM, switching back to Wi-Fi automatically when it returns → otherwise the "Connection" screen with a `/24` scan,
 manual entry and QR. Reconnecting is silent, with exponential backoff, commands are buffered for 5 s, the connection
 status is always in the header.
@@ -160,7 +160,7 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 | ← PC | `err {id, code, msg}` | command error (`msg` in the phone's language) |
 
 Pairing: the phone asks to pair, a window with a 6-digit code pops up on the PC (and on the TV), the user enters
-the code on the phone (QR `vlcr://pair?host=&port=&code=&bt=&fp=` is an alternative);
+the code on the phone (QR `sofabird://pair?host=&port=&code=&bt=&fp=` is an alternative);
 the phone receives a long-lived token, the PC stores its hash. No TLS in v1 (home network, token);
 the `fp` field is reserved for pinning a self-signed certificate.
 
@@ -199,7 +199,7 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
 
 ### 4.7. Companion (Windows)
 
-- Project `companion/VlcRemote.Companion` — `net9.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
+- Project `companion/Sofabird.Companion` — `net9.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
   Kestrel (`CreateSlimBuilder`) for WS and REST diagnostics, WinRT `RfcommServiceProvider`,
   `DnsServiceRegister` via P/Invoke, UDP beacon `:47556`, NAudio, CsWin32 for Win32, Serilog.
 - `VlcManager`: finds VLC via `HKLM\SOFTWARE\VideoLAN\VLC`, starts `vlc.exe --extraintf http:rc
@@ -222,7 +222,7 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
   from CI or the user's own) with a cache of ≤ 6 months (7 days for misses) and attribution, a catalog of movies and
   series with seasons and episodes; watch history and resume positions (the companion is the source of truth,
   shared by all phones).
-- Installation: the Velopack `Setup.exe` per user into `%LOCALAPPDATA%\VlcRemoteCompanion` (no admin rights; the
+- Installation: the Velopack `Setup.exe` per user into `%LOCALAPPDATA%\Sofabird` (no admin rights; the
   .NET runtime with one prompt when missing), HKCU\Run, one UAC prompt for the firewall rules (companion + vlc.exe,
   private profile), quiet updates from GitHub Releases; `scripts/deploy-windows.ps1` wraps it. Lua pages are
   copied into `%APPDATA%\vlc\lua\http\requests\` at the first start.
@@ -339,6 +339,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       when it comes back.
 - [x] Settings, true black.
 - [ ] Sleep timer.
+- [x] **Rename to Sofabird** (user decision, [ADR-0006](adr/0006-rename-to-sofabird.md)): the VLC trademark and a
+      scope beyond VLC; every name and identifier changed, the first start takes the old companion's settings and
+      history over and uninstalls it; the phone app is a new app.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
@@ -398,12 +401,12 @@ companion.
 ## 9. Repository structure
 
 ```
-vlc-remote/
+sofabird/
   README.md, CLAUDE.md, VERSION
   docs/            PLAN.md, adr/, research/ (+ samples/ — real VLC responses, test fixtures)
   protocol/        protocol description, message schema (JSON Schema), direct VLC HTTP reference
   android/         Gradle project: app, core/protocol
-  companion/       VlcRemote.Core, VlcRemote.Companion, tests (.NET), lua/ (tracks.json, setvar.json,
+  companion/       Sofabird.Core, Sofabird.Companion, tests (.NET), lua/ (tracks.json, setvar.json,
                    install.ps1), tools/ (localization generator)
   scripts/         deploy-windows, deploy-android, deploy-lib, dev-laptop, laptop-setup, release_notes.py
   .github/         CI, PR checks, release workflow, PR template

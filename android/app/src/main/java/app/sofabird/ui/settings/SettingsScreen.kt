@@ -1,0 +1,289 @@
+package app.sofabird.ui.settings
+
+import android.os.Build
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.sofabird.BuildConfig
+import app.sofabird.R
+import app.sofabird.domain.model.AppSettings
+import app.sofabird.domain.model.ThemeMode
+import app.sofabird.ui.common.BluetoothPermissionDeniedDialog
+import app.sofabird.ui.common.LabelText
+import app.sofabird.ui.common.rememberBluetoothRequests
+import app.sofabird.ui.permissions.PermissionsSettingsSection
+import org.koin.androidx.compose.koinViewModel
+
+@Composable
+fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
+    val s by viewModel.settings.collectAsStateWithLifecycle()
+    SettingsContent(
+        s,
+        update = viewModel::update,
+        onBack = onBack,
+        versionName = BuildConfig.VERSION_NAME,
+        versionCode = BuildConfig.VERSION_CODE,
+        permissions = {
+            PermissionsSettingsSection(Modifier.padding(vertical = 4.dp)) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                Section(stringResource(R.string.settings_permissions))
+            }
+        },
+    )
+}
+
+/**
+ * [update] changes the stored settings. [permissions] is the "Permissions" section: it reads the live system state,
+ * so previews and screenshot tests leave it out.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SettingsContent(
+    s: AppSettings,
+    update: ((AppSettings) -> AppSettings) -> Unit,
+    onBack: () -> Unit,
+    versionName: String,
+    versionCode: Int,
+    permissions: @Composable () -> Unit = {},
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+        ) {
+            Section(stringResource(R.string.settings_control))
+            SwitchRow(
+                title = stringResource(R.string.settings_volume_keys),
+                subtitle = stringResource(R.string.settings_volume_keys_hint),
+                checked = s.volumeKeysControlPc,
+            ) { v -> update { it.copy(volumeKeysControlPc = v) } }
+            ChoiceRow(
+                title = stringResource(R.string.settings_volume_step),
+                options = AppSettings.VOLUME_STEPS,
+                selected = s.volumeKeyStep,
+                label = { "${it * 100 / 256} %" },
+            ) { v -> update { it.copy(volumeKeyStep = v) } }
+            ChoiceRow(
+                title = stringResource(R.string.settings_seek_short),
+                options = AppSettings.SEEK_SHORT_STEPS,
+                selected = s.seekShortSec,
+                label = { stringResource(R.string.seconds_short, it) },
+            ) { v -> update { it.copy(seekShortSec = v) } }
+            ChoiceRow(
+                title = stringResource(R.string.settings_seek_long),
+                options = AppSettings.SEEK_LONG_STEPS,
+                selected = s.seekLongSec,
+                label = { stringResource(R.string.seconds_short, it) },
+            ) { v -> update { it.copy(seekLongSec = v) } }
+            SwitchRow(title = stringResource(R.string.settings_haptics), subtitle = null, checked = s.haptics) { v ->
+                update { it.copy(haptics = v) }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            Section(stringResource(R.string.settings_appearance))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                ThemeMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = s.theme == mode,
+                        onClick = { update { it.copy(theme = mode) } },
+                        label = {
+                            LabelText(
+                                stringResource(
+                                    when (mode) {
+                                        ThemeMode.SYSTEM -> R.string.theme_system
+                                        ThemeMode.DARK -> R.string.theme_dark
+                                        ThemeMode.LIGHT -> R.string.theme_light
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+            SwitchRow(
+                title = stringResource(R.string.settings_true_black),
+                subtitle = stringResource(R.string.settings_true_black_hint),
+                checked = s.trueBlack,
+                enabled = s.theme != ThemeMode.LIGHT,
+            ) { v -> update { it.copy(trueBlack = v) } }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                SwitchRow(title = stringResource(R.string.settings_dynamic_color), subtitle = null, checked = s.dynamicColor) { v ->
+                    update { it.copy(dynamicColor = v) }
+                }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            Section(stringResource(R.string.settings_connection))
+            BluetoothFallbackRow(checked = s.bluetoothFallback) { v -> update { it.copy(bluetoothFallback = v) } }
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            Section(stringResource(R.string.settings_background))
+            SwitchRow(
+                title = stringResource(R.string.settings_keep_connection),
+                subtitle = stringResource(R.string.settings_keep_connection_hint),
+                checked = s.keepConnectionInBackground,
+            ) { v -> update { it.copy(keepConnectionInBackground = v) } }
+
+            permissions()
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            Section(stringResource(R.string.settings_about))
+            Text(
+                stringResource(R.string.about_text),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            // GPL-3.0 §5(d): the interactive UI shows the license, the absence of warranty and where the source is.
+            Text(
+                stringResource(R.string.about_license),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            val uriHandler = LocalUriHandler.current
+            TextButton(onClick = { uriHandler.openUri(SOURCE_URL) }, contentPadding = PaddingValues(0.dp)) {
+                LabelText(stringResource(R.string.about_source))
+            }
+            Text(
+                stringResource(R.string.media_tmdb),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(
+                    R.string.settings_version,
+                    versionName,
+                    versionCode,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * "Use Bluetooth when Wi-Fi is unavailable". Turning it on is the moment to ask for "Nearby devices"
+ * (Android 12+): the switch text is the rationale. A refusal keeps the setting on — the remote then
+ * offers the permission again when Wi-Fi actually fails.
+ */
+@Composable
+private fun BluetoothFallbackRow(checked: Boolean, onChange: (Boolean) -> Unit) {
+    var denied by remember { mutableStateOf(false) }
+    val requests = rememberBluetoothRequests(
+        onPermissionResult = { granted -> if (!granted) denied = true },
+        onEnableResult = { },
+    )
+    SwitchRow(
+        title = stringResource(R.string.settings_bluetooth_fallback),
+        subtitle = stringResource(R.string.settings_bluetooth_fallback_hint),
+        checked = checked,
+    ) { v ->
+        onChange(v)
+        if (v) requests.requestPermission()
+    }
+    if (denied) {
+        BluetoothPermissionDeniedDialog(
+            onOpenSettings = {
+                denied = false
+                requests.openAppSettings()
+            },
+            onDismiss = { denied = false },
+        )
+    }
+}
+
+@Composable
+private fun Section(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onChange(!checked) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    Column(Modifier.padding(vertical = 4.dp)) {
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        // Wraps whole chips to the next line rather than breaking their labels.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEach { option ->
+                FilterChip(selected = option == selected, onClick = { onSelect(option) }, label = { LabelText(label(option)) })
+            }
+        }
+    }
+}
+
+private const val SOURCE_URL = "https://github.com/lex019020/sofabird"

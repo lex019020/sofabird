@@ -5,7 +5,7 @@
 .DESCRIPTION
   Once:
     1. .\dev-laptop.ps1 -Init                 # SSH key of this PC + a folder for the laptop (in the shared folder by default)
-    2. on the laptop: \\<this PC>\shared\vlc-remote-setup\laptop-setup.cmd   (asks for admin rights)
+    2. on the laptop: \\<this PC>\shared\sofabird-setup\laptop-setup.cmd   (asks for admin rights)
     3. .\dev-laptop.ps1 -Connect <laptop IP or name> -User <user>   # what laptop-setup printed
   Then:
     .\dev-laptop.ps1 -Status                  # companion, VLC, network on the laptop
@@ -15,7 +15,7 @@
     .\dev-laptop.ps1 -Exec 'Get-Process vlc'  # any PowerShell command on the laptop
     .\dev-laptop.ps1 -Shell                   # interactive session
 
-  Connection settings live in %USERPROFILE%\.ssh\config (Host vlcremote-laptop), the key in %USERPROFILE%\.ssh\id_ed25519_vlcremote.
+  Connection settings live in %USERPROFILE%\.ssh\config (Host sofabird-laptop), the key in %USERPROFILE%\.ssh\id_ed25519_sofabird.
 #>
 [CmdletBinding(DefaultParameterSetName = 'Status')]
 param(
@@ -33,15 +33,20 @@ param(
     [Parameter(ParameterSetName = 'Logs')][switch]$Follow,
     [Parameter(ParameterSetName = 'Exec')][string]$Exec,
     [Parameter(ParameterSetName = 'Shell')][switch]$Shell,
-    [string]$Repo = 'lex019020/vlc-remote'
+    [string]$Repo = 'lex019020/sofabird'
 )
 
 . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
 
-$HostAlias = 'vlcremote-laptop'
+$HostAlias = 'sofabird-laptop'
 $SshDir    = Join-Path $env:USERPROFILE '.ssh'
-$KeyFile   = Join-Path $SshDir 'id_ed25519_vlcremote'
+$KeyFile   = Join-Path $SshDir 'id_ed25519_sofabird'
 $SshConfig = Join-Path $SshDir 'config'
+# Set up before the rename (VLC Remote): the existing key and host entry keep working.
+$legacyKey = Join-Path $SshDir 'id_ed25519_vlcremote'
+if (-not (Test-Path $KeyFile) -and (Test-Path $legacyKey)) { $KeyFile = $legacyKey }
+if ((Test-Path $SshConfig) -and -not (Select-String -Path $SshConfig -Pattern "^Host $HostAlias\b" -Quiet) -and
+    (Select-String -Path $SshConfig -Pattern '^Host vlcremote-laptop\b' -Quiet)) { $HostAlias = 'vlcremote-laptop' }
 
 function Invoke-Remote([string]$Script, [switch]$Interactive) {
     # -EncodedCommand: no quoting issues, works with any default sshd shell.
@@ -81,21 +86,21 @@ switch ($PSCmdlet.ParameterSetName) {
         if (-not (Test-Path $KeyFile)) {
             Write-Step 'Creating the SSH key of this PC'
             $ErrorActionPreference = 'Continue'
-            & ssh-keygen -q -t ed25519 -N '""' -C 'vlcremote-dev' -f $KeyFile
+            & ssh-keygen -q -t ed25519 -N '""' -C 'sofabird-dev' -f $KeyFile
             $ErrorActionPreference = 'Stop'
             if (-not (Test-Path "$KeyFile.pub")) { throw 'ssh-keygen did not create the key' }
         }
         Protect-SshFile $KeyFile
         if (-not $SetupDir) {
             $share = Get-SmbShare -Name shared -ErrorAction SilentlyContinue
-            $SetupDir = if ($share) { Join-Path $share.Path 'vlc-remote-setup' } else { Join-Path $env:USERPROFILE 'Desktop\vlc-remote-setup' }
+            $SetupDir = if ($share) { Join-Path $share.Path 'sofabird-setup' } else { Join-Path $env:USERPROFILE 'Desktop\sofabird-setup' }
         }
         New-Item -ItemType Directory -Path $SetupDir -Force | Out-Null
         Copy-Item (Join-Path $PSScriptRoot 'laptop-setup.ps1'), (Join-Path $PSScriptRoot 'laptop-setup.cmd') $SetupDir -Force
-        Copy-Item "$KeyFile.pub" (Join-Path $SetupDir 'vlcremote_dev.pub') -Force
+        Copy-Item "$KeyFile.pub" (Join-Path $SetupDir 'sofabird_dev.pub') -Force
         Write-Ok "Files for the laptop: $SetupDir"
-        if ($SetupDir -like '*\vlc-remote-setup' -and (Get-SmbShare -Name shared -ErrorAction SilentlyContinue)) {
-            Write-Ok "On the laptop, open: \\$env:COMPUTERNAME\shared\vlc-remote-setup\laptop-setup.cmd"
+        if ($SetupDir -like '*\sofabird-setup' -and (Get-SmbShare -Name shared -ErrorAction SilentlyContinue)) {
+            Write-Ok "On the laptop, open: \\$env:COMPUTERNAME\shared\sofabird-setup\laptop-setup.cmd"
         } else {
             Write-Note 'Move this folder to the laptop and run laptop-setup.cmd.'
         }
@@ -117,10 +122,10 @@ switch ($PSCmdlet.ParameterSetName) {
     'Status' {
         Assert-Configured
         $null = Invoke-Remote @'
-$exe = Join-Path $env:LOCALAPPDATA 'VlcRemoteCompanion\current\VlcRemote.Companion.exe'
+$exe = Join-Path $env:LOCALAPPDATA 'Sofabird\current\Sofabird.exe'
 $ver = if (Test-Path $exe) { (Get-Item $exe).VersionInfo.ProductVersion } else { $null }
 "Laptop:    $env:COMPUTERNAME ($((Get-NetConnectionProfile | ForEach-Object { "$($_.InterfaceAlias)=$($_.NetworkCategory)" }) -join ', '))"
-"Companion: $(if ($ver) { $ver } else { 'not installed' }); process: $(if (Get-Process VlcRemote.Companion -ErrorAction SilentlyContinue) { 'running' } else { 'none' })"
+"Companion: $(if ($ver) { $ver } else { 'not installed' }); process: $(if (Get-Process Sofabird -ErrorAction SilentlyContinue) { 'running' } else { 'none' })"
 try { $i = Invoke-RestMethod http://127.0.0.1:47555/info -TimeoutSec 3; "  /info:    $($i | ConvertTo-Json -Compress -Depth 4)" } catch { "  /info:    no response ($($_.Exception.Message))" }
 $v = Get-CimInstance Win32_Process -Filter "Name='vlc.exe'"
 "VLC:       $(if ($v) { ($v | ForEach-Object { "pid $($_.ProcessId): $($_.CommandLine)" }) -join '; ' } else { 'not running' })"
@@ -140,15 +145,15 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
                 $setup = Get-ReleaseAsset $Repo $tagName '*-Setup.exe' $work
             }
             Write-Step "Copying to the laptop: $(Split-Path $setup -Leaf)"
-            $null = Invoke-Remote 'New-Item -ItemType Directory -Force -Path (Join-Path $HOME "vlcremote-deploy") | Out-Null'
+            $null = Invoke-Remote 'New-Item -ItemType Directory -Force -Path (Join-Path $HOME "sofabird-deploy") | Out-Null'
             $files = @($setup, (Join-Path $PSScriptRoot 'deploy-lib.ps1'), (Join-Path $PSScriptRoot 'deploy-windows.ps1'))
             $ErrorActionPreference = 'Continue'
-            & scp -q -o BatchMode=yes @files "${HostAlias}:vlcremote-deploy/"
+            & scp -q -o BatchMode=yes @files "${HostAlias}:sofabird-deploy/"
             $scpCode = $LASTEXITCODE
             $ErrorActionPreference = 'Stop'
             if ($scpCode -ne 0) { throw "scp exited with code $scpCode" }
             $leaf = Split-Path $setup -Leaf
-            $code = Invoke-Remote "& (Join-Path `$HOME 'vlcremote-deploy\deploy-windows.ps1') -Package (Join-Path `$HOME 'vlcremote-deploy\$leaf')"
+            $code = Invoke-Remote "& (Join-Path `$HOME 'sofabird-deploy\deploy-windows.ps1') -Package (Join-Path `$HOME 'sofabird-deploy\$leaf')"
             if ($code -ne 0) { throw "Installation on the laptop exited with code $code" }
         } finally {
             Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -157,7 +162,7 @@ if (Test-Path $rc) { "vlcrc:     " + ((Select-String -Path $rc -Pattern '^(extra
     'Logs' {
         Assert-Configured
         $wait = if ($Follow) { ' -Wait' } else { '' }
-        $null = Invoke-Remote "`$f = Get-ChildItem (Join-Path `$env:LOCALAPPDATA 'VlcRemote\logs') -Filter 'companion-*.log' | Sort-Object LastWriteTime | Select-Object -Last 1; if (-not `$f) { 'No logs' } else { Get-Content `$f.FullName -Tail $Tail -Encoding UTF8$wait }"
+        $null = Invoke-Remote "`$f = Get-ChildItem (Join-Path `$env:APPDATA 'Sofabird\logs') -Filter 'companion-*.log' | Sort-Object LastWriteTime | Select-Object -Last 1; if (-not `$f) { 'No logs' } else { Get-Content `$f.FullName -Tail $Tail -Encoding UTF8$wait }"
     }
     'Exec' {
         Assert-Configured

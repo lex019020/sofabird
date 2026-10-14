@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release notes for vlc-remote, built from pull request descriptions.
+"""Release notes for sofabird, built from pull request descriptions.
 
 PR conventions are in CLAUDE.md. In short: an English title `<type>(<scope>): <summary>`, and the body has a
 `## Release notes` section with user-facing English bullet points, or the single word `none`.
