@@ -36,6 +36,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 
 **With the companion on the PC**
 - Automatic discovery and one-time pairing with a 6-digit code shown on the TV.
+- A media library: pick the media folders once, and the phone shows movies and series as posters with
+  descriptions, ratings, seasons and episodes (metadata from TMDB).
 - Starts VLC with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
   (speakers / TV / headphones) from the phone.
 - Bluetooth fallback: the remote keeps working with Wi‑Fi off and switches back when it returns.
@@ -112,9 +114,8 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: a media library with posters — a setup step for the media folders on the PC, file name parsing, artwork and
-descriptions from TMDB, a poster grid on the phone next to the folder view. Later: a Quick Settings tile, widgets,
-Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+Next: Wake-on-LAN (wake the PC from the phone) and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS,
+subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

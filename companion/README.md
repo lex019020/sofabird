@@ -6,7 +6,8 @@ VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
 push events, starting VLC, moving the window to the TV, power, system volume.
 
 Milestones **M2** (LAN) and **M3** (Bluetooth RFCOMM) are done; it is installed by a Velopack installer and updates
-itself (see "Installing and updates"). Next: the media library with posters (TMDB).
+itself (see "Installing and updates"); the media library with posters (TMDB) is in M4. Next: Wake-on-LAN
+(the companion tells the phone its MAC addresses) and the sleep timer.
 
 ## Contents
 
