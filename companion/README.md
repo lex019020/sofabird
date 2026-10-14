@@ -1,6 +1,6 @@
 # Sofabird (Windows)
 
-The companion for the `sofabird` Android remote: a .NET 9 tray app that owns the lifecycle of
+The companion for the `sofabird` Android remote: a .NET 10 tray app that owns the lifecycle of
 VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
 ([protocol/README.md](../protocol/README.md)): current tracks, chapter names, audio devices,
 push events, starting VLC, moving the window to the TV, power, system volume.
@@ -14,7 +14,7 @@ itself (see "Installing and updates"); the media library with posters (TMDB) is 
 ```
 companion/
 ├── Sofabird.sln
-├── Sofabird.Core/            net9.0 library without Windows APIs (tested on any OS)
+├── Sofabird.Core/            net10.0 library without Windows APIs (tested on any OS)
 │   ├── Protocol/              protocol messages (System.Text.Json, source-generated, polymorphism by "t")
 │   ├── Vlc/                   VlcHttpClient, VlcJsonParser, VlcRcClient, RcParser
 │   ├── State/                 StateBuilder (status.json + tracks.json + RC → state), StateCoalescer (≤ 4/s)
@@ -26,7 +26,7 @@ companion/
 │   ├── Lua/                   LuaPagesInstaller (copy of VLC's stock pages + ours in %APPDATA%)
 │   └── Setup/                 FirewallPlanner (which firewall rules allow/block, what to remove/add), SetupPolicy
 │                              (when the setup window and the startup notice appear)
-├── Sofabird.Companion/       WinExe net9.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
+├── Sofabird.Companion/       WinExe net10.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (RFCOMM service, M3)
 │   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), EmbeddedLuaPages
@@ -45,7 +45,7 @@ session (framing of the RFCOMM stream is `StreamLineTransport` in `Core`, tested
 
 ## Build and tests
 
-Requires the .NET SDK 9.0 (verified with 9.0.310) and Windows for the companion project.
+Requires the .NET SDK 10.0 (verified with 10.0.102) and Windows for the companion project.
 
 ```powershell
 dotnet build companion\Sofabird.sln -c Release
@@ -67,7 +67,7 @@ For debugging with a separate data folder: `Sofabird.exe --data-dir D:\tmp\sofab
 ## Installing and updates
 
 The companion is installed by `Sofabird-Setup.exe` from GitHub Releases (Velopack; per user, into
-`%LOCALAPPDATA%\Sofabird`, with the .NET 9 runtime when it is missing) — by hand or through
+`%LOCALAPPDATA%\Sofabird`, with the .NET 10 runtime when it is missing) — by hand or through
 `scripts\deploy-windows.ps1` (which adds VLC, the firewall rules and autostart; `-Local` builds the installer from
 source). Then it updates itself (`Services/UpdateService.cs`): a few minutes after the start and every 6 hours it checks
 GitHub Releases, downloads the update in the background and restarts into it as soon as VLC is not playing; the first
@@ -85,14 +85,14 @@ tray icon tooltip and in `/info`.
 ```
 
 `dotnet publish` (framework-dependent, a folder of ~27 MB, 24 MB of which is the Windows SDK projection
-`Microsoft.Windows.SDK.NET.dll`, pulled in by the `net9.0-windows10.0.19041.0` TFM for the WinRT Bluetooth) packed
+`Microsoft.Windows.SDK.NET.dll`, pulled in by the `net10.0-windows10.0.19041.0` TFM for the WinRT Bluetooth) packed
 by `dotnet vpk pack` into `Sofabird-win-x64-Setup.exe` (~17 MB, published as `Sofabird-Setup.exe`) and a ~9 MB update package. The PC needs the
-**.NET Desktop Runtime 9** and the **ASP.NET Core Runtime 9** (Kestrel): the installer installs them when they are
+**.NET Desktop Runtime 10** and the **ASP.NET Core Runtime 10** (Kestrel): the installer installs them when they are
 missing. A self-contained build would be ~160 MB.
 
-`companion/global.json` pins the SDK to 9.0.3xx: SDK 10 parses `--self-contained false`
-differently and produces a 150 MB self-contained build (the csproj also sets
-`<SelfContained>false</SelfContained>` just in case).
+`companion/global.json` pins the SDK to 10.0.1xx (or a newer feature band). Publishing uses `--no-self-contained`:
+SDK 10 reads `--self-contained false` differently and would produce a 150 MB self-contained build (the csproj also
+sets `<SelfContained>false</SelfContained>` just in case). .NET 10 is an LTS release, supported until November 2028.
 
 ## What it does on startup
 

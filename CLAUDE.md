@@ -27,7 +27,7 @@ translation is available.** No UI literals in code:
   and live measurements of VLC 3.0.23 (`samples/` — real responses, also used as test fixtures).
 - `protocol/README.md` — the phone ↔ companion protocol v1 (the source of truth for both sides),
   `protocol/vlc-http.md` — VLC's direct HTTP mode and all its quirks.
-- `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 9 (`Sofabird.Core`,
+- `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 10 (`Sofabird.Core`,
   `Sofabird.Companion`, tests), `companion/lua/` — Lua pages for VLC.
 - `scripts/deploy-windows.ps1` — the companion on Windows, `scripts/deploy-android.ps1` — the app on the phone,
   `scripts/deploy-lib.ps1` — their shared code; `scripts/release_notes.py` — PR checks and release notes assembly.
@@ -134,7 +134,7 @@ messages in English:
 
 The companion is installed by its Velopack installer (`Sofabird-Setup.exe`, which a user can also just
 run) into `%LOCALAPPDATA%\Sofabird` (`current\Sofabird.exe` — a stable path for the firewall
-rules and autostart) for the current user; the .NET 9 runtime, when missing, is installed by it with one administrator
+rules and autostart) for the current user; the .NET 10 runtime, when missing, is installed by it with one administrator
 prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the
 companion and replaces the companion under its earlier name, VLC Remote Companion (`%LOCALAPPDATA%\VlcRemoteCompanion`;
 Sofabird takes its settings and history over at the first start). Settings, pairings, history and logs stay in

@@ -217,7 +217,7 @@ function Install-Companion([string]$Setup, [string]$Version) {
     Write-Step "Installing the companion $Version"
     Stop-Companion
     Remove-LegacyInstall
-    # The installer replaces the installed version (newer or older) and installs the .NET 9 runtime when it is missing.
+    # The installer replaces the installed version (newer or older) and installs the .NET 10 runtime when it is missing.
     if ($InSsh) { Invoke-InUserSession $Setup '--silent' 'Setup' -WaitSeconds 180 }
     else {
         $p = Start-Process -FilePath $Setup -ArgumentList '--silent' -Wait -PassThru

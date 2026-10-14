@@ -52,7 +52,7 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 Everything is on the [Releases](https://github.com/lex019020/sofabird/releases) page. Every merge to `main`
 publishes a test build; releases are published from time to time.
 
-1. **PC:** download and run `Sofabird-Setup.exe`. It installs for the current user (the .NET 9
+1. **PC:** download and run `Sofabird-Setup.exe`. It installs for the current user (the .NET 10
    runtime is added when missing, with one administrator prompt), opens the setup window — allow the firewall rules
    there — and then keeps itself up to date. VLC media player must be installed (3.0.x).
 2. **Phone (Android 8+):** install `Sofabird-<version>.apk` from the same release.
@@ -95,7 +95,7 @@ the current tracks and chapter names (level 1).
 | Folder | What it is |
 |---|---|
 | [`android/`](android/README.md) | Android app: Kotlin, Jetpack Compose, modules `:app` and `:core:protocol` |
-| [`companion/`](companion/README.md) | Windows companion: .NET 9 tray app (WebSocket / UDP / DNS-SD / Bluetooth RFCOMM, VLC manager) |
+| [`companion/`](companion/README.md) | Windows companion: .NET 10 tray app (WebSocket / UDP / DNS-SD / Bluetooth RFCOMM, VLC manager) |
 | [`companion/lua/`](companion/lua) | Lua pages for VLC's HTTP interface (`tracks.json`, `setvar.json`) |
 | [`protocol/`](protocol/README.md) | The phone ↔ companion protocol (v1) and VLC's HTTP interface with its quirks |
 | [`docs/`](docs/PLAN.md) | Plan, architecture decisions (ADRs), research and live VLC measurements |
