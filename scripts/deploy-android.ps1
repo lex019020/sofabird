@@ -236,7 +236,8 @@ function Install-ApkTo([object]$Device, [string]$ApkPath) {
     $out = & $adb -s $Device.Id install -r $ApkPath 2>&1 | Out-String
     if ($out -match 'Success') {
         Write-Ok "Installed: $($Device.Model) ($($Device.Serial))"
-        if (& $adb -s $Device.Id shell pm list packages $LegacyPackageId 2>$null | Where-Object { $_.Trim() -eq "package:$LegacyPackageId" }) {
+        $legacyApp = & $adb -s $Device.Id shell pm list packages $LegacyPackageId 2>$null | Where-Object { $_.Trim() -eq "package:$LegacyPackageId" }
+        if ($legacyApp) {
             Write-Note "$($Device.Model): the old VLC Remote app is still installed; remove it once Sofabird works (adb -s $($Device.Id) uninstall $LegacyPackageId)."
         }
         return
