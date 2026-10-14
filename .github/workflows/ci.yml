@@ -28,11 +28,11 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Restore
-        run: dotnet restore companion/VlcRemote.sln
+        run: dotnet restore companion/Sofabird.sln
       - name: Build
-        run: dotnet build companion/VlcRemote.sln -c Release --no-restore
+        run: dotnet build companion/Sofabird.sln -c Release --no-restore
       - name: Test
-        run: dotnet test companion/VlcRemote.sln -c Release --no-build --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test companion/Sofabird.sln -c Release --no-build --logger "trx;LogFileName=test-results.trx"
 
   android:
     name: Android (Gradle)

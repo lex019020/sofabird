@@ -5,14 +5,14 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$script:VlcrDataRoot = Join-Path $env:LOCALAPPDATA 'VlcRemote'
+$script:SofabirdDataRoot = Join-Path $env:APPDATA 'Sofabird'   # settings, pairings, history, logs; Velopack owns %LOCALAPPDATA%\Sofabird
 
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 function Write-Ok([string]$Text)   { Write-Host "    $Text" -ForegroundColor Green }
 function Write-Note([string]$Text) { Write-Host "    $Text" -ForegroundColor Yellow }
 
 function New-WorkDir {
-    $dir = Join-Path ([IO.Path]::GetTempPath()) ("vlcremote-deploy-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ("sofabird-deploy-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     New-Item -ItemType Directory -Path $dir | Out-Null
     return $dir
 }
@@ -50,7 +50,7 @@ function Test-GhReady {
 function Invoke-ReleasesApi([string]$Repo, [string]$Path) {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $headers = @{ 'User-Agent' = 'vlc-remote-deploy'; 'Accept' = 'application/vnd.github+json' }
+        $headers = @{ 'User-Agent' = 'sofabird-deploy'; 'Accept' = 'application/vnd.github+json' }
         $result = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/$Path" -Headers $headers -UseBasicParsing
         return [pscustomobject]@{ Data = $result; ViaGh = $false }
     } catch {
@@ -88,7 +88,7 @@ function Get-ReleaseAsset([string]$Repo, [string]$ReleaseTag, [string]$Pattern, 
         & gh release download $ReleaseTag --repo $Repo --dir $Dest --clobber --pattern $asset.name
         if ($LASTEXITCODE -ne 0) { throw "Could not download $($asset.name) from release $ReleaseTag" }
     } else {
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $file -UseBasicParsing -Headers @{ 'User-Agent' = 'vlc-remote-deploy' }
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $file -UseBasicParsing -Headers @{ 'User-Agent' = 'sofabird-deploy' }
     }
     if (-not (Test-Path $file)) { throw "Could not download $($asset.name) from release $ReleaseTag" }
     return $file
@@ -100,24 +100,26 @@ function Get-ReleaseAsset([string]$Repo, [string]$ReleaseTag, [string]$Pattern, 
 # package is already there, a delta update). The release workflow and -Local both use it, so the package is the same.
 function New-CompanionPackage([string]$Root, [string]$Version, [string]$Suffix, [string]$ReleasesDir) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
-    $out = Join-Path ([IO.Path]::GetTempPath()) ('vlcremote-publish-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+    $out = Join-Path ([IO.Path]::GetTempPath()) ('sofabird-publish-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     try {
-        & dotnet publish (Join-Path $Root 'companion\VlcRemote.Companion\VlcRemote.Companion.csproj') `
+        & dotnet publish (Join-Path $Root 'companion\Sofabird.Companion\Sofabird.Companion.csproj') `
             -c Release -r win-x64 --self-contained false "-p:VersionSuffix=$Suffix" -o $out --nologo -v quiet | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
         Push-Location $Root
         try {
             & dotnet tool restore | Out-Null
             if ($LASTEXITCODE -ne 0) { throw 'dotnet tool restore failed (vpk)' }
-            & dotnet vpk pack --runtime win-x64 --packId VlcRemoteCompanion --packVersion $Version --packDir $out `
-                --mainExe VlcRemote.Companion.exe --packTitle 'VLC Remote Companion' --packAuthors 'VLC Remote' `
+            # The channel is not the default 'win': installs of the old VLC Remote Companion read releases.win.json and must
+            # not take a Sofabird package for their own update.
+            & dotnet vpk pack --runtime win-x64 --channel win-x64 --packId Sofabird --packVersion $Version --packDir $out `
+                --mainExe Sofabird.exe --packTitle 'Sofabird' --packAuthors 'Sofabird' `
                 --shortcuts StartMenuRoot --framework 'net9-x64-desktop,net9-x64-aspnetcore' -o $ReleasesDir | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
         } finally { Pop-Location }
     } finally {
         Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
     }
-    return Join-Path $ReleasesDir 'VlcRemoteCompanion-win-Setup.exe'
+    return Join-Path $ReleasesDir 'Sofabird-win-x64-Setup.exe'
 }
 
 function Invoke-LocalCompanionBuild([string]$Dest) {
@@ -133,7 +135,7 @@ function Invoke-LocalApkBuild([string]$Dest) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
     $v = New-LocalVersion
     Write-Step "Building the APK $($v.Version)"
-    if (-not (Test-Path (Join-Path $v.Root 'android\keystore.properties')) -and -not $env:VLCR_KEYSTORE_FILE) {
+    if (-not (Test-Path (Join-Path $v.Root 'android\keystore.properties')) -and -not $env:SOFABIRD_KEYSTORE_FILE) {
         throw 'No android\keystore.properties - without the shared key the APK will not install over the test build. See CLAUDE.md, "APK signing".'
     }
     if (-not $env:JAVA_HOME -or -not (Test-Path (Join-Path $env:JAVA_HOME 'bin\java.exe'))) {
@@ -153,10 +155,10 @@ function Invoke-LocalApkBuild([string]$Dest) {
     Push-Location (Join-Path $v.Root 'android')
     try {
         # No daemons: otherwise the Gradle/Kotlin daemon inherits stdout and the calling process waits for the output to close.
-        & .\gradlew.bat :app:assembleRelease "-Pvlcr.versionCode=$code" "-Pvlcr.versionSuffix=$($v.Suffix)" -q --no-daemon "-Pkotlin.compiler.execution.strategy=in-process"
+        & .\gradlew.bat :app:assembleRelease "-Psofabird.versionCode=$code" "-Psofabird.versionSuffix=$($v.Suffix)" -q --no-daemon "-Pkotlin.compiler.execution.strategy=in-process"
         if ($LASTEXITCODE -ne 0) { throw 'Gradle failed' }
     } finally { Pop-Location }
-    $apk = Join-Path $Dest "VlcRemote-$($v.Version).apk"
+    $apk = Join-Path $Dest "Sofabird-$($v.Version).apk"
     Copy-Item (Join-Path $v.Root 'android\app\build\outputs\apk\release\app-release.apk') $apk
     return [pscustomobject]@{ Version = $v.Version; File = $apk }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">VLC Remote</string>
+    <string name="app_name">Sofabird</string>
 
     <string name="tab_remote">Remote</string>
     <string name="tab_library">Library</string>
@@ -48,7 +48,7 @@
     <string name="hint_refused">Check that "Web" is enabled under Main interfaces in VLC and the port matches (8080 by default).</string>
     <string name="hint_timeout">Phone and PC must be on the same Wi-Fi. Windows Firewall must allow vlc.exe on private networks.</string>
     <string name="hint_empty_body">Wait for VLC to finish starting and press "Test" again.</string>
-    <string name="hint_pairing_required">Tap the computer in the list — a code appears on its screen. No window? VLC Remote tray icon → “Pair phone…”.</string>
+    <string name="hint_pairing_required">Tap the computer in the list — a code appears on its screen. No window? Sofabird tray icon → “Pair phone…”.</string>
 
     <string name="not_connected_title">Not connected</string>
     <string name="vlc_not_running_title">VLC is not running</string>
@@ -167,9 +167,9 @@
     <string name="settings_keep_connection">Keep the connection in the background</string>
     <string name="settings_keep_connection_hint">A notification with controls while the PC is playing; removed 10 minutes after stop.</string>
     <string name="settings_about">About</string>
-    <string name="about_license">VLC Remote is free software under the GNU General Public License v3 or later and comes without any warranty.</string>
+    <string name="about_license">Sofabird is free software under the GNU General Public License v3 or later and comes without any warranty.</string>
     <string name="about_source">Source code</string>
-    <string name="about_text">VLC Remote — a remote for VLC 3.0.x on Windows. The VLC password and companion token are kept in the phone\'s encrypted storage. Levels: VLC over HTTP → VLC + Lua pages (current track, chapters) → companion (discovery, VLC launch, system functions).</string>
+    <string name="about_text">Sofabird — a remote for VLC 3.0.x on Windows. The VLC password and companion token are kept in the phone\'s encrypted storage. Levels: VLC over HTTP → VLC + Lua pages (current track, chapters) → companion (discovery, VLC launch, system functions).</string>
 
     <string name="notif_channel_name">VLC control</string>
     <string name="notif_channel_description">Transport buttons and PC connection status</string>
@@ -209,7 +209,7 @@
     <string name="collapse">Collapse</string>
     <string name="more_actions">More actions</string>
     <string name="nearby_pcs">Computers nearby</string>
-    <string name="nearby_not_found">No computer found. Make sure the VLC Remote companion is running on the PC (tray icon) and the phone is on the same Wi-Fi. Other ways to connect are below.</string>
+    <string name="nearby_not_found">No computer found. Make sure the Sofabird companion is running on the PC (tray icon) and the phone is on the same Wi-Fi. Other ways to connect are below.</string>
     <string name="nearby_tap_to_pair">Tap — a code appears on the computer screen</string>
     <string name="badge_paired">paired</string>
     <string name="badge_connected">connected</string>
@@ -225,7 +225,7 @@
     <string name="pairing_failed_title">Could not connect to %1$s</string>
     <string name="pair_dialog_title">Enter the code from the computer screen</string>
     <string name="pair_dialog_hint">The code is shown on the screen of %1$s.</string>
-    <string name="pair_dialog_fallback">No code window? On the PC: VLC Remote tray icon → “Pair phone…”.</string>
+    <string name="pair_dialog_fallback">No code window? On the PC: Sofabird tray icon → “Pair phone…”.</string>
     <string name="pair_dialog_checking">Checking the code…</string>
     <string name="err_invalid_pair_code">Wrong or expired code</string>
     <string name="hint_invalid_pair_code">Enter the code currently shown on the PC. A code is valid for 5 minutes.</string>

@@ -7,13 +7,13 @@
   * installs the OpenSSH Server built into Windows and enables automatic start of the sshd service;
   * allows incoming SSH (port 22) in the private network only;
   * makes PowerShell the default SSH shell;
-  * adds the developer PC's public key (the vlcremote_dev.pub file next to the script, or -PublicKey);
+  * adds the developer PC's public key (the sofabird_dev.pub file next to the script, or -PublicKey);
   * prints the laptop name, the user and the IP - pass them to the developer PC (dev-laptop.ps1 -Init).
   The user's password is not used over the network: key-only login.
 
 .EXAMPLE
   .\laptop-setup.ps1
-  .\laptop-setup.ps1 -PublicKey 'ssh-ed25519 AAAA... vlcremote-dev'
+  .\laptop-setup.ps1 -PublicKey 'ssh-ed25519 AAAA... sofabird-dev'
   .\laptop-setup.ps1 -Remove          # turn off sshd and remove the developer key
 #>
 [CmdletBinding()]
@@ -27,7 +27,7 @@ param(
 $ErrorActionPreference = 'Stop'
 # $PSScriptRoot can be empty in parameter default values (PS 5.1, run from a network/mapped drive).
 $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-if (-not $PublicKeyFile) { $PublicKeyFile = Join-Path $scriptDir 'vlcremote_dev.pub' }
+if (-not $PublicKeyFile) { $PublicKeyFile = Join-Path $scriptDir 'sofabird_dev.pub' }
 function Write-Step([string]$Text) { Write-Host "==> $Text" -ForegroundColor Cyan }
 function Write-Ok([string]$Text)   { Write-Host "    $Text" -ForegroundColor Green }
 function Write-Note([string]$Text) { Write-Host "    $Text" -ForegroundColor Yellow }
@@ -50,7 +50,7 @@ $keysFile = if ($isAdminUser) { Join-Path $env:ProgramData 'ssh\administrators_a
 if ($Remove) {
     Write-Step 'Disabling SSH access'
     if (Test-Path $keysFile) {
-        $lines = Get-Content $keysFile | Where-Object { $_ -notmatch 'vlcremote-dev' }
+        $lines = Get-Content $keysFile | Where-Object { $_ -notmatch 'sofabird-dev' }
         Set-Content -Path $keysFile -Value $lines -Encoding ascii
         Write-Ok "Developer key removed from $keysFile"
     }
@@ -61,7 +61,7 @@ if ($Remove) {
 }
 
 if (-not $PublicKey) {
-    if (-not (Test-Path $PublicKeyFile)) { throw "No public key: put vlcremote_dev.pub next to the script or pass -PublicKey." }
+    if (-not (Test-Path $PublicKeyFile)) { throw "No public key: put sofabird_dev.pub next to the script or pass -PublicKey." }
     $PublicKey = (Get-Content $PublicKeyFile -TotalCount 1).Trim()
 }
 if ($PublicKey -notmatch '^(ssh-ed25519|ssh-rsa|ecdsa-sha2-\S+) \S+') { throw 'The key string does not look like an OpenSSH public key.' }

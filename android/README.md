@@ -1,4 +1,4 @@
-# vlc-remote — Android app
+# Sofabird — Android app
 
 A remote for VLC 3.0.x running on a Windows PC at the TV. It works in two modes: directly with VLC's
 HTTP interface (levels 0/1) and through the Windows companion (level 2) — over Wi‑Fi (WebSocket) or, if
@@ -30,18 +30,18 @@ DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`ta
 
 ## Build variants and signing
 
-- `debug` — `dev.vlcremote.app.debug`, "VLC Remote (dev)", debug key; installs side by side with the main app.
-- `release` — `dev.vlcremote.app`, signed with the shared key from `android/keystore.properties` (not in git) or the
-  variables `VLCR_KEYSTORE_FILE`/`VLCR_KEYSTORE_PASSWORD`/`VLCR_KEY_ALIAS`/`VLCR_KEY_PASSWORD`. This is how test
+- `debug` — `app.sofabird.debug`, "Sofabird (dev)", debug key; installs side by side with the main app.
+- `release` — `app.sofabird`, signed with the shared key from `android/keystore.properties` (not in git) or the
+  variables `SOFABIRD_KEYSTORE_FILE`/`SOFABIRD_KEYSTORE_PASSWORD`/`SOFABIRD_KEY_ALIAS`/`SOFABIRD_KEY_PASSWORD`. This is how test
   builds and releases are built in CI; see CLAUDE.md "APK signing".
-- Version: `versionName` from the `VERSION` file + `-Pvlcr.versionSuffix=beta0042`, `versionCode` from
-  `-Pvlcr.versionCode=<number of commits>`. Shown in "Settings → About".
+- Version: `versionName` from the `VERSION` file + `-Psofabird.versionSuffix=beta0042`, `versionCode` from
+  `-Psofabird.versionCode=<number of commits>`. Shown in "Settings → About".
 
 ## Structure
 
 ```
 android/
-  core/protocol/        pure Kotlin/JVM, no Android dependencies (dev.vlcremote.protocol)
+  core/protocol/        pure Kotlin/JVM, no Android dependencies (app.sofabird.protocol)
     model/              PlayerState and its parts (Playback, Tracks, Chapters, Volume…), Capabilities,
                         ConnectionState/ConnectionError, Entry, PlaylistItem
     backend/            PlayerBackend (interface), PlayerCommand, SystemCommand
@@ -51,7 +51,7 @@ android/
                         CommandMapping (PlayerCommand → cmd/sys), NdjsonFramer/NdjsonReader (NDJSON
                         lines over the RFCOMM byte stream, ≤ 1 MiB), BtAddress, COMPANION_RFCOMM_UUID
     src/test/           tests on fixtures from docs/research/samples (copied into resources)
-  app/                  Android app (dev.vlcremote.app)
+  app/                  Android app (app.sofabird)
     data/vlc/           VlcHttpApi, VlcErrorClassifier, VlcHttpBackend (polling, commands, levels 0/1)
     data/companion/     CompanionTransport (+ handshake over any channel), WebSocketTransport,
                         RfcommTransport, BluetoothSupport (permission, radio, bonded devices),
@@ -201,8 +201,8 @@ a pure function `displayChoice` (`ui/remote/DisplayChoice.kt`), covered by tests
 Old companions (monitors without `id`): the radio button shows the monitor with VLC, moving is `moveToDisplay {display: N}`
 by index and only while VLC is open, there is no "Do not manage" item.
 
-**Discovery**: NSD `_vlcremote._tcp` (one discovery session, sequential resolve,
-MulticastLock, "loss" with a 3 s delay), UDP beacon `VLCREMOTE_DISCOVER 1` → `255.255.255.255:47556`
+**Discovery**: NSD `_sofabird._tcp` (one discovery session, sequential resolve,
+MulticastLock, "loss" with a 3 s delay), UDP beacon `SOFABIRD_DISCOVER 1` → `255.255.255.255:47556`
 (plus the subnet's directed broadcast), an optional `/24` scan on port 8080 (48 in parallel,
 1 s timeout, addresses closest to our own IP first; 200/401/403 = "VLC is there"), manual entry.
 For discovered companions `GET /info` is read as well (VLC state, whether pairing is needed) —
@@ -254,7 +254,7 @@ Behaviour:
 - Fallbacks: the notification request on connect fires only if the user skipped the screen and was never asked
   (not after answering the system dialog); the Bluetooth requests stay where they were.
 - Test hook (no data loss):
-  `adb shell am start -S -n <package>/dev.vlcremote.app.ui.MainActivity --ez show_permissions true` shows the screen
+  `adb shell am start -S -n <package>/app.sofabird.ui.MainActivity --ez show_permissions true` shows the screen
   again; `adb shell pm revoke <package> android.permission.BLUETOOTH_CONNECT` (and `POST_NOTIFICATIONS`) to start
   from scratch; `adb shell pm clear <package>` resets everything, including pairings.
 
@@ -332,7 +332,7 @@ Automated: unit tests (parsers, commands, companion messages, `VlcHttpBackend` o
 screenshot tests. Everything below has been checked on a Galaxy S24 with the TV laptop; repeat the relevant items
 after changing that area:
 
-1. NSD: whether `NsdManager` finds the companion service (`_vlcremote._tcp`) and resolve works on the target firmware; the UDP beacon as the fallback.
+1. NSD: whether `NsdManager` finds the companion service (`_sofabird._tcp`) and resolve works on the target firmware; the UDP beacon as the fallback.
 2. The `connectedDevice` foreground service on Android 14/15: start from `ServiceCoordinator`, the notification with buttons, stopping after 10 minutes; the `POST_NOTIFICATIONS` request on Android 13+.
 3. MediaSession: headset buttons and the lock screen; volume keys with the screen off (`RemotePlayer`, `PLAYBACK_TYPE_REMOTE`).
 4. Volume keys in the foreground (`dispatchKeyEvent`), haptics on buttons.
@@ -385,7 +385,7 @@ after changing that area:
     7. Old companion (no `id`): the list by index, radio button = where VLC is, no "Do not manage", while VLC is closed
        the rows are disabled with a hint to update the companion.
     8. Remote over Bluetooth: moving works the same way.
-15. **First-run permissions** (Galaxy S24, Android 16). Reset: `adb shell pm clear dev.vlcremote.app` (forgets
+15. **First-run permissions** (Galaxy S24, Android 16). Reset: `adb shell pm clear app.sofabird` (forgets
     pairings) or `pm revoke` both permissions + the `show_permissions` hook above.
     1. Fresh start → the "Permissions" screen before "Connection": two cards (Notifications, Nearby devices), nothing
        cut off; also with the largest font size and in Russian.

@@ -1,13 +1,15 @@
 ﻿<#
 .SYNOPSIS
-  Installs and updates the VLC Remote companion on Windows.
+  Installs and updates the Sofabird companion on Windows.
 
 .DESCRIPTION
-  The companion is installed by its Velopack installer (VlcRemote-Companion-Setup.exe from GitHub Releases, or one
-  built from the working copy with -Local) into %LOCALAPPDATA%\VlcRemoteCompanion, for the current user, and then
+  The companion is installed by its Velopack installer (Sofabird-Setup.exe from GitHub Releases, or one
+  built from the working copy with -Local) into %LOCALAPPDATA%\Sofabird, for the current user, and then
   updates itself. This script runs that installer quietly and adds what it does not do: VLC when it is missing, the
-  firewall rules and autostart. An install made by the earlier versions of this script (%LOCALAPPDATA%\VlcRemote\app)
-  is replaced. Settings, paired phones and logs stay in %LOCALAPPDATA%\VlcRemote.
+  firewall rules and autostart. Settings, paired phones, history and logs stay in %APPDATA%\Sofabird.
+  The companion under its earlier name, VLC Remote Companion (%LOCALAPPDATA%\VlcRemoteCompanion, or the script
+  install in %LOCALAPPDATA%\VlcRemote\app), is stopped and uninstalled; Sofabird takes its settings and history over
+  at its first start.
   The phone is handled by a separate script, deploy-android.ps1.
 
 .EXAMPLE
@@ -34,18 +36,22 @@ param(
     [switch]$SkipVlc,
     [switch]$Uninstall,
     [switch]$Purge,
-    [string]$Repo = 'lex019020/vlc-remote'
+    [string]$Repo = 'lex019020/sofabird'
 )
 
 . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
 
-$ExeName     = 'VlcRemote.Companion.exe'
-$InstallRoot = Join-Path $env:LOCALAPPDATA 'VlcRemoteCompanion'   # Velopack: Update.exe, current\, packages\
+$ExeName     = 'Sofabird.exe'
+$InstallRoot = Join-Path $env:LOCALAPPDATA 'Sofabird'   # Velopack: Update.exe, current\, packages\
 $Exe         = Join-Path $InstallRoot "current\$ExeName"
-$DataRoot    = $VlcrDataRoot                                      # settings, pairings, logs (an update never touches them)
-$LegacyDirs  = @('app', 'app.prev', 'app.new') | ForEach-Object { Join-Path $DataRoot $_ }
+$DataRoot    = $SofabirdDataRoot                        # settings, pairings, logs (an update never touches them)
 $RunKey      = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-$RunValue    = 'VlcRemoteCompanion'
+$RunValue    = 'Sofabird'
+# The companion under its earlier name, VLC Remote Companion: its Velopack install and the older script install.
+$LegacyInstallRoot = Join-Path $env:LOCALAPPDATA 'VlcRemoteCompanion'
+$LegacyDirs        = @('app', 'app.prev', 'app.new') | ForEach-Object { Join-Path $env:LOCALAPPDATA "VlcRemote\$_" }
+$LegacyRunValue    = 'VlcRemoteCompanion'
+$LegacyRuleNames   = @('VLC Remote Companion', 'VLC (VLC Remote)')
 
 # Over SSH, processes run outside the user's desktop: there would be no tray icon and the pairing window would not
 # appear. So the installer (which starts the companion) and the shutdown run through a scheduled task in the
@@ -53,7 +59,7 @@ $RunValue    = 'VlcRemoteCompanion'
 $InSsh = [bool]($env:SSH_CLIENT -or $env:SSH_CONNECTION)
 
 function Invoke-InUserSession([string]$File, [string]$Arguments, [string]$Purpose, [int]$WaitSeconds = 0) {
-    $name = "VlcRemote-$Purpose"
+    $name = "Sofabird-$Purpose"
     $action = if ($Arguments) { New-ScheduledTaskAction -Execute $File -Argument $Arguments -WorkingDirectory (Split-Path $File) }
               else { New-ScheduledTaskAction -Execute $File -WorkingDirectory (Split-Path $File) }
     $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
@@ -121,7 +127,7 @@ function Stop-Companion {
     }
     $deadline = (Get-Date).AddSeconds(10)
     do {
-        $procs = Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue
+        $procs = Get-Process -Name 'Sofabird' -ErrorAction SilentlyContinue
         if (-not $procs) { return }
         Start-Sleep -Milliseconds 300
     } while ((Get-Date) -lt $deadline)
@@ -131,11 +137,24 @@ function Stop-Companion {
 }
 
 function Remove-LegacyInstall {
+    # Both earlier installs run as VlcRemote.Companion.exe and would hold the same ports as Sofabird.
+    $procs = Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue
+    if ($procs) { $procs | Stop-Process -Force; Start-Sleep -Milliseconds 500 }
     $found = $false
     foreach ($d in $LegacyDirs) { if (Test-Path $d) { Remove-Item $d -Recurse -Force; $found = $true } }
+    $update = Join-Path $LegacyInstallRoot 'Update.exe'
+    if (Test-Path $update) {
+        $p = Start-Process -FilePath $update -ArgumentList 'uninstall', '--silent' -Wait -PassThru
+        if ($p.ExitCode -ne 0) { Write-Note "The uninstaller of VLC Remote Companion exited with code $($p.ExitCode)" }
+        $found = $true
+    }
     $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'VLC Remote Companion.lnk'
-    if ($found -and (Test-Path $lnk)) { Remove-Item $lnk -Force }   # the installer creates its own shortcut
-    if ($found) { Write-Ok 'The earlier script install (VlcRemote\app) is removed' }
+    if (Test-Path $lnk) { Remove-Item $lnk -Force }
+    if ((Get-ItemProperty -Path $RunKey -Name $LegacyRunValue -ErrorAction SilentlyContinue).$LegacyRunValue) {
+        Remove-ItemProperty -Path $RunKey -Name $LegacyRunValue
+        $script:Autostart = $true   # it was on for the old name: keep it on for Sofabird
+    }
+    if ($found) { Write-Ok 'VLC Remote Companion (the earlier name) is uninstalled; Sofabird takes its settings and history over' }
 }
 
 function Update-Autostart {
@@ -148,13 +167,14 @@ function Update-Autostart {
 
 function Add-FirewallRules {
     $vlc = Find-Vlc
-    $cmds = @(
-        "netsh advfirewall firewall delete rule name=`"VLC Remote Companion`"",
-        "netsh advfirewall firewall add rule name=`"VLC Remote Companion`" dir=in action=allow profile=private program=`"$Exe`" enable=yes"
+    $cmds = @($LegacyRuleNames | ForEach-Object { "netsh advfirewall firewall delete rule name=`"$_`"" })
+    $cmds += @(
+        "netsh advfirewall firewall delete rule name=`"Sofabird`"",
+        "netsh advfirewall firewall add rule name=`"Sofabird`" dir=in action=allow profile=private program=`"$Exe`" enable=yes"
     )
     if ($vlc) {
-        $cmds += "netsh advfirewall firewall delete rule name=`"VLC (VLC Remote)`""
-        $cmds += "netsh advfirewall firewall add rule name=`"VLC (VLC Remote)`" dir=in action=allow profile=private program=`"$vlc`" enable=yes"
+        $cmds += "netsh advfirewall firewall delete rule name=`"VLC (Sofabird)`""
+        $cmds += "netsh advfirewall firewall add rule name=`"VLC (Sofabird)`" dir=in action=allow profile=private program=`"$vlc`" enable=yes"
     }
     Write-Step 'Firewall rules (private network) - Windows will ask for administrator rights'
     $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', ($cmds -join ' & ') -Verb RunAs -Wait -PassThru -WindowStyle Hidden
@@ -173,7 +193,7 @@ function Get-CompanionPort {
 function Start-Companion {
     # A silent install does not start the app; a second instance would only show "already running".
     Start-Sleep -Seconds 2
-    if (Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue) { return }
+    if (Get-Process -Name 'Sofabird' -ErrorAction SilentlyContinue) { return }
     if ($InSsh) { Invoke-InUserSession $Exe '' 'Start' }
     else { Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) }
 }

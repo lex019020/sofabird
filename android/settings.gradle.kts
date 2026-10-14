@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "vlc-remote"
+rootProject.name = "sofabird"
 include(":app")
 include(":core:protocol")

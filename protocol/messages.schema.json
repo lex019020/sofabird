@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vlcremote.dev/protocol/v1/messages.schema.json",
-  "title": "vlc-remote protocol v1 messages",
+  "$id": "https://sofabird.app/protocol/v1/messages.schema.json",
+  "title": "sofabird protocol v1 messages",
   "description": "Every message is a JSON object with a t (type) field. It is sent as one WebSocket frame or one NDJSON line.",
   "type": "object",
   "required": [

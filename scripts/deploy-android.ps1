@@ -1,12 +1,12 @@
 ﻿<#
 .SYNOPSIS
-  Installs and updates the VLC Remote app on a phone over adb.
+  Installs and updates the Sofabird app on a phone over adb.
 
 .DESCRIPTION
   Source: GitHub Releases (default; no login needed) or -Local - a build from the working
   copy (requires android\keystore.properties). The beta channel is the newest build, stable is the latest release.
 
-  The APK is installed ONLY on devices from the allow list (%USERPROFILE%\.vlc-remote\devices.json, by the
+  The APK is installed ONLY on devices from the allow list (%USERPROFILE%\.sofabird\devices.json, by the
   ro.serialno serial number). Other devices connected over adb - for example, a bike computer - are skipped.
   An empty list = refusal.
 
@@ -36,14 +36,22 @@ param(
     [switch]$NoAutoConnect,
     [string]$AllowDevice,
     [string]$DisallowDevice,
-    [string]$DevicesFile = (Join-Path $env:USERPROFILE '.vlc-remote\devices.json'),
-    [string]$Repo = 'lex019020/vlc-remote'
+    [string]$DevicesFile = (Join-Path $env:USERPROFILE '.sofabird\devices.json'),
+    [string]$Repo = 'lex019020/sofabird'
 )
 
 . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
 
-$PackageId = 'dev.vlcremote.app'
-$ApkKeepDir = Join-Path $VlcrDataRoot 'apk'
+$PackageId = 'app.sofabird'
+$LegacyPackageId = 'dev.vlcremote.app'   # the app under its earlier name, VLC Remote
+$ApkKeepDir = Join-Path $SofabirdDataRoot 'apk'
+
+# The device list lived in %USERPROFILE%\.vlc-remote before the rename: carried over once.
+$legacyDevices = Join-Path $env:USERPROFILE '.vlc-remote\devices.json'
+if (-not $PSBoundParameters.ContainsKey('DevicesFile') -and -not (Test-Path $DevicesFile) -and (Test-Path $legacyDevices)) {
+    New-Item -ItemType Directory -Force (Split-Path $DevicesFile) | Out-Null
+    Copy-Item $legacyDevices $DevicesFile
+}
 
 function Get-AllowedDevices {
     if (-not (Test-Path $DevicesFile)) { return @() }
@@ -226,7 +234,13 @@ function Install-ApkTo([object]$Device, [string]$ApkPath) {
     $ErrorActionPreference = 'Continue'  # PS 5.1: an external program's stderr must not abort the script; we check the exit code/output
     $adb = Find-Adb
     $out = & $adb -s $Device.Id install -r $ApkPath 2>&1 | Out-String
-    if ($out -match 'Success') { Write-Ok "Installed: $($Device.Model) ($($Device.Serial))"; return }
+    if ($out -match 'Success') {
+        Write-Ok "Installed: $($Device.Model) ($($Device.Serial))"
+        if (& $adb -s $Device.Id shell pm list packages $LegacyPackageId 2>$null | Where-Object { $_.Trim() -eq "package:$LegacyPackageId" }) {
+            Write-Note "$($Device.Model): the old VLC Remote app is still installed; remove it once Sofabird works (adb -s $($Device.Id) uninstall $LegacyPackageId)."
+        }
+        return
+    }
     if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') {
         $ErrorActionPreference = 'Stop'
         throw "$($Device.Model): a build with a different signature is installed. Uninstall it (adb -s $($Device.Id) uninstall $PackageId - pairings and settings will be lost) and try again."
@@ -300,7 +314,7 @@ try {
     }
     if ($targets.Count -gt 0 -and $pending.Count -eq 0) { Write-Ok 'This version is already installed (-Force to reinstall)'; return }
 
-    $apk = if ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName 'VlcRemote-*.apk' $work }
+    $apk = if ($Local) { $build.File } else { Get-ReleaseAsset $Repo $tagName 'Sofabird-*.apk' $work }
     if ($pending.Count -eq 0) {
         if (-not (Test-Path $ApkKeepDir)) { New-Item -ItemType Directory -Path $ApkKeepDir -Force | Out-Null }
         Copy-Item $apk $ApkKeepDir -Force

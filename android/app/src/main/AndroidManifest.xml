@@ -18,13 +18,13 @@
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <application
-        android:name=".VlcRemoteApp"
+        android:name=".SofabirdApp"
         android:localeConfig="@xml/locales_config"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="${appLabel}"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VlcRemote"
+        android:theme="@style/Theme.Sofabird"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
 

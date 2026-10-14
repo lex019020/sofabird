@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://lex019020.github.io/vlc-remote/sitemap.xml
+Sitemap: https://sofabird.app/sitemap.xml

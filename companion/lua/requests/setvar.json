@@ -1,5 +1,5 @@
 <?vlc --[[
-  setvar.json — vlc-remote: set a VLC variable.
+  setvar.json — sofabird: set a VLC variable.
   GET /requests/setvar.json?obj=input|aout|vout&name=<var>&val=<value>
   Numeric values are passed as numbers if val is entirely a number; otherwise as a string.
   Response: {"ok":true,"current":<value after setting>} or {"ok":false,"err":"..."}.

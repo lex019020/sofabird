@@ -8,7 +8,7 @@ fewer layers and less code.
 
 Both apps already follow the essentials: one source of truth for the player state (`PlayerController` on the phone,
 `VlcManager` on the PC), unidirectional data flow to the UI (immutable `UiState` via `StateFlow`,
-`collectAsStateWithLifecycle`), a platform-neutral core with unit tests (`:core:protocol`, `VlcRemote.Core`), no
+`collectAsStateWithLifecycle`), a platform-neutral core with unit tests (`:core:protocol`, `Sofabird.Core`), no
 global scopes. The problems are in the details: a few real bugs around shared mutable state and cancellation, logic
 that lives in UI classes, duplicated helpers, dead code and inconsistent screen wiring.
 

@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Test
-        run: dotnet test companion/VlcRemote.sln -c Release
+        run: dotnet test companion/Sofabird.sln -c Release
       - name: Publish and pack (Velopack)
         shell: pwsh
         env:
@@ -81,18 +81,18 @@ jobs:
         run: |
           dotnet tool restore
           # The previous package of the same kind lets vpk build a small delta update next to the full one.
-          $download = @('vpk', 'download', 'github', '--repoUrl', "https://github.com/$env:GITHUB_REPOSITORY", '--token', $env:GH_TOKEN, '-o', 'releases')
+          $download = @('vpk', 'download', 'github', '--repoUrl', "https://github.com/$env:GITHUB_REPOSITORY", '--token', $env:GH_TOKEN, '--channel', 'win-x64', '-o', 'releases')
           if ($env:CHANNEL -ne 'stable') { $download += '--pre' }
           dotnet @download
           if ($LASTEXITCODE -ne 0) { Write-Host 'No previous Velopack release: full package only'; $global:LASTEXITCODE = 0 }
           . ./scripts/deploy-lib.ps1
           $null = New-CompanionPackage (Get-Location).Path $env:VERSION '${{ needs.meta.outputs.suffix }}' (Join-Path (Get-Location) 'releases')
           # This release's files only (the downloaded previous package is already on its own release); the update feed
-          # needs releases.win.json and the packages. The installer gets a name that sorts next to the APK.
+          # needs releases.win-x64.json and the packages. The installer gets a name that sorts next to the APK.
           New-Item -ItemType Directory dist | Out-Null
-          Get-ChildItem releases | Where-Object { $_.Name -like "*-$env:VERSION-*.nupkg" -or $_.Name -eq 'releases.win.json' } |
+          Get-ChildItem releases | Where-Object { $_.Name -like "*-$env:VERSION-*.nupkg" -or $_.Name -eq 'releases.win-x64.json' } |
             Copy-Item -Destination dist
-          Copy-Item releases/VlcRemoteCompanion-win-Setup.exe dist/VlcRemote-Companion-Setup.exe
+          Copy-Item releases/Sofabird-win-x64-Setup.exe dist/Sofabird-Setup.exe
           Get-ChildItem dist | Format-Table Name, Length
       - uses: actions/upload-artifact@v4
         with:
@@ -128,26 +128,26 @@ jobs:
             echo "::error::The ANDROID_KEYSTORE_BASE64 secret is missing (see CLAUDE.md, "APK signing")"
             exit 1
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/vlcremote.jks"
-          echo "VLCR_KEYSTORE_FILE=$RUNNER_TEMP/vlcremote.jks" >> "$GITHUB_ENV"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sofabird.jks"
+          echo "SOFABIRD_KEYSTORE_FILE=$RUNNER_TEMP/sofabird.jks" >> "$GITHUB_ENV"
       - name: Test and assemble
         env:
-          VLCR_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          VLCR_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          VLCR_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SOFABIRD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SOFABIRD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SOFABIRD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           VERSION_CODE: ${{ needs.meta.outputs.code }}
           VERSION_SUFFIX: ${{ needs.meta.outputs.suffix }}
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           chmod +x gradlew
           ./gradlew test :app:assembleRelease --no-daemon \
-            "-Pvlcr.versionCode=$VERSION_CODE" "-Pvlcr.versionSuffix=$VERSION_SUFFIX"
+            "-Psofabird.versionCode=$VERSION_CODE" "-Psofabird.versionSuffix=$VERSION_SUFFIX"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
-          cp app/build/outputs/apk/release/app-release.apk "../VlcRemote-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "../Sofabird-$VERSION.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: VlcRemote-*.apk
+          path: Sofabird-*.apk
 
   publish:
     name: Publish
@@ -182,13 +182,13 @@ jobs:
           print(rf"""
           ---
           ### Download
-          - **PC (Windows 10/11):** [VlcRemote-Companion-Setup.exe]({base}/VlcRemote-Companion-Setup.exe) — run it; it installs
+          - **PC (Windows 10/11):** [Sofabird-Setup.exe]({base}/Sofabird-Setup.exe) — run it; it installs
             for the current user and then updates itself (a PC without the .NET 9 runtime gets it, with one administrator prompt).
-          - **Phone (Android 8+):** [VlcRemote-{version}.apk]({base}/VlcRemote-{version}.apk)
+          - **Phone (Android 8+):** [Sofabird-{version}.apk]({base}/Sofabird-{version}.apk)
 
           **Scripts** (no GitHub account needed; the phone needs adb):
           ```powershell
-          $d = "$env:TEMP\vlcremote"; New-Item -ItemType Directory -Force $d | Out-Null
+          $d = "$env:TEMP\sofabird"; New-Item -ItemType Directory -Force $d | Out-Null
           'deploy-lib.ps1', 'deploy-windows.ps1', 'deploy-android.ps1' | ForEach-Object {{
               Invoke-WebRequest "https://github.com/{repo}/releases/download/{tag}/$_" -OutFile "$d\$_" -UseBasicParsing }}
           & $d\deploy-windows.ps1 -Tag {tag}    # companion on the Windows PC
@@ -206,7 +206,7 @@ jobs:
         run: |
           cp scripts/deploy-lib.ps1 scripts/deploy-windows.ps1 scripts/deploy-windows.cmd scripts/deploy-android.ps1 scripts/deploy-android.cmd dist/
           if [ "$CHANNEL" = "stable" ]; then
-            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "VLC Remote $VERSION" --notes-file notes.md --latest
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Sofabird $VERSION" --notes-file notes.md --latest
           else
             gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$VERSION (test build)" --notes-file notes.md --prerelease
           fi

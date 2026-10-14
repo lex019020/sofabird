@@ -9,7 +9,7 @@ Status: accepted (2026-10-12). Basis: [research/transport-and-companion.md](../r
    (VLC is recognized by a `401` with the realm `VLC stream`), manual entry of `host[:port]`, `pc-name.local`.
    mDNS is useless without the companion: VLC does not announce itself.
 2. **LAN with the companion** — WebSocket `ws://pc:47555`, NDJSON, token. Discovery: DNS-SD
-   `_vlcremote._tcp` (on Windows — the built-in responder via `DnsServiceRegister`; on Android —
+   `_sofabird._tcp` (on Windows — the built-in responder via `DnsServiceRegister`; on Android —
    `NsdManager`) plus a UDP beacon on `:47556` as a fallback, plus a QR code on the TV.
 3. **Bluetooth** — Classic RFCOMM (SPP) to the companion: Windows `RfcommServiceProvider` (works from
    a regular .NET application without administrator rights — verified), Android

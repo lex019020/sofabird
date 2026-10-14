@@ -9,29 +9,29 @@ plugins {
 }
 
 // Version: the base comes from the VERSION file in the repository root; CI/the deploy script pass
-// -Pvlcr.versionCode=<monotonic number> and -Pvlcr.versionSuffix=beta<NNNN> (a release has no suffix).
+// -Psofabird.versionCode=<monotonic number> and -Psofabird.versionSuffix=beta<NNNN> (a release has no suffix).
 val baseVersion = rootProject.file("../VERSION").readText().trim()
-val versionSuffix = (findProperty("vlcr.versionSuffix") as String?).orEmpty()
-val appVersionCode = (findProperty("vlcr.versionCode") as String?)?.toInt() ?: 1
+val versionSuffix = (findProperty("sofabird.versionSuffix") as String?).orEmpty()
+val appVersionCode = (findProperty("sofabird.versionCode") as String?)?.toInt() ?: 1
 val appVersionName = if (versionSuffix.isEmpty()) baseVersion else "$baseVersion-$versionSuffix"
 
 // Signing of release builds (test builds and releases): android/keystore.properties (not in git) or
-// the environment variables VLCR_KEYSTORE_FILE / VLCR_KEYSTORE_PASSWORD / VLCR_KEY_ALIAS / VLCR_KEY_PASSWORD.
+// the environment variables SOFABIRD_KEYSTORE_FILE / SOFABIRD_KEYSTORE_PASSWORD / SOFABIRD_KEY_ALIAS / SOFABIRD_KEY_PASSWORD.
 // One key for all channels so that updates install over the previous version. Without a key release is not signed.
 val signingProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
 fun signingValue(prop: String, env: String): String? = signingProps.getProperty(prop) ?: System.getenv(env)
-val keystorePath = signingValue("storeFile", "VLCR_KEYSTORE_FILE")
+val keystorePath = signingValue("storeFile", "SOFABIRD_KEYSTORE_FILE")
 
 android {
-    namespace = "dev.vlcremote.app"
+    namespace = "app.sofabird"
     compileSdk = 35
     buildToolsVersion = "35.0.0"
 
     defaultConfig {
-        applicationId = "dev.vlcremote.app"
+        applicationId = "app.sofabird"
         minSdk = 26
         targetSdk = 35
         versionCode = appVersionCode
@@ -43,9 +43,9 @@ android {
         if (keystorePath != null) {
             create("shared") {
                 storeFile = file(keystorePath)
-                storePassword = signingValue("storePassword", "VLCR_KEYSTORE_PASSWORD")
-                keyAlias = signingValue("keyAlias", "VLCR_KEY_ALIAS")
-                keyPassword = signingValue("keyPassword", "VLCR_KEY_PASSWORD")
+                storePassword = signingValue("storePassword", "SOFABIRD_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "SOFABIRD_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "SOFABIRD_KEY_PASSWORD")
             }
         }
     }
@@ -55,7 +55,7 @@ android {
             // The debug build installs side by side with the test/release one (different applicationId and key).
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-dev"
-            manifestPlaceholders["appLabel"] = "VLC Remote (dev)"
+            manifestPlaceholders["appLabel"] = "Sofabird (dev)"
         }
         release {
             signingConfig = signingConfigs.findByName("shared")

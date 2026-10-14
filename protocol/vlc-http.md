@@ -75,7 +75,7 @@ yourself). Windows paths with backslashes in `path`, proper URIs in `uri` — us
 
 If the pages from `companion/lua/` are installed in `%APPDATA%\vlc\lua\http\`:
 
-- `GET /requests/tracks.json` → `{"vlcremote":1,"audio":{"current":4,"items":[{"id":1,"name":"… - [Russian]"}]},
+- `GET /requests/tracks.json` → `{"sofabird":1,"audio":{"current":4,"items":[{"id":1,"name":"… - [Russian]"}]},
   "spu":{…},"video":{…},"chapter":{"current":2,"items":[{"id":0,"name":" Prologue"}]},"title":{…},
   "stereo_mode":{…},"aspect":{…},"crop":{…},"zoom":{…},"deinterlace":{…}}`. Fields are `null` if
   the object does not exist. `404` → level 0. Track names contain the language at the end in square brackets.
