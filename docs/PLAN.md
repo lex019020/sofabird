@@ -1,8 +1,9 @@
 # vlc-remote — project plan
 
-Date: 2026-10-13. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
-implemented, along with automatic pairing, companion-side library browsing, localization and choosing the monitor
-for the VLC window. In progress: first-run permissions and setup. Next: watch history and "Continue watching".
+Date: 2026-10-14. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
+the media station mode, the installer with quiet auto-updates, layout polish and refactoring. Stable v0.2.0 is
+released; test builds of 0.3.0 add the library. Next: Wake-on-LAN and the sleep timer (§ 10).
 
 ## 0. Essence
 
@@ -217,11 +218,13 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
 - `AudioService`: VLC's output device via RC `adev`; system volume via NAudio;
   the system default device via `IPolicyConfig` (undocumented COM, behind a flag).
 - `LibraryService`: browsing is done by the companion (works without VLC running, including network shares);
-  planned: an index of `D:\shared` (configurable roots), name parsing (guessit/PTN rules),
-  TMDB with a cache of ≤ 6 months and attribution, thumbnails via `vlc.exe` snapshot or ffmpeg (if present);
-  watch history and resume positions (the companion is the source of truth, shared by all phones).
-- Installation: today `scripts/deploy-windows.ps1` (`%LOCALAPPDATA%\VlcRemote\app`, no admin rights), HKCU\Run,
-  one UAC prompt for the firewall rules (companion + vlc.exe, private profile); Velopack installs and updates it. Lua pages are
+  the library of the media folders chosen in the setup window: release-name parsing, TMDB metadata (built-in token
+  from CI or the user's own) with a cache of ≤ 6 months (7 days for misses) and attribution, a catalog of movies and
+  series with seasons and episodes; watch history and resume positions (the companion is the source of truth,
+  shared by all phones).
+- Installation: the Velopack `Setup.exe` per user into `%LOCALAPPDATA%\VlcRemoteCompanion` (no admin rights; the
+  .NET runtime with one prompt when missing), HKCU\Run, one UAC prompt for the firewall rules (companion + vlc.exe,
+  private profile), quiet updates from GitHub Releases; `scripts/deploy-windows.ps1` wraps it. Lua pages are
   copied into `%APPDATA%\vlc\lua\http\requests\` at the first start.
 - UI language follows Windows, English by default, Russian translation; `err.msg` is rendered in the phone's
   language.
@@ -324,10 +327,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       work tied to the companion's lifetime, the polling decisions as tested pure functions; on Android every
       screen is `XxxScreen` + stateless `XxxContent(ui, actions)` with screenshot tests, one local state flow per
       ViewModel, the position ticker in the scrub bar; dead code removed on both sides.
-- [ ] **Library with posters** (user request): media folders in the setup window, file name parsing, TMDB metadata
-      via the companion (built-in token from CI + the user's own), cache ≤ 6 months; the phone shows posters next to
-      the folders. Done: the companion side and the protocol (`getLibrary`, `getShow`, `state.library`).
-      Left: the phone's poster grid, series and movie pages.
+- [x] **Library with posters** (user request): media folders in the setup window, file name parsing, TMDB metadata
+      via the companion (built-in token from CI + the user's own), cache ≤ 6 months; the protocol (`getLibrary`,
+      `getShow`, `state.library`); on the phone a poster grid next to the folders (can be turned off), a movie card
+      with the backdrop, rating and description, a series page with seasons, episode names and stills.
 - [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
       updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
@@ -336,6 +339,12 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       when it comes back.
 - [x] Settings, true black.
 - [ ] Sleep timer.
+- [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
+      The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
+      phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
+      checks that the network adapter may wake the PC and warns about settings that prevent it (Fast Startup,
+      wake on magic packet only). Best effort: Wake-on-Wireless is unreliable on laptops
+      ([transport-and-companion](research/transport-and-companion.md)), so verify on the TV laptop first.
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
 - [ ] Fake-VLC scenario tests.
@@ -402,8 +411,9 @@ vlc-remote/
 
 ## 10. Next steps
 
-1. **Library**: a setup step for the media folders, file name parsing, posters/backdrops (TMDB) via the companion,
-   cache; on the phone a poster grid next to the folders.
-2. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+1. **Wake-on-LAN**: wake the PC from the phone (M4).
+2. **Sleep timer** (M4).
+3. **Fake-VLC scenario tests** (M4).
+4. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
-Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint.
+Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

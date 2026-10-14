@@ -321,9 +321,10 @@ The companion is the source of truth: the phone keeps no history of its own.
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- Posters and metadata (next): a poster grid fed by the companion's library (TMDB); a Quick Settings tile, a Glance widget.
+- Wake-on-LAN: a "Wake up the PC" action when the saved PC does not answer (next).
+- Sleep timer (next).
+- A Quick Settings tile, a Glance widget.
 - Landscape and tablet layouts (postponed).
-- Sleep timer.
 
 ## To check on a device
 
