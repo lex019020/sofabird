@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
@@ -206,6 +208,9 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
 
     val showChrome = route in Routes.tabs
     Scaffold(
+        // Screens without the shared bars (settings, history, a series…) have their own Scaffold and TopAppBar that
+        // take the system bars into account: insetting them here too doubled the gap under the status bar.
+        contentWindowInsets = if (showChrome) ScaffoldDefaults.contentWindowInsets else WindowInsets(0),
         topBar = {
             if (showChrome) {
                 ConnectionTopBar(
