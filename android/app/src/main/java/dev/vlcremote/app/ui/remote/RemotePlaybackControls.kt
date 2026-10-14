@@ -116,6 +116,9 @@ internal fun ScrubBar(ui: RemoteUiState, actions: RemoteActions) {
 @Composable
 private fun rememberLivePosition(state: PlayerState): State<Double> =
     produceState(state.interpolatedTime(System.currentTimeMillis()), state) {
+        // The initial value is used only once, at the first composition: every new state sets it here, or a pause
+        // would keep showing the position of the very first state (0 before the connection).
+        value = state.interpolatedTime(System.currentTimeMillis())
         if (!state.isPlaying || state.playback.updatedAt <= 0L) return@produceState
         while (true) {
             delay(POSITION_TICK_MS)

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,11 +53,13 @@ private const val TILE_MAX_SCALE = 1.15f
 @Composable
 private fun QuickActionTile(action: QuickAction, modifier: Modifier) {
     OutlinedCard(onClick = action.onClick, enabled = action.enabled, modifier = modifier) {
+        // Centred vertically: "More" has no value line and would otherwise sit higher than its neighbours.
         Column(
             Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(horizontal = 2.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             LabelText(action.title, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxScale = TILE_MAX_SCALE)
