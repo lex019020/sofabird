@@ -140,7 +140,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Artwork(ui, Modifier.fillMaxWidth(0.8f))
+                    Artwork(ui, Modifier.fillMaxWidth(0.8f), onStop = { actions.send(PlayerCommand.Stop) })
                     Spacer(Modifier.height(8.dp))
                     if (ui.vlcBlock == null) TitleBlock(ui)
                     next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
@@ -184,7 +184,11 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Spacer(Modifier.height(8.dp))
-                        Artwork(ui, Modifier.widthIn(max = 360.dp).heightIn(max = artworkMaxHeight))
+                        Artwork(
+                            ui,
+                            Modifier.widthIn(max = 360.dp).heightIn(max = artworkMaxHeight),
+                            onStop = { actions.send(PlayerCommand.Stop) },
+                        )
                         Spacer(Modifier.height(12.dp))
                         if (block == null) TitleBlock(ui)
                         next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }

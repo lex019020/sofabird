@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,7 +21,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -199,16 +197,6 @@ internal fun TransportRow(ui: RemoteUiState, actions: RemoteActions) {
                 )
             }
         }
-        Spacer(Modifier.height(8.dp))
-        RemoteButton(
-            icon = Icons.Default.Stop,
-            contentDescription = stringResource(R.string.action_stop),
-            onClick = { actions.send(PlayerCommand.Stop) },
-            size = 44.dp,
-            iconSize = 22.dp,
-            enabled = online && !ui.state.isStopped,
-            haptics = haptics,
-        )
     }
 }
 
