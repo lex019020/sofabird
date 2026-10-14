@@ -41,6 +41,11 @@ UI texts must not break inside a word at any font scale: labels in tabs, buttons
 `LabelText` (one line, ellipsis, limited growth), groups of chips/buttons go into `FlowRow`, file names are shown
 with `withNameBreaks()`. Check new screens in both languages at font scale 2.0.
 
+**The remote screen never scrolls** (owner's rule), in any orientation, language, font scale or state: everything
+fits on one screen. When space runs short the cover gives way first (it takes only the height left after the other
+blocks), then elements shrink; no `verticalScroll`/lazy lists on the remote. Options that do not fit go into sheets
+("More", tracks, display).
+
 Gradle 8.6 / AGP 8.4.2 / Kotlin 2.0.21 / compileSdk 35 are pinned to the installed SDK (without the licenses folder
 nothing new can be downloaded); do not bump them unless necessary. Companion — the SDK from `companion/global.json`.
 
