@@ -9,11 +9,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -124,7 +121,10 @@ fun RemoteScreen(
     }
 }
 
-/** The remote without its ViewModel: portrait (controls pinned at the bottom) or landscape (two columns). */
+/**
+ * The remote without its ViewModel: portrait (controls pinned at the bottom) or landscape (two columns). It never
+ * scrolls (a project rule): the cover takes only the height the other blocks leave and gives way first.
+ */
 @Composable
 fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -134,12 +134,12 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                 Column(
                     Modifier
                         .weight(0.38f)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
+                        .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Artwork(ui, Modifier.fillMaxWidth(0.8f), onStop = { actions.send(PlayerCommand.Stop) })
+                    Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
                     Spacer(Modifier.height(8.dp))
                     if (ui.vlcBlock == null) TitleBlock(ui)
                     next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
@@ -150,8 +150,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                 Column(
                     Modifier
                         .weight(0.62f)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState()),
+                        .fillMaxHeight(),
                     verticalArrangement = Arrangement.Center,
                 ) {
                     val block = ui.vlcBlock
@@ -172,34 +171,24 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     .padding(horizontal = 16.dp),
             ) {
                 val block = ui.vlcBlock
-                // The upper part scrolls; the playback controls below always stay on screen. The artwork takes the
-                // height the title leaves; with a card under the title (next episode, offline, Bluetooth, VLC state)
-                // it gives way first and takes at most 40 %.
-                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    val cards = next != null || block != null || !ui.connection.isOnline || ui.bluetoothNeed != null
-                    val artworkMaxHeight = if (cards) maxHeight * 0.4f else (maxHeight - TITLE_SPACE).coerceAtLeast(maxHeight * 0.4f)
-                    // At least as tall as the area, so a short block (cover + title) sits in its middle.
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .heightIn(min = maxHeight),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Spacer(Modifier.height(8.dp))
-                        Artwork(
-                            ui,
-                            Modifier.fillMaxWidth().heightIn(max = artworkMaxHeight),
-                            onStop = { actions.send(PlayerCommand.Stop) },
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        if (block == null) TitleBlock(ui)
-                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
-                        OfflineCard(ui, actions::openConnection)
-                        BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
-                        if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
-                    }
+                // The upper part: the title and the cards (next episode, offline, Bluetooth, VLC state) are measured
+                // first, the cover takes the height they leave (keeping 16:9), and the block sits in the middle.
+                // The playback controls below always stay on screen.
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Spacer(Modifier.height(8.dp))
+                    Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
+                    Spacer(Modifier.height(12.dp))
+                    if (block == null) TitleBlock(ui)
+                    next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+                    OfflineCard(ui, actions::openConnection)
+                    BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
+                    if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                 }
                 QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
                 if (block == null) {
@@ -250,6 +239,3 @@ private fun trackChipLabel(current: String?, currentId: Int?, count: Int): Strin
     count == 0 -> "—"
     else -> "#$currentId"
 }
-
-/** Room under the artwork for the title (two lines) and the chapter line, with the spacers. */
-private val TITLE_SPACE = 136.dp
