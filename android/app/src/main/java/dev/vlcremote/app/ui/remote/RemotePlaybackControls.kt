@@ -3,9 +3,9 @@ package dev.vlcremote.app.ui.remote
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -117,6 +116,9 @@ internal fun ScrubBar(ui: RemoteUiState, actions: RemoteActions) {
 @Composable
 private fun rememberLivePosition(state: PlayerState): State<Double> =
     produceState(state.interpolatedTime(System.currentTimeMillis()), state) {
+        // The initial value is used only once, at the first composition: every new state sets it here, or a pause
+        // would keep showing the position of the very first state (0 before the connection).
+        value = state.interpolatedTime(System.currentTimeMillis())
         if (!state.isPlaying || state.playback.updatedAt <= 0L) return@produceState
         while (true) {
             delay(POSITION_TICK_MS)
@@ -134,64 +136,70 @@ internal fun TransportRow(ui: RemoteUiState, actions: RemoteActions) {
     val short = ui.settings.seekShortSec.toLong()
     val long = ui.settings.seekLongSec.toLong()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RemoteButton(
-                icon = Icons.Default.Replay10,
-                contentDescription = stringResource(R.string.action_seek_back),
-                onClick = { actions.seekBy(-short) },
-                label = "−$short",
-                enabled = online,
-                repeatOnHold = true,
-                haptics = haptics,
-            )
-            RemoteButton(
-                icon = Icons.Default.SkipPrevious,
-                contentDescription = stringResource(R.string.action_prev),
-                onClick = { actions.send(PlayerCommand.Prev) },
-                enabled = online,
-                haptics = haptics,
-            )
-            RemoteButton(
-                icon = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = stringResource(if (playing) R.string.action_pause else R.string.action_play),
-                onClick = { actions.togglePause() },
-                size = 88.dp,
-                iconSize = 44.dp,
-                filled = true,
-                enabled = online,
-                haptics = haptics,
-            )
-            RemoteButton(
-                icon = Icons.Default.SkipNext,
-                contentDescription = stringResource(R.string.action_next),
-                onClick = { actions.send(PlayerCommand.Next) },
-                enabled = online,
-                haptics = haptics,
-            )
-            RemoteButton(
-                icon = Icons.Default.Forward30,
-                contentDescription = stringResource(R.string.action_seek_forward),
-                onClick = { actions.seekBy(long) },
-                label = "+$long",
-                enabled = online,
-                repeatOnHold = true,
-                haptics = haptics,
-            )
+        // Four 64 dp buttons and the 88 dp play button need 344 dp plus gaps; a 360 dp phone has less once the screen
+        // padding is taken. Scale all five together, so they stay round and alike instead of the last ones squeezing.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val needed = TRANSPORT_BUTTON * 4 + TRANSPORT_PLAY + TRANSPORT_MIN_GAP * 4
+            val scale = (maxWidth / needed).coerceAtMost(1f)
+            val button = TRANSPORT_BUTTON * scale
+            val icon = 32.dp * scale
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RemoteButton(
+                    icon = Icons.Default.Replay10,
+                    contentDescription = stringResource(R.string.action_seek_back),
+                    onClick = { actions.seekBy(-short) },
+                    size = button,
+                    iconSize = icon,
+                    label = "−$short",
+                    enabled = online,
+                    repeatOnHold = true,
+                    haptics = haptics,
+                )
+                RemoteButton(
+                    icon = Icons.Default.SkipPrevious,
+                    contentDescription = stringResource(R.string.action_prev),
+                    onClick = { actions.send(PlayerCommand.Prev) },
+                    size = button,
+                    iconSize = icon,
+                    enabled = online,
+                    haptics = haptics,
+                )
+                RemoteButton(
+                    icon = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = stringResource(if (playing) R.string.action_pause else R.string.action_play),
+                    onClick = { actions.togglePause() },
+                    size = TRANSPORT_PLAY * scale,
+                    iconSize = 44.dp * scale,
+                    filled = true,
+                    enabled = online,
+                    haptics = haptics,
+                )
+                RemoteButton(
+                    icon = Icons.Default.SkipNext,
+                    contentDescription = stringResource(R.string.action_next),
+                    onClick = { actions.send(PlayerCommand.Next) },
+                    size = button,
+                    iconSize = icon,
+                    enabled = online,
+                    haptics = haptics,
+                )
+                RemoteButton(
+                    icon = Icons.Default.Forward30,
+                    contentDescription = stringResource(R.string.action_seek_forward),
+                    onClick = { actions.seekBy(long) },
+                    size = button,
+                    iconSize = icon,
+                    label = "+$long",
+                    enabled = online,
+                    repeatOnHold = true,
+                    haptics = haptics,
+                )
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        RemoteButton(
-            icon = Icons.Default.Stop,
-            contentDescription = stringResource(R.string.action_stop),
-            onClick = { actions.send(PlayerCommand.Stop) },
-            size = 44.dp,
-            iconSize = 22.dp,
-            enabled = online && !ui.state.isStopped,
-            haptics = haptics,
-        )
     }
 }
 
@@ -229,3 +237,7 @@ internal fun VolumeRow(ui: RemoteUiState, actions: RemoteActions) {
         )
     }
 }
+
+private val TRANSPORT_BUTTON = 64.dp
+private val TRANSPORT_PLAY = 88.dp
+private val TRANSPORT_MIN_GAP = 6.dp

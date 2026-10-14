@@ -1,6 +1,7 @@
 package dev.vlcremote.app.ui.remote
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,11 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -30,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -40,11 +45,13 @@ import dev.vlcremote.app.R
 import dev.vlcremote.app.data.companion.BluetoothStatus
 import dev.vlcremote.app.ui.common.BluetoothPermissionDeniedDialog
 import dev.vlcremote.app.ui.common.rememberBluetoothRequests
+import dev.vlcremote.app.ui.common.rememberTick
 import dev.vlcremote.app.ui.common.withNameBreaks
 import dev.vlcremote.protocol.model.ConnectionState
 
+/** The cover of what plays, with "Stop" in its corner (away from Play, so it is not hit by accident). */
 @Composable
-internal fun Artwork(ui: RemoteUiState, modifier: Modifier) {
+internal fun Artwork(ui: RemoteUiState, modifier: Modifier, onStop: () -> Unit = {}) {
     Box(
         modifier
             .aspectRatio(16f / 9f)
@@ -67,6 +74,29 @@ internal fun Artwork(ui: RemoteUiState, modifier: Modifier) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxSize(0.3f),
             )
+        }
+        if (ui.connection.isOnline && !ui.state.isStopped) {
+            val tick = rememberTick(ui.settings.haptics)
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable(onClickLabel = stringResource(R.string.action_stop)) {
+                        tick()
+                        onStop()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.Stop,
+                    contentDescription = stringResource(R.string.action_stop),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
     }
 }

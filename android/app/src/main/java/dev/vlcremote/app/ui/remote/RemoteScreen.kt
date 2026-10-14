@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -140,7 +139,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Artwork(ui, Modifier.fillMaxWidth(0.8f))
+                    Artwork(ui, Modifier.fillMaxWidth(0.8f), onStop = { actions.send(PlayerCommand.Stop) })
                     Spacer(Modifier.height(8.dp))
                     if (ui.vlcBlock == null) TitleBlock(ui)
                     next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
@@ -173,18 +172,27 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     .padding(horizontal = 16.dp),
             ) {
                 val block = ui.vlcBlock
-                // The upper part scrolls; the playback controls below always stay on screen. The artwork
-                // gives way first: it takes at most 40 % of the free height.
+                // The upper part scrolls; the playback controls below always stay on screen. The artwork takes the
+                // height the title leaves; with a card under the title (next episode, offline, Bluetooth, VLC state)
+                // it gives way first and takes at most 40 %.
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    val artworkMaxHeight = maxHeight * 0.4f
+                    val cards = next != null || block != null || !ui.connection.isOnline || ui.bluetoothNeed != null
+                    val artworkMaxHeight = if (cards) maxHeight * 0.4f else (maxHeight - TITLE_SPACE).coerceAtLeast(maxHeight * 0.4f)
+                    // At least as tall as the area, so a short block (cover + title) sits in its middle.
                     Column(
                         Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .heightIn(min = maxHeight),
                         horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         Spacer(Modifier.height(8.dp))
-                        Artwork(ui, Modifier.widthIn(max = 360.dp).heightIn(max = artworkMaxHeight))
+                        Artwork(
+                            ui,
+                            Modifier.fillMaxWidth().heightIn(max = artworkMaxHeight),
+                            onStop = { actions.send(PlayerCommand.Stop) },
+                        )
                         Spacer(Modifier.height(12.dp))
                         if (block == null) TitleBlock(ui)
                         next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
@@ -242,3 +250,6 @@ private fun trackChipLabel(current: String?, currentId: Int?, count: Int): Strin
     count == 0 -> "—"
     else -> "#$currentId"
 }
+
+/** Room under the artwork for the title (two lines) and the chapter line, with the spacers. */
+private val TITLE_SPACE = 136.dp
