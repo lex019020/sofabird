@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
       - name: Test
         run: dotnet test companion/Sofabird.sln -c Release
       - name: Publish and pack (Velopack)
@@ -183,7 +183,7 @@ jobs:
           ---
           ### Download
           - **PC (Windows 10/11):** [Sofabird-Setup.exe]({base}/Sofabird-Setup.exe) — run it; it installs
-            for the current user and then updates itself (a PC without the .NET 9 runtime gets it, with one administrator prompt).
+            for the current user and then updates itself (a PC without the .NET 10 runtime gets it, with one administrator prompt).
           - **Phone (Android 8+):** [Sofabird-{version}.apk]({base}/Sofabird-{version}.apk)
 
           **Scripts** (no GitHub account needed; the phone needs adb):

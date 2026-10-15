@@ -103,7 +103,7 @@ function New-CompanionPackage([string]$Root, [string]$Version, [string]$Suffix, 
     $out = Join-Path ([IO.Path]::GetTempPath()) ('sofabird-publish-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
     try {
         & dotnet publish (Join-Path $Root 'companion\Sofabird.Companion\Sofabird.Companion.csproj') `
-            -c Release -r win-x64 --self-contained false "-p:VersionSuffix=$Suffix" -o $out --nologo -v quiet | Out-Host
+            -c Release -r win-x64 --no-self-contained "-p:VersionSuffix=$Suffix" -o $out --nologo -v quiet | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
         Push-Location $Root
         try {
@@ -113,7 +113,7 @@ function New-CompanionPackage([string]$Root, [string]$Version, [string]$Suffix, 
             # not take a Sofabird package for their own update.
             & dotnet vpk pack --runtime win-x64 --channel win-x64 --packId Sofabird --packVersion $Version --packDir $out `
                 --mainExe Sofabird.exe --packTitle 'Sofabird' --packAuthors 'Sofabird' `
-                --shortcuts StartMenuRoot --framework 'net9-x64-desktop,net9-x64-aspnetcore' -o $ReleasesDir | Out-Host
+                --shortcuts StartMenuRoot --framework 'net10-x64-desktop,net10-x64-aspnetcore' -o $ReleasesDir | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'vpk pack failed' }
         } finally { Pop-Location }
     } finally {

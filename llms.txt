@@ -41,4 +41,4 @@ keeps working without Wi-Fi.
 - Source and docs: https://github.com/lex019020/sofabird
 - Website: https://sofabird.app/
 - Protocol (phone ↔ companion): https://github.com/lex019020/sofabird/blob/main/protocol/README.md
-- Tech: Kotlin + Jetpack Compose (Android), .NET 9 WinForms + Kestrel (Windows), Velopack installer.
+- Tech: Kotlin + Jetpack Compose (Android), .NET 10 WinForms + Kestrel (Windows), Velopack installer.

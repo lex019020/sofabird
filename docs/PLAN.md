@@ -101,7 +101,7 @@ Full reports in `docs/research/`:
 │   ├ VlcHttpBackend ─────────┼──────────┼─▶  + requests/tracks.json, setvar.json   │
 │   │   (levels 0/1)          │          │    + rc intf 127.0.0.1:4212              │
 │   └ CompanionBackend        │          │            ▲            ▲                │
-│       ├ WsTransport ────────┼─ ws ─────┼─▶ Companion (.NET 9, tray)               │
+│       ├ WsTransport ────────┼─ ws ─────┼─▶ Companion (.NET 10, tray)               │
 │       └ BtTransport ────────┼─ RFCOMM ─┼─▶   Kestrel WS :47555 · RFCOMM · mDNS    │
 │  Discovery: NSD + UDP + scan│          │     VlcManager (process, vlcrc, RC bridge)│
 │  MediaSessionService (FGS)  │          │     Win32: windows/monitors/power/sound   │
@@ -199,7 +199,7 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
 
 ### 4.7. Companion (Windows)
 
-- Project `companion/Sofabird.Companion` — `net9.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
+- Project `companion/Sofabird.Companion` — `net10.0-windows10.0.19041.0`, WinForms `NotifyIcon`,
   Kestrel (`CreateSlimBuilder`) for WS and REST diagnostics, WinRT `RfcommServiceProvider`,
   `DnsServiceRegister` via P/Invoke, UDP beacon `:47556`, NAudio, CsWin32 for Win32, Serilog.
 - `VlcManager`: finds VLC via `HKLM\SOFTWARE\VideoLAN\VLC`, starts `vlc.exe --extraintf http:rc
