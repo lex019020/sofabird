@@ -122,6 +122,10 @@ public sealed class SystemInfo
     /// <summary>Stable id of the preferred monitor; <c>null</c> — the companion does not manage the VLC window.</summary>
     public string? PreferredDisplayId { get; set; }
     public bool? KeepAwake { get; set; }
+    /// <summary>The computer Moonlight streams from (the first paired one); <c>null</c> — Moonlight has none paired.</summary>
+    public string? MoonlightHost { get; set; }
+    /// <summary>A Moonlight stream is on the screen; <c>null</c> — Moonlight is not installed.</summary>
+    public bool? MoonlightStreaming { get; set; }
 }
 
 public sealed class StateMessage : Message

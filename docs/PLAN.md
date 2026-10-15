@@ -152,7 +152,7 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 |---|---|---|
 | → PC | `hello {token or pairCode, device, v}` | handshake; reply `welcome {caps, vlc: {running, version}, token?}` |
 | → PC | `cmd {name, args}` | player commands: `play`, `pause`, `seek`, `volume`, `track`, `chapter`, `rate`, `delay`, `fullscreen`, `open {uri, subtitle?, audio?}`, `enqueue`, `launch`, `quit` |
-| → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume` |
+| → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume`, `moonlightStart`, `moonlightStop` |
 | → PC | `browse {uri}` / `library {query}` | file lists / library with metadata |
 | ← PC | `state {…diff}` | push of `PlayerState` changes (at most 4 Hz, seek/volume are coalesced) |
 | ← PC | `event {name, …}` | `vlcStarted`, `vlcExited`, `inputChanged`, `endReached` |
@@ -342,6 +342,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [x] **Rename to Sofabird** (user decision, [ADR-0006](adr/0006-rename-to-sofabird.md)): the VLC trademark and a
       scope beyond VLC; every name and identifier changed, the first start takes the old companion's settings and
       history over and uninstalls it; the phone app is a new app.
+- [x] **Moonlight, first step** (user request): "Another PC's screen" in the "More" sheet starts Moonlight's stream of
+      the paired computer's desktop on the TV (VLC paused) and ends it. Later: the app list (Steam Big Picture, games),
+      choosing the host, placing the stream on the TV monitor, a game-session remote.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window

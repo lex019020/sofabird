@@ -28,6 +28,12 @@ public static class ProtocolText
     public static LocalizableText VlcStarting => new("VlcStarting");
     /// <summary>VLC is not running</summary>
     public static LocalizableText VlcNotRunning => new("VlcNotRunning");
+    /// <summary>Moonlight is not installed on the PC</summary>
+    public static LocalizableText MoonlightNotInstalled => new("MoonlightNotInstalled");
+    /// <summary>Moonlight on the PC is not paired with a computer to stream from. Pair it in Moonlight first.</summary>
+    public static LocalizableText MoonlightNoHost => new("MoonlightNoHost");
+    /// <summary>Moonlight could not start the stream (code {0})</summary>
+    public static LocalizableText MoonlightStartFailed(object a0) => new("MoonlightStartFailed", a0);
     /// <summary>Folder not found: {0}</summary>
     public static LocalizableText FolderNotFound(object a0) => new("FolderNotFound", a0);
     /// <summary>Folder is not available: {0}</summary>

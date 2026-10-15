@@ -35,6 +35,7 @@ import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.history.ContinueCard
 import app.sofabird.ui.history.ContinueWatchingRow
 import app.sofabird.ui.history.NextEpisodeCard
+import app.sofabird.ui.remote.MoonlightSection
 import app.sofabird.ui.remote.QuickAction
 import app.sofabird.ui.remote.QuickActionsRow
 import app.sofabird.ui.theme.SofabirdTheme
@@ -130,6 +131,15 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
                 onDismiss = {},
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
             )
+        }
+    }
+
+    @Test
+    fun moonlight() = snapshot("moonlight") {
+        Column(Modifier.padding(16.dp)) {
+            MoonlightSection(host = "GAMING-PC", streaming = false, enabled = true, onStart = {}, onStop = {})
+            MoonlightSection(host = "GAMING-PC", streaming = true, enabled = true, onStart = {}, onStop = {})
+            MoonlightSection(host = null, streaming = false, enabled = true, onStart = {}, onStop = {})
         }
     }
 

@@ -28,6 +28,7 @@ public sealed class ProtocolException : Exception
     public static ProtocolException BadRequest(string message) => new(ErrorCodes.BadRequest, message);
     public static ProtocolException BadRequest(LocalizableText text) => new(ErrorCodes.BadRequest, text);
     public static ProtocolException Unsupported(string message) => new(ErrorCodes.Unsupported, message);
+    public static ProtocolException Unsupported(LocalizableText text) => new(ErrorCodes.Unsupported, text);
     public static ProtocolException VlcNotRunning(string message = "VLC is not running") => new(ErrorCodes.VlcNotRunning, message);
     public static ProtocolException VlcNotRunning(LocalizableText text) => new(ErrorCodes.VlcNotRunning, text);
     public static ProtocolException VlcError(string message) => new(ErrorCodes.VlcError, message);

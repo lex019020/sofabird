@@ -343,7 +343,7 @@ after changing that area:
    on the phone (autofocus, Samsung numeric keyboard, sending on the 6th digit); a wrong code → an error and
    the field cleared; "Cancel"; the token is saved, after an app restart — connecting without a code;
    reconnect after the laptop sleeps; "Forget this computer" → a code again on the next tap.
-9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "Display" item opens "Display for VLC" (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`) — the sections appear only with the corresponding `caps`.
+9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "Display" item opens "Display for VLC" (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Show on the TV" / "End streaming" (`sys moonlightStart|moonlightStop`, cap `moonlight`) — the sections appear only with the corresponding `caps`.
 10. The phone name in the pairing window on the PC (`Settings.Global.DEVICE_NAME`, e.g. "Galaxy S24").
 11. VLC states on the remote: VLC closed → "Launch VLC"; VLC opened by hand → "without control" →
     "Restart with control" (the same movie on the TV); the status on the PC card updates (~8–10 s).

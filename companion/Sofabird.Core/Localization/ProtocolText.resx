@@ -17,6 +17,9 @@
   <data name="VlcNoControl" xml:space="preserve"><value>VLC is open without phone control; restart it from the app</value></data>
   <data name="VlcStarting" xml:space="preserve"><value>VLC is starting</value></data>
   <data name="VlcNotRunning" xml:space="preserve"><value>VLC is not running</value></data>
+  <data name="MoonlightNotInstalled" xml:space="preserve"><value>Moonlight is not installed on the PC</value></data>
+  <data name="MoonlightNoHost" xml:space="preserve"><value>Moonlight on the PC is not paired with a computer to stream from. Pair it in Moonlight first.</value></data>
+  <data name="MoonlightStartFailed" xml:space="preserve"><value>Moonlight could not start the stream (code {0})</value></data>
   <data name="FolderNotFound" xml:space="preserve"><value>Folder not found: {0}</value></data>
   <data name="FolderUnavailable" xml:space="preserve"><value>Folder is not available: {0}</value></data>
   <data name="HistoryNotAFile" xml:space="preserve"><value>Only files on this PC are kept in the watch history: {0}</value></data>

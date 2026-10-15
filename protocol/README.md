@@ -68,7 +68,7 @@ Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vl
 Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
 
 `caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
-`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`, `library`.
+`windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`, `library`, `moonlight`.
 
 ## Player commands: `cmd`
 
@@ -113,6 +113,15 @@ and state changes arrive in a separate `state`.
 | `sleep` / `shutdown` | — | `power` |
 | `audioDevice` | `{"id": string}` (`""` = default) | `audioDevices` |
 | `systemVolume` | `{"value": 0..100}` or `{"delta": int}` or `{"mute": bool}` | `systemVolume` |
+| `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
+| `moonlightStop` | — | `moonlight` |
+
+Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
+window and runs `Moonlight.exe stream <host> <app> --display-mode fullscreen`; an already running stream is kept.
+`moonlightStop` runs `Moonlight.exe quit <host>` for the streamed host (the app on the host ends, and so does the
+stream) and closes any Moonlight window left. Errors: `unsupported` (not installed), `bad_request` (no paired
+computer, or Moonlight exited at once). `state.system.moonlightHost` is the first paired computer (absent — none),
+`moonlightStreaming` whether a stream is on the screen (also one started by hand in Moonlight).
 
 Monitors (`listDisplays`):
 - `id` — a **stable** monitor identifier (the monitor device path from `DisplayConfigGetDeviceInfo` /
@@ -166,7 +175,7 @@ per second with an updated `time`). Always the full object (not a diff) — simp
   "video": {"fullscreen": true, "aspect": "default"},
   "delays": {"audio": 0.0, "subtitle": 0.0},
   "flags": {"random": false, "loop": false, "repeat": false},
-  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true}
+  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true, "moonlightHost": "GAMING-PC", "moonlightStreaming": false}
 }
 ```
 

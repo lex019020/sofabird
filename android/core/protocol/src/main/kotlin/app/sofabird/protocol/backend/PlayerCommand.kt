@@ -94,4 +94,13 @@ sealed class SystemCommand {
         val delta: Int? = null,
         val mute: Boolean? = null,
     ) : SystemCommand()
+
+    /**
+     * Stream another computer's screen to the TV with Moonlight: [app] (default "Desktop") from [host] (default the
+     * first computer paired in Moonlight). VLC is paused first.
+     */
+    data class MoonlightStart(val host: String? = null, val app: String? = null) : SystemCommand()
+
+    /** End the Moonlight stream on the TV. */
+    data object MoonlightStop : SystemCommand()
 }

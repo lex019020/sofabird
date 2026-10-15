@@ -243,4 +243,26 @@ class CompanionMessagesTest {
         assertEquals("true", (mute["args"] as JsonObject).str("mute"))
         assertNull((mute["args"] as JsonObject)["value"])
     }
+
+    @Test
+    fun `moonlight commands, capability and state`() {
+        fun obj(m: CompanionMessage) = CompanionCodec.json.parseToJsonElement(CompanionCodec.encode(m)) as JsonObject
+
+        val start = obj(CommandMapping.toSys("1", SystemCommand.MoonlightStart()))
+        assertEquals("moonlightStart", start["name"]!!.jsonPrimitive.content)
+        assertTrue((start["args"] as JsonObject).isEmpty()) // the companion picks the host and "Desktop"
+        val chosen = obj(CommandMapping.toSys("2", SystemCommand.MoonlightStart(host = "GAMING-PC", app = "Desktop")))
+        assertEquals("GAMING-PC", (chosen["args"] as JsonObject)["host"]!!.jsonPrimitive.content)
+        assertEquals("Desktop", (chosen["args"] as JsonObject)["app"]!!.jsonPrimitive.content)
+        assertEquals("moonlightStop", obj(CommandMapping.toSys("3", SystemCommand.MoonlightStop))["name"]!!.jsonPrimitive.content)
+
+        assertTrue(Capabilities.fromWire(listOf("moonlight")).moonlight)
+        assertFalse(Capabilities.fromWire(listOf("power")).moonlight)
+
+        val state = known(
+            """{"t":"state","vlc":{"running":false},"system":{"moonlightHost":"GAMING-PC","moonlightStreaming":true}}"""
+        ) as CompanionMessage.State
+        assertEquals("GAMING-PC", state.system?.moonlightHost)
+        assertEquals(true, state.system?.moonlightStreaming)
+    }
 }

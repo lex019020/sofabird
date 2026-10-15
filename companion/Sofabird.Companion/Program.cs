@@ -135,8 +135,9 @@ internal static class Program
         var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
         using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
         using var library = new LibraryService(settings, paths, vlc.History?.Store, background, lf.CreateLogger<LibraryService>());
+        using var moonlight = new MoonlightService(lf.CreateLogger<MoonlightService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, lf.CreateLogger<CompanionHost>());
+            library, moonlight, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;

@@ -79,6 +79,11 @@ object CommandMapping {
                 command.delta?.let { put("delta", it) }
                 command.mute?.let { put("mute", it) }
             }
+            is SystemCommand.MoonlightStart -> "moonlightStart" to args {
+                command.host?.let { put("host", it) }
+                command.app?.let { put("app", it) }
+            }
+            SystemCommand.MoonlightStop -> "moonlightStop" to EMPTY
         }
         return CompanionMessage.Sys(id = id, name = name, args = args)
     }
