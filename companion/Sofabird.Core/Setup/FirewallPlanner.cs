@@ -22,10 +22,12 @@ public static class FirewallPlanner
     public const string Grouping = "Sofabird";
 
     /// <summary>
-    /// Our rules from the companion's earlier name ("VLC Remote Companion"). They do not count as access for Sofabird,
-    /// so the setup window replaces them: every plan removes them along with adding the rules under the new names.
+    /// Rules from the companion's earlier name ("VLC Remote Companion"): ours by name, and the ones Windows created
+    /// from its own prompt for the old program (named after the file). They do not count as access for Sofabird, so the
+    /// setup window replaces them: every plan removes them along with adding the rules under the new names.
     /// </summary>
     public static readonly IReadOnlyList<string> LegacyRuleNames = ["VLC Remote Companion", "VLC (VLC Remote)"];
+    public const string LegacyProgramFile = "VlcRemote.Companion.exe";
 
     /// <summary>The programs that must accept connections from the phone; VLC only when it is installed.</summary>
     public static IReadOnlyList<FirewallProgram> Programs(string companionExe, string? vlcExe)
@@ -54,7 +56,9 @@ public static class FirewallPlanner
 
     private static bool Covers(int ruleProtocol, int protocol) => ruleProtocol == FwProtocol.Any || ruleProtocol == protocol;
 
-    private static bool IsLegacy(FirewallRule r) => LegacyRuleNames.Contains(r.Name, StringComparer.OrdinalIgnoreCase);
+    private static bool IsLegacy(FirewallRule r) =>
+        LegacyRuleNames.Contains(r.Name, StringComparer.OrdinalIgnoreCase)
+        || string.Equals(System.IO.Path.GetFileName(r.Program?.Trim().Trim('"')), LegacyProgramFile, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsInboundFor(FirewallRule r, FirewallProgram p) =>
         !IsLegacy(r) && r.Enabled && r.Direction == FwDirection.In && CoversPrivate(r.Profiles) && SamePath(r.Program, p.Path);

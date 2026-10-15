@@ -139,6 +139,12 @@ public sealed class TrayContext : ApplicationContext
     private void Invoke(Action action)
     {
         if (_exiting || _ui.IsDisposed) return;
+        // Without a handle InvokeRequired is false on any thread, and a window created here would hang (no message loop).
+        if (!_ui.IsHandleCreated)
+        {
+            _log.LogWarning("The UI marshalling control has no window handle; the action is skipped");
+            return;
+        }
         try
         {
             if (_ui.InvokeRequired) _ui.BeginInvoke(action);
