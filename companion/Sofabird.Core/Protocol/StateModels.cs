@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Sofabird.Core.Protocol;
 
 public sealed class VlcInfo
@@ -169,7 +171,9 @@ public sealed class StateMessage : Message
     public HistoryInfo? History { get; set; }
     /// <summary>The library (<c>library</c> capability): phones re-read it when the revision changes.</summary>
     public LibraryInfo? Library { get; set; }
-    /// <summary>YouTube on the TV (<c>youtube</c> capability); absent without it.</summary>
+    /// <summary>YouTube on the TV (<c>youtube</c> capability); absent without it. Named explicitly: camel case
+    /// would make it <c>youTube</c>.</summary>
+    [JsonPropertyName("youtube")]
     public YouTubeInfo? YouTube { get; set; }
 }
 

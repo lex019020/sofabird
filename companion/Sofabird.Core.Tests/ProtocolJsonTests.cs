@@ -37,6 +37,21 @@ public class ProtocolJsonTests
     }
 
     [Fact]
+    public void State_carries_youtube_under_its_protocol_name()
+    {
+        var json = ProtocolJson.Serialize(new StateMessage
+        {
+            YouTube = new YouTubeInfo { Open = true, Playing = true, VideoId = "aqz-KE-bpKQ", Title = "Big Buck Bunny", Time = 60, Length = 634.6 },
+        });
+        using var doc = JsonDocument.Parse(json);
+        var yt = doc.RootElement.GetProperty("youtube");
+        Assert.True(yt.GetProperty("open").GetBoolean());
+        Assert.Equal("aqz-KE-bpKQ", yt.GetProperty("videoId").GetString());
+        Assert.Equal(634.6, yt.GetProperty("length").GetDouble());
+        Assert.DoesNotContain("youTube", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Discriminator_MayComeLast()
     {
         var msg = ProtocolJson.Deserialize("""{"id":"7","name":"seek","args":{"delta":30},"t":"cmd"}""");
