@@ -22,6 +22,21 @@ public class ProtocolJsonTests
     }
 
     [Fact]
+    public void System_carries_the_moonlight_host_and_stream()
+    {
+        var json = ProtocolJson.Serialize(new StateMessage
+        {
+            System = new SystemInfo { MoonlightHost = "GAMING-PC", MoonlightStreaming = true },
+        });
+        Assert.Contains("\"moonlightHost\":\"GAMING-PC\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"moonlightStreaming\":true", json, StringComparison.Ordinal);
+
+        // Without Moonlight on the PC both fields are absent.
+        var none = ProtocolJson.Serialize(new StateMessage { System = new SystemInfo { KeepAwake = false } });
+        Assert.DoesNotContain("moonlight", none, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Discriminator_MayComeLast()
     {
         var msg = ProtocolJson.Deserialize("""{"id":"7","name":"seek","args":{"delta":30},"t":"cmd"}""");

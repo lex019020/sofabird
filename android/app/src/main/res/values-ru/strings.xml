@@ -213,6 +213,13 @@
     <string name="display_preferred_missing">Выбранный экран сейчас не подключён (ТВ выключен?). Пока его нет, VLC открывается там, где решит Windows.</string>
     <string name="display_choose_hint">Где открывается окно VLC</string>
     <string name="section_power">Питание</string>
+    <string name="section_moonlight">Экран другого ПК</string>
+    <string name="moonlight_from">%1$s через Moonlight</string>
+    <string name="moonlight_no_host">Сопрягите Moonlight на ПК у телевизора с компьютером, экран которого нужно показать.</string>
+    <string name="action_moonlight_start">Показать на ТВ</string>
+    <string name="action_moonlight_stop">Завершить трансляцию</string>
+    <string name="moonlight_streaming_title">На ТВ сейчас Moonlight</string>
+    <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
 

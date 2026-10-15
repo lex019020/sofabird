@@ -201,6 +201,13 @@
     <string name="display_preferred_missing">The chosen display is not connected right now (TV off?). Until it is back, VLC opens where Windows puts it.</string>
     <string name="display_choose_hint">Where the VLC window opens</string>
     <string name="section_power">Power</string>
+    <string name="section_moonlight">Another PC\'s screen</string>
+    <string name="moonlight_from">%1$s through Moonlight</string>
+    <string name="moonlight_no_host">Pair Moonlight on the PC at the TV with the computer to show.</string>
+    <string name="action_moonlight_start">Show on the TV</string>
+    <string name="action_moonlight_stop">End streaming</string>
+    <string name="moonlight_streaming_title">Moonlight is on the TV</string>
+    <string name="moonlight_streaming_host">The screen of %1$s; the movie is paused</string>
     <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
     <string name="settings_version">Version %1$s (build %2$d)</string>
 

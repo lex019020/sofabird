@@ -418,6 +418,8 @@ public static class Caps
     public const string History = "history";
     /// <summary>Movies and series of the media folders with TMDB metadata (<c>getLibrary</c>, <c>getShow</c>).</summary>
     public const string Library = "library";
+    /// <summary>Moonlight is installed on the PC: <c>sys moonlightStart/moonlightStop</c>, <c>state.system.moonlight*</c>.</summary>
+    public const string Moonlight = "moonlight";
 }
 
 public static class EventNames

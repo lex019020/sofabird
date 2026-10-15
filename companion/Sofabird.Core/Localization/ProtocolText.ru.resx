@@ -17,6 +17,9 @@
   <data name="VlcNoControl" xml:space="preserve"><value>VLC открыт без управления с телефона — перезапустите его из приложения</value></data>
   <data name="VlcStarting" xml:space="preserve"><value>VLC запускается</value></data>
   <data name="VlcNotRunning" xml:space="preserve"><value>VLC не запущен</value></data>
+  <data name="MoonlightNotInstalled" xml:space="preserve"><value>Moonlight не установлен на компьютере</value></data>
+  <data name="MoonlightNoHost" xml:space="preserve"><value>Moonlight на компьютере не сопряжён ни с одним компьютером для трансляции. Сначала выполните сопряжение в Moonlight.</value></data>
+  <data name="MoonlightStartFailed" xml:space="preserve"><value>Moonlight не смог начать трансляцию (код {0})</value></data>
   <data name="FolderNotFound" xml:space="preserve"><value>Папка не найдена: {0}</value></data>
   <data name="FolderUnavailable" xml:space="preserve"><value>Папка недоступна: {0}</value></data>
   <data name="HistoryNotAFile" xml:space="preserve"><value>В истории просмотра хранятся только файлы на этом компьютере: {0}</value></data>

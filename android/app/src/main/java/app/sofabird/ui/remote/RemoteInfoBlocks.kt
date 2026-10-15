@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import app.sofabird.R
 import app.sofabird.data.companion.BluetoothStatus
 import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.ui.common.BluetoothPermissionDeniedDialog
+import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.rememberBluetoothRequests
 import app.sofabird.ui.common.rememberTick
 import app.sofabird.ui.common.withNameBreaks
@@ -128,6 +130,31 @@ internal fun TitleBlock(ui: RemoteUiState) {
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+/** Moonlight shows another computer's screen on the TV: what is on it now, and the way back to the movie. */
+@Composable
+internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit) {
+    val tick = rememberTick(haptics)
+    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Tv, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.moonlight_streaming_title), style = MaterialTheme.typography.titleMedium)
+            }
+            if (host.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.moonlight_streaming_host, host),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = { tick(); onEnd() }) { LabelText(stringResource(R.string.action_moonlight_stop)) }
+        }
     }
 }
 

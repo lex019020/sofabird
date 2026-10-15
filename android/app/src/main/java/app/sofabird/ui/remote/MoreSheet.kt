@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
+import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.formatRate
 import app.sofabird.ui.common.rememberTick
@@ -174,6 +176,16 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                         LabelText(stringResource(R.string.action_quit_vlc))
                     }
                 }
+            }
+            if (caps.moonlight) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                MoonlightSection(
+                    host = ui.state.system?.moonlightHost,
+                    streaming = ui.state.system?.moonlightStreaming == true,
+                    enabled = online,
+                    onStart = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStart()); onDismiss() },
+                    onStop = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStop); onDismiss() },
+                )
             }
             if (caps.systemVolume) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -304,6 +316,30 @@ private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
             )
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+    }
+}
+
+/**
+ * `moonlight`: show another computer's screen on the TV through Moonlight on the PC (paired with a Sunshine host),
+ * and end that stream. Without a paired computer only a hint is shown.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MoonlightSection(host: String?, streaming: Boolean, enabled: Boolean, onStart: () -> Unit, onStop: () -> Unit) {
+    SectionTitle(stringResource(R.string.section_moonlight))
+    Text(
+        if (host == null) stringResource(R.string.moonlight_no_host) else stringResource(R.string.moonlight_from, host),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        if (streaming) {
+            Button(onClick = onStop, enabled = enabled) { LabelText(stringResource(R.string.action_moonlight_stop)) }
+        } else {
+            OutlinedButton(onClick = onStart, enabled = enabled && host != null) {
+                LabelText(stringResource(R.string.action_moonlight_start))
+            }
+        }
     }
 }
 

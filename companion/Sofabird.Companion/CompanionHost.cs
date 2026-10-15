@@ -7,6 +7,7 @@ using Sofabird.Core.History;
 using Sofabird.Core.Pairing;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Session;
+using Sofabird.Core.Streaming;
 using Message = Sofabird.Core.Protocol.Message;
 using Sofabird.Core.Localization;
 
@@ -23,13 +24,14 @@ public sealed class CompanionHost : ISessionHost
     private readonly AudioService _audio;
     private readonly BackgroundWork _background;
     private readonly LibraryService _library;
+    private readonly MoonlightService _moonlight;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
-        LibraryService library, ILogger<CompanionHost> log)
+        LibraryService library, MoonlightService moonlight, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -41,6 +43,7 @@ public sealed class CompanionHost : ISessionHost
         _audio = audio;
         _background = background;
         _library = library;
+        _moonlight = moonlight;
         _log = log;
         _baseCaps =
         [
@@ -55,6 +58,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Metadata,
             Core.Protocol.Caps.Library,
             .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
+            .. moonlight.ExePath is null ? Array.Empty<string>() : [Core.Protocol.Caps.Moonlight],
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
         var migrated = false;
@@ -79,6 +83,7 @@ public sealed class CompanionHost : ISessionHost
         _vlc.SystemInfoProvider = BuildSystemInfo;
         _vlc.LibraryInfoProvider = () => _library.Info;
         _library.Changed += _vlc.Poke;
+        _moonlight.Changed += _vlc.Poke;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -158,6 +163,8 @@ public sealed class CompanionHost : ISessionHost
             DisplayId = display?.Id,
             PreferredDisplayId = Displays.PreferredId,
             KeepAwake = _power.KeepAwakeEnabled,
+            MoonlightHost = _moonlight.ExePath is null ? null : MoonlightCommandLine.ChooseHost(_moonlight.Hosts(), null)?.Name,
+            MoonlightStreaming = _moonlight.ExePath is null ? null : MoonlightService.StreamingHost() is not null,
         };
     }
 
@@ -246,6 +253,18 @@ public sealed class CompanionHost : ISessionHost
                 _vlc.Poke();
                 return null;
             }
+
+            case "moonlightStart":
+                // The stream covers the TV: a movie playing behind it would go on unseen.
+                if (_vlc.IsPlaying) await _vlc.PauseAsync(ct).ConfigureAwait(false);
+                await _moonlight.StartAsync(args.GetString("host"), args.GetString("app"), ct).ConfigureAwait(false);
+                _vlc.Poke();
+                return null;
+
+            case "moonlightStop":
+                await _moonlight.StopAsync(ct).ConfigureAwait(false);
+                _vlc.Poke();
+                return null;
 
             default:
                 throw ProtocolException.Unsupported($"unknown sys command '{name}'");

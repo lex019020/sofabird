@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.R
 import app.sofabird.data.history.WatchPrompts
 import app.sofabird.protocol.backend.PlayerCommand
+import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.protocol.model.TrackKind
 import app.sofabird.protocol.model.TrackKind.AUDIO
@@ -58,6 +59,7 @@ interface RemoteActions {
     fun openDisplays() {}
     fun openMore() {}
     fun openConnection() {}
+    fun endStream() {}
 }
 
 @Composable
@@ -97,6 +99,7 @@ fun RemoteScreen(
                 moreSheet = true
             }
             override fun openConnection() = openConnection()
+            override fun endStream() = viewModel.sendSystem(SystemCommand.MoonlightStop)
         }
     }
 
@@ -139,10 +142,15 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
-                    Spacer(Modifier.height(8.dp))
-                    if (ui.vlcBlock == null) TitleBlock(ui)
-                    next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+                    val streaming = ui.streamingHost
+                    if (streaming != null) {
+                        StreamingCard(streaming, ui.settings.haptics, onEnd = actions::endStream)
+                    } else {
+                        Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
+                        Spacer(Modifier.height(8.dp))
+                        if (ui.vlcBlock == null) TitleBlock(ui)
+                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+                    }
                     OfflineCard(ui, actions::openConnection)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                 }
@@ -154,7 +162,9 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     verticalArrangement = Arrangement.Center,
                 ) {
                     val block = ui.vlcBlock
-                    if (block != null) {
+                    if (ui.streamingHost != null) {
+                        Spacer(Modifier.height(8.dp))
+                    } else if (block != null) {
                         VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                     } else {
                         ScrubBar(ui, actions)
@@ -170,7 +180,9 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
             ) {
-                val block = ui.vlcBlock
+                val streaming = ui.streamingHost
+                // A Moonlight stream covers the TV: VLC's cover, title, state and controls give way to its card.
+                val block = ui.vlcBlock.takeIf { streaming == null }
                 // The upper part: the title and the cards (next episode, offline, Bluetooth, VLC state) are measured
                 // first, the cover takes the height they leave (keeping 16:9), and the block sits in the middle.
                 // The playback controls below always stay on screen.
@@ -182,16 +194,20 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
-                    Spacer(Modifier.height(12.dp))
-                    if (block == null) TitleBlock(ui)
-                    next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+                    if (streaming != null) {
+                        StreamingCard(streaming, ui.settings.haptics, onEnd = actions::endStream)
+                    } else {
+                        Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
+                        Spacer(Modifier.height(12.dp))
+                        if (block == null) TitleBlock(ui)
+                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+                    }
                     OfflineCard(ui, actions::openConnection)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                     if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                 }
                 QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
-                if (block == null) {
+                if (block == null && streaming == null) {
                     ScrubBar(ui, actions)
                     VolumeRow(ui, actions)
                     Spacer(Modifier.height(4.dp))

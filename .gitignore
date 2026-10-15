@@ -20,3 +20,7 @@ Thumbs.db
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Roborazzi comparison artefacts (verify writes them next to the reference images)
+android/app/src/test/screenshots/*_compare.png
+android/app/src/test/screenshots/*_actual.png
