@@ -116,7 +116,7 @@ and state changes arrive in a separate `state`.
 | `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
 | `moonlightStop` | — | `moonlight` |
 | `youtubeOpen` | `{"url": string}` — a link or the text the YouTube app shares | `youtube` |
-| `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"close", "time"?: seconds}` (`time` for `seek`) | `youtube` |
+| `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"fullscreen"\|"close", "time"?: seconds}` (`time` for `seek`) | `youtube` |
 
 Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
 window and runs `Moonlight.exe stream <host> <app> --display-mode borderless`; an already running stream is kept.
@@ -130,7 +130,8 @@ browser profile of its own for the TV (`tv-browser` in its data folder; the user
 `youtubeOpen` finds a YouTube video link in the text (`youtu.be/ID`, `youtube.com/watch?v=ID`, `/shorts/ID`,
 `/live/ID`, with `list` and `t` kept) and opens only the canonical watch page built from it, never the text itself;
 VLC is paused first. The browser starts in kiosk mode, comes to the front and YouTube's player is made fullscreen.
-`youtube` controls it through Windows' media controls (SMTC); `close` closes the TV browser. Errors: `unsupported`
+`youtube` controls it through Windows' media controls (SMTC); `fullscreen` brings the browser to the front and
+presses YouTube's `f` again (the automatic one waits for the video itself, after the ads); `close` closes the TV browser. Errors: `unsupported`
 (no browser), `bad_request` (not a YouTube video link, YouTube not open). The state:
 
 ```json

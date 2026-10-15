@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.runtime.Composable
@@ -257,11 +258,18 @@ private fun ColumnScope.NowOnTv(
     }
 }
 
-/** VLC's tracks, display and "More"; with YouTube on the TV only "More" (VLC's tracks do not apply). */
+/** VLC's tracks, display and "More"; with YouTube on the TV "Fullscreen" and "More" (VLC's tracks do not apply). */
 @Composable
 private fun BottomActions(ui: RemoteUiState, youtube: Boolean, actions: RemoteActions) {
     if (youtube) {
-        QuickActionsRow(listOf(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore)))
+        QuickActionsRow(
+            listOf(
+                QuickAction(Icons.Default.Fullscreen, stringResource(R.string.action_youtube_fullscreen), null, ui.connection.isOnline) {
+                    actions.system(SystemCommand.YouTube(YouTubeAction.FULLSCREEN))
+                },
+                QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore),
+            ),
+        )
     } else {
         QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
     }

@@ -15,13 +15,16 @@ namespace Sofabird.Companion.YouTube;
 public sealed class YouTubeService : IDisposable
 {
     private static readonly TimeSpan FrontTimeout = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan PlayingWait = TimeSpan.FromSeconds(20);
+    /// <summary>How long to wait for the video itself (ads come first) before giving up on fullscreen.</summary>
+    private static readonly TimeSpan PlayingWait = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan LearnEvery = TimeSpan.FromSeconds(3);
 
     private readonly TvBrowser _browser;
     private readonly YouTubeMediaSession _media;
     private readonly ILogger _log;
     private CancellationTokenSource? _fullscreen;
     private string? _videoId;
+    private DateTime _learntAt;
 
     public YouTubeService(TvBrowser browser, YouTubeMediaSession media, ILogger<YouTubeService> log)
     {
@@ -54,8 +57,9 @@ public sealed class YouTubeService : IDisposable
 
     /// <summary>
     /// The browser starts behind VLC (the companion runs in the background): waits for its window, brings it to the
-    /// front, waits until the video plays (the page has loaded) and presses "f" for YouTube's fullscreen player. A link
-    /// loaded into the open browser reloads the page, so this runs for every link.
+    /// front, waits until the video itself plays and presses "f" for YouTube's fullscreen player. Ads come first and
+    /// report their own title, so "the video plays" means the media session's title starts the window's title (which
+    /// is the page's). A link loaded into the open browser reloads the page, so this runs for every link.
     /// </summary>
     private async Task FrontAndFullscreenAsync(CancellationToken ct)
     {
@@ -69,22 +73,21 @@ public sealed class YouTubeService : IDisposable
             }
             ForegroundWindow.Activate(window);
             var deadline = DateTime.UtcNow + PlayingWait;
-            while (DateTime.UtcNow < deadline)
+            var video = false;
+            while (!video && DateTime.UtcNow < deadline)
             {
                 await Task.Delay(700, ct).ConfigureAwait(false);
-                await _media.LearnAsync(_browser.WindowTitle()).ConfigureAwait(false);
-                if (_media.Read() is { Playing: true }) break;
+                var title = _browser.WindowTitle();
+                await _media.LearnAsync(title).ConfigureAwait(false);
+                video = _media.Read() is { Playing: true, Title: { } playing } && title?.StartsWith(playing, StringComparison.Ordinal) == true;
+            }
+            if (!video)
+            {
+                _log.LogWarning("YouTube on the TV: the video did not start in {Wait}; no fullscreen", PlayingWait);
+                return;
             }
             await Task.Delay(800, ct).ConfigureAwait(false); // the player settles after it starts
-            if (ForegroundWindow.Activate(window))
-            {
-                ForegroundWindow.PressKey(NativeMethods.VK_F);
-                _log.LogInformation("YouTube on the TV: fullscreen player");
-            }
-            else
-            {
-                _log.LogWarning("YouTube on the TV: the browser could not be brought to the front");
-            }
+            PressFullscreen();
             Changed?.Invoke();
         }
         catch (OperationCanceledException)
@@ -104,11 +107,26 @@ public sealed class YouTubeService : IDisposable
             "next" => await _media.NextAsync().ConfigureAwait(false),
             "previous" => await _media.PreviousAsync().ConfigureAwait(false),
             "seek" => await _media.SeekAsync(time ?? throw ProtocolException.BadRequest("seek requires 'time'")).ConfigureAwait(false),
+            "fullscreen" => PressFullscreen(),
             "close" => Close(),
             _ => throw ProtocolException.BadRequest($"unknown youtube action '{action}'"),
         };
         if (!ok) _log.LogDebug("YouTube {Action} was not accepted", action);
         Changed?.Invoke();
+    }
+
+    /// <summary>YouTube's "f" in the TV browser, brought to the front first (also the phone's "Fullscreen" button).</summary>
+    private bool PressFullscreen()
+    {
+        var window = _browser.FindWindow();
+        if (window == IntPtr.Zero || !ForegroundWindow.Activate(window))
+        {
+            _log.LogWarning("YouTube on the TV: the browser could not be brought to the front");
+            return false;
+        }
+        ForegroundWindow.PressKey(NativeMethods.VK_F);
+        _log.LogInformation("YouTube on the TV: fullscreen key");
+        return true;
     }
 
     private bool Close()
@@ -125,6 +143,12 @@ public sealed class YouTubeService : IDisposable
         var open = _browser.IsRunning();
         if (!open) return new YouTubeInfo { Open = false, VideoId = _videoId };
         var playback = _media.Read();
+        if (playback is null && DateTime.UtcNow - _learntAt > LearnEvery)
+        {
+            // The session is learnt from the window title, which matches only once the video (not an ad) plays.
+            _learntAt = DateTime.UtcNow;
+            _ = _media.LearnAsync(_browser.WindowTitle());
+        }
         return new YouTubeInfo
         {
             Open = true,

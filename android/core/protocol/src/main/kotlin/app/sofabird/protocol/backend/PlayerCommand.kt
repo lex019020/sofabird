@@ -121,5 +121,8 @@ enum class YouTubeAction(val wire: String) {
     SEEK("seek"),
     NEXT("next"),
     PREVIOUS("previous"),
+
+    /** YouTube's fullscreen player key, should the automatic one not have happened. */
+    FULLSCREEN("fullscreen"),
     CLOSE("close"),
 }

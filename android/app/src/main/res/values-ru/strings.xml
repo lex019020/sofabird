@@ -225,6 +225,7 @@
     <string name="action_youtube_show">Показать на ТВ</string>
     <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>
     <string name="action_youtube_close">Закрыть YouTube</string>
+    <string name="action_youtube_fullscreen">На весь экран</string>
     <string name="youtube_on_tv">YouTube</string>
     <string name="share_not_connected">Sofabird не подключён к ПК: видео не отправлено.</string>
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
