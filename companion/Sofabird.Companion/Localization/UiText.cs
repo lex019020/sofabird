@@ -20,7 +20,9 @@ internal static class UiText
     public static string PortFailed(object a0, object a1, object a2) => F("PortFailed", a0, a1, a2);
     /// <summary>Pair a phone</summary>
     public static string PairingTitle => S("PairingTitle");
-    /// <summary>Enter this code in the app on your phone. PC address: {0}</summary>
+    /// <summary>Sofabird · connecting a phone to this PC</summary>
+    public static string PairingBrand => S("PairingBrand");
+    /// <summary>Enter this code in Sofabird on your phone. This PC: {0}</summary>
     public static string PairingAddress(object a0) => F("PairingAddress", a0);
     /// <summary>Sofabird pairing code</summary>
     public static string PairingHeaderGeneric => S("PairingHeaderGeneric");

@@ -11,7 +11,8 @@
   <data name="PortFailed" xml:space="preserve"><value>Не удалось открыть порт {0}: {1}
 Измените wsPort в {2}.</value></data>
   <data name="PairingTitle" xml:space="preserve"><value>Сопряжение телефона</value></data>
-  <data name="PairingAddress" xml:space="preserve"><value>Введите код в приложении на телефоне. Адрес ПК: {0}</value></data>
+  <data name="PairingBrand" xml:space="preserve"><value>Sofabird · подключение телефона к этому ПК</value></data>
+  <data name="PairingAddress" xml:space="preserve"><value>Введите этот код в Sofabird на телефоне. Этот ПК: {0}</value></data>
   <data name="PairingHeaderGeneric" xml:space="preserve"><value>Код сопряжения Sofabird</value></data>
   <data name="PairingHeaderDevice" xml:space="preserve"><value>Телефон «{0}» хочет подключиться</value></data>
   <data name="PairingTimer" xml:space="preserve"><value>Код действует ещё {0}. Нажмите, чтобы закрыть окно.</value></data>
