@@ -176,7 +176,9 @@ internal static class Program
             var form = new SetupForm(setup, firstRun: true);
             form.Shown += (_, _) => form.BringToFrontActivated();
             earlySetup = form;
-            Application.Run(form);
+            // A modal loop, not Application.Run(form): when that main loop ends, WinForms destroys every window of the
+            // thread, the hidden `ui` control too, and later marshalling to the UI thread silently runs on the caller.
+            form.ShowDialog();
             earlySetup = null;
             form.Dispose();
             showSetup = false;
