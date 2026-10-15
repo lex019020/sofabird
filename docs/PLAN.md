@@ -345,6 +345,11 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [x] **Moonlight, first step** (user request): "Another PC's screen" in the "More" sheet starts Moonlight's stream of
       the paired computer's desktop on the TV (VLC paused) and ends it. Later: the app list (Steam Big Picture, games),
       choosing the host, placing the stream on the TV monitor, a game-session remote.
+- [ ] **YouTube on the TV** (user request): Firefox with a TV profile of its own (uBlock Origin possible; the user signs
+      in once), "Share → Sofabird" and a pasted link open the video fullscreen on the TV, the remote controls it through
+      Windows' media controls. Done: the link parsing, the TV browser and its media session, the protocol, the share
+      target, the link field, the remote's YouTube mode. Left: the setup window's items (install Firefox, "Sign in to
+      YouTube…", the opt-in uBlock Origin checkbox), recently sent videos on the phone.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
@@ -358,6 +363,12 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 ### M5 — Later
 Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x, TLS pinning,
 iOS via Compose Multiplatform.
+
+### Later ideas (user requests)
+- **The phone as a keyboard and touchpad** for the PC at the TV (signing in, searching, a Moonlight desktop).
+- **Casting from the YouTube app** to the PC through VacuumTube (YouTube's TV interface with DIAL discovery; sign-in
+  with a code on the phone); the companion would keep it running and switch the TV to it when a video starts.
+- **Moonlight, further:** other hosts and apps (Steam Big Picture), the stream on a chosen monitor, a game remote.
 
 ### Postponed
 - **TV control** (user decision 2026-10-13): Samsung UE55H6200 (2014, Orsay) — no HDMI-CEC on the laptop's

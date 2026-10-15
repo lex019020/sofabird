@@ -2,6 +2,7 @@ package app.sofabird.protocol.companion
 
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
+import app.sofabird.protocol.backend.YouTubeAction
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.PlaybackStatus
 import app.sofabird.protocol.model.TrackKind
@@ -264,5 +265,35 @@ class CompanionMessagesTest {
         ) as CompanionMessage.State
         assertEquals("GAMING-PC", state.system?.moonlightHost)
         assertEquals(true, state.system?.moonlightStreaming)
+    }
+
+    @Test
+    fun `youtube commands, capability and state`() {
+        fun obj(m: CompanionMessage) = CompanionCodec.json.parseToJsonElement(CompanionCodec.encode(m)) as JsonObject
+        fun JsonObject.args() = this["args"] as JsonObject
+
+        val open = obj(CommandMapping.toSys("1", SystemCommand.YouTubeOpen("Bunny https://youtu.be/aqz-KE-bpKQ")))
+        assertEquals("youtubeOpen", open["name"]!!.jsonPrimitive.content)
+        assertEquals("Bunny https://youtu.be/aqz-KE-bpKQ", open.args()["url"]!!.jsonPrimitive.content)
+        val seek = obj(CommandMapping.toSys("2", SystemCommand.YouTube(YouTubeAction.SEEK, -5.0)))
+        assertEquals("youtube", seek["name"]!!.jsonPrimitive.content)
+        assertEquals("seek", seek.args()["action"]!!.jsonPrimitive.content)
+        assertEquals("0.0", seek.args()["time"]!!.jsonPrimitive.content) // never negative
+        val close = obj(CommandMapping.toSys("3", SystemCommand.YouTube(YouTubeAction.CLOSE)))
+        assertNull(close.args()["time"])
+
+        assertTrue(Capabilities.fromWire(listOf("youtube")).youtube)
+
+        val state = known(
+            """{"t":"state","vlc":{"running":true},"youtube":{"open":true,"playing":true,"videoId":"aqz-KE-bpKQ","title":"Big Buck Bunny","channel":"Blender","time":60.0,"length":634.6,"canNext":false}}"""
+        ) as CompanionMessage.State
+        val yt = state.toPlayerState().youtube!!
+        assertEquals("Blender", yt.channel)
+        assertEquals("https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg", yt.thumbnailUrl)
+        // The position moves on from the arrival time while playing, and stops at the end.
+        val arrived = yt.copy(updatedAt = 1_000L)
+        assertEquals(70.0, arrived.interpolatedTime(11_000L), 0.001)
+        assertEquals(634.6, arrived.interpolatedTime(10_000_000L), 0.001)
+        assertEquals(60.0, arrived.copy(playing = false).interpolatedTime(11_000L), 0.001)
     }
 }

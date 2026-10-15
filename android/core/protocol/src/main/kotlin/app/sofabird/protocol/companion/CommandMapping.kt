@@ -84,6 +84,11 @@ object CommandMapping {
                 command.app?.let { put("app", it) }
             }
             SystemCommand.MoonlightStop -> "moonlightStop" to EMPTY
+            is SystemCommand.YouTubeOpen -> "youtubeOpen" to args { put("url", command.url) }
+            is SystemCommand.YouTube -> "youtube" to args {
+                put("action", command.action.wire)
+                command.time?.let { put("time", it.coerceAtLeast(0.0)) }
+            }
         }
         return CompanionMessage.Sys(id = id, name = name, args = args)
     }

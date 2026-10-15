@@ -169,6 +169,8 @@ public sealed class StateMessage : Message
     public HistoryInfo? History { get; set; }
     /// <summary>The library (<c>library</c> capability): phones re-read it when the revision changes.</summary>
     public LibraryInfo? Library { get; set; }
+    /// <summary>YouTube on the TV (<c>youtube</c> capability); absent without it.</summary>
+    public YouTubeInfo? YouTube { get; set; }
 }
 
 public sealed class ResumeInfo
@@ -191,6 +193,29 @@ public sealed class HistoryInfo
 {
     /// <summary>Changes whenever the history changes, so phones can refresh their lists.</summary>
     public long Revision { get; set; }
+}
+
+/// <summary>
+/// YouTube in the TV browser, as Windows' media controls report it: what plays and where. The position is the one
+/// at the last report, moved on by the time since while playing; phones interpolate from the arrival time.
+/// </summary>
+public sealed class YouTubeInfo
+{
+    /// <summary>The TV browser is open (it may show no video).</summary>
+    public bool Open { get; set; }
+    public bool Playing { get; set; }
+    /// <summary>The video last opened from a phone (thumbnails: <c>https://i.ytimg.com/vi/{id}/hqdefault.jpg</c>).</summary>
+    public string? VideoId { get; set; }
+    public string? Title { get; set; }
+    /// <summary>The channel.</summary>
+    public string? Channel { get; set; }
+    /// <summary>Position, seconds.</summary>
+    public double? Time { get; set; }
+    /// <summary>Duration, seconds; absent until the player reports it.</summary>
+    public double? Length { get; set; }
+    /// <summary>The playlist has a next / previous video.</summary>
+    public bool CanNext { get; set; }
+    public bool CanPrevious { get; set; }
 }
 
 public sealed class LibraryInfo

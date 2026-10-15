@@ -108,6 +108,9 @@ public sealed partial class VlcManager : IAsyncDisposable
     /// <summary>Provider of the <c>library</c> block of the state (revision, scanning).</summary>
     public Func<LibraryInfo?>? LibraryInfoProvider { get; set; }
 
+    /// <summary><c>state.youtube</c> (YouTube in the TV browser); <c>null</c> — not reported.</summary>
+    public Func<YouTubeInfo?>? YouTubeInfoProvider { get; set; }
+
     public event Action<StateMessage>? StateChanged;
     public event Action<EventMessage>? Event;
     public event Action? RunStateChanged;
@@ -432,6 +435,7 @@ public sealed partial class VlcManager : IAsyncDisposable
             Next = _history?.Next,
             HistoryRevision = _history?.Store.Revision,
             Library = LibraryInfoProvider?.Invoke(),
+            YouTube = YouTubeInfoProvider?.Invoke(),
         });
     }
 

@@ -1,0 +1,147 @@
+using Microsoft.Extensions.Logging;
+using Sofabird.Companion.Interop;
+using Sofabird.Core.Localization;
+using Sofabird.Core.Protocol;
+using Sofabird.Core.Session;
+using Sofabird.Core.YouTube;
+
+namespace Sofabird.Companion.YouTube;
+
+/// <summary>
+/// YouTube on the TV: a link from the phone opens in the TV browser in kiosk mode, the window is brought to the front
+/// and the player made fullscreen (YouTube's own "f" key); play/pause/seek/next go through Windows' media controls,
+/// which also report what plays for <c>state.youtube</c>.
+/// </summary>
+public sealed class YouTubeService : IDisposable
+{
+    private static readonly TimeSpan FrontTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan PlayingWait = TimeSpan.FromSeconds(20);
+
+    private readonly TvBrowser _browser;
+    private readonly YouTubeMediaSession _media;
+    private readonly ILogger _log;
+    private CancellationTokenSource? _fullscreen;
+    private string? _videoId;
+
+    public YouTubeService(TvBrowser browser, YouTubeMediaSession media, ILogger<YouTubeService> log)
+    {
+        _browser = browser;
+        _media = media;
+        _log = log;
+        _media.Changed += () => Changed?.Invoke();
+    }
+
+    /// <summary>Something changed on the TV (phones get the new state).</summary>
+    public event Action? Changed;
+
+    /// <summary>A browser for YouTube is installed (the <c>youtube</c> capability).</summary>
+    public bool Available => _browser.ExePath is not null;
+
+    /// <summary>Opens the video found in <paramref name="text"/> (a link or the text the YouTube app shares) on the TV.</summary>
+    public void Open(string text)
+    {
+        if (!Available) throw ProtocolException.Unsupported(ProtocolText.YouTubeNoBrowser);
+        var video = YouTubeLink.Parse(text) ?? throw ProtocolException.BadRequest(ProtocolText.YouTubeBadLink);
+        _videoId = video.VideoId;
+        _browser.Open(video.WatchUrl);
+        _fullscreen?.Cancel();
+        _fullscreen?.Dispose();
+        _fullscreen = new CancellationTokenSource(FrontTimeout + PlayingWait);
+        var ct = _fullscreen.Token;
+        _ = Task.Run(() => FrontAndFullscreenAsync(ct), CancellationToken.None); // outlives the request
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// The browser starts behind VLC (the companion runs in the background): waits for its window, brings it to the
+    /// front, waits until the video plays (the page has loaded) and presses "f" for YouTube's fullscreen player. A link
+    /// loaded into the open browser reloads the page, so this runs for every link.
+    /// </summary>
+    private async Task FrontAndFullscreenAsync(CancellationToken ct)
+    {
+        try
+        {
+            var window = IntPtr.Zero;
+            while (window == IntPtr.Zero)
+            {
+                await Task.Delay(500, ct).ConfigureAwait(false);
+                window = _browser.FindWindow();
+            }
+            ForegroundWindow.Activate(window);
+            var deadline = DateTime.UtcNow + PlayingWait;
+            while (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(700, ct).ConfigureAwait(false);
+                await _media.LearnAsync(_browser.WindowTitle()).ConfigureAwait(false);
+                if (_media.Read() is { Playing: true }) break;
+            }
+            await Task.Delay(800, ct).ConfigureAwait(false); // the player settles after it starts
+            if (ForegroundWindow.Activate(window))
+            {
+                ForegroundWindow.PressKey(NativeMethods.VK_F);
+                _log.LogInformation("YouTube on the TV: fullscreen player");
+            }
+            else
+            {
+                _log.LogWarning("YouTube on the TV: the browser could not be brought to the front");
+            }
+            Changed?.Invoke();
+        }
+        catch (OperationCanceledException)
+        {
+            // a newer link took over, or the browser never showed up
+        }
+    }
+
+    public async Task ControlAsync(string action, double? time)
+    {
+        if (!_browser.IsRunning()) throw ProtocolException.BadRequest(ProtocolText.YouTubeNotOpen);
+        var ok = action switch
+        {
+            "play" => await _media.PlayAsync().ConfigureAwait(false),
+            "pause" => await _media.PauseAsync().ConfigureAwait(false),
+            "toggle" => await _media.TogglePlayPauseAsync().ConfigureAwait(false),
+            "next" => await _media.NextAsync().ConfigureAwait(false),
+            "previous" => await _media.PreviousAsync().ConfigureAwait(false),
+            "seek" => await _media.SeekAsync(time ?? throw ProtocolException.BadRequest("seek requires 'time'")).ConfigureAwait(false),
+            "close" => Close(),
+            _ => throw ProtocolException.BadRequest($"unknown youtube action '{action}'"),
+        };
+        if (!ok) _log.LogDebug("YouTube {Action} was not accepted", action);
+        Changed?.Invoke();
+    }
+
+    private bool Close()
+    {
+        _fullscreen?.Cancel();
+        _browser.Close();
+        return true;
+    }
+
+    /// <summary><c>state.youtube</c>; <c>null</c> without a browser.</summary>
+    public YouTubeInfo? Info()
+    {
+        if (!Available) return null;
+        var open = _browser.IsRunning();
+        if (!open) return new YouTubeInfo { Open = false, VideoId = _videoId };
+        var playback = _media.Read();
+        return new YouTubeInfo
+        {
+            Open = true,
+            Playing = playback?.Playing == true,
+            VideoId = _videoId,
+            Title = playback?.Title,
+            Channel = playback?.Channel,
+            Time = playback?.Time is double t ? Math.Round(t, 1) : null,
+            Length = playback?.Length is double l ? Math.Round(l, 1) : null,
+            CanNext = playback?.CanNext == true,
+            CanPrevious = playback?.CanPrevious == true,
+        };
+    }
+
+    public void Dispose()
+    {
+        _fullscreen?.Cancel();
+        _fullscreen?.Dispose();
+    }
+}

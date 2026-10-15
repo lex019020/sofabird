@@ -103,4 +103,23 @@ sealed class SystemCommand {
 
     /** End the Moonlight stream on the TV. */
     data object MoonlightStop : SystemCommand()
+
+    /**
+     * Show a YouTube video on the TV: [url] is a link or the text the YouTube app shares; the companion keeps only the
+     * video id, playlist and start time. VLC is paused first.
+     */
+    data class YouTubeOpen(val url: String) : SystemCommand()
+
+    /** Control YouTube on the TV; [time] (seconds) only for [YouTubeAction.SEEK]. */
+    data class YouTube(val action: YouTubeAction, val time: Double? = null) : SystemCommand()
+}
+
+enum class YouTubeAction(val wire: String) {
+    PLAY("play"),
+    PAUSE("pause"),
+    TOGGLE("toggle"),
+    SEEK("seek"),
+    NEXT("next"),
+    PREVIOUS("previous"),
+    CLOSE("close"),
 }

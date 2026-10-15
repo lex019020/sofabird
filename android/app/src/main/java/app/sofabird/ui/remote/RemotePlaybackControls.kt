@@ -130,14 +130,43 @@ private const val POSITION_TICK_MS = 250L
 
 @Composable
 internal fun TransportRow(ui: RemoteUiState, actions: RemoteActions) {
-    val online = ui.connection.isOnline
-    val haptics = ui.settings.haptics
-    val playing = ui.state.playback.state == PlaybackStatus.PLAYING
     val short = ui.settings.seekShortSec.toLong()
     val long = ui.settings.seekLongSec.toLong()
+    TransportButtons(
+        playing = ui.state.playback.state == PlaybackStatus.PLAYING,
+        enabled = ui.connection.isOnline,
+        haptics = ui.settings.haptics,
+        backLabel = "−$short",
+        forwardLabel = "+$long",
+        onBack = { actions.seekBy(-short) },
+        onPrevious = { actions.send(PlayerCommand.Prev) },
+        onPlayPause = { actions.togglePause() },
+        onNext = { actions.send(PlayerCommand.Next) },
+        onForward = { actions.seekBy(long) },
+    )
+}
+
+/**
+ * The five round transport buttons: back, previous, play/pause, next, forward. Four 64 dp buttons and the 88 dp play
+ * button need 344 dp plus gaps; a 360 dp phone has less once the screen padding is taken, so all five scale together
+ * and stay round and alike instead of the last ones squeezing. Shared by VLC and YouTube on the TV.
+ */
+@Composable
+internal fun TransportButtons(
+    playing: Boolean,
+    enabled: Boolean,
+    haptics: Boolean,
+    backLabel: String,
+    forwardLabel: String,
+    onBack: () -> Unit,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onForward: () -> Unit,
+    previousEnabled: Boolean = enabled,
+    nextEnabled: Boolean = enabled,
+) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        // Four 64 dp buttons and the 88 dp play button need 344 dp plus gaps; a 360 dp phone has less once the screen
-        // padding is taken. Scale all five together, so they stay round and alike instead of the last ones squeezing.
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val needed = TRANSPORT_BUTTON * 4 + TRANSPORT_PLAY + TRANSPORT_MIN_GAP * 4
             val scale = (maxWidth / needed).coerceAtMost(1f)
@@ -151,50 +180,50 @@ internal fun TransportRow(ui: RemoteUiState, actions: RemoteActions) {
                 RemoteButton(
                     icon = Icons.Default.Replay10,
                     contentDescription = stringResource(R.string.action_seek_back),
-                    onClick = { actions.seekBy(-short) },
+                    onClick = onBack,
                     size = button,
                     iconSize = icon,
-                    label = "−$short",
-                    enabled = online,
+                    label = backLabel,
+                    enabled = enabled,
                     repeatOnHold = true,
                     haptics = haptics,
                 )
                 RemoteButton(
                     icon = Icons.Default.SkipPrevious,
                     contentDescription = stringResource(R.string.action_prev),
-                    onClick = { actions.send(PlayerCommand.Prev) },
+                    onClick = onPrevious,
                     size = button,
                     iconSize = icon,
-                    enabled = online,
+                    enabled = previousEnabled,
                     haptics = haptics,
                 )
                 RemoteButton(
                     icon = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = stringResource(if (playing) R.string.action_pause else R.string.action_play),
-                    onClick = { actions.togglePause() },
+                    onClick = onPlayPause,
                     size = TRANSPORT_PLAY * scale,
                     iconSize = 44.dp * scale,
                     filled = true,
-                    enabled = online,
+                    enabled = enabled,
                     haptics = haptics,
                 )
                 RemoteButton(
                     icon = Icons.Default.SkipNext,
                     contentDescription = stringResource(R.string.action_next),
-                    onClick = { actions.send(PlayerCommand.Next) },
+                    onClick = onNext,
                     size = button,
                     iconSize = icon,
-                    enabled = online,
+                    enabled = nextEnabled,
                     haptics = haptics,
                 )
                 RemoteButton(
                     icon = Icons.Default.Forward30,
                     contentDescription = stringResource(R.string.action_seek_forward),
-                    onClick = { actions.seekBy(long) },
+                    onClick = onForward,
                     size = button,
                     iconSize = icon,
-                    label = "+$long",
-                    enabled = online,
+                    label = forwardLabel,
+                    enabled = enabled,
                     repeatOnHold = true,
                     haptics = haptics,
                 )

@@ -18,6 +18,7 @@ import app.sofabird.protocol.model.TrackKind
 import app.sofabird.protocol.model.VlcInfo
 import app.sofabird.protocol.model.VlcProcessStatus
 import app.sofabird.protocol.model.VlcVolume
+import app.sofabird.protocol.model.YouTubeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +70,10 @@ data class RemoteUiState(
         } else {
             null
         }
+
+    /** YouTube is open in the TV browser: the remote controls it instead of VLC; `null` = it is not. */
+    val youtube: YouTubeState?
+        get() = state.youtube?.takeIf { it.open && capabilities.youtube && connection.isOnline }
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)

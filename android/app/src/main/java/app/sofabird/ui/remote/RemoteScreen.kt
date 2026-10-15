@@ -3,6 +3,7 @@ package app.sofabird.ui.remote
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -24,16 +25,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.R
 import app.sofabird.data.history.WatchPrompts
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
+import app.sofabird.protocol.backend.YouTubeAction
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.protocol.model.TrackKind
 import app.sofabird.protocol.model.TrackKind.AUDIO
 import app.sofabird.protocol.model.TrackKind.SUBTITLE
+import app.sofabird.protocol.model.VlcProcessStatus
+import app.sofabird.protocol.model.YouTubeState
 import app.sofabird.ui.history.NextEpisodeCard
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -59,7 +64,9 @@ interface RemoteActions {
     fun openDisplays() {}
     fun openMore() {}
     fun openConnection() {}
-    fun endStream() {}
+
+    /** PC-side commands: end a Moonlight stream, control YouTube on the TV, the PC's volume. */
+    fun system(command: SystemCommand) {}
 }
 
 @Composable
@@ -99,7 +106,7 @@ fun RemoteScreen(
                 moreSheet = true
             }
             override fun openConnection() = openConnection()
-            override fun endStream() = viewModel.sendSystem(SystemCommand.MoonlightStop)
+            override fun system(command: SystemCommand) = viewModel.sendSystem(command)
         }
     }
 
@@ -130,6 +137,11 @@ fun RemoteScreen(
  */
 @Composable
 fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions) {
+    // What the TV shows decides the remote: a Moonlight stream, YouTube in the browser, or VLC.
+    val streaming = ui.streamingHost
+    val youtube = ui.youtube.takeIf { streaming == null }
+    val block = ui.vlcBlock.takeIf { streaming == null && youtube == null }
+    val onYouTube: (YouTubeAction, Double?) -> Unit = { action, time -> actions.system(SystemCommand.YouTube(action, time)) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
         if (landscape) {
@@ -142,15 +154,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    val streaming = ui.streamingHost
-                    if (streaming != null) {
-                        StreamingCard(streaming, ui.settings.haptics, onEnd = actions::endStream)
-                    } else {
-                        Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
-                        Spacer(Modifier.height(8.dp))
-                        if (ui.vlcBlock == null) TitleBlock(ui)
-                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
-                    }
+                    NowOnTv(ui, streaming, youtube, block, next, actions, gap = 8.dp)
                     OfflineCard(ui, actions::openConnection)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                 }
@@ -161,17 +165,21 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    val block = ui.vlcBlock
-                    if (ui.streamingHost != null) {
-                        Spacer(Modifier.height(8.dp))
-                    } else if (block != null) {
-                        VlcStateCard(block, ui, onLaunch = actions::launchVlc)
-                    } else {
-                        ScrubBar(ui, actions)
-                        TransportRow(ui, actions)
-                        VolumeRow(ui, actions)
+                    when {
+                        streaming != null -> Spacer(Modifier.height(8.dp))
+                        youtube != null -> {
+                            YouTubeScrubBar(youtube, ui.connection.isOnline) { onYouTube(YouTubeAction.SEEK, it) }
+                            YouTubeTransport(youtube, ui, onYouTube)
+                            YouTubeVolume(ui, actions)
+                        }
+                        block != null -> VlcStateCard(block, ui, onLaunch = actions::launchVlc)
+                        else -> {
+                            ScrubBar(ui, actions)
+                            TransportRow(ui, actions)
+                            VolumeRow(ui, actions)
+                        }
                     }
-                    QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
+                    BottomActions(ui, youtube != null, actions)
                 }
             }
         } else {
@@ -180,9 +188,6 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
             ) {
-                val streaming = ui.streamingHost
-                // A Moonlight stream covers the TV: VLC's cover, title, state and controls give way to its card.
-                val block = ui.vlcBlock.takeIf { streaming == null }
                 // The upper part: the title and the cards (next episode, offline, Bluetooth, VLC state) are measured
                 // first, the cover takes the height they leave (keeping 16:9), and the block sits in the middle.
                 // The playback controls below always stay on screen.
@@ -194,29 +199,86 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Spacer(Modifier.height(8.dp))
-                    if (streaming != null) {
-                        StreamingCard(streaming, ui.settings.haptics, onEnd = actions::endStream)
-                    } else {
-                        Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
-                        Spacer(Modifier.height(12.dp))
-                        if (block == null) TitleBlock(ui)
-                        next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
-                    }
+                    NowOnTv(ui, streaming, youtube, block, next, actions, gap = 12.dp)
                     OfflineCard(ui, actions::openConnection)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                     if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                 }
-                QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
-                if (block == null && streaming == null) {
-                    ScrubBar(ui, actions)
-                    VolumeRow(ui, actions)
-                    Spacer(Modifier.height(4.dp))
-                    TransportRow(ui, actions)
+                BottomActions(ui, youtube != null, actions)
+                when {
+                    youtube != null -> {
+                        YouTubeScrubBar(youtube, ui.connection.isOnline) { onYouTube(YouTubeAction.SEEK, it) }
+                        YouTubeVolume(ui, actions)
+                        Spacer(Modifier.height(4.dp))
+                        YouTubeTransport(youtube, ui, onYouTube)
+                    }
+                    block == null && streaming == null -> {
+                        ScrubBar(ui, actions)
+                        VolumeRow(ui, actions)
+                        Spacer(Modifier.height(4.dp))
+                        TransportRow(ui, actions)
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
             }
         }
     }
+}
+
+/**
+ * The upper block: what is on the TV. A Moonlight stream's card, YouTube's thumbnail and title, or VLC's cover,
+ * title and next-episode offer. The cover takes the height the rest leaves.
+ */
+@Composable
+private fun ColumnScope.NowOnTv(
+    ui: RemoteUiState,
+    streaming: String?,
+    youtube: YouTubeState?,
+    block: VlcProcessStatus?,
+    next: NextEpisode?,
+    actions: RemoteActions,
+    gap: Dp,
+) {
+    when {
+        streaming != null -> StreamingCard(streaming, ui.settings.haptics, onEnd = { actions.system(SystemCommand.MoonlightStop) })
+        youtube != null -> {
+            YouTubeArtwork(youtube, ui.settings.haptics, Modifier.weight(1f, fill = false)) {
+                actions.system(SystemCommand.YouTube(YouTubeAction.CLOSE))
+            }
+            Spacer(Modifier.height(gap))
+            YouTubeTitleBlock(youtube)
+        }
+        else -> {
+            Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
+            Spacer(Modifier.height(gap))
+            if (block == null) TitleBlock(ui)
+            next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
+        }
+    }
+}
+
+/** VLC's tracks, display and "More"; with YouTube on the TV only "More" (VLC's tracks do not apply). */
+@Composable
+private fun BottomActions(ui: RemoteUiState, youtube: Boolean, actions: RemoteActions) {
+    if (youtube) {
+        QuickActionsRow(listOf(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore)))
+    } else {
+        QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
+    }
+}
+
+/** The PC's volume for YouTube (the browser plays through Windows, not VLC). */
+@Composable
+private fun YouTubeVolume(ui: RemoteUiState, actions: RemoteActions) {
+    if (!ui.capabilities.systemVolume) return
+    val system = ui.state.system
+    SystemVolumeRow(
+        volume = system?.volume,
+        muted = system?.muted == true,
+        enabled = ui.connection.isOnline,
+        onSet = { actions.system(SystemCommand.SystemVolume(value = it.coerceIn(0, 100))) },
+        onToggleMute = { actions.system(SystemCommand.SystemVolume(mute = system?.muted != true)) },
+    )
 }
 
 @Composable

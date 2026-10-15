@@ -24,6 +24,7 @@ import app.sofabird.protocol.model.Tracks
 import app.sofabird.protocol.model.VideoState
 import app.sofabird.protocol.model.VlcInfo
 import app.sofabird.protocol.model.Volume
+import app.sofabird.protocol.model.YouTubeState
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -186,12 +187,14 @@ sealed class CompanionMessage {
         val history: HistoryInfo? = null,
         /** `library`: library revision. */
         val library: LibraryInfo? = null,
+        /** `youtube`: YouTube in the TV browser. */
+        val youtube: YouTubeState? = null,
         override val id: String? = null,
     ) : CompanionMessage() {
         fun toPlayerState(): PlayerState = PlayerState(
             vlc = vlc, playback = playback, item = item, tracks = tracks, chapters = chapters,
             titles = titles, volume = volume, video = video, delays = delays, flags = flags, system = system,
-            resume = resume, next = next, history = history, library = library,
+            resume = resume, next = next, history = history, library = library, youtube = youtube,
         )
 
         companion object {
@@ -200,6 +203,7 @@ sealed class CompanionMessage {
                 chapters = state.chapters, titles = state.titles, volume = state.volume,
                 video = state.video, delays = state.delays, flags = state.flags, system = state.system,
                 resume = state.resume, next = state.next, history = state.history, library = state.library,
+                youtube = state.youtube,
             )
         }
     }

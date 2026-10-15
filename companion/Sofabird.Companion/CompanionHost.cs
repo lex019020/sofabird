@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Sofabird.Companion.Net;
 using Sofabird.Companion.Services;
 using Sofabird.Companion.Vlc;
+using Sofabird.Companion.YouTube;
 using Sofabird.Core.Displays;
 using Sofabird.Core.History;
 using Sofabird.Core.Pairing;
@@ -25,13 +26,14 @@ public sealed class CompanionHost : ISessionHost
     private readonly BackgroundWork _background;
     private readonly LibraryService _library;
     private readonly MoonlightService _moonlight;
+    private readonly YouTubeService _youtube;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
-        LibraryService library, MoonlightService moonlight, ILogger<CompanionHost> log)
+        LibraryService library, MoonlightService moonlight, YouTubeService youtube, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -44,6 +46,7 @@ public sealed class CompanionHost : ISessionHost
         _background = background;
         _library = library;
         _moonlight = moonlight;
+        _youtube = youtube;
         _log = log;
         _baseCaps =
         [
@@ -59,6 +62,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Library,
             .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
             .. moonlight.ExePath is null ? Array.Empty<string>() : [Core.Protocol.Caps.Moonlight],
+            .. youtube.Available ? [Core.Protocol.Caps.YouTube] : Array.Empty<string>(),
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
         var migrated = false;
@@ -84,6 +88,8 @@ public sealed class CompanionHost : ISessionHost
         _vlc.LibraryInfoProvider = () => _library.Info;
         _library.Changed += _vlc.Poke;
         _moonlight.Changed += _vlc.Poke;
+        _youtube.Changed += _vlc.Poke;
+        _vlc.YouTubeInfoProvider = _youtube.Info;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -259,6 +265,17 @@ public sealed class CompanionHost : ISessionHost
                 if (_vlc.IsPlaying) await _vlc.PauseAsync(ct).ConfigureAwait(false);
                 await _moonlight.StartAsync(args.GetString("host"), args.GetString("app"), ct).ConfigureAwait(false);
                 _vlc.Poke();
+                return null;
+
+            case "youtubeOpen":
+                // The TV browser covers VLC: a movie playing behind it would go on unseen.
+                if (_vlc.IsPlaying) await _vlc.PauseAsync(ct).ConfigureAwait(false);
+                _youtube.Open(args.RequireString("url"));
+                _vlc.Poke();
+                return null;
+
+            case "youtube":
+                await _youtube.ControlAsync(args.RequireString("action"), args.GetDouble("time")).ConfigureAwait(false);
                 return null;
 
             case "moonlightStop":

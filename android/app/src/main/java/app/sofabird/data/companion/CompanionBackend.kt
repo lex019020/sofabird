@@ -360,6 +360,7 @@ class CompanionBackend(
                     if (s.playback.updatedAt <= 0) {
                         s = s.copy(playback = s.playback.copy(updatedAt = System.currentTimeMillis()))
                     }
+                    s.youtube?.let { yt -> s = s.copy(youtube = yt.copy(updatedAt = System.currentTimeMillis())) }
                     _state.value = s
                     if (_connection.value !is ConnectionState.Connected && transport === t) {
                         _connection.value = ConnectionState.Connected(hostName, 2, transport = t.kind)
