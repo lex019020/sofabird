@@ -353,7 +353,7 @@ shares) are the phone's library of movies and series (`Services/LibraryService.c
 
 When Moonlight (Moonlight-qt, installed and paired with a Sunshine host by the user) is found in Program Files or
 `%LOCALAPPDATA%\Programs`, the companion reports the `moonlight` cap. `sys moonlightStart` pauses VLC, closes
-Moonlight's own window and runs `Moonlight.exe stream <host> Desktop --display-mode fullscreen --keep-awake`;
+Moonlight's own window and runs `Moonlight.exe stream <host> Desktop --display-mode borderless --keep-awake`;
 `sys moonlightStop` runs `Moonlight.exe quit <host>` and closes whatever Moonlight window is left. The paired
 computers and their apps are read from Moonlight's settings (`HKCU\Software\Moonlight Game Streaming Project\Moonlight\hosts`);
 `state.system.moonlightHost` is the first one, `moonlightStreaming` is true while any `Moonlight.exe stream …` runs (also one

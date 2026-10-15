@@ -20,6 +20,8 @@ public sealed class MoonlightService : IDisposable
     private static readonly TimeSpan StartCheck = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan QuitTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan FrontTimeout = TimeSpan.FromSeconds(30);
+    private const string StreamWindowClass = "SDL_app";
 
     private readonly ILogger _log;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -140,11 +142,46 @@ public sealed class MoonlightService : IDisposable
             }
             if (process.HasExited && process.ExitCode != 0)
                 throw ProtocolException.BadRequest(ProtocolText.MoonlightStartFailed(process.ExitCode));
+            _ = Task.Run(() => BringStreamToFrontAsync(process), CancellationToken.None); // outlives the request
             Changed?.Invoke();
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The companion runs in the background, so Windows opens Moonlight's stream window behind VLC (and SDL minimises a
+    /// fullscreen window without focus). Waits up to <see cref="FrontTimeout"/> for the stream window and brings it to
+    /// the front, restored; it is checked a few times, as Moonlight may still settle its mode right after showing it.
+    /// </summary>
+    private async Task BringStreamToFrontAsync(Process process)
+    {
+        var deadline = DateTime.UtcNow + FrontTimeout;
+        var inFront = 0;
+        try
+        {
+            while (DateTime.UtcNow < deadline && !process.HasExited)
+            {
+                var windows = ForegroundWindow.WindowsOf(process.Id);
+                var stream = windows.FirstOrDefault(h => ForegroundWindow.ClassName(h) == StreamWindowClass);
+                if (stream != IntPtr.Zero && ForegroundWindow.Activate(stream) && ++inFront >= 3)
+                {
+                    _log.LogInformation("Moonlight's stream window is in front");
+                    return;
+                }
+                await Task.Delay(500).ConfigureAwait(false);
+            }
+            if (!process.HasExited)
+            {
+                var classes = ForegroundWindow.WindowsOf(process.Id).Select(ForegroundWindow.ClassName);
+                _log.LogWarning("Moonlight's stream window did not come to the front; its windows: {Classes}", string.Join(", ", classes));
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException or System.ComponentModel.Win32Exception)
+        {
+            _log.LogDebug(ex, "Watching Moonlight's window stopped");
         }
     }
 

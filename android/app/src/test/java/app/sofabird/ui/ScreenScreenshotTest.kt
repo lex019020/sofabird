@@ -28,6 +28,7 @@ import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlayingItem
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
+import app.sofabird.protocol.model.SystemState
 import app.sofabird.protocol.model.Track
 import app.sofabird.protocol.model.Tracks
 import app.sofabird.protocol.model.VlcInfo
@@ -106,6 +107,18 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun remoteVlcNotRunning() = snapshot("remote_vlc_not_running") {
         val state = playing.copy(state = PlayerState(vlc = VlcInfo(running = false, level = 2, status = VlcProcessStatus.NOT_RUNNING)))
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteStreaming() = snapshot("remote_streaming") {
+        val state = playing.copy(
+            state = playing.state.copy(
+                playback = playing.state.playback.copy(state = PlaybackStatus.PAUSED),
+                system = SystemState(moonlightHost = "GAMING-PC", moonlightStreaming = true),
+            ),
+            capabilities = Capabilities(playing.capabilities.flags + Capability.MOONLIGHT),
+        )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 

@@ -12,8 +12,12 @@ public static class MoonlightCommandLine
     /// <summary>Sunshine's app that streams the host's whole screen.</summary>
     public const string DesktopApp = "Desktop";
 
+    /// <summary>
+    /// Borderless rather than exclusive fullscreen: it covers the screen just the same, but is not minimised when it loses
+    /// focus (Moonlight is started from the background, behind VLC).
+    /// </summary>
     public static IReadOnlyList<string> Stream(string host, string app) =>
-        ["stream", host, app, "--display-mode", "fullscreen", "--keep-awake"];
+        ["stream", host, app, "--display-mode", "borderless", "--keep-awake"];
 
     public static IReadOnlyList<string> Quit(string host) => ["quit", host];
 

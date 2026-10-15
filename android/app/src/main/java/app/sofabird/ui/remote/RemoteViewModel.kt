@@ -59,6 +59,17 @@ data class RemoteUiState(
 ) {
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
 
+    /**
+     * A Moonlight stream is on the TV instead of VLC: the computer it shows (`""` when unknown); `null` = no stream.
+     * The remote then shows a streaming card instead of the movie and its controls.
+     */
+    val streamingHost: String?
+        get() = if (connection.isOnline && capabilities.moonlight && state.system?.moonlightStreaming == true) {
+            state.system?.moonlightHost.orEmpty()
+        } else {
+            null
+        }
+
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
 

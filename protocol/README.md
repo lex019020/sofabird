@@ -117,7 +117,7 @@ and state changes arrive in a separate `state`.
 | `moonlightStop` | — | `moonlight` |
 
 Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
-window and runs `Moonlight.exe stream <host> <app> --display-mode fullscreen`; an already running stream is kept.
+window and runs `Moonlight.exe stream <host> <app> --display-mode borderless`; an already running stream is kept.
 `moonlightStop` runs `Moonlight.exe quit <host>` for the streamed host (the app on the host ends, and so does the
 stream) and closes any Moonlight window left. Errors: `unsupported` (not installed), `bad_request` (no paired
 computer, or Moonlight exited at once). `state.system.moonlightHost` is the first paired computer (absent — none),
