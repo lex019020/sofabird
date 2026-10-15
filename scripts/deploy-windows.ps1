@@ -140,6 +140,11 @@ function Remove-LegacyInstall {
     # Both earlier installs run as VlcRemote.Companion.exe and would hold the same ports as Sofabird.
     $procs = Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue
     if ($procs) { $procs | Stop-Process -Force; Start-Sleep -Milliseconds 500 }
+    # Read the old autostart first: the old uninstaller removes it.
+    if ((Get-ItemProperty -Path $RunKey -Name $LegacyRunValue -ErrorAction SilentlyContinue).$LegacyRunValue) {
+        Remove-ItemProperty -Path $RunKey -Name $LegacyRunValue
+        $script:Autostart = $true   # it was on for the old name: keep it on for Sofabird
+    }
     $found = $false
     foreach ($d in $LegacyDirs) { if (Test-Path $d) { Remove-Item $d -Recurse -Force; $found = $true } }
     $update = Join-Path $LegacyInstallRoot 'Update.exe'
@@ -150,10 +155,6 @@ function Remove-LegacyInstall {
     }
     $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'VLC Remote Companion.lnk'
     if (Test-Path $lnk) { Remove-Item $lnk -Force }
-    if ((Get-ItemProperty -Path $RunKey -Name $LegacyRunValue -ErrorAction SilentlyContinue).$LegacyRunValue) {
-        Remove-ItemProperty -Path $RunKey -Name $LegacyRunValue
-        $script:Autostart = $true   # it was on for the old name: keep it on for Sofabird
-    }
     if ($found) { Write-Ok 'VLC Remote Companion (the earlier name) is uninstalled; Sofabird takes its settings and history over' }
 }
 
