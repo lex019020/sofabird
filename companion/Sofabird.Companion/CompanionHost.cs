@@ -213,7 +213,22 @@ public sealed class CompanionHost : ISessionHost
 
     public Task<StateMessage> GetStateAsync(CancellationToken ct) => _vlc.GetStateAsync(ct);
 
-    public Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct) => _vlc.ExecuteCommandAsync(name, args, ct);
+    public Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct)
+    {
+        // One thing on the TV at a time: the TV browser would cover what VLC starts, and the phones would stay in
+        // their YouTube mode.
+        if (StartsVlcItem(name, args)) _youtube.CloseForVlc();
+        return _vlc.ExecuteCommandAsync(name, args, ct);
+    }
+
+    /// <summary>A file opened from the phone, VLC started, or another playlist item chosen.</summary>
+    private static bool StartsVlcItem(string name, CommandArgs args) => name switch
+    {
+        "open" => !(args.GetBool("enqueue") ?? false),
+        "launch" => true,
+        "play" => args.GetInt("plId") is not null,
+        _ => false,
+    };
 
     public async Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
     {

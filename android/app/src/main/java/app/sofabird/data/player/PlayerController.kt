@@ -19,7 +19,9 @@ import app.sofabird.domain.model.mergeSighting
 import app.sofabird.protocol.backend.PlayerBackend
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
+import app.sofabird.protocol.backend.onTv
 import app.sofabird.protocol.backend.resultOf
+import app.sofabird.protocol.backend.routeToYouTube
 import app.sofabird.protocol.companion.AudioDevice
 import app.sofabird.protocol.companion.DisplayList
 import app.sofabird.protocol.model.Capabilities
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -93,6 +96,14 @@ class PlayerController(
 
     val state: StateFlow<PlayerState> = _backend
         .flatMapLatest { it?.state ?: flowOf(PlayerState.EMPTY) }
+        .stateIn(scope, SharingStarted.Eagerly, PlayerState.EMPTY)
+
+    /**
+     * What the TV shows as a player: YouTube while it is open in the TV browser, otherwise VLC ([PlayerState.onTv]).
+     * The media notification, the lock screen and the volume keys follow it; commands are routed the same way.
+     */
+    val onTv: StateFlow<PlayerState> = state
+        .map { it.onTv() }
         .stateIn(scope, SharingStarted.Eagerly, PlayerState.EMPTY)
 
     val capabilities: StateFlow<Capabilities> = _backend
@@ -236,11 +247,14 @@ class PlayerController(
         scope.launch { sendAwait(command) }
     }
 
-    suspend fun sendAwait(command: PlayerCommand): Result<Unit> =
-        withBackend { it.send(command) }.onFailure { e ->
+    /** Transport and volume go to YouTube while it is open on the TV ([PlayerState.routeToYouTube]). */
+    suspend fun sendAwait(command: PlayerCommand): Result<Unit> {
+        state.value.routeToYouTube(command, System.currentTimeMillis())?.let { return sendSystemAwait(it) }
+        return withBackend { it.send(command) }.onFailure { e ->
             Log.d(TAG, "command $command failed: ${e.message}")
             _events.tryEmit(PlayerEvent.CommandFailed(command, e))
         }
+    }
 
     /** Like [sendAwait] but without the "command failed" event: the caller reports the outcome itself. */
     suspend fun sendQuiet(command: PlayerCommand): Result<Unit> = withBackend { it.send(command) }
@@ -259,14 +273,14 @@ class PlayerController(
 
     suspend fun listDisplays(): Result<DisplayList> = withBackend { it.listDisplays() }
 
-    /** Hardware volume keys: ±[delta] VLC units, then report the resulting percentage. */
+    /** Hardware volume keys: ±[delta] VLC units (the PC's volume while YouTube is on the TV), then report the percentage. */
     fun adjustVolume(delta: Int) {
         scope.launch {
-            val before = state.value.volume.value
+            val before = onTv.value.volume.value
             val target = VlcVolume.clamp(before + delta)
             val result = sendAwait(PlayerCommand.SetVolume(target))
             if (result.isSuccess) {
-                _events.tryEmit(PlayerEvent.VolumeChanged(state.value.volume.percent))
+                _events.tryEmit(PlayerEvent.VolumeChanged(onTv.value.volume.percent))
             }
         }
     }

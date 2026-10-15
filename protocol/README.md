@@ -131,8 +131,10 @@ browser profile of its own for the TV (`tv-browser` in its data folder; the user
 `/live/ID`, with `list` and `t` kept) and opens only the canonical watch page built from it, never the text itself;
 VLC is paused first. The browser starts in kiosk mode, comes to the front and YouTube's player is made fullscreen.
 `youtube` controls it through Windows' media controls (SMTC); `fullscreen` brings the browser to the front and
-presses YouTube's `f` again (the automatic one waits for the video itself, after the ads); `close` closes the TV browser. Errors: `unsupported`
-(no browser), `bad_request` (not a YouTube video link, YouTube not open). The state:
+presses YouTube's `f` again (the automatic one waits for the video itself, after the ads); `close` closes the TV
+browser. One thing on the TV at a time: `cmd open` (not `enqueue`), `cmd launch` and `cmd play` with a `plId` close the
+TV browser too, so that VLC is what the TV shows. Errors: `unsupported` (no browser), `bad_request` (not a YouTube
+video link, YouTube not open). The state:
 
 ```json
 "youtube": {"open": true, "playing": true, "videoId": "aqz-KE-bpKQ", "title": "Big Buck Bunny", "channel": "Blender",

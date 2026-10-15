@@ -129,6 +129,15 @@ public sealed class YouTubeService : IDisposable
         return true;
     }
 
+    /// <summary>VLC starts something from the phone: the TV browser goes away so that VLC is what the TV shows.</summary>
+    public void CloseForVlc()
+    {
+        if (!Available || !_browser.IsRunning()) return;
+        _log.LogInformation("YouTube on the TV: closed, VLC takes the TV");
+        Close();
+        Changed?.Invoke();
+    }
+
     private bool Close()
     {
         _fullscreen?.Cancel();

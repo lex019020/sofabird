@@ -372,7 +372,9 @@ runs `firefox.exe -profile <tv-browser> -kiosk <watch url>` (or loads the url in
 starts behind VLC, so the companion waits for its window, brings it to the front, waits until the video plays and
 presses `f` for YouTube's fullscreen player. Play/pause/seek/next/previous go through Windows' media controls: Firefox
 publishes the page's media session (title, channel, position); the TV profile's session is learnt once by matching its
-title with the browser's window title and kept in `youTubeSessionId`. `close` sends `WM_CLOSE` to the profile's windows.
+title with the browser's window title and kept in `youTubeSessionId`. `close` sends `WM_CLOSE` to the profile's windows;
+so does VLC starting something from the phone (`cmd open`, `launch`, `play` with a `plId`), so that the browser does not
+cover it.
 
 ## Tray menu
 
