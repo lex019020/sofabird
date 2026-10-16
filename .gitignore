@@ -27,3 +27,4 @@ android/app/src/test/screenshots/*_actual.png
 
 # The TV extension's unsigned pack (scripts/sign_extension.py pack)
 companion/tv-extension/build/
+__pycache__/
