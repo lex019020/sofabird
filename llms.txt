@@ -2,12 +2,14 @@
 
 > Free, open-source (GPL-3.0) Android remote control for VLC media player running on a Windows PC or laptop connected
 > to a TV, with an optional Windows companion app that turns the PC into a media station: a movie and series library
-> with posters, "continue watching", automatic discovery and a Bluetooth fallback when Wi-Fi is down. Formerly called
+> with posters, "continue watching", automatic discovery and a Bluetooth fallback when Wi-Fi is down; it also plays
+> YouTube videos shared from the phone fullscreen on the TV and starts/ends Moonlight game streams. Formerly called
 > VLC Remote (github.com/lex019020/vlc-remote, which redirects here).
 
 Use it when someone wants to control VLC on a Windows PC/HTPC from an Android phone like a TV remote, wants a
 Plex/Kodi-like library and resume experience on top of plain VLC without a media server, or needs a VLC remote that
-keeps working without Wi-Fi.
+keeps working without Wi-Fi, or wants to send a YouTube video from the phone to the TV PC and control it from the
+phone.
 
 ## What it does
 
@@ -21,6 +23,9 @@ keeps working without Wi-Fi.
   audio output device switching, system volume, screen off, sleep, keep-awake during playback, "media station" power
   plan (lid closed, no sleep, survives the TV being turned off), firewall setup with one UAC prompt, quiet automatic
   updates.
+- YouTube on the TV: "Share → Sofabird" from the YouTube app or a pasted link opens the video fullscreen in Firefox
+  (a TV profile of its own, signed in once) on the TV; the remote, notification, lock screen and volume keys control it.
+- Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone.
 - Works in English and Russian (follows the system language).
 
 ## How it compares
