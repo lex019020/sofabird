@@ -220,6 +220,10 @@ public sealed class YouTubeInfo
     /// <summary>The playlist has a next / previous video.</summary>
     public bool CanNext { get; set; }
     public bool CanPrevious { get; set; }
+    /// <summary>An ad plays (the TV extension tells; <c>time</c>/<c>length</c> are the ad's then).</summary>
+    public bool Ad { get; set; }
+    /// <summary>The ad can be skipped now (<c>sys youtube {"action": "skipAd"}</c>).</summary>
+    public bool AdSkippable { get; set; }
 }
 
 public sealed class LibraryInfo

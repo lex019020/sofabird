@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Subtitles
@@ -180,7 +181,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                             VolumeRow(ui, actions)
                         }
                     }
-                    BottomActions(ui, youtube != null, actions)
+                    BottomActions(ui, youtube, actions)
                 }
             }
         } else {
@@ -205,7 +206,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                     if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                 }
-                BottomActions(ui, youtube != null, actions)
+                BottomActions(ui, youtube, actions)
                 when {
                     youtube != null -> {
                         YouTubeScrubBar(youtube, ui.connection.isOnline) { onYouTube(YouTubeAction.SEEK, it) }
@@ -258,21 +259,44 @@ private fun ColumnScope.NowOnTv(
     }
 }
 
-/** VLC's tracks, display and "More"; with YouTube on the TV "Fullscreen" and "More" (VLC's tracks do not apply). */
+/**
+ * VLC's tracks, the TV screen and "More"; with YouTube on the TV "Skip" (while an ad can be skipped), "Fullscreen", the
+ * TV screen and "More" (VLC's tracks do not apply).
+ */
 @Composable
-private fun BottomActions(ui: RemoteUiState, youtube: Boolean, actions: RemoteActions) {
-    if (youtube) {
-        QuickActionsRow(
-            listOf(
-                QuickAction(Icons.Default.Fullscreen, stringResource(R.string.action_youtube_fullscreen), null, ui.connection.isOnline) {
+private fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: RemoteActions) {
+    if (youtube != null) {
+        val online = ui.connection.isOnline
+        val list = buildList {
+            if (youtube.adSkippable) {
+                val skip = stringResource(R.string.action_skip_ad)
+                add(
+                    QuickAction(Icons.Default.FastForward, stringResource(R.string.youtube_ad), skip, online) {
+                        actions.system(SystemCommand.YouTube(YouTubeAction.SKIP_AD))
+                    },
+                )
+            }
+            add(
+                QuickAction(Icons.Default.Fullscreen, stringResource(R.string.action_youtube_fullscreen), null, online) {
                     actions.system(SystemCommand.YouTube(YouTubeAction.FULLSCREEN))
                 },
-                QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore),
-            ),
-        )
+            )
+            displayAction(ui, actions::openDisplays)?.let(::add)
+            add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore))
+        }
+        QuickActionsRow(list)
     } else {
         QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
     }
+}
+
+/** The TV screen: where VLC is now, or (VLC closed) where VLC, YouTube and Moonlight open. Usable while VLC is closed. */
+@Composable
+private fun displayAction(ui: RemoteUiState, onDisplays: () -> Unit): QuickAction? {
+    if (!ui.showDisplayChoice) return null
+    val shown = ui.displayChoice.chipDisplay
+    val title = stringResource(R.string.section_display)
+    return QuickAction(displayIcon(shown), title, shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays)
 }
 
 /** The PC's volume for YouTube (the browser plays through Windows, not VLC). */
@@ -306,12 +330,7 @@ private fun QuickActions(ui: RemoteUiState, onTracks: (TrackKind) -> Unit, onDis
     val actions = buildList {
         add(QuickAction(Icons.Default.Audiotrack, stringResource(R.string.quick_audio), audioLabel, tracksEnabled) { onTracks(AUDIO) })
         add(QuickAction(Icons.Default.Subtitles, stringResource(R.string.quick_subtitles), subLabel, tracksEnabled) { onTracks(SUBTITLE) })
-        if (ui.showDisplayChoice) {
-            // Where VLC is now, or (VLC closed) where it will open. Usable while VLC is closed too.
-            val shown = ui.displayChoice.chipDisplay
-            val title = stringResource(R.string.section_display)
-            add(QuickAction(displayIcon(shown), title, shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays))
-        }
+        displayAction(ui, onDisplays)?.let(::add)
         add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, onMore))
     }
     QuickActionsRow(actions)

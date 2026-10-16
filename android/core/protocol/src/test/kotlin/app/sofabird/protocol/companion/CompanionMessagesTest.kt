@@ -295,5 +295,15 @@ class CompanionMessagesTest {
         assertEquals(70.0, arrived.interpolatedTime(11_000L), 0.001)
         assertEquals(634.6, arrived.interpolatedTime(10_000_000L), 0.001)
         assertEquals(60.0, arrived.copy(playing = false).interpolatedTime(11_000L), 0.001)
+        assertFalse(yt.ad)
+
+        // The TV extension tells an ad apart, and whether it can be skipped.
+        val ad = (
+            known("""{"t":"state","vlc":{"running":false},"youtube":{"open":true,"playing":true,"ad":true,"adSkippable":true}}""")
+                as CompanionMessage.State
+            ).toPlayerState().youtube!!
+        assertTrue(ad.ad && ad.adSkippable)
+        val skip = obj(CommandMapping.toSys("4", SystemCommand.YouTube(YouTubeAction.SKIP_AD)))
+        assertEquals("skipAd", skip.args()["action"]!!.jsonPrimitive.content)
     }
 }

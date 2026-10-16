@@ -371,7 +371,9 @@ With a browser for it (Firefox per user in `%LOCALAPPDATA%\Mozilla Firefox`, Fir
 `%AppData%\Sofabird\tv-browser`, separate from the user's everyday browser; its `user.js` is written before each start
 (no first-run pages, autoplay, no session restore, no fullscreen warning, a link from the phone replaces the page, its
 own taskbar/media identity, no "open at sign-in": Firefox turns that on by itself once per profile, and the companion
-removes such a `Mozilla-Firefox-…` Run value for the per-user Firefox it uses). The user signs in to YouTube in that profile once (keyboard and mouse on the PC).
+removes such a `Mozilla-Firefox-…` Run value for the per-user Firefox it uses; add-ons placed in the profile's
+`extensions` folder are enabled without asking; a page may go fullscreen without a key press). The user signs in to
+YouTube in that profile once (keyboard and mouse on the PC).
 
 `sys youtubeOpen` parses the link (`YouTubeLink`: only the video id, playlist and start time are kept), pauses VLC and
 runs `firefox.exe -profile <tv-browser> -kiosk <watch url>` (or loads the url into the running profile). The browser
@@ -382,6 +384,32 @@ publishes the page's media session (title, channel, position); the TV profile's 
 title with the browser's window title and kept in `youTubeSessionId`. `close` sends `WM_CLOSE` to the profile's windows;
 so does VLC starting something from the phone (`cmd open`, `launch`, `play` with a `plId`), so that the browser does not
 cover it.
+
+### The TV extension
+
+`companion/tv-extension/src` is a small Firefox extension, *Sofabird TV* (`tv@sofabird.app`): its content script reads
+YouTube's player on watch pages (`#movie_player` through `wrappedJSObject`: the video id, title, channel, position,
+duration, playing, an ad — `ad-showing` — and its "Skip" button, next/previous) and carries out commands with the
+player's own API (`playVideo`, `pauseVideo`, `seekTo`, `nextVideo`, `previousVideo`, the fullscreen and "Skip"
+buttons); it also answers YouTube's "Video paused. Continue watching?" so that a video on the TV does not stop by itself.
+It reports on every change and the position at most once a second.
+
+- **Signing.** Release Firefox loads only extensions signed by Mozilla: `python scripts/sign_extension.py sign` packs
+  `src/`, signs it as an *unlisted* add-on on addons.mozilla.org (not published, signed automatically; keys in
+  `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` or `%USERPROFILE%\.sofabird\amo.json`) and saves `tv@sofabird.app.xpi`, which is
+  committed. CI runs `sign_extension.py check`: the signed XPI must hold exactly `src/` (AMO re-indents
+  `manifest.json`). After changing `src/`, bump its `version` and sign again.
+- **Installation.** The XPI is embedded in `Sofabird.exe` and copied into `<tv-browser>\extensions\` before the
+  browser starts (`extensions.autoDisableScopes` 14 enables it without a prompt).
+- **The link.** Its background script talks to the native messaging host `app.sofabird.tv`: the companion registers
+  itself under `HKCU\Software\Mozilla\NativeMessagingHosts` (a manifest in the data folder pointing at
+  `Sofabird.exe`, allowed only for `tv@sofabird.app`; removed on uninstall). Firefox starts `Sofabird.exe <manifest>
+  tv@sofabird.app`, which relays the messages (4-byte length + JSON) to the running companion over a named pipe of the
+  current user (`TvExtensionHost` ↔ `TvExtensionBridge`, one JSON message per line). Nothing goes over the network.
+- **Use.** With the extension connected `state.youtube` comes from the page (`ad`, `adSkippable` included), commands go
+  to the page, `youtubeOpen` loads the video into the open tab instead of starting `firefox.exe`, fullscreen waits for
+  the video itself (not an ad) and needs no key press. Without it (an older profile, the extension not loaded yet) the
+  media session and the `f` key are used as before.
 
 ## Tray menu
 

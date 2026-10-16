@@ -26,8 +26,15 @@ internal static class Program
     {
         // First: Velopack's install/update/uninstall hooks run here and exit; a normal start falls through.
         VelopackApp.Build()
-            .OnBeforeUninstallFastCallback(_ => AutostartService.SetEnabled(false))
+            .OnBeforeUninstallFastCallback(_ =>
+            {
+                AutostartService.SetEnabled(false);
+                TvExtension.Unregister();
+            })
             .Run();
+
+        // Firefox starts us as the TV extension's native messaging host: relay and exit, nothing else.
+        if (TvExtension.IsHostStart(args)) return TvExtensionHost.Run();
 
         var paths = AppPaths.Resolve(args);
         var quitEventName = @"Local\Sofabird_Quit_" + Hash(paths.DataDir);
@@ -139,10 +146,14 @@ internal static class Program
         using var moonlight = new MoonlightService(lf.CreateLogger<MoonlightService>());
         var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, lf.CreateLogger<TvBrowser>());
         tvBrowser.RemoveLaunchOnLogin(); // before the next sign-in, not only when YouTube opens
+        if (tvBrowser.ExePath is not null && Environment.ProcessPath is { } exe)
+            TvExtension.Register(exe, paths.DataDir, lf.CreateLogger<TvExtensionBridge>());
+        using var tvPage = new TvExtensionBridge(lf.CreateLogger<TvExtensionBridge>());
+        tvPage.Start();
         using var youtubeMedia = new YouTubeMediaSession(settings.YouTubeSessionId,
             id => settingsStore.Update(s => s.YouTubeSessionId = id), lf.CreateLogger<YouTubeMediaSession>());
         _ = youtubeMedia.StartAsync();
-        using var youtube = new YouTubeService(tvBrowser, youtubeMedia, lf.CreateLogger<YouTubeService>());
+        using var youtube = new YouTubeService(tvBrowser, youtubeMedia, tvPage, lf.CreateLogger<YouTubeService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
             library, moonlight, youtube, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);

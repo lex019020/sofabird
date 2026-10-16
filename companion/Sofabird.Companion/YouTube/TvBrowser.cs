@@ -18,7 +18,9 @@ public sealed class TvBrowser
     /// <summary>
     /// The profile's preferences, written before every start: no first-run pages, autoplay allowed, no session restore,
     /// no fullscreen warning, a link from the phone replaces the page (no pile of tabs), its own taskbar/media identity,
-    /// no "open at sign-in" (Firefox turns it on by itself once per profile).
+    /// no "open at sign-in" (Firefox turns it on by itself once per profile); add-ons placed in the profile's
+    /// <c>extensions</c> folder (the TV extension, uBlock Origin) are enabled without asking, and a page may go
+    /// fullscreen without a key press (the extension does that).
     /// </summary>
     private static readonly string[] Preferences =
     [
@@ -35,6 +37,9 @@ public sealed class TvBrowser
         "user_pref(\"browser.startup.windowsLaunchOnLogin.enabled\", false);",
         "user_pref(\"browser.startup.windowsLaunchOnLogin.alreadyApplied\", true);",
         "user_pref(\"browser.startup.windowsLaunchOnLogin.disableLaunchOnLoginPrompt\", true);",
+        "user_pref(\"extensions.autoDisableScopes\", 14);",
+        "user_pref(\"extensions.startupScanScopes\", 1);",
+        "user_pref(\"full-screen-api.allow-trusted-requests-only\", false);",
     ];
 
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -118,11 +123,7 @@ public sealed class TvBrowser
     {
         var exe = ExePath ?? throw new InvalidOperationException("No TV browser");
         var running = OurProcesses().Count > 0;
-        if (!running)
-        {
-            WritePreferences();
-            RemoveLaunchOnLogin();
-        }
+        if (!running) PrepareProfile();
         var psi = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
         psi.ArgumentList.Add("-profile");
         psi.ArgumentList.Add(ProfileDir);
@@ -137,7 +138,7 @@ public sealed class TvBrowser
     public void OpenForSignIn(string url)
     {
         var exe = ExePath ?? throw new InvalidOperationException("No TV browser");
-        if (OurProcesses().Count == 0) WritePreferences();
+        if (OurProcesses().Count == 0) PrepareProfile();
         var psi = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
         foreach (var a in new[] { "-profile", ProfileDir, url }) psi.ArgumentList.Add(a);
         using var _ = Process.Start(psi);
@@ -200,6 +201,14 @@ public sealed class TvBrowser
             }
         }
         return list;
+    }
+
+    /// <summary>Before the browser starts: its preferences, the TV extension, no start at sign-in.</summary>
+    private void PrepareProfile()
+    {
+        WritePreferences();
+        TvExtension.InstallInto(ProfileDir, _log);
+        RemoveLaunchOnLogin();
     }
 
     private void WritePreferences()

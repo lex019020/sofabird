@@ -116,7 +116,7 @@ and state changes arrive in a separate `state`.
 | `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
 | `moonlightStop` | — | `moonlight` |
 | `youtubeOpen` | `{"url": string}` — a link or the text the YouTube app shares | `youtube` |
-| `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"fullscreen"\|"close", "time"?: seconds}` (`time` for `seek`) | `youtube` |
+| `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"fullscreen"\|"skipAd"\|"close", "time"?: seconds}` (`time` for `seek`) | `youtube` |
 
 Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
 window and runs `Moonlight.exe stream <host> <app> --display-mode borderless --background-gamepad`; an already running stream is kept.
@@ -130,20 +130,24 @@ browser profile of its own for the TV (`tv-browser` in its data folder; the user
 `youtubeOpen` finds a YouTube video link in the text (`youtu.be/ID`, `youtube.com/watch?v=ID`, `/shorts/ID`,
 `/live/ID`, with `list` and `t` kept) and opens only the canonical watch page built from it, never the text itself;
 VLC is paused first. The browser starts in kiosk mode, comes to the front and YouTube's player is made fullscreen.
-`youtube` controls it through Windows' media controls (SMTC); `fullscreen` brings the browser to the front and
-presses YouTube's `f` again (the automatic one waits for the video itself, after the ads); `close` closes the TV
+`youtube` controls it: through the companion's TV extension in the browser when it is there (YouTube's own player
+API: exact position and seeking, ads told apart), otherwise through Windows' media controls (SMTC); `fullscreen` brings
+the browser to the front and makes the player fullscreen again (the automatic one waits for the video itself, after the
+ads); `skipAd` presses the ad's "Skip" button (only with the extension, while `adSkippable`); `close` closes the TV
 browser. One thing on the TV at a time: `cmd open` (not `enqueue`), `cmd launch` and `cmd play` with a `plId` close the
 TV browser too, so that VLC is what the TV shows. Errors: `unsupported` (no browser), `bad_request` (not a YouTube
 video link, YouTube not open). The state:
 
 ```json
 "youtube": {"open": true, "playing": true, "videoId": "aqz-KE-bpKQ", "title": "Big Buck Bunny", "channel": "Blender",
-            "time": 60.0, "length": 634.6, "canNext": false, "canPrevious": false}
+            "time": 60.0, "length": 634.6, "canNext": false, "canPrevious": false, "ad": false, "adSkippable": false}
 ```
 
 `time` is the position when the state was built; the phone moves it on from the arrival time while `playing`.
-`videoId` is the video last opened from a phone (thumbnail: `https://i.ytimg.com/vi/<id>/hqdefault.jpg`); `title`,
-`channel`, `time` and `length` come from the browser and are absent until it reports them. The PC's volume
+`videoId` is the video on the page (with the extension; also the next one YouTube played by itself), else the one last
+opened from a phone (thumbnail: `https://i.ytimg.com/vi/<id>/hqdefault.jpg`); `title`, `channel`, `time` and `length`
+come from the browser and are absent until it reports them. `ad` — an ad plays (`time`/`length` are the ad's then),
+`adSkippable` — its "Skip" button is shown; both only with the extension. The PC's volume
 (`systemVolume`) is the one that applies to YouTube.
 
 Monitors (`listDisplays`):
