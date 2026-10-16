@@ -18,7 +18,8 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
 /**
- * A media3 [Player] that mirrors the VLC [PlayerState] and forwards transport commands to the PC.
+ * A media3 [Player] that mirrors what the TV shows ([PlayerController.onTv]: VLC, or YouTube while it is open) and
+ * forwards transport commands to the PC.
  * Nothing plays locally: the device is reported as a remote playback device so volume keys on the
  * lock screen are routed to [handleSetDeviceVolume]/[handleIncreaseDeviceVolume].
  */
@@ -31,10 +32,10 @@ class RemotePlayer(
     private val seekBackMs: Long get() = settings().seekShortSec * 1000L
     private val seekForwardMs: Long get() = settings().seekLongSec * 1000L
 
-    private var current: PlayerState = controller.state.value
+    private var current: PlayerState = controller.onTv.value
     private var hostName: String = ""
 
-    /** Called on the main thread whenever the VLC state changes. */
+    /** Called on the main thread whenever what the TV shows changes. */
     fun update(state: PlayerState, hostName: String) {
         current = state
         this.hostName = hostName
@@ -44,7 +45,8 @@ class RemotePlayer(
     override fun getState(): State {
         val s = current
         val playing = s.playback.state == PlaybackStatus.PLAYING
-        val hasItem = s.item.title != null || s.item.plId != null
+        val youtube = s.youtube?.takeIf { it.open }
+        val hasItem = s.item.title != null || s.item.plId != null || youtube != null
         val durationUs = if (s.playback.length > 0) Util.msToUs(s.playback.length * 1000) else C.TIME_UNSET
 
         val commands = Player.Commands.Builder()
@@ -83,7 +85,7 @@ class RemotePlayer(
         if (hasItem) {
             val metadata = MediaMetadata.Builder()
                 .setTitle(s.item.title ?: hostName)
-                .setArtist(hostName)
+                .setArtist(youtube?.channel ?: hostName)
                 .apply { s.item.artUrl?.let { setArtworkUri(android.net.Uri.parse(it)) } }
                 .build()
             val item = MediaItemData.Builder(MEDIA_UID)

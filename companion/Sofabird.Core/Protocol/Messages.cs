@@ -420,6 +420,8 @@ public static class Caps
     public const string Library = "library";
     /// <summary>Moonlight is installed on the PC: <c>sys moonlightStart/moonlightStop</c>, <c>state.system.moonlight*</c>.</summary>
     public const string Moonlight = "moonlight";
+    /// <summary>A browser for YouTube on the TV: <c>sys youtubeOpen</c>, <c>sys youtube</c>, <c>state.youtube</c>.</summary>
+    public const string YouTube = "youtube";
 }
 
 public static class EventNames

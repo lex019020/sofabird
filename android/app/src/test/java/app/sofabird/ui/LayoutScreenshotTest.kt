@@ -38,6 +38,7 @@ import app.sofabird.ui.history.NextEpisodeCard
 import app.sofabird.ui.remote.MoonlightSection
 import app.sofabird.ui.remote.QuickAction
 import app.sofabird.ui.remote.QuickActionsRow
+import app.sofabird.ui.remote.YouTubeLinkSection
 import app.sofabird.ui.theme.SofabirdTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Before
@@ -140,6 +141,13 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
             MoonlightSection(host = "GAMING-PC", streaming = false, enabled = true, onStart = {}, onStop = {})
             MoonlightSection(host = "GAMING-PC", streaming = true, enabled = true, onStart = {}, onStop = {})
             MoonlightSection(host = null, streaming = false, enabled = true, onStart = {}, onStop = {})
+        }
+    }
+
+    @Test
+    fun youtubeLink() = snapshot("youtube_link") {
+        Column(Modifier.padding(16.dp)) {
+            YouTubeLinkSection(enabled = true, initial = "https://youtu.be/aqz-KE-bpKQ") {}
         }
     }
 

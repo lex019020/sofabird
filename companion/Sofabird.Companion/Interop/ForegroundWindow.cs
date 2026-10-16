@@ -57,12 +57,15 @@ internal static class ForegroundWindow
         }
     }
 
-    private static void PressAlt()
+    private static void PressAlt() => PressKey(NativeMethods.VK_MENU);
+
+    /// <summary>A key press and release, delivered to the foreground window.</summary>
+    public static void PressKey(ushort virtualKey)
     {
         var input = new NativeMethods.INPUT[]
         {
-            new() { type = NativeMethods.INPUT_KEYBOARD, U = new NativeMethods.InputUnion { ki = new NativeMethods.KEYBDINPUT { wVk = NativeMethods.VK_MENU } } },
-            new() { type = NativeMethods.INPUT_KEYBOARD, U = new NativeMethods.InputUnion { ki = new NativeMethods.KEYBDINPUT { wVk = NativeMethods.VK_MENU, dwFlags = NativeMethods.KEYEVENTF_KEYUP } } },
+            new() { type = NativeMethods.INPUT_KEYBOARD, U = new NativeMethods.InputUnion { ki = new NativeMethods.KEYBDINPUT { wVk = virtualKey } } },
+            new() { type = NativeMethods.INPUT_KEYBOARD, U = new NativeMethods.InputUnion { ki = new NativeMethods.KEYBDINPUT { wVk = virtualKey, dwFlags = NativeMethods.KEYEVENTF_KEYUP } } },
         };
         _ = NativeMethods.SendInput((uint)input.Length, input, Marshal.SizeOf<NativeMethods.INPUT>());
     }

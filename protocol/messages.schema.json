@@ -215,7 +215,8 @@
         "bluetooth",
         "history",
         "library",
-        "moonlight"
+        "moonlight",
+        "youtube"
       ]
     },
     "vlcInfo": {
@@ -330,7 +331,9 @@
             "preferredDisplay",
             "shutdown",
             "sleep",
-            "systemVolume"
+            "systemVolume",
+            "youtube",
+            "youtubeOpen"
           ]
         },
         "args": {
@@ -1059,6 +1062,59 @@
               "type": "integer"
             },
             "scanning": {
+              "type": "boolean"
+            }
+          }
+        },
+        "youtube": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "YouTube in the TV browser (cap youtube)",
+          "properties": {
+            "open": {
+              "type": "boolean"
+            },
+            "playing": {
+              "type": "boolean"
+            },
+            "videoId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "channel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "time": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "seconds, at the time the state was built"
+            },
+            "length": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "seconds"
+            },
+            "canNext": {
+              "type": "boolean"
+            },
+            "canPrevious": {
               "type": "boolean"
             }
           }

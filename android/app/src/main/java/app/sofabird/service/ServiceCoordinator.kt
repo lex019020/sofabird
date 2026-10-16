@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Decides when [PlaybackService] runs:
- *  - start when connected and (VLC is playing, or the app is visible) and the
+ *  - start when connected and (the TV plays — VLC, or YouTube in the TV browser — or the app is visible) and the
  *    "keep connection in background" setting is on;
  *  - keep running while paused/stopped for up to [IDLE_STOP_MS] (10 min), then stop;
  *  - stop immediately when disconnected or the setting is turned off;
@@ -43,7 +43,7 @@ class ServiceCoordinator(
         started = true
         combine(
             controller.connection,
-            controller.state,
+            controller.onTv,
             appVisibility.visible,
             settings.settings,
         ) { connection, state, visible, prefs ->

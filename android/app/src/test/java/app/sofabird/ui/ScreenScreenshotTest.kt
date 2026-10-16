@@ -33,6 +33,7 @@ import app.sofabird.protocol.model.Track
 import app.sofabird.protocol.model.Tracks
 import app.sofabird.protocol.model.VlcInfo
 import app.sofabird.protocol.model.VlcProcessStatus
+import app.sofabird.protocol.model.YouTubeState
 import app.sofabird.ui.connection.ConnectionActions
 import app.sofabird.ui.connection.ConnectionContent
 import app.sofabird.ui.connection.ConnectionUiState
@@ -118,6 +119,22 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 system = SystemState(moonlightHost = "GAMING-PC", moonlightStreaming = true),
             ),
             capabilities = Capabilities(playing.capabilities.flags + Capability.MOONLIGHT),
+        )
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteYouTube() = snapshot("remote_youtube") {
+        val state = playing.copy(
+            state = playing.state.copy(
+                playback = playing.state.playback.copy(state = PlaybackStatus.PAUSED),
+                system = SystemState(volume = 40, muted = false),
+                youtube = YouTubeState(
+                    open = true, playing = true, videoId = null, title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+                    channel = "Blender", time = 60.0, length = 634.6,
+                ),
+            ),
+            capabilities = Capabilities(playing.capabilities.flags + Capability.YOUTUBE + Capability.SYSTEM_VOLUME),
         )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }

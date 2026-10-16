@@ -217,6 +217,35 @@ data class Flags(
     val repeat: Boolean = false,
 )
 
+/**
+ * YouTube in the TV browser (`state.youtube`). [time] is the position when the companion reported it; [updatedAt] is
+ * set on arrival, so the position can be moved on while playing.
+ */
+@Serializable
+data class YouTubeState(
+    val open: Boolean = false,
+    val playing: Boolean = false,
+    /** The video last opened from a phone; its thumbnail is at [thumbnailUrl]. */
+    val videoId: String? = null,
+    val title: String? = null,
+    val channel: String? = null,
+    val time: Double? = null,
+    val length: Double? = null,
+    val canNext: Boolean = false,
+    val canPrevious: Boolean = false,
+    @kotlinx.serialization.Transient val updatedAt: Long = 0,
+) {
+    val thumbnailUrl: String? get() = videoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }
+
+    /** The position now: [time] moved on since [updatedAt] while playing, never past [length]. */
+    fun interpolatedTime(nowMs: Long): Double {
+        val base = time ?: return 0.0
+        if (!playing || updatedAt <= 0L) return base
+        val moved = base + (nowMs - updatedAt).coerceAtLeast(0) / 1000.0
+        return length?.let { moved.coerceAtMost(it) } ?: moved
+    }
+}
+
 @Serializable
 data class SystemState(
     val volume: Int? = null,
@@ -260,6 +289,8 @@ data class PlayerState(
     val history: HistoryInfo? = null,
     /** Companion `library`: revision counter of the library, and whether it is being scanned. */
     val library: LibraryInfo? = null,
+    /** Companion `youtube`: YouTube in the TV browser; absent without the capability. */
+    val youtube: YouTubeState? = null,
 ) {
     val isPlaying: Boolean get() = playback.state == PlaybackStatus.PLAYING
     val isStopped: Boolean get() = playback.state == PlaybackStatus.STOPPED

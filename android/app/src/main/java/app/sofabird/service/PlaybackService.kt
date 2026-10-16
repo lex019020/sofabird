@@ -72,12 +72,12 @@ class PlaybackService : LifecycleService() {
             .setSessionActivity(contentIntent())
             .build()
 
-        startForegroundWith(buildNotification(controller.state.value, prompts.resume.value, prompts.next.value))
+        startForegroundWith(buildNotification(controller.onTv.value, prompts.resume.value, prompts.next.value))
         controller.setServiceRunning(true)
 
         lifecycleScope.launch {
             combine(
-                combine(controller.state, controller.activeServer) { state, server -> state to (server?.displayName ?: "") },
+                combine(controller.onTv, controller.activeServer) { state, server -> state to (server?.displayName ?: "") },
                 prompts.resume,
                 prompts.next,
             ) { (state, host), resume, next -> Snapshot(state, host, resume, next) }
@@ -90,7 +90,7 @@ class PlaybackService : LifecycleService() {
         // Artwork per item, in its own collector: the state changes every second while playing and must not
         // cancel a download in progress.
         lifecycleScope.launch {
-            controller.state.map { it.item.artUrl }.distinctUntilChanged().collectLatest { url ->
+            controller.onTv.map { it.item.artUrl }.distinctUntilChanged().collectLatest { url ->
                 artBitmap = null
                 artBitmap = url?.let { loadArt(it) }
                 lastSnapshot?.let { notify(buildNotification(it.state, it.resume, it.next)) }
@@ -161,7 +161,8 @@ class PlaybackService : LifecycleService() {
         if (next != null) return buildNextNotification(state, next)
         val host = controller.activeServer.value?.displayName ?: getString(R.string.app_name)
         val playing = state.playback.state == PlaybackStatus.PLAYING
-        val title = state.item.title ?: getString(R.string.notif_nothing_playing)
+        val youtube = state.youtube?.takeIf { it.open }
+        val title = state.item.title ?: getString(if (youtube != null) R.string.youtube_on_tv else R.string.notif_nothing_playing)
         val subtitle = when (state.playback.state) {
             PlaybackStatus.PLAYING -> getString(R.string.notif_playing_on, host)
             PlaybackStatus.PAUSED -> getString(R.string.notif_paused_on, host)

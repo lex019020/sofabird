@@ -8,6 +8,7 @@ using Sofabird.Companion.Services;
 using Sofabird.Companion.Setup;
 using Sofabird.Companion.Tray;
 using Sofabird.Companion.Vlc;
+using Sofabird.Companion.YouTube;
 using Sofabird.Core.History;
 using Sofabird.Core.Lua;
 using Sofabird.Core.Pairing;
@@ -136,8 +137,14 @@ internal static class Program
         using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
         using var library = new LibraryService(settings, paths, vlc.History?.Store, background, lf.CreateLogger<LibraryService>());
         using var moonlight = new MoonlightService(lf.CreateLogger<MoonlightService>());
+        var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, lf.CreateLogger<TvBrowser>());
+        tvBrowser.RemoveLaunchOnLogin(); // before the next sign-in, not only when YouTube opens
+        using var youtubeMedia = new YouTubeMediaSession(settings.YouTubeSessionId,
+            id => settingsStore.Update(s => s.YouTubeSessionId = id), lf.CreateLogger<YouTubeMediaSession>());
+        _ = youtubeMedia.StartAsync();
+        using var youtube = new YouTubeService(tvBrowser, youtubeMedia, lf.CreateLogger<YouTubeService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;

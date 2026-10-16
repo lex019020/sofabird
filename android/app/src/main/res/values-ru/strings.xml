@@ -219,6 +219,15 @@
     <string name="action_moonlight_start">Показать на ТВ</string>
     <string name="action_moonlight_stop">Завершить трансляцию</string>
     <string name="moonlight_streaming_title">На ТВ сейчас Moonlight</string>
+    <string name="section_youtube">YouTube на ТВ</string>
+    <string name="youtube_link_hint">Ссылка на видео YouTube</string>
+    <string name="action_paste">Вставить</string>
+    <string name="action_youtube_show">Показать на ТВ</string>
+    <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>
+    <string name="action_youtube_close">Закрыть YouTube</string>
+    <string name="action_youtube_fullscreen">На весь экран</string>
+    <string name="youtube_on_tv">YouTube</string>
+    <string name="share_not_connected">Sofabird не подключён к ПК: видео не отправлено.</string>
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>

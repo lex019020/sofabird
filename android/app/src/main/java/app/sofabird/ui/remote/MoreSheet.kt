@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -35,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -50,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -186,6 +189,14 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                     onStart = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStart()); onDismiss() },
                     onStop = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStop); onDismiss() },
                 )
+            }
+            if (caps.youtube) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                YouTubeLinkSection(enabled = online) {
+                    tick()
+                    viewModel.sendSystem(SystemCommand.YouTubeOpen(it))
+                    onDismiss()
+                }
             }
             if (caps.systemVolume) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -341,6 +352,38 @@ internal fun MoonlightSection(host: String?, streaming: Boolean, enabled: Boolea
             }
         }
     }
+}
+
+/** `youtube`: a pasted link to a YouTube video goes to the TV (sharing from the YouTube app does the same). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun YouTubeLinkSection(enabled: Boolean, initial: String = "", onOpen: (String) -> Unit) {
+    var link by remember { mutableStateOf(initial) }
+    val clipboard = LocalClipboardManager.current
+    SectionTitle(stringResource(R.string.section_youtube))
+    OutlinedTextField(
+        value = link,
+        onValueChange = { link = it },
+        label = { Text(stringResource(R.string.youtube_link_hint)) },
+        singleLine = true,
+        trailingIcon = {
+            IconButton(onClick = { clipboard.getText()?.text?.let { link = it } }) {
+                Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.action_paste))
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        OutlinedButton(onClick = { onOpen(link.trim()) }, enabled = enabled && link.isNotBlank()) {
+            LabelText(stringResource(R.string.action_youtube_show))
+        }
+    }
+    Text(
+        stringResource(R.string.youtube_share_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }
 
 /** `power`: keep-awake switch, display off, sleep (behind a confirmation). */

@@ -34,6 +34,12 @@ public static class ProtocolText
     public static LocalizableText MoonlightNoHost => new("MoonlightNoHost");
     /// <summary>Moonlight could not start the stream (code {0})</summary>
     public static LocalizableText MoonlightStartFailed(object a0) => new("MoonlightStartFailed", a0);
+    /// <summary>There is no browser for YouTube on the PC. Install Firefox from the companion's setup window.</summary>
+    public static LocalizableText YouTubeNoBrowser => new("YouTubeNoBrowser");
+    /// <summary>This is not a link to a YouTube video</summary>
+    public static LocalizableText YouTubeBadLink => new("YouTubeBadLink");
+    /// <summary>YouTube is not open on the TV</summary>
+    public static LocalizableText YouTubeNotOpen => new("YouTubeNotOpen");
     /// <summary>Folder not found: {0}</summary>
     public static LocalizableText FolderNotFound(object a0) => new("FolderNotFound", a0);
     /// <summary>Folder is not available: {0}</summary>

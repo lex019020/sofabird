@@ -44,6 +44,13 @@ public sealed class Settings
     public List<string> MediaRoots { get; set; } = new();
     /// <summary>The user's own TMDB API read access token; empty — the one built into the companion.</summary>
     public string? TmdbToken { get; set; }
+    /// <summary>The browser for YouTube on the TV (Firefox or LibreWolf); <c>null</c> — found automatically.</summary>
+    public string? BrowserPath { get; set; }
+    /// <summary>
+    /// The Windows media session id of the TV browser's profile, learnt the first time it plays (it stays the same for
+    /// the profile, so the companion tells its YouTube apart from other players).
+    /// </summary>
+    public string? YouTubeSessionId { get; set; }
 
     /// <summary>
     /// Stable id of the preferred monitor (the TV): every new VLC window is moved there once.

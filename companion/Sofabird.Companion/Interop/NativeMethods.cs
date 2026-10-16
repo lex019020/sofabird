@@ -83,6 +83,11 @@ internal static partial class NativeMethods
     public static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    public const uint WM_CLOSE = 0x0010;
+
+    [DllImport("user32.dll")]
     public static extern bool BringWindowToTop(IntPtr hWnd);
 
     [DllImport("user32.dll")]
@@ -148,6 +153,7 @@ internal static partial class NativeMethods
     public const uint INPUT_KEYBOARD = 1;
     public const uint KEYEVENTF_KEYUP = 0x0002;
     public const ushort VK_MENU = 0x12;
+    public const ushort VK_F = 0x46;
     public const uint MOUSEEVENTF_MOVE = 0x0001;
 
     // ---- kernel32 / powrprof: power ----

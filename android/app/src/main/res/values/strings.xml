@@ -207,6 +207,15 @@
     <string name="action_moonlight_start">Show on the TV</string>
     <string name="action_moonlight_stop">End streaming</string>
     <string name="moonlight_streaming_title">Moonlight is on the TV</string>
+    <string name="section_youtube">YouTube on the TV</string>
+    <string name="youtube_link_hint">Link to a YouTube video</string>
+    <string name="action_paste">Paste</string>
+    <string name="action_youtube_show">Show on the TV</string>
+    <string name="youtube_share_hint">Or share a video to Sofabird from the YouTube app.</string>
+    <string name="action_youtube_close">Close YouTube</string>
+    <string name="action_youtube_fullscreen">Fullscreen</string>
+    <string name="youtube_on_tv">YouTube</string>
+    <string name="share_not_connected">Sofabird is not connected to the PC: the video was not sent.</string>
     <string name="moonlight_streaming_host">The screen of %1$s; the movie is paused</string>
     <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
     <string name="settings_version">Version %1$s (build %2$d)</string>

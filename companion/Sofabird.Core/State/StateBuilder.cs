@@ -27,6 +27,8 @@ public sealed class StateInputs
     public long? HistoryRevision { get; init; }
     /// <summary><c>state.library</c>; <c>null</c> — no library.</summary>
     public LibraryInfo? Library { get; init; }
+    /// <summary><c>state.youtube</c>; <c>null</c> — no TV browser.</summary>
+    public YouTubeInfo? YouTube { get; init; }
     public long NowUnixMs { get; init; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 }
 
@@ -52,6 +54,7 @@ public static partial class StateBuilder
             Next = input.Next,
             History = input.HistoryRevision is long rev ? new HistoryInfo { Revision = rev } : null,
             Library = input.Library,
+            YouTube = input.YouTube,
         };
 
         var st = input.Status;
