@@ -90,6 +90,23 @@ public sealed class MoonlightService : IDisposable
     private static IEnumerable<string> Indexes(RegistryKey key) =>
         key.GetSubKeyNames().Where(n => int.TryParse(n, out _)).OrderBy(n => int.Parse(n, System.Globalization.CultureInfo.InvariantCulture));
 
+    /// <summary>Moves the stream window to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
+    public Action<IntPtr>? PlaceOnTv { get; set; }
+
+    /// <summary>The stream window on the screen (of any Moonlight process, also one started by hand), or zero.</summary>
+    public static IntPtr StreamWindow()
+    {
+        foreach (var p in Process.GetProcessesByName(ProcessName))
+        {
+            using (p)
+            {
+                foreach (var h in ForegroundWindow.WindowsOf(p.Id))
+                    if (ForegroundWindow.ClassName(h) == StreamWindowClass) return h;
+            }
+        }
+        return IntPtr.Zero;
+    }
+
     /// <summary>The host currently streamed to this PC (by any Moonlight process with a <c>stream</c> command line), or <c>null</c>.</summary>
     public static string? StreamingHost()
     {
@@ -153,8 +170,9 @@ public sealed class MoonlightService : IDisposable
 
     /// <summary>
     /// The companion runs in the background, so Windows opens Moonlight's stream window behind VLC (and SDL minimises a
-    /// fullscreen window without focus). Waits up to <see cref="FrontTimeout"/> for the stream window and brings it to
-    /// the front, restored; it is checked a few times, as Moonlight may still settle its mode right after showing it.
+    /// fullscreen window without focus), on the monitor Moonlight was last on. Waits up to <see cref="FrontTimeout"/> for
+    /// the stream window, moves it to the TV and brings it to the front, restored; it is checked a few times, as
+    /// Moonlight may still settle its mode right after showing it.
     /// </summary>
     private async Task BringStreamToFrontAsync(Process process)
     {
@@ -166,6 +184,7 @@ public sealed class MoonlightService : IDisposable
             {
                 var windows = ForegroundWindow.WindowsOf(process.Id);
                 var stream = windows.FirstOrDefault(h => ForegroundWindow.ClassName(h) == StreamWindowClass);
+                if (stream != IntPtr.Zero) PlaceOnTv?.Invoke(stream);
                 if (stream != IntPtr.Zero && ForegroundWindow.Activate(stream) && ++inFront >= 3)
                 {
                     _log.LogInformation("Moonlight's stream window is in front");

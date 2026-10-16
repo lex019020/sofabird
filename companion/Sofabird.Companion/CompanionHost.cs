@@ -90,7 +90,9 @@ public sealed class CompanionHost : ISessionHost
         _moonlight.Changed += _vlc.Poke;
         _youtube.Changed += _vlc.Poke;
         _vlc.YouTubeInfoProvider = _youtube.Info;
-        _youtube.PlaceOnTv = PlaceTvBrowser;
+        _youtube.PlaceOnTv = window => PlaceOnTv(window, null);
+        _moonlight.PlaceOnTv = window => PlaceOnTv(window, null);
+        Displays.TvScreenChosen += OnTvScreenChosen;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -212,12 +214,22 @@ public sealed class CompanionHost : ISessionHost
         return target?.Id;
     }
 
-    /// <summary>The TV browser goes where VLC plays: the monitor VLC opens on, or the one with its window.</summary>
-    private void PlaceTvBrowser(IntPtr window)
+    /// <summary>One TV screen: YouTube and the Moonlight stream follow the monitor just chosen (VLC moves by itself).</summary>
+    private void OnTvScreenChosen(MonitorInfo monitor)
+    {
+        foreach (var window in new[] { _youtube.Window(), MoonlightService.StreamWindow() })
+            if (window != IntPtr.Zero) PlaceOnTv(window, monitor);
+    }
+
+    /// <summary>
+    /// A window for the TV (the TV browser, Moonlight's stream) goes to <paramref name="target"/>, by default where VLC
+    /// plays: the monitor VLC opens on, or the one with its window. Nothing happens with one monitor or no choice.
+    /// </summary>
+    private void PlaceOnTv(IntPtr window, MonitorInfo? target)
     {
         var monitors = _display.GetMonitors();
         if (monitors.Count < 2) return;
-        var target = MonitorTopology.FindById(monitors, Displays.PreferredId) ?? Displays.FindVlcMonitor(monitors);
+        target ??= MonitorTopology.FindById(monitors, Displays.PreferredId) ?? Displays.FindVlcMonitor(monitors);
         if (target is null) return;
         if (string.Equals(DisplayService.GetWindowMonitorDevice(window), target.GdiDeviceName, StringComparison.OrdinalIgnoreCase)) return;
         _display.MoveWindowToMonitor(window, target);

@@ -29,8 +29,8 @@ Change wsPort in {2}.</value></data>
   <data name="TrayStartVlc" xml:space="preserve"><value>Start VLC</value></data>
   <data name="TrayRestartVlc" xml:space="preserve"><value>Restart VLC with phone control</value></data>
   <data name="TrayQuitVlc" xml:space="preserve"><value>Close VLC</value></data>
-  <data name="TrayMoveToDisplay" xml:space="preserve"><value>Move VLC to display</value></data>
-  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC opens on the checked display</value></data>
+  <data name="TrayMoveToDisplay" xml:space="preserve"><value>TV screen</value></data>
+  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC, YouTube and Moonlight open on the checked display</value></data>
   <data name="TrayDisplayBuiltIn" xml:space="preserve"><value>{0} (built-in)</value></data>
   <data name="TrayDisplayDisconnected" xml:space="preserve"><value>{0} (not connected)</value></data>
   <data name="TrayDisplayUnmanaged" xml:space="preserve"><value>Don't manage the display</value></data>

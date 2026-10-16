@@ -237,10 +237,13 @@ shown in the tray menu: "Bluetooth: on / starting… / turned off on this PC / u
 - The phone is paired with "Just Works" and `bluetoothRequireAuthentication` is on — turn the setting off or re-pair
   the phone with code comparison.
 
-## Display for VLC (TV)
+## TV screen (the display for VLC, YouTube and Moonlight)
 
 The companion remembers the **preferred monitor** and opens VLC on it — both when it is launched from the phone and when
-it is opened by hand (double-clicking a movie in Explorer).
+it is opened by hand (double-clicking a movie in Explorer). The TV browser (YouTube) and Moonlight's stream window go
+there too: both open on the primary monitor or where they were last, so the companion moves their window to the
+preferred monitor (else to the one with VLC's window) when it shows up, as `MoveWindowToMonitor` does for a borderless
+fullscreen VLC.
 
 - **Monitors.** The list is built from `Screen.AllScreens` (bounds, primary) and the Windows CCD API (`QueryDisplayConfig` +
   `DisplayConfigGetDeviceInfo`): a friendly name from EDID ("SAMSUNG", "L27q-35"), the connection type (`internal` — the
@@ -251,9 +254,11 @@ it is opened by hand (double-clicking a movie in Explorer).
   source (names joined with " + ", the id is the TV's). At startup and on every change of the display configuration a
   line per monitor is written to the log: name, kind, primary, `gdi`, bounds, id — so the list can be checked remotely
   (`dev-laptop.ps1 -Logs`). Over SSH `Screen.AllScreens` sees only a dummy screen — check through the companion.
-- **Choice.** On the phone (`sys moveToDisplay`) or in the tray ("Move VLC to display ▸"): the VLC window is moved
-  (leave fullscreen → move → back to fullscreen if it was) **and the monitor is remembered**
-  (`preferredDisplayId` in `settings.json`). VLC not running — it is only remembered. "Don't manage the display" in the
+- **Choice.** On the phone (`sys moveToDisplay` / `preferredDisplay`) or in the tray ("TV screen ▸"): the VLC window is
+  moved (leave fullscreen → move → back to fullscreen if it was) **and the monitor is remembered**
+  (`preferredDisplayId` in `settings.json`). VLC not running — it is only remembered. An open TV browser and a Moonlight
+  stream move to the chosen monitor right away (`DisplayController.TvScreenChosen`, also when it was the preferred one
+  already). "Don't manage the display" in the
   tray (`sys preferredDisplay {"displayId": null}`) — the companion no longer touches the VLC window.
 - **A new VLC window** is moved to the preferred monitor **once**, if it is connected and the window is not there
   (we wait up to 10 s for the main window). After that the window is left alone — if you drag it back, the companion
@@ -385,9 +390,9 @@ cover it.
   a 6-digit code and the `host:port` address; the code is valid for 5 minutes, at most 5 attempts (it also opens by
   itself when an unpaired phone tries to connect — see "Pairing");
 - **Start VLC**, **Restart VLC with phone control**, **Close VLC**;
-- **Move VLC to display ▸** — monitors with friendly names, the check mark is the preferred one (VLC opens on it);
-  a click = move the window and remember it, as from the phone; **Don't manage the display** — forget it
-  (see "Display for VLC");
+- **TV screen ▸** — monitors with friendly names, the check mark is the preferred one (VLC, YouTube and Moonlight open
+  on it); a click = move what is on the TV and remember it, as from the phone; **Don't manage the display** — forget it
+  (see "TV screen");
 - **Setup and permissions…** — the setup window (state re-read on every open);
 - **Install Lua pages**, **Start with Windows** (`HKCU\…\Run`), **Keep the PC awake during a movie**;
 - **Open log**, **Open settings folder**, **Exit**.

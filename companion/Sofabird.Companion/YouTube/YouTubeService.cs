@@ -40,6 +40,9 @@ public sealed class YouTubeService : IDisposable
     /// <summary>Moves a window of the TV browser to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
     public Action<IntPtr>? PlaceOnTv { get; set; }
 
+    /// <summary>The TV browser's window, or zero when it is not open.</summary>
+    public IntPtr Window() => Available ? _browser.FindWindow() : IntPtr.Zero;
+
     /// <summary>A browser for YouTube is installed (the <c>youtube</c> capability).</summary>
     public bool Available => _browser.ExePath is not null;
 
