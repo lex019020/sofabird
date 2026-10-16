@@ -124,5 +124,8 @@ enum class YouTubeAction(val wire: String) {
 
     /** YouTube's fullscreen player key, should the automatic one not have happened. */
     FULLSCREEN("fullscreen"),
+
+    /** The ad's "Skip" button (only while [app.sofabird.protocol.model.YouTubeState.adSkippable]). */
+    SKIP_AD("skipAd"),
     CLOSE("close"),
 }

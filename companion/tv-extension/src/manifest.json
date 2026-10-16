@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "Sofabird TV",
+  "version": "1.0.0",
+  "description": "Lets Sofabird, a phone remote for the PC at the TV, show and control YouTube in its TV browser. Installed by the Sofabird companion; does nothing on its own and sends nothing off the PC.",
+  "homepage_url": "https://sofabird.app/",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "tv@sofabird.app",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "permissions": ["nativeMessaging"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

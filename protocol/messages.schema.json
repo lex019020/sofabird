@@ -1116,6 +1116,14 @@
             },
             "canPrevious": {
               "type": "boolean"
+            },
+            "ad": {
+              "type": "boolean",
+              "description": "an ad plays (TV extension); time/length are the ad's"
+            },
+            "adSkippable": {
+              "type": "boolean",
+              "description": "the ad's Skip button is shown (sys youtube skipAd)"
             }
           }
         }

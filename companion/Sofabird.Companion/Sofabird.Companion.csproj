@@ -46,6 +46,8 @@
     <!-- Our Lua pages (companion/lua/requests) are embedded as resources and installed by LuaPagesInstaller. -->
     <EmbeddedResource Include="..\lua\requests\tracks.json" LogicalName="lua.requests.tracks.json" />
     <EmbeddedResource Include="..\lua\requests\setvar.json" LogicalName="lua.requests.setvar.json" />
+    <!-- The TV extension signed by Mozilla (scripts/sign_extension.py), installed into the TV browser's profile. -->
+    <EmbeddedResource Include="..\tv-extension\tv@sofabird.app.xpi" LogicalName="tv-extension.xpi" Condition="Exists('..\tv-extension\tv@sofabird.app.xpi')" />
   </ItemGroup>
 
 </Project>
