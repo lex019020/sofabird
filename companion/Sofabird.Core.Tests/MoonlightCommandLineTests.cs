@@ -11,7 +11,7 @@ public class MoonlightCommandLineTests
     [Fact]
     public void Stream_and_quit_arguments()
     {
-        Assert.Equal(["stream", "GAMING-PC", "Desktop", "--display-mode", "borderless", "--keep-awake"],
+        Assert.Equal(["stream", "GAMING-PC", "Desktop", "--display-mode", "borderless", "--keep-awake", "--background-gamepad"],
             MoonlightCommandLine.Stream("GAMING-PC", "Desktop"));
         Assert.Equal(["quit", "GAMING-PC"], MoonlightCommandLine.Quit("GAMING-PC"));
     }

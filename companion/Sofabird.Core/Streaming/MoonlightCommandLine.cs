@@ -14,10 +14,11 @@ public static class MoonlightCommandLine
 
     /// <summary>
     /// Borderless rather than exclusive fullscreen: it covers the screen just the same, but is not minimised when it loses
-    /// focus (Moonlight is started from the background, behind VLC).
+    /// focus (Moonlight is started from the background, behind VLC). The gamepad works without focus too: on a TV PC any
+    /// window (a console, a notification) may take it, and Moonlight would otherwise drop the controller's input.
     /// </summary>
     public static IReadOnlyList<string> Stream(string host, string app) =>
-        ["stream", host, app, "--display-mode", "borderless", "--keep-awake"];
+        ["stream", host, app, "--display-mode", "borderless", "--keep-awake", "--background-gamepad"];
 
     public static IReadOnlyList<string> Quit(string host) => ["quit", host];
 
