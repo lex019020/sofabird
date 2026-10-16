@@ -37,6 +37,9 @@ public sealed class YouTubeService : IDisposable
     /// <summary>Something changed on the TV (phones get the new state).</summary>
     public event Action? Changed;
 
+    /// <summary>Moves a window of the TV browser to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
+    public Action<IntPtr>? PlaceOnTv { get; set; }
+
     /// <summary>A browser for YouTube is installed (the <c>youtube</c> capability).</summary>
     public bool Available => _browser.ExePath is not null;
 
@@ -71,6 +74,8 @@ public sealed class YouTubeService : IDisposable
                 await Task.Delay(500, ct).ConfigureAwait(false);
                 window = _browser.FindWindow();
             }
+            // Firefox opens on the primary monitor (the laptop's own screen), not where VLC plays.
+            PlaceOnTv?.Invoke(window);
             ForegroundWindow.Activate(window);
             var deadline = DateTime.UtcNow + PlayingWait;
             var video = false;
@@ -119,6 +124,7 @@ public sealed class YouTubeService : IDisposable
     private bool PressFullscreen()
     {
         var window = _browser.FindWindow();
+        if (window != IntPtr.Zero) PlaceOnTv?.Invoke(window); // kiosk mode may have gone fullscreen where it opened
         if (window == IntPtr.Zero || !ForegroundWindow.Activate(window))
         {
             _log.LogWarning("YouTube on the TV: the browser could not be brought to the front");

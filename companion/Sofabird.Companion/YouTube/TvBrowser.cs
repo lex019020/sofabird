@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using Sofabird.Companion.Interop;
 
 namespace Sofabird.Companion.YouTube;
@@ -16,7 +17,8 @@ public sealed class TvBrowser
 
     /// <summary>
     /// The profile's preferences, written before every start: no first-run pages, autoplay allowed, no session restore,
-    /// no fullscreen warning, a link from the phone replaces the page (no pile of tabs), its own taskbar/media identity.
+    /// no fullscreen warning, a link from the phone replaces the page (no pile of tabs), its own taskbar/media identity,
+    /// no "open at sign-in" (Firefox turns it on by itself once per profile).
     /// </summary>
     private static readonly string[] Preferences =
     [
@@ -30,7 +32,12 @@ public sealed class TvBrowser
         "user_pref(\"taskbar.grouping.useprofile\", true);",
         "user_pref(\"browser.translations.automaticallyPopup\", false);",
         "user_pref(\"browser.link.open_newwindow.override.external\", 1);",
+        "user_pref(\"browser.startup.windowsLaunchOnLogin.enabled\", false);",
+        "user_pref(\"browser.startup.windowsLaunchOnLogin.alreadyApplied\", true);",
+        "user_pref(\"browser.startup.windowsLaunchOnLogin.disableLaunchOnLoginPrompt\", true);",
     ];
+
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
     private readonly ILogger _log;
     private readonly string? _overridePath;
@@ -67,6 +74,36 @@ public sealed class TvBrowser
 
     private string ProcessName => Path.GetFileNameWithoutExtension(ExePath ?? "firefox");
 
+    /// <summary>Firefox installed per user for the TV (the setup window's place for it), not the user's own one.</summary>
+    private bool IsTvInstall => ExePath is not null && ExePath.StartsWith(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Firefox turns "open at sign-in" on by itself the first time a profile runs (a <c>Mozilla-Firefox-…</c> value
+    /// with <c>-os-autostart</c> under Run): at the next sign-in a default-profile window with the welcome page would
+    /// open on the PC. Removed for the Firefox installed for the TV; the user's own Firefox is left alone.
+    /// </summary>
+    public void RemoveLaunchOnLogin()
+    {
+        if (!IsTvInstall) return;
+        try
+        {
+            using var run = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            if (run is null) return;
+            foreach (var name in run.GetValueNames())
+            {
+                if (!name.StartsWith("Mozilla-Firefox-", StringComparison.Ordinal) || run.GetValue(name) is not string cmd) continue;
+                if (!cmd.Contains(ExePath!, StringComparison.OrdinalIgnoreCase) || !cmd.Contains("-os-autostart", StringComparison.Ordinal)) continue;
+                run.DeleteValue(name, throwOnMissingValue: false);
+                _log.LogInformation("TV browser: removed Firefox's start at sign-in ({Name})", name);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            _log.LogWarning(ex, "Removing Firefox's start at sign-in failed");
+        }
+    }
+
     /// <summary>Whether the TV profile runs (cached for a second: the state asks often).</summary>
     public bool IsRunning()
     {
@@ -81,7 +118,11 @@ public sealed class TvBrowser
     {
         var exe = ExePath ?? throw new InvalidOperationException("No TV browser");
         var running = OurProcesses().Count > 0;
-        if (!running) WritePreferences();
+        if (!running)
+        {
+            WritePreferences();
+            RemoveLaunchOnLogin();
+        }
         var psi = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe)! };
         psi.ArgumentList.Add("-profile");
         psi.ArgumentList.Add(ProfileDir);

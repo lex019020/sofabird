@@ -90,6 +90,7 @@ public sealed class CompanionHost : ISessionHost
         _moonlight.Changed += _vlc.Poke;
         _youtube.Changed += _vlc.Poke;
         _vlc.YouTubeInfoProvider = _youtube.Info;
+        _youtube.PlaceOnTv = PlaceTvBrowser;
         _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
@@ -209,6 +210,17 @@ public sealed class CompanionHost : ISessionHost
         if (monitors.Count < 2) return null;
         var target = displayIndex is int i ? MonitorTopology.FindByIndex(monitors, i) : MonitorTopology.FindById(monitors, Displays.PreferredId);
         return target?.Id;
+    }
+
+    /// <summary>The TV browser goes where VLC plays: the monitor VLC opens on, or the one with its window.</summary>
+    private void PlaceTvBrowser(IntPtr window)
+    {
+        var monitors = _display.GetMonitors();
+        if (monitors.Count < 2) return;
+        var target = MonitorTopology.FindById(monitors, Displays.PreferredId) ?? Displays.FindVlcMonitor(monitors);
+        if (target is null) return;
+        if (string.Equals(DisplayService.GetWindowMonitorDevice(window), target.GdiDeviceName, StringComparison.OrdinalIgnoreCase)) return;
+        _display.MoveWindowToMonitor(window, target);
     }
 
     public Task<StateMessage> GetStateAsync(CancellationToken ct) => _vlc.GetStateAsync(ct);

@@ -365,11 +365,13 @@ With a browser for it (Firefox per user in `%LOCALAPPDATA%\Mozilla Firefox`, Fir
 `browserPath` setting overrides) the companion reports the `youtube` cap. It keeps a profile of its own for the TV,
 `%AppData%\Sofabird\tv-browser`, separate from the user's everyday browser; its `user.js` is written before each start
 (no first-run pages, autoplay, no session restore, no fullscreen warning, a link from the phone replaces the page, its
-own taskbar/media identity). The user signs in to YouTube in that profile once (keyboard and mouse on the PC).
+own taskbar/media identity, no "open at sign-in": Firefox turns that on by itself once per profile, and the companion
+removes such a `Mozilla-Firefox-…` Run value for the per-user Firefox it uses). The user signs in to YouTube in that profile once (keyboard and mouse on the PC).
 
 `sys youtubeOpen` parses the link (`YouTubeLink`: only the video id, playlist and start time are kept), pauses VLC and
 runs `firefox.exe -profile <tv-browser> -kiosk <watch url>` (or loads the url into the running profile). The browser
-starts behind VLC, so the companion waits for its window, brings it to the front, waits until the video plays and
+starts behind VLC and on the primary monitor, so the companion waits for its window, moves it to the monitor VLC opens
+on (the preferred one, else the one with VLC's window), brings it to the front, waits until the video plays and
 presses `f` for YouTube's fullscreen player. Play/pause/seek/next/previous go through Windows' media controls: Firefox
 publishes the page's media session (title, channel, position); the TV profile's session is learnt once by matching its
 title with the browser's window title and kept in `youTubeSessionId`. `close` sends `WM_CLOSE` to the profile's windows;

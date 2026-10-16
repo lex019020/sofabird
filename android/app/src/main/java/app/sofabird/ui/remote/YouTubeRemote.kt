@@ -149,15 +149,26 @@ private fun rememberYouTubePosition(yt: YouTubeState): State<Double> =
         }
     }
 
-/** Back / previous / play-pause / next / forward for the video on the TV. */
+/** A seek sent from the phone: the target and when it was sent. */
+private class PendingSeek(val target: Double, val atMs: Long)
+
+/**
+ * Back / previous / play-pause / next / forward for the video on the TV. The TV reports the new position a moment after
+ * a seek, so presses in a row add up from the last target rather than from the old position.
+ */
 @Composable
 internal fun YouTubeTransport(yt: YouTubeState, ui: RemoteUiState, onAction: (YouTubeAction, Double?) -> Unit) {
     val short = ui.settings.seekShortSec
     val long = ui.settings.seekLongSec
     val online = ui.connection.isOnline
+    var pending by remember { mutableStateOf<PendingSeek?>(null) }
     fun seekBy(delta: Int) {
-        val now = yt.interpolatedTime(System.currentTimeMillis())
-        val target = (now + delta).coerceIn(0.0, yt.length ?: Double.MAX_VALUE)
+        val nowMs = System.currentTimeMillis()
+        val base = pending?.takeIf { nowMs - it.atMs < PENDING_SEEK_MS }
+            ?.let { it.target + if (yt.playing) (nowMs - it.atMs) / 1000.0 else 0.0 }
+            ?: yt.interpolatedTime(nowMs)
+        val target = (base + delta).coerceIn(0.0, yt.length ?: Double.MAX_VALUE)
+        pending = PendingSeek(target, nowMs)
         onAction(YouTubeAction.SEEK, target)
     }
     TransportButtons(
@@ -207,3 +218,6 @@ internal fun SystemVolumeRow(volume: Int?, muted: Boolean, enabled: Boolean, onS
 }
 
 private const val POSITION_TICK_MS = 250L
+
+/** How long a seek from the phone stays the base for the next press (the TV's report comes within it). */
+private const val PENDING_SEEK_MS = 3_000L
