@@ -3,8 +3,8 @@
 Date: 2026-10-16. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
-Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV. Next: YouTube's setup and
-an extension of our own, one TV screen for everything, Wake-on-LAN and the sleep timer (§ 10).
+Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV. Next: YouTube's setup
+(Firefox, sign-in, uBlock Origin), Wake-on-LAN and the sleep timer (§ 10).
 
 ## 0. Essence
 
@@ -351,12 +351,12 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       in once), "Share → Sofabird" and a pasted link open the video fullscreen on the TV, the remote controls it through
       Windows' media controls. Done (#52): the link parsing, the TV browser and its media session, the protocol, the
       share target, the link field, the remote's YouTube mode, the notification / lock screen / volume keys following
-      YouTube, fullscreen after the ads, the browser on the TV monitor, a movie from the phone closing YouTube. Left:
-      the setup window's items (install Firefox, "Sign in to YouTube…", the opt-in uBlock Origin checkbox), an
-      extension of our own (exact position and seeking, ads, captions, quality; native messaging to the companion),
-      recently sent videos on the phone.
-- [ ] **One TV screen for everything** (user request): the monitor chosen for VLC is also where YouTube and the
-      Moonlight stream go; choosing it from the phone moves whatever is on the TV.
+      YouTube, fullscreen after the ads, the browser on the TV monitor, a movie from the phone closing YouTube; the
+      Sofabird TV extension signed by Mozilla (#55: exact state and seeking, ads told apart, "Skip", fullscreen without
+      a key press; native messaging to the companion). Left: the setup window's items (install Firefox, "Sign in to
+      YouTube…", the opt-in uBlock Origin), recently sent videos on the phone; later captions and quality.
+- [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
+      Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
@@ -435,11 +435,10 @@ sofabird/
 
 ## 10. Next steps
 
-1. **YouTube, second part**: the setup window's items (Firefox, sign-in, uBlock Origin) and an extension of our own (M4).
-2. **One TV screen** for VLC, YouTube and Moonlight (M4).
-3. **Wake-on-LAN**: wake the PC from the phone (M4).
-4. **Sleep timer** (M4).
-5. **Fake-VLC scenario tests** (M4).
-6. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+1. **YouTube, second part**: the setup window's items (Firefox, sign-in, uBlock Origin), recently sent videos (M4).
+2. **Wake-on-LAN**: wake the PC from the phone (M4).
+3. **Sleep timer** (M4).
+4. **Fake-VLC scenario tests** (M4).
+5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.
