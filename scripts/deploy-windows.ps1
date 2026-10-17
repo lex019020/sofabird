@@ -119,6 +119,14 @@ function Install-VlcIfMissing {
     else { Write-Note "VLC installation did not complete (winget exit code $code). Install it from https://www.videolan.org and restart the companion." }
 }
 
+# Firefox also runs Sofabird.exe: as the TV extension's native messaging host, with the extension's id on its command
+# line. That relay is not the companion; it holds the installed files open, so it is stopped before an install (Firefox
+# starts it again by itself).
+function Get-SofabirdProcess([switch]$Relay) {
+    Get-CimInstance Win32_Process -Filter "Name = '$ExeName'" -ErrorAction SilentlyContinue |
+        Where-Object { ($_.CommandLine -match 'tv@sofabird\.app') -eq [bool]$Relay }
+}
+
 function Stop-Companion {
     $exes = @($Exe, (Join-Path $DataRoot "app\$ExeName")) | Where-Object { Test-Path $_ }
     foreach ($e in $exes) {
@@ -127,12 +135,15 @@ function Stop-Companion {
     }
     $deadline = (Get-Date).AddSeconds(10)
     do {
-        $procs = Get-Process -Name 'Sofabird' -ErrorAction SilentlyContinue
-        if (-not $procs) { return }
+        $procs = @(Get-SofabirdProcess)
+        if (-not $procs) { break }
         Start-Sleep -Milliseconds 300
     } while ((Get-Date) -lt $deadline)
-    Write-Note 'The companion did not exit on its own, stopping it forcibly'
-    $procs | Stop-Process -Force
+    if ($procs) {
+        Write-Note 'The companion did not exit on its own, stopping it forcibly'
+        $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    }
+    Get-SofabirdProcess -Relay | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Milliseconds 500
 }
 
@@ -194,7 +205,7 @@ function Get-CompanionPort {
 function Start-Companion {
     # A silent install does not start the app; a second instance would only show "already running".
     Start-Sleep -Seconds 2
-    if (Get-Process -Name 'Sofabird' -ErrorAction SilentlyContinue) { return }
+    if (Get-SofabirdProcess) { return }
     if ($InSsh) { Invoke-InUserSession $Exe '' 'Start' }
     else { Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) }
 }
