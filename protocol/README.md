@@ -157,7 +157,9 @@ Monitors (`listDisplays`):
 Companion behaviour:
 - `moveToDisplay` moves the VLC window (leave fullscreen → move → restore fullscreen if it was on) **and
   remembers the monitor as preferred**. If VLC is not running — it only remembers, without an error.
-- `preferredDisplay` — only remember (`null` — "do not manage": the companion does not touch the VLC window).
+- `preferredDisplay` — only remember for VLC (`null` — "do not manage": the companion does not touch the VLC window).
+- One TV screen: with both commands an open TV browser (YouTube) and Moonlight's stream window move to the chosen
+  monitor right away, and they open on the preferred monitor from then on.
 - When a new VLC window appears (started by the companion **or manually**, e.g. by double-clicking a movie),
   the companion moves it to the preferred monitor if that monitor is connected (once per window; if the user
   later drags the window themselves, the companion does not move it back). If `launchFullscreen` is on when the companion starts VLC,

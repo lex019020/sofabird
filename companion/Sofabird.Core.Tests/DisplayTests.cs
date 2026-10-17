@@ -560,6 +560,31 @@ public class DisplayControllerTests
     }
 
     [Fact]
+    public async Task ChoosingTheTvScreen_IsAnnounced_EvenWhenItIsPreferredAlready()
+    {
+        var (c, monitors, _, vlc) = Create();
+        var chosen = new List<string>();
+        c.TvScreenChosen += m => chosen.Add(m.GdiDeviceName);
+        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None); // VLC closed: only remembered
+        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.ExecuteAsync("preferredDisplay", Args($$"""{"displayId":{{JsonSerializer.Serialize(TvPath)}}}"""), CancellationToken.None);
+        Assert.Equal([@"\\.\DISPLAY2", @"\\.\DISPLAY2", @"\\.\DISPLAY2"], chosen);
+
+        // "Do not manage" and a display that is not connected: nothing to follow.
+        await c.ExecuteAsync("preferredDisplay", Args("""{"displayId":null}"""), CancellationToken.None);
+        monitors.List = [monitors.List[0]];
+        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        Assert.Equal(3, chosen.Count);
+
+        // A running VLC whose window cannot be found still lets the rest follow.
+        monitors.List = MonitorTopologyTests.LaptopAndTv();
+        vlc.ProcessId = 10;
+        await c.PlaceNewWindowAsync(10, startedBeforeCompanion: true, null, CancellationToken.None);
+        await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, null, CancellationToken.None));
+        Assert.Equal(4, chosen.Count);
+    }
+
+    [Fact]
     public async Task MoveToDisplay_WindowedOrUncontrollable_JustMoves()
     {
         var (c, _, _, vlc) = Create();

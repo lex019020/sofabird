@@ -56,9 +56,9 @@ internal static class UiText
     public static string TrayRestartVlc => S("TrayRestartVlc");
     /// <summary>Close VLC</summary>
     public static string TrayQuitVlc => S("TrayQuitVlc");
-    /// <summary>Move VLC to display</summary>
+    /// <summary>TV screen</summary>
     public static string TrayMoveToDisplay => S("TrayMoveToDisplay");
-    /// <summary>VLC opens on the checked display</summary>
+    /// <summary>VLC, YouTube and Moonlight open on the checked display</summary>
     public static string TrayDisplayHint => S("TrayDisplayHint");
     /// <summary>{0} (built-in)</summary>
     public static string TrayDisplayBuiltIn(object a0) => F("TrayDisplayBuiltIn", a0);

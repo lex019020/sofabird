@@ -66,6 +66,12 @@ public sealed class DisplayController : IDisposable
     /// <summary>The preferred monitor or the VLC window's monitor changed — the state should be pushed.</summary>
     public event Action? Changed;
 
+    /// <summary>
+    /// The user chose the TV's monitor (from a phone or the tray), also when it was the preferred one already: whatever
+    /// else is on the TV (YouTube, a Moonlight stream) follows it. Raised for a connected monitor only.
+    /// </summary>
+    public event Action<MonitorInfo>? TvScreenChosen;
+
     public string? PreferredId => _prefs.PreferredId;
 
     public static bool Handles(string sysName) => sysName is "listDisplays" or "moveToDisplay" or "preferredDisplay";
@@ -87,8 +93,13 @@ public sealed class DisplayController : IDisposable
                 return null;
             }
             case "preferredDisplay":
-                SetPreferred(args.GetString("displayId"));
+            {
+                var id = args.GetString("displayId");
+                SetPreferred(id);
+                if (MonitorTopology.FindById(_monitors.GetMonitors(), string.IsNullOrWhiteSpace(id) ? null : id) is { } chosen)
+                    RaiseTvScreenChosen(chosen);
                 return null;
+            }
             default:
                 throw ProtocolException.Unsupported($"unknown sys command '{name}'");
         }
@@ -233,6 +244,12 @@ public sealed class DisplayController : IDisposable
             restored ? ", restored" : "", moved ? ", moved" : "", fullscreenAgain ? ", fullscreen again" : "");
     }
 
+    private void RaiseTvScreenChosen(MonitorInfo monitor)
+    {
+        try { TvScreenChosen?.Invoke(monitor); }
+        catch (Exception ex) { _log.LogWarning(ex, "TvScreenChosen handler failed"); }
+    }
+
     /// <summary>Remember the preferred monitor (<c>null</c>/empty — do not manage the VLC window). Does not move anything.</summary>
     public void SetPreferred(string? id)
     {
@@ -274,6 +291,7 @@ public sealed class DisplayController : IDisposable
         }
 
         SetPreferred(target.Id);
+        RaiseTvScreenChosen(target);
         if (_vlc.ProcessId is not int pid)
         {
             _log.LogInformation("moveToDisplay: VLC is not running; {Name} will be used for the next VLC window", target.Name);

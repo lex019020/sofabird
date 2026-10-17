@@ -185,14 +185,14 @@ is not kept); `notInstalled` — "VLC was not found on the computer". After a ta
 progress until the companion reports a new state (up to 20 s). The "More" sheet (Windows volume, sleep,
 etc.) is available in these states too. In direct mode the behaviour is unchanged.
 
-**Display for VLC (companion, `caps.windowControl`)**: on the remote, next to the "Audio"/"Subtitles" chips, there is
+**TV screen (companion, `caps.windowControl`)** — one monitor for VLC, YouTube and Moonlight: on the remote, next to the "Audio"/"Subtitles" chips, there is
 a "Display: <name>" chip (a TV icon for an external monitor, a laptop icon for the built-in panel). It shows the monitor
 where the VLC window is now, or, if VLC is closed, the monitor VLC will open on; monitor names are read (`sys listDisplays`)
-right after connecting. The chip works while VLC is closed too. A tap opens the "Display for VLC" sheet (the "Display"
+right after connecting. The chip works while VLC is closed too. A tap opens the "TV screen" sheet (the "TV screen"
 item in "More" leads there as well): the list of monitors — icon, friendly name from EDID, resolution, the "primary" and
 "VLC is here" labels; a radio button marks the preferred monitor. Tapping a monitor → `sys moveToDisplay {displayId}`
-(haptics, progress in the row): VLC moves there now if it is open, and opens there from then on; while VLC is closed the
-chosen monitor is captioned "VLC will open on this display". The last item "Do not manage" →
+(haptics, progress in the row): VLC, an open YouTube and a Moonlight stream move there now, and open there from then
+on; the chosen monitor is captioned "VLC, YouTube and Moonlight open here". The last item "Do not manage" →
 `sys preferredDisplay {displayId: null}`: the companion does not touch the window. The preferred monitor is not connected
 (TV off) — an explanation under the list. The list is re-read on opening and after every action; an error is shown as
 text in the sheet and as a snackbar. After a successful command the choice is marked at once (optimistically) until the
@@ -343,7 +343,7 @@ after changing that area:
    on the phone (autofocus, Samsung numeric keyboard, sending on the 6th digit); a wrong code → an error and
    the field cleared; "Cancel"; the token is saved, after an app restart — connecting without a code;
    reconnect after the laptop sleeps; "Forget this computer" → a code again on the next tap.
-9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "Display" item opens "Display for VLC" (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Show on the TV" / "End streaming" (`sys moonlightStart|moonlightStop`, cap `moonlight`), "YouTube on the TV" with a link field and "Paste" (`sys youtubeOpen`, cap `youtube`); "Share → Sofabird" from the YouTube app sends the shared text the same way (it waits up to 15 s for the PC); while YouTube is open the remote shows its thumbnail, title, channel, position, the transport buttons and the PC's volume, with "Close YouTube" in the thumbnail's corner; the media notification, the lock screen, headset buttons and the volume keys then follow YouTube and the PC's volume (`onTv()` / `routeToYouTube()` in `:core:protocol`) — the sections appear only with the corresponding `caps`.
+9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "TV screen" item opens the "TV screen" sheet (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Show on the TV" / "End streaming" (`sys moonlightStart|moonlightStop`, cap `moonlight`), "YouTube on the TV" with a link field and "Paste" (`sys youtubeOpen`, cap `youtube`); "Share → Sofabird" from the YouTube app sends the shared text the same way (it waits up to 15 s for the PC); while YouTube is open the remote shows its thumbnail, title, channel, position, the transport buttons and the PC's volume, with "Close YouTube" in the thumbnail's corner; the media notification, the lock screen, headset buttons and the volume keys then follow YouTube and the PC's volume (`onTv()` / `routeToYouTube()` in `:core:protocol`) — the sections appear only with the corresponding `caps`.
 10. The phone name in the pairing window on the PC (`Settings.Global.DEVICE_NAME`, e.g. "Galaxy S24").
 11. VLC states on the remote: VLC closed → "Launch VLC"; VLC opened by hand → "without control" →
     "Restart with control" (the same movie on the TV); the status on the PC card updates (~8–10 s).
@@ -368,7 +368,7 @@ after changing that area:
     9. The laptop sleeps during a Bluetooth session → reconnect after it wakes up.
     10. The companion closes during a Bluetooth session → the break is noticed at once (`read() == -1`/`IOException`),
         then the usual reconnect attempts.
-14. **Display for VLC** (Galaxy S24 ↔ the TV laptop: built-in panel + TV over HDMI, a companion with monitor `id`s):
+14. **TV screen** (Galaxy S24 ↔ the TV laptop: built-in panel + TV over HDMI, a companion with monitor `id`s):
     1. On the remote, the chip "Display: <TV name>" with a TV icon (or "<panel>" with a laptop icon); the name comes from
        EDID, as in the Windows display settings; on a narrow screen the chips wrap to a second line without cutting "More".
     2. VLC open on the laptop → sheet: "VLC is here" on the panel, the radio button on the preferred monitor, resolutions

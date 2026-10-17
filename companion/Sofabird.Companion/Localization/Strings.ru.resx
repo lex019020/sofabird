@@ -29,8 +29,8 @@
   <data name="TrayStartVlc" xml:space="preserve"><value>Запустить VLC</value></data>
   <data name="TrayRestartVlc" xml:space="preserve"><value>Перезапустить VLC с управлением с телефона</value></data>
   <data name="TrayQuitVlc" xml:space="preserve"><value>Закрыть VLC</value></data>
-  <data name="TrayMoveToDisplay" xml:space="preserve"><value>Перенести VLC на экран</value></data>
-  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC открывается на отмеченном экране</value></data>
+  <data name="TrayMoveToDisplay" xml:space="preserve"><value>Экран телевизора</value></data>
+  <data name="TrayDisplayHint" xml:space="preserve"><value>VLC, YouTube и Moonlight открываются на отмеченном экране</value></data>
   <data name="TrayDisplayBuiltIn" xml:space="preserve"><value>{0} (встроенный)</value></data>
   <data name="TrayDisplayDisconnected" xml:space="preserve"><value>{0} (не подключён)</value></data>
   <data name="TrayDisplayUnmanaged" xml:space="preserve"><value>Не управлять экраном</value></data>
