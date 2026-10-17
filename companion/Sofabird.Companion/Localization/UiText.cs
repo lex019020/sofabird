@@ -260,4 +260,32 @@ internal static class UiText
     public static string SetupBluetoothDisabled => S("SetupBluetoothDisabled");
     /// <summary>Open Bluetooth settings</summary>
     public static string SetupOpenBluetoothSettings => S("SetupOpenBluetoothSettings");
+    /// <summary>YouTube on the TV (optional)</summary>
+    public static string SetupYouTubeTitle => S("SetupYouTubeTitle");
+    /// <summary>A video shared to Sofabird on the phone plays fullscreen on the TV in Firefox, with a profile of its own for the TV (your everyday browser is not touched). Sign in to YouTube there once with the keyboard and mouse at the PC: your subscriptions and recommendations are then on the TV.</summary>
+    public static string SetupYouTubeText => S("SetupYouTubeText");
+    /// <summary>✓ Firefox: {0}</summary>
+    public static string SetupYouTubeInstalled(object a0) => F("SetupYouTubeInstalled", a0);
+    /// <summary>Firefox is not installed</summary>
+    public static string SetupYouTubeNoBrowser => S("SetupYouTubeNoBrowser");
+    /// <summary>Install Firefox</summary>
+    public static string SetupYouTubeInstall => S("SetupYouTubeInstall");
+    /// <summary>Downloading Firefox from mozilla.org…</summary>
+    public static string SetupYouTubeDownloading => S("SetupYouTubeDownloading");
+    /// <summary>Installing Firefox… Windows may ask for permission.</summary>
+    public static string SetupYouTubeInstalling => S("SetupYouTubeInstalling");
+    /// <summary>Firefox was not installed ({0})</summary>
+    public static string SetupYouTubeInstallFailed(object a0) => F("SetupYouTubeInstallFailed", a0);
+    /// <summary>Sign in to YouTube…</summary>
+    public static string SetupYouTubeSignIn => S("SetupYouTubeSignIn");
+    /// <summary>Block ads on YouTube (optional)</summary>
+    public static string SetupAdBlockTitle => S("SetupAdBlockTitle");
+    /// <summary>Adds uBlock Origin, a free and open-source ad blocker, to the TV browser (downloaded from addons.mozilla.org; it keeps itself up to date). It can be switched on the phone too.</summary>
+    public static string SetupAdBlockText => S("SetupAdBlockText");
+    /// <summary>✓ Ads are blocked (uBlock Origin)</summary>
+    public static string SetupAdBlockOn => S("SetupAdBlockOn");
+    /// <summary>Install Firefox first</summary>
+    public static string SetupAdBlockNoBrowser => S("SetupAdBlockNoBrowser");
+    /// <summary>uBlock Origin could not be downloaded: check the internet connection</summary>
+    public static string SetupAdBlockFailed => S("SetupAdBlockFailed");
 }

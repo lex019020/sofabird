@@ -136,4 +136,18 @@
   <data name="SetupBluetoothNoAdapter" xml:space="preserve"><value>Адаптера Bluetooth нет — телефон будет подключаться только по Wi‑Fi</value></data>
   <data name="SetupBluetoothDisabled" xml:space="preserve"><value>Выключен в настройках компаньона (bluetooth: false)</value></data>
   <data name="SetupOpenBluetoothSettings" xml:space="preserve"><value>Открыть параметры Bluetooth</value></data>
+  <data name="SetupYouTubeTitle" xml:space="preserve"><value>YouTube на телевизоре (необязательно)</value></data>
+  <data name="SetupYouTubeText" xml:space="preserve"><value>Видео, которым поделились в Sofabird на телефоне, играет на весь экран телевизора в Firefox — с отдельным профилем для ТВ (обычный браузер не затрагивается). Один раз войдите там в YouTube с клавиатуры и мыши у ПК — тогда на телевизоре будут ваши подписки и рекомендации.</value></data>
+  <data name="SetupYouTubeInstalled" xml:space="preserve"><value>✓ Firefox: {0}</value></data>
+  <data name="SetupYouTubeNoBrowser" xml:space="preserve"><value>Firefox не установлен</value></data>
+  <data name="SetupYouTubeInstall" xml:space="preserve"><value>Установить Firefox</value></data>
+  <data name="SetupYouTubeDownloading" xml:space="preserve"><value>Скачивание Firefox с mozilla.org…</value></data>
+  <data name="SetupYouTubeInstalling" xml:space="preserve"><value>Установка Firefox… Windows может запросить разрешение.</value></data>
+  <data name="SetupYouTubeInstallFailed" xml:space="preserve"><value>Firefox не установлен ({0})</value></data>
+  <data name="SetupYouTubeSignIn" xml:space="preserve"><value>Войти в YouTube…</value></data>
+  <data name="SetupAdBlockTitle" xml:space="preserve"><value>Блокировать рекламу на YouTube (необязательно)</value></data>
+  <data name="SetupAdBlockText" xml:space="preserve"><value>Добавляет в браузер для ТВ uBlock Origin — бесплатный блокировщик рекламы с открытым кодом (скачивается с addons.mozilla.org и обновляется сам). Переключается и с телефона.</value></data>
+  <data name="SetupAdBlockOn" xml:space="preserve"><value>✓ Реклама блокируется (uBlock Origin)</value></data>
+  <data name="SetupAdBlockNoBrowser" xml:space="preserve"><value>Сначала установите Firefox</value></data>
+  <data name="SetupAdBlockFailed" xml:space="preserve"><value>Не удалось скачать uBlock Origin — проверьте подключение к интернету</value></data>
 </root>

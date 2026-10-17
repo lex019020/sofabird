@@ -305,5 +305,13 @@ class CompanionMessagesTest {
         assertTrue(ad.ad && ad.adSkippable)
         val skip = obj(CommandMapping.toSys("4", SystemCommand.YouTube(YouTubeAction.SKIP_AD)))
         assertEquals("skipAd", skip.args()["action"]!!.jsonPrimitive.content)
+
+        val block = obj(CommandMapping.toSys("5", SystemCommand.YouTubeAdBlock(true)))
+        assertEquals("youtubeAdBlock", block["name"]!!.jsonPrimitive.content)
+        assertEquals("true", block.args()["on"]!!.jsonPrimitive.content)
+        val blocked = (
+            known("""{"t":"state","vlc":{"running":false},"youtube":{"open":false,"adBlock":true}}""") as CompanionMessage.State
+            ).toPlayerState().youtube!!
+        assertTrue(blocked.adBlock)
     }
 }

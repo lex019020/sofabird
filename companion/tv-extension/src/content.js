@@ -60,7 +60,7 @@ function snapshot() {
     adSkippable: ad && shown(document.querySelector(SKIP_AD)),
     canNext: shown(next) && next.getAttribute("aria-disabled") !== "true",
     canPrevious: typeof index === "number" && index > 0,
-    fullscreen: !!document.fullscreenElement,
+    fullscreen: isFullscreen(),
   };
 }
 
@@ -84,6 +84,26 @@ function skipAd() {
   const v = video();
   if (!p || !v || !p.classList.contains("ad-showing") || !shown(document.querySelector(SKIP_AD))) return;
   if (Number.isFinite(v.duration) && v.duration > 0) v.currentTime = Math.max(0, v.duration - 0.05);
+}
+
+/** YouTube's player fills the screen: the page is fullscreen and the player knows it. */
+function isFullscreen() {
+  const p = player();
+  return !!document.fullscreenElement && !!p && p.classList.contains("ytp-fullscreen");
+}
+
+/**
+ * The player fullscreen with YouTube's own button (the TV profile lets a page go fullscreen without a key press:
+ * full-screen-api.allow-trusted-requests-only). A page that thinks it is fullscreen while the player does not (left
+ * after the window was moved) leaves fullscreen first.
+ */
+function fullscreen() {
+  if (isFullscreen()) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {}).finally(() => setTimeout(() => click(".ytp-fullscreen-button"), 300));
+  } else {
+    click(".ytp-fullscreen-button");
+  }
 }
 
 function click(selector) {
@@ -127,8 +147,7 @@ port.onMessage.addListener((message) => {
       call("previousVideo");
       break;
     case "fullscreen":
-      // The TV profile lets a page go fullscreen without a key press (full-screen-api.allow-trusted-requests-only).
-      if (!document.fullscreenElement) click(".ytp-fullscreen-button");
+      fullscreen();
       break;
     case "skipAd":
       skipAd();
@@ -143,6 +162,8 @@ for (const type of ["play", "pause", "playing", "seeked", "durationchange", "loa
 }
 document.addEventListener("yt-navigate-finish", () => report(true));
 document.addEventListener("fullscreenchange", () => report(true));
+// Shown in the companion's log: the browser refused fullscreen (it then presses "f" itself).
+document.addEventListener("fullscreenerror", () => port.postMessage({ t: "log", message: "fullscreen request denied" }), true);
 // Ads start and end without a media event of the main video; the skip button appears a few seconds into an ad.
 setInterval(() => {
   keepWatching();

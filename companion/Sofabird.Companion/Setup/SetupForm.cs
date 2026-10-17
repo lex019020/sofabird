@@ -1,5 +1,6 @@
 using Sofabird.Companion.Localization;
 using Sofabird.Companion.Net;
+using Sofabird.Companion.YouTube;
 using Sofabird.Core.Power;
 using Sofabird.Core.Setup;
 
@@ -24,6 +25,10 @@ public sealed class SetupForm : Form
     private readonly Item _media;
     private readonly ListBox _mediaList;
     private readonly Button _mediaRemove;
+    private readonly Item _youtube;
+    private readonly Button _youtubeInstall;
+    private readonly LinkLabel _youtubeSignIn;
+    private readonly Item _adBlock;
     private readonly Item _bluetooth;
     private readonly Label _networkHint;
     private readonly LinkLabel _networkLink;
@@ -107,6 +112,17 @@ public sealed class SetupForm : Form
         _media.Content.Controls.Add(TextLabel(UiText.SetupMediaTmdb, new Font(Font.FontFamily, 8.25F), SecondaryText, new Padding(0, 6, 0, 0)));
         _keepAwake = AddItem(UiText.SetupKeepAwakeTitle, UiText.SetupKeepAwakeText, toggle: true);
         _mediaStation = AddItem(UiText.SetupMediaStationTitle, UiText.SetupMediaStationText, toggle: true);
+        _youtube = AddItem(UiText.SetupYouTubeTitle, UiText.SetupYouTubeText, toggle: false);
+        _youtubeInstall = DialogButton(UiText.SetupYouTubeInstall);
+        _youtubeInstall.Margin = new Padding(0, 6, 0, 0);
+        _youtubeInstall.Anchor = AnchorStyles.Left;
+        _youtubeInstall.Visible = false;
+        _youtubeInstall.Click += async (_, _) => await InstallBrowserAsync();
+        _youtube.Content.Controls.Add(_youtubeInstall);
+        _youtubeSignIn = Link(UiText.SetupYouTubeSignIn, () => _backend.SignInToYouTube());
+        _youtubeSignIn.Visible = false;
+        _youtube.Content.Controls.Add(_youtubeSignIn);
+        _adBlock = AddItem(UiText.SetupAdBlockTitle, UiText.SetupAdBlockText, toggle: true);
         _bluetooth = AddItem(UiText.SetupBluetoothTitle, UiText.SetupBluetoothText, toggle: false, last: true);
         _bluetooth.Content.Controls.Add(Link(UiText.SetupOpenBluetoothSettings, () => _backend.OpenBluetoothSettings()));
 
@@ -160,7 +176,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems) item.Status.Text = UiText.SetupChecking;
     }
 
-    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _bluetooth];
+    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _youtube, _adBlock, _bluetooth];
 
     private static bool HighContrast => SystemInformation.HighContrast;
     private static Color SecondaryText => HighContrast ? SystemColors.WindowText : Color.FromArgb(0x5A, 0x5A, 0x5A);
@@ -346,6 +362,7 @@ public sealed class SetupForm : Form
         _vlc.Toggle!.Checked = s.Vlc != VlcSetupState.NotInstalled && (!s.EverCompleted || s.ConfigureVlc);
         _keepAwake.Toggle!.Checked = s.KeepAwake;
         _mediaStation.Toggle!.Checked = s.MediaStation ?? true;
+        _adBlock.Toggle!.Checked = s.BlockAds; // opt-in: never ticked by default
         _mediaList.Items.Clear();
         foreach (var folder in s.MediaFolders ?? []) _mediaList.Items.Add(folder);
     }
@@ -398,6 +415,7 @@ public sealed class SetupForm : Form
         RenderMedia();
         SetStatus(_keepAwake, s.KeepAwake ? UiText.SetupOn : UiText.SetupOff, s.KeepAwake ? Tone.Ok : Tone.Neutral);
         RenderMediaStation(s);
+        RenderYouTube(s);
 
         switch (s.Bluetooth)
         {
@@ -423,6 +441,42 @@ public sealed class SetupForm : Form
             SetStatus(_mediaStation, UiText.SetupMediaStationOff, Tone.Neutral);
         else
             SetStatus(_mediaStation, UiText.SetupMediaStationNow(Describe(s.PowerDeviations)), Tone.Neutral);
+    }
+
+    private void RenderYouTube(SetupSnapshot s)
+    {
+        var installed = s.Browser is not null;
+        if (installed) SetStatus(_youtube, UiText.SetupYouTubeInstalled(s.Browser!), Tone.Ok);
+        else SetStatus(_youtube, UiText.SetupYouTubeNoBrowser, Tone.Neutral);
+        _youtubeInstall.Visible = !installed;
+        _youtubeSignIn.Visible = installed;
+        if (_result?.BlockAds is { Outcome: StepOutcome.Failed })
+            SetStatus(_adBlock, UiText.SetupAdBlockFailed, Tone.Error);
+        else if (!installed)
+            SetStatus(_adBlock, UiText.SetupAdBlockNoBrowser, Tone.Neutral);
+        else
+            SetStatus(_adBlock, s.BlockAds ? UiText.SetupAdBlockOn : UiText.SetupOff, s.BlockAds ? Tone.Ok : Tone.Neutral);
+    }
+
+    private async Task InstallBrowserAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        SetEnabled(false);
+        var progress = new Progress<FirefoxInstallStep>(step => SetStatus(_youtube,
+            step == FirefoxInstallStep.Downloading ? UiText.SetupYouTubeDownloading : UiText.SetupYouTubeInstalling, Tone.Neutral));
+        string? error;
+        try
+        {
+            error = await _backend.InstallBrowserAsync(progress, CancellationToken.None);
+        }
+        finally
+        {
+            _busy = false;
+        }
+        if (IsDisposed) return;
+        await RefreshStateAsync();
+        if (error is not null) SetStatus(_youtube, UiText.SetupYouTubeInstallFailed(error), Tone.Error);
     }
 
     /// <summary>"closing the lid stops it (on battery), sleep after 10 min (on battery)".</summary>
@@ -485,7 +539,9 @@ public sealed class SetupForm : Form
     {
         foreach (var item in AllItems)
             if (item.Toggle is not null)
-                item.Toggle.Enabled = enabled && (item != _vlc || _snapshot?.Vlc != VlcSetupState.NotInstalled);
+                item.Toggle.Enabled = enabled && (item != _vlc || _snapshot?.Vlc != VlcSetupState.NotInstalled)
+                    && (item != _adBlock || _snapshot?.Browser is not null);
+        _youtubeInstall.Enabled = enabled;
         _mediaList.Enabled = enabled;
         foreach (Control c in _mediaRemove.Parent!.Controls) c.Enabled = enabled && (c != _mediaRemove || _mediaList.SelectedIndex >= 0);
         _apply.Enabled = enabled;
@@ -499,7 +555,7 @@ public sealed class SetupForm : Form
         SetEnabled(false);
         _result = null;
         var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked,
-            _mediaStation.Toggle!.Checked, MediaFolders);
+            _mediaStation.Toggle!.Checked, MediaFolders, _adBlock.Toggle!.Checked);
         if (choices.Firewall && _snapshot.Firewall is not { Ok: true })
             SetStatus(_firewall, UiText.SetupFirewallWaiting, Tone.Neutral);
         try

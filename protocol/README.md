@@ -116,6 +116,7 @@ and state changes arrive in a separate `state`.
 | `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
 | `moonlightStop` | — | `moonlight` |
 | `youtubeOpen` | `{"url": string}` — a link or the text the YouTube app shares | `youtube` |
+| `youtubeAdBlock` | `{"on": bool}` — block ads with uBlock Origin in the TV browser | `youtube` |
 | `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"fullscreen"\|"skipAd"\|"close", "time"?: seconds}` (`time` for `seek`) | `youtube` |
 
 Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
@@ -140,14 +141,18 @@ video link, YouTube not open). The state:
 
 ```json
 "youtube": {"open": true, "playing": true, "videoId": "aqz-KE-bpKQ", "title": "Big Buck Bunny", "channel": "Blender",
-            "time": 60.0, "length": 634.6, "canNext": false, "canPrevious": false, "ad": false, "adSkippable": false}
+            "time": 60.0, "length": 634.6, "canNext": false, "canPrevious": false, "ad": false, "adSkippable": false,
+            "adBlock": true}
 ```
 
 `time` is the position when the state was built; the phone moves it on from the arrival time while `playing`.
 `videoId` is the video on the page (with the extension; also the next one YouTube played by itself), else the one last
 opened from a phone (thumbnail: `https://i.ytimg.com/vi/<id>/hqdefault.jpg`); `title`, `channel`, `time` and `length`
 come from the browser and are absent until it reports them. `ad` — an ad plays (`time`/`length` are the ad's then),
-`adSkippable` — its "Skip" button is shown; both only with the extension. The PC's volume
+`adSkippable` — its "Skip" button is shown; both only with the extension. `adBlock` — ads are blocked with uBlock
+Origin (`youtubeAdBlock`: turning it on downloads uBlock Origin from addons.mozilla.org — `bad_request` when that fails —
+and an open TV browser restarts at the same video and position). `youtube` is present (with `open: false`) whenever a
+browser for it is installed. The PC's volume
 (`systemVolume`) is the one that applies to YouTube.
 
 Monitors (`listDisplays`):

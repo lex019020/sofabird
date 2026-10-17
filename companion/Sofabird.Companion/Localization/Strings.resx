@@ -136,4 +136,18 @@ Posters and descriptions: TMDB. This product uses the TMDB API but is not endors
   <data name="SetupBluetoothNoAdapter" xml:space="preserve"><value>No Bluetooth adapter: the phone will connect over Wi‑Fi only</value></data>
   <data name="SetupBluetoothDisabled" xml:space="preserve"><value>Turned off in the companion settings (bluetooth: false)</value></data>
   <data name="SetupOpenBluetoothSettings" xml:space="preserve"><value>Open Bluetooth settings</value></data>
+  <data name="SetupYouTubeTitle" xml:space="preserve"><value>YouTube on the TV (optional)</value></data>
+  <data name="SetupYouTubeText" xml:space="preserve"><value>A video shared to Sofabird on the phone plays fullscreen on the TV in Firefox, with a profile of its own for the TV (your everyday browser is not touched). Sign in to YouTube there once with the keyboard and mouse at the PC: your subscriptions and recommendations are then on the TV.</value></data>
+  <data name="SetupYouTubeInstalled" xml:space="preserve"><value>✓ Firefox: {0}</value></data>
+  <data name="SetupYouTubeNoBrowser" xml:space="preserve"><value>Firefox is not installed</value></data>
+  <data name="SetupYouTubeInstall" xml:space="preserve"><value>Install Firefox</value></data>
+  <data name="SetupYouTubeDownloading" xml:space="preserve"><value>Downloading Firefox from mozilla.org…</value></data>
+  <data name="SetupYouTubeInstalling" xml:space="preserve"><value>Installing Firefox… Windows may ask for permission.</value></data>
+  <data name="SetupYouTubeInstallFailed" xml:space="preserve"><value>Firefox was not installed ({0})</value></data>
+  <data name="SetupYouTubeSignIn" xml:space="preserve"><value>Sign in to YouTube…</value></data>
+  <data name="SetupAdBlockTitle" xml:space="preserve"><value>Block ads on YouTube (optional)</value></data>
+  <data name="SetupAdBlockText" xml:space="preserve"><value>Adds uBlock Origin, a free and open-source ad blocker, to the TV browser (downloaded from addons.mozilla.org; it keeps itself up to date). It can be switched on the phone too.</value></data>
+  <data name="SetupAdBlockOn" xml:space="preserve"><value>✓ Ads are blocked (uBlock Origin)</value></data>
+  <data name="SetupAdBlockNoBrowser" xml:space="preserve"><value>Install Firefox first</value></data>
+  <data name="SetupAdBlockFailed" xml:space="preserve"><value>uBlock Origin could not be downloaded: check the internet connection</value></data>
 </root>

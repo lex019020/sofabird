@@ -136,7 +136,7 @@ public sealed class TvExtensionBridge : IDisposable
         var state = TvPageState.Parse(line, DateTime.UtcNow);
         if (state is null)
         {
-            if (line.Contains("\"hello\"", StringComparison.Ordinal)) _log.LogInformation("TV extension: {Hello}", line);
+            _log.LogInformation("TV extension: {Message}", line); // hello, log: rare
             return;
         }
         bool changed;

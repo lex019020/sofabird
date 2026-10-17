@@ -203,6 +203,29 @@ UI = [
     ("SetupBluetoothDisabled", "Turned off in the companion settings (bluetooth: false)",
      "Выключен в настройках компаньона (bluetooth: false)"),
     ("SetupOpenBluetoothSettings", "Open Bluetooth settings", "Открыть параметры Bluetooth"),
+    ("SetupYouTubeTitle", "YouTube on the TV (optional)", "YouTube на телевизоре (необязательно)"),
+    ("SetupYouTubeText", "A video shared to Sofabird on the phone plays fullscreen on the TV in Firefox, with a profile of its own "
+                         "for the TV (your everyday browser is not touched). Sign in to YouTube there once with the keyboard and "
+                         "mouse at the PC: your subscriptions and recommendations are then on the TV.",
+     "Видео, которым поделились в Sofabird на телефоне, играет на весь экран телевизора в Firefox — с отдельным профилем для "
+     "ТВ (обычный браузер не затрагивается). Один раз войдите там в YouTube с клавиатуры и мыши у ПК — тогда на телевизоре "
+     "будут ваши подписки и рекомендации."),
+    ("SetupYouTubeInstalled", "✓ Firefox: {0}", "✓ Firefox: {0}"),
+    ("SetupYouTubeNoBrowser", "Firefox is not installed", "Firefox не установлен"),
+    ("SetupYouTubeInstall", "Install Firefox", "Установить Firefox"),
+    ("SetupYouTubeDownloading", "Downloading Firefox from mozilla.org…", "Скачивание Firefox с mozilla.org…"),
+    ("SetupYouTubeInstalling", "Installing Firefox… Windows may ask for permission.", "Установка Firefox… Windows может запросить разрешение."),
+    ("SetupYouTubeInstallFailed", "Firefox was not installed ({0})", "Firefox не установлен ({0})"),
+    ("SetupYouTubeSignIn", "Sign in to YouTube…", "Войти в YouTube…"),
+    ("SetupAdBlockTitle", "Block ads on YouTube (optional)", "Блокировать рекламу на YouTube (необязательно)"),
+    ("SetupAdBlockText", "Adds uBlock Origin, a free and open-source ad blocker, to the TV browser (downloaded from "
+                         "addons.mozilla.org; it keeps itself up to date). It can be switched on the phone too.",
+     "Добавляет в браузер для ТВ uBlock Origin — бесплатный блокировщик рекламы с открытым кодом (скачивается с "
+     "addons.mozilla.org и обновляется сам). Переключается и с телефона."),
+    ("SetupAdBlockOn", "✓ Ads are blocked (uBlock Origin)", "✓ Реклама блокируется (uBlock Origin)"),
+    ("SetupAdBlockNoBrowser", "Install Firefox first", "Сначала установите Firefox"),
+    ("SetupAdBlockFailed", "uBlock Origin could not be downloaded: check the internet connection",
+     "Не удалось скачать uBlock Origin — проверьте подключение к интернету"),
 ]
 
 PROTO = [
@@ -229,6 +252,8 @@ PROTO = [
      "На компьютере нет браузера для YouTube. Установите Firefox в окне настройки компаньона."),
     ("YouTubeBadLink", "This is not a link to a YouTube video", "Это не ссылка на видео YouTube"),
     ("YouTubeNotOpen", "YouTube is not open on the TV", "YouTube на телевизоре не открыт"),
+    ("YouTubeAdBlockFailed", "uBlock Origin could not be downloaded from addons.mozilla.org. Check the PC's internet connection.",
+     "Не удалось скачать uBlock Origin с addons.mozilla.org. Проверьте интернет на компьютере."),
     ("FolderNotFound", "Folder not found: {0}", "Папка не найдена: {0}"),
     ("FolderUnavailable", "Folder is not available: {0}", "Папка недоступна: {0}"),
     ("HistoryNotAFile", "Only files on this PC are kept in the watch history: {0}",

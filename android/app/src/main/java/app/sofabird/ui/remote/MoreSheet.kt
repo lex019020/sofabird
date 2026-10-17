@@ -192,7 +192,11 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
             }
             if (caps.youtube) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                YouTubeLinkSection(enabled = online) {
+                YouTubeLinkSection(
+                    enabled = online,
+                    adBlock = ui.state.youtube?.adBlock,
+                    onAdBlock = { tick(); viewModel.sendSystem(SystemCommand.YouTubeAdBlock(it)) },
+                ) {
                     tick()
                     viewModel.sendSystem(SystemCommand.YouTubeOpen(it))
                     onDismiss()
@@ -354,10 +358,19 @@ internal fun MoonlightSection(host: String?, streaming: Boolean, enabled: Boolea
     }
 }
 
-/** `youtube`: a pasted link to a YouTube video goes to the TV (sharing from the YouTube app does the same). */
+/**
+ * `youtube`: a pasted link to a YouTube video goes to the TV (sharing from the YouTube app does the same); blocking ads
+ * with uBlock Origin in the TV browser ([adBlock] `null` — a companion that cannot).
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun YouTubeLinkSection(enabled: Boolean, initial: String = "", onOpen: (String) -> Unit) {
+internal fun YouTubeLinkSection(
+    enabled: Boolean,
+    initial: String = "",
+    adBlock: Boolean? = null,
+    onAdBlock: (Boolean) -> Unit = {},
+    onOpen: (String) -> Unit,
+) {
     var link by remember { mutableStateOf(initial) }
     val clipboard = LocalClipboardManager.current
     SectionTitle(stringResource(R.string.section_youtube))
@@ -384,6 +397,20 @@ internal fun YouTubeLinkSection(enabled: Boolean, initial: String = "", onOpen: 
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 8.dp),
     )
+    if (adBlock != null) {
+        // Shown at once; the companion may need a few seconds to download uBlock Origin and restart the browser.
+        var wanted by remember(adBlock) { mutableStateOf(adBlock) }
+        Spacer(Modifier.height(8.dp))
+        SwitchRow(stringResource(R.string.youtube_block_ads), checked = wanted, enabled = enabled) {
+            wanted = !wanted
+            onAdBlock(wanted)
+        }
+        Text(
+            stringResource(R.string.youtube_block_ads_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /** `power`: keep-awake switch, display off, sleep (behind a confirmation). */

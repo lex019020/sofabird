@@ -51,6 +51,8 @@ public sealed class Settings
     /// the profile, so the companion tells its YouTube apart from other players).
     /// </summary>
     public string? YouTubeSessionId { get; set; }
+    /// <summary>Block ads on YouTube with uBlock Origin in the TV browser (opt-in: the setup window or the phone).</summary>
+    public bool BlockAds { get; set; }
 
     /// <summary>
     /// Stable id of the preferred monitor (the TV): every new VLC window is moved there once.
