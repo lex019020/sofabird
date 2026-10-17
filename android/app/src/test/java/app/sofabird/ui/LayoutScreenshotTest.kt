@@ -147,7 +147,7 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun youtubeLink() = snapshot("youtube_link") {
         Column(Modifier.padding(16.dp)) {
-            YouTubeLinkSection(enabled = true, initial = "https://youtu.be/aqz-KE-bpKQ") {}
+            YouTubeLinkSection(enabled = true, initial = "https://youtu.be/aqz-KE-bpKQ", adBlock = true) {}
         }
     }
 

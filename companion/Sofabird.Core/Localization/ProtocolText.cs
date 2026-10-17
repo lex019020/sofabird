@@ -40,6 +40,8 @@ public static class ProtocolText
     public static LocalizableText YouTubeBadLink => new("YouTubeBadLink");
     /// <summary>YouTube is not open on the TV</summary>
     public static LocalizableText YouTubeNotOpen => new("YouTubeNotOpen");
+    /// <summary>uBlock Origin could not be downloaded from addons.mozilla.org. Check the PC's internet connection.</summary>
+    public static LocalizableText YouTubeAdBlockFailed => new("YouTubeAdBlockFailed");
     /// <summary>Folder not found: {0}</summary>
     public static LocalizableText FolderNotFound(object a0) => new("FolderNotFound", a0);
     /// <summary>Folder is not available: {0}</summary>

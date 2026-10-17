@@ -226,6 +226,8 @@
     <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>
     <string name="action_youtube_close">Закрыть YouTube</string>
     <string name="youtube_ad">Реклама</string>
+    <string name="youtube_block_ads">Блокировать рекламу (uBlock Origin)</string>
+    <string name="youtube_block_ads_hint">Открытый YouTube перезапустится на ТВ и продолжит с того же места.</string>
     <string name="action_skip_ad">Пропустить</string>
     <string name="youtube_ad_playing">Идёт реклама, видео начнётся после неё</string>
     <string name="action_youtube_fullscreen">На весь экран</string>

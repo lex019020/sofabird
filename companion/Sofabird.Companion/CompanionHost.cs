@@ -62,7 +62,6 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.Library,
             .. vlc.History is null ? Array.Empty<string>() : [Core.Protocol.Caps.History],
             .. moonlight.ExePath is null ? Array.Empty<string>() : [Core.Protocol.Caps.Moonlight],
-            .. youtube.Available ? [Core.Protocol.Caps.YouTube] : Array.Empty<string>(),
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
         var migrated = false;
@@ -109,7 +108,15 @@ public sealed class CompanionHost : ISessionHost
     public string MachineName => Environment.MachineName;
     public string InstallationId => _settings.InstallationId;
     /// <summary>Base capabilities plus <c>bluetooth</c> while the RFCOMM service is advertising.</summary>
-    public IReadOnlyList<string> Caps => Bluetooth?.IsAdvertising == true ? _bluetoothCaps : _baseCaps;
+    public IReadOnlyList<string> Caps
+    {
+        get
+        {
+            var caps = Bluetooth?.IsAdvertising == true ? _bluetoothCaps : _baseCaps;
+            // Firefox may be installed from the setup window while the companion runs.
+            return _youtube.Available ? [.. caps, Core.Protocol.Caps.YouTube] : caps;
+        }
+    }
 
     /// <summary>Bluetooth RFCOMM server (set by <c>Program</c> after the session manager exists).</summary>
     public BluetoothRfcommServer? Bluetooth { get; set; }
@@ -310,6 +317,11 @@ public sealed class CompanionHost : ISessionHost
                 // The TV browser covers VLC: a movie playing behind it would go on unseen.
                 if (_vlc.IsPlaying) await _vlc.PauseAsync(ct).ConfigureAwait(false);
                 _youtube.Open(args.RequireString("url"));
+                _vlc.Poke();
+                return null;
+
+            case "youtubeAdBlock":
+                await _youtube.SetBlockAdsAsync(args.RequireBool("on"), ct).ConfigureAwait(false);
                 _vlc.Poke();
                 return null;
 

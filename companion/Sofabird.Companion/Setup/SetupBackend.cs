@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Sofabird.Companion.Net;
 using Sofabird.Companion.Services;
 using Sofabird.Companion.Vlc;
+using Sofabird.Companion.YouTube;
 using Sofabird.Core.Power;
 using Sofabird.Core.Setup;
 using Sofabird.Core.Vlc;
@@ -33,11 +34,13 @@ public sealed record SetupSnapshot(
     bool? MediaStation = null,
     IReadOnlyList<PowerDeviation>? PowerDeviations = null,
     bool EverCompleted = false,
-    IReadOnlyList<string>? MediaFolders = null);
+    IReadOnlyList<string>? MediaFolders = null,
+    string? Browser = null,
+    bool BlockAds = false);
 
 /// <summary>What the user ticked.</summary>
 public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
-    IReadOnlyList<string>? MediaFolders = null);
+    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false);
 
 public enum StepOutcome
 {
@@ -57,7 +60,8 @@ public sealed record StepResult(StepOutcome Outcome, string? Detail = null)
     public static readonly StepResult Skipped = new(StepOutcome.Skipped);
 }
 
-public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake, StepResult? MediaStation = null);
+public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake, StepResult? MediaStation = null,
+    StepResult? BlockAds = null);
 
 /// <summary>
 /// Everything the "Setup and permissions" window reads and changes. The window talks only to this interface, so it
@@ -76,6 +80,12 @@ public interface ISetupBackend
 
     void OpenBluetoothSettings();
     void OpenNetworkSettings();
+
+    /// <summary>Downloads and installs Firefox for YouTube on the TV; <c>null</c> — done, otherwise what went wrong.</summary>
+    Task<string?> InstallBrowserAsync(IProgress<FirefoxInstallStep>? progress, CancellationToken ct);
+
+    /// <summary>Opens the TV browser on this PC's screen at the sign-in to YouTube.</summary>
+    void SignInToYouTube();
 }
 
 /// <summary>The real backend: settings, HKCU Run, vlcrc + Lua pages, keep-awake and Windows Firewall.</summary>
@@ -89,11 +99,13 @@ public sealed class SetupBackend : ISetupBackend
     private readonly LibraryService _library;
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly PowerPlanService _powerPlan;
+    private readonly YouTubeService _youtube;
     private readonly ILogger _log;
 
     public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host, LibraryService library,
-        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, ILogger<SetupBackend> log)
+        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, ILogger<SetupBackend> log)
     {
+        _youtube = youtube;
         _powerPlan = powerPlan;
         _paths = paths;
         _settings = settings;
@@ -128,7 +140,8 @@ public sealed class SetupBackend : ISetupBackend
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { autostart = false; }
         return new SetupSnapshot(fw, fwError, publicNets, autostart, InspectVlc(), _settings.KeepAwake, _bluetooth.Status,
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
-            _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList());
+            _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList(),
+            _youtube.BrowserPath, _youtube.BlockAds);
     }
 
     private VlcSetupState InspectVlc()
@@ -167,11 +180,31 @@ public sealed class SetupBackend : ISetupBackend
         _host.SetKeepAwake(choices.KeepAwake);
         var mediaStation = ApplyMediaStation(choices.MediaStation);
 
+        var blockAds = await ApplyBlockAdsAsync(choices.BlockAds, ct);
         var firewall = choices.Firewall ? await ApplyFirewallAsync(ct) : StepResult.Skipped;
-        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}",
-            firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome);
-        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation);
+        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}, ad blocking {BlockAds}",
+            firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome, blockAds.Outcome);
+        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation, blockAds);
     }
+
+    private async Task<StepResult> ApplyBlockAdsAsync(bool on, CancellationToken ct)
+    {
+        if (on == _youtube.BlockAds || (on && _youtube.BrowserPath is null)) return StepResult.Skipped;
+        try
+        {
+            await _youtube.SetBlockAdsAsync(on, ct);
+            return StepResult.Done;
+        }
+        catch (Core.Session.ProtocolException ex)
+        {
+            return new StepResult(StepOutcome.Failed, ex.Message);
+        }
+    }
+
+    public Task<string?> InstallBrowserAsync(IProgress<FirefoxInstallStep>? progress, CancellationToken ct) =>
+        _youtube.InstallBrowserAsync(progress, ct);
+
+    public void SignInToYouTube() => _youtube.SignIn();
 
     /// <summary>Unticking only stops the watching: the previous power settings are not known, so they stay.</summary>
     private StepResult ApplyMediaStation(bool on)

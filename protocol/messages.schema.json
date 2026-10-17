@@ -333,6 +333,7 @@
             "sleep",
             "systemVolume",
             "youtube",
+            "youtubeAdBlock",
             "youtubeOpen"
           ]
         },
@@ -1124,6 +1125,10 @@
             "adSkippable": {
               "type": "boolean",
               "description": "the ad's Skip button is shown (sys youtube skipAd)"
+            },
+            "adBlock": {
+              "type": "boolean",
+              "description": "ads are blocked with uBlock Origin (sys youtubeAdBlock)"
             }
           }
         }

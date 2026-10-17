@@ -110,6 +110,9 @@ sealed class SystemCommand {
      */
     data class YouTubeOpen(val url: String) : SystemCommand()
 
+    /** Block ads on YouTube with uBlock Origin in the TV browser (an open one restarts where it was). */
+    data class YouTubeAdBlock(val on: Boolean) : SystemCommand()
+
     /** Control YouTube on the TV; [time] (seconds) only for [YouTubeAction.SEEK]. */
     data class YouTube(val action: YouTubeAction, val time: Double? = null) : SystemCommand()
 }

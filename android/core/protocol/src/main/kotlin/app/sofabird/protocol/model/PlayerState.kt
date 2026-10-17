@@ -237,6 +237,8 @@ data class YouTubeState(
     val ad: Boolean = false,
     /** The ad can be skipped now ([app.sofabird.protocol.backend.YouTubeAction.SKIP_AD]). */
     val adSkippable: Boolean = false,
+    /** Ads are blocked with uBlock Origin in the TV browser ([app.sofabird.protocol.backend.SystemCommand.YouTubeAdBlock]). */
+    val adBlock: Boolean = false,
     @kotlinx.serialization.Transient val updatedAt: Long = 0,
 ) {
     val thumbnailUrl: String? get() = videoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }

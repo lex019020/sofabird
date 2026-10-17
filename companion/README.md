@@ -385,6 +385,22 @@ title with the browser's window title and kept in `youTubeSessionId`. `close` se
 so does VLC starting something from the phone (`cmd open`, `launch`, `play` with a `plId`), so that the browser does not
 cover it.
 
+### Setting it up, blocking ads
+
+The setup window's "YouTube on the TV" item shows the browser found; without one, **Install Firefox** downloads the
+latest release from Mozilla's download service in Windows' language (`FirefoxDownload`), checks that it carries a valid
+Authenticode signature of Mozilla Corporation (`WinVerifyTrust` + the signer) and installs it silently for the user into
+`%LOCALAPPDATA%\Mozilla Firefox` (no shortcuts, no maintenance service); the `youtube` cap appears without a restart.
+**Sign in to YouTube…** opens the TV profile in a normal window on the PC's screen at Google's sign-in (the user
+accepts Firefox's terms there if it asks).
+
+**Block ads on YouTube** (opt-in, the setup window or `sys youtubeAdBlock` from the phone, `blockAds` in
+`settings.json`): `TvAddons` downloads uBlock Origin from addons.mozilla.org once (checked to be a Mozilla-signed
+`uBlock0@raymondhill.net`, kept in `tv-addons\` in the data folder; it is not shipped with the companion) and puts it
+into the profile's `extensions` folder before the browser starts, only when it is not there, so the version Firefox
+updated it to stays; turning it off removes it. An open TV browser is restarted at once and opens the same video at the
+same position.
+
 ### The TV extension
 
 `companion/tv-extension/src` is a small Firefox extension, *Sofabird TV* (`tv@sofabird.app`): its content script reads

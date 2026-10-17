@@ -19,20 +19,33 @@ public sealed class YouTubeService : IDisposable
     /// <summary>How long to wait for the video itself (ads come first) before giving up on fullscreen.</summary>
     private static readonly TimeSpan PlayingWait = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan LearnEvery = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan CloseWait = TimeSpan.FromSeconds(15);
+    private const string SignInUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F";
 
     private readonly TvBrowser _browser;
     private readonly YouTubeMediaSession _media;
     private readonly TvExtensionBridge _page;
+    private readonly TvAddons _addons;
+    private readonly FirefoxInstaller _installer;
+    private readonly Settings _settings;
+    private readonly SettingsStore _store;
+    private readonly string _dataDir;
     private readonly ILogger _log;
     private CancellationTokenSource? _fullscreen;
     private string? _videoId;
     private DateTime _learntAt;
 
-    public YouTubeService(TvBrowser browser, YouTubeMediaSession media, TvExtensionBridge page, ILogger<YouTubeService> log)
+    public YouTubeService(TvBrowser browser, YouTubeMediaSession media, TvExtensionBridge page, TvAddons addons,
+        FirefoxInstaller installer, Settings settings, SettingsStore store, string dataDir, ILogger<YouTubeService> log)
     {
         _browser = browser;
         _media = media;
         _page = page;
+        _addons = addons;
+        _installer = installer;
+        _settings = settings;
+        _store = store;
+        _dataDir = dataDir;
         _log = log;
         _media.Changed += () => Changed?.Invoke();
         _page.Changed += () => Changed?.Invoke();
@@ -49,6 +62,67 @@ public sealed class YouTubeService : IDisposable
 
     /// <summary>A browser for YouTube is installed (the <c>youtube</c> capability).</summary>
     public bool Available => _browser.ExePath is not null;
+
+    /// <summary>The TV browser (Firefox's path), for the setup window; <c>null</c> — none installed.</summary>
+    public string? BrowserPath => _browser.ExePath;
+
+    /// <summary>Ads on YouTube are blocked with uBlock Origin.</summary>
+    public bool BlockAds => _settings.BlockAds;
+
+    /// <summary>
+    /// Turns uBlock Origin on or off (the setup window, the phone). Turning it on downloads it first; an open TV browser
+    /// is restarted so that it applies now, and continues the video where it was.
+    /// </summary>
+    public async Task SetBlockAdsAsync(bool on, CancellationToken ct)
+    {
+        if (on && !await _addons.EnsureUBlockAsync(ct).ConfigureAwait(false))
+            throw ProtocolException.BadRequest(ProtocolText.YouTubeAdBlockFailed);
+        if (_settings.BlockAds == on) return;
+        _store.Update(s => s.BlockAds = on);
+        _log.LogInformation("YouTube on the TV: ads {Blocked}", on ? "blocked (uBlock Origin)" : "not blocked");
+        Changed?.Invoke();
+        if (Available && _browser.IsRunning()) await RestartAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Closes the TV browser and opens the video it showed at the same position (add-ons change at a start).</summary>
+    private async Task RestartAsync(CancellationToken ct)
+    {
+        var page = _page.State;
+        var videoId = page?.VideoId ?? _videoId;
+        var at = page is { Watching: true, Ad: false } ? (int)page.TimeAt(DateTime.UtcNow) : 0;
+        Close();
+        var deadline = DateTime.UtcNow + CloseWait;
+        while (_browser.IsRunning())
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                _log.LogWarning("YouTube on the TV: the browser did not close; the change applies at its next start");
+                return;
+            }
+            await Task.Delay(500, ct).ConfigureAwait(false);
+        }
+        if (videoId is not null) Open($"https://www.youtube.com/watch?v={videoId}&t={at}s");
+    }
+
+    /// <summary>Installs Firefox for the TV (the setup window); <c>null</c> — done, otherwise what went wrong.</summary>
+    public async Task<string?> InstallBrowserAsync(IProgress<FirefoxInstallStep>? progress, CancellationToken ct)
+    {
+        var error = await _installer.InstallAsync(progress, ct).ConfigureAwait(false);
+        _browser.Refresh();
+        if (error is null && Environment.ProcessPath is { } exe) TvExtension.Register(exe, _dataDir, _log);
+        Changed?.Invoke();
+        return error;
+    }
+
+    /// <summary>
+    /// Opens the TV browser's profile in a normal window on the PC's screen at Google's sign-in for YouTube (keyboard and
+    /// mouse at the PC). The sign-in stays in the profile.
+    /// </summary>
+    public void SignIn()
+    {
+        if (!Available) return;
+        _browser.OpenForSignIn(SignInUrl);
+    }
 
     /// <summary>Opens the video found in <paramref name="text"/> (a link or the text the YouTube app shares) on the TV.</summary>
     public void Open(string text)
@@ -179,6 +253,13 @@ public sealed class YouTubeService : IDisposable
     public YouTubeInfo? Info()
     {
         if (!Available) return null;
+        var info = Read();
+        info.AdBlock = _settings.BlockAds;
+        return info;
+    }
+
+    private YouTubeInfo Read()
+    {
         var open = _browser.IsRunning();
         if (!open) return new YouTubeInfo { Open = false, VideoId = _videoId };
         if (_page.State is { } page) return FromPage(page);

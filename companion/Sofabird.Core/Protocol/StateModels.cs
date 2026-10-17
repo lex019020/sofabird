@@ -224,6 +224,8 @@ public sealed class YouTubeInfo
     public bool Ad { get; set; }
     /// <summary>The ad can be skipped now (<c>sys youtube {"action": "skipAd"}</c>).</summary>
     public bool AdSkippable { get; set; }
+    /// <summary>Ads are blocked with uBlock Origin in the TV browser (<c>sys youtubeAdBlock</c>).</summary>
+    public bool AdBlock { get; set; }
 }
 
 public sealed class LibraryInfo
