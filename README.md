@@ -47,6 +47,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
   TV in Firefox, with a TV profile of its own you sign in to once. A small Sofabird extension in that browser gives
   exact control: precise seeking, fullscreen after the ads, "Skip" for an ad as soon as YouTube allows it. The remote,
   the phone's notification, lock screen and volume keys control it, and a movie started from the phone closes it.
+  Ads can be blocked with uBlock Origin (one switch on the phone or in the setup window); the setup window installs
+  Firefox and opens the YouTube sign-in.
 - One TV screen: the display chosen on the phone (or in the tray) is where VLC, YouTube and Moonlight open; choosing
   it moves whatever is on the TV.
 - Another PC's screen: start and end a [Moonlight](https://moonlight-stream.org/) stream of a gaming PC's desktop on
@@ -127,8 +129,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: YouTube setup from the companion's setup window (installing Firefox, signing in, the optional uBlock Origin),
-Wake-on-LAN and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+Next: SponsorBlock and recently sent videos for YouTube, Wake-on-LAN and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 
