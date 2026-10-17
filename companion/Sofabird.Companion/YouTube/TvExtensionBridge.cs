@@ -60,6 +60,7 @@ public sealed class TvExtensionBridge : IDisposable
             try
             {
                 _writer.WriteLine(Encoding.UTF8.GetString(buffer.ToArray()));
+                _log.LogDebug("TV extension: {Action}", action);
                 return true;
             }
             catch (Exception ex) when (ex is IOException or ObjectDisposedException)
@@ -125,6 +126,7 @@ public sealed class TvExtensionBridge : IDisposable
             _writer = null;
             _state = null;
         }
+        if (_stop.IsCancellationRequested) return; // the companion is exiting: nobody to tell
         _log.LogInformation("TV extension disconnected");
         RaiseChanged();
     }

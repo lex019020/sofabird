@@ -254,7 +254,9 @@ internal static class Program
             sessions.Dispose();
         }
 
-        var updates = new UpdateService(settings, settingsStore, () => vlc.LastState?.Playback.State == "playing",
+        // Not while something plays on the TV: a movie in VLC or a video on YouTube.
+        var updates = new UpdateService(settings, settingsStore,
+            () => vlc.LastState?.Playback.State == "playing" || youtube.Info()?.Playing == true,
             () => Volatile.Read(ref tray)?.RequestExit(), background, lf.CreateLogger<UpdateService>());
         var previousVersion = settings.LastRunVersion;
         var updated = previousVersion is not null && previousVersion != AppVersion.Informational;

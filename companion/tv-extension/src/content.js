@@ -75,6 +75,17 @@ function report(force) {
   port.postMessage(state);
 }
 
+/**
+ * YouTube ignores a script's click on the ad's "Skip" button (not a trusted event), so the ad is moved to its end
+ * instead, which is what "Skip" does. Only while YouTube itself offers to skip it.
+ */
+function skipAd() {
+  const p = player();
+  const v = video();
+  if (!p || !v || !p.classList.contains("ad-showing") || !shown(document.querySelector(SKIP_AD))) return;
+  if (Number.isFinite(v.duration) && v.duration > 0) v.currentTime = Math.max(0, v.duration - 0.05);
+}
+
 function click(selector) {
   const element = document.querySelector(selector);
   if (element) element.click();
@@ -120,7 +131,7 @@ port.onMessage.addListener((message) => {
       if (!document.fullscreenElement) click(".ytp-fullscreen-button");
       break;
     case "skipAd":
-      click(SKIP_AD);
+      skipAd();
       break;
   }
   setTimeout(() => report(true), 300);
