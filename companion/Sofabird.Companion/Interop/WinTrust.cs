@@ -63,7 +63,7 @@ internal static class WinTrust
             var action = GenericVerifyV2;
             var result = WinVerifyTrust(IntPtr.Zero, ref action, ref data);
             data.dwStateAction = WTD_STATEACTION_CLOSE;
-            WinVerifyTrust(IntPtr.Zero, ref action, ref data);
+            _ = WinVerifyTrust(IntPtr.Zero, ref action, ref data); // frees the state; nothing to report
             return result == 0;
         }
         finally

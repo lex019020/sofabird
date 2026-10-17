@@ -9,7 +9,7 @@ namespace Sofabird.Companion.YouTube;
 /// shipped with the companion), kept in the data folder and put into the profile's <c>extensions</c> folder before the
 /// browser starts; Firefox then keeps it up to date itself. Turning it off removes it from the profile.
 /// </summary>
-public sealed class TvAddons
+public sealed class TvAddons : IDisposable
 {
     public const string UBlockId = "uBlock0@raymondhill.net";
     private const string UBlockUrl = "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi";
@@ -93,4 +93,6 @@ public sealed class TvAddons
             _log.LogWarning(ex, "Changing uBlock Origin in the TV profile failed");
         }
     }
+
+    public void Dispose() => _download.Dispose();
 }

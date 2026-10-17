@@ -144,7 +144,7 @@ internal static class Program
         using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
         using var library = new LibraryService(settings, paths, vlc.History?.Store, background, lf.CreateLogger<LibraryService>());
         using var moonlight = new MoonlightService(lf.CreateLogger<MoonlightService>());
-        var tvAddons = new TvAddons(paths.DataDir, lf.CreateLogger<TvAddons>());
+        using var tvAddons = new TvAddons(paths.DataDir, lf.CreateLogger<TvAddons>());
         var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, tvAddons, () => settings.BlockAds, lf.CreateLogger<TvBrowser>());
         tvBrowser.RemoveLaunchOnLogin(); // before the next sign-in, not only when YouTube opens
         if (tvBrowser.ExePath is not null && Environment.ProcessPath is { } exe)
