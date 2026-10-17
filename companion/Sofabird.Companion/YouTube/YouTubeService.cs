@@ -226,11 +226,22 @@ public sealed class YouTubeService : IDisposable
         if (_page.Send("fullscreen"))
         {
             _log.LogInformation("YouTube on the TV: fullscreen through the extension");
+            _ = Task.Run(() => CheckFullscreenAsync(window), CancellationToken.None);
             return true;
         }
         ForegroundWindow.PressKey(NativeMethods.VK_F);
         _log.LogInformation("YouTube on the TV: fullscreen key");
         return true;
+    }
+
+    /// <summary>The page did not go fullscreen (the browser refused it): YouTube's "f" key, a real key press, instead.</summary>
+    private async Task CheckFullscreenAsync(IntPtr window)
+    {
+        await Task.Delay(2000).ConfigureAwait(false);
+        if (_page.State is not { Watching: true, Fullscreen: false }) return;
+        if (window == IntPtr.Zero || !ForegroundWindow.Activate(window)) return;
+        ForegroundWindow.PressKey(NativeMethods.VK_F);
+        _log.LogInformation("YouTube on the TV: the page is not fullscreen, fullscreen key");
     }
 
     /// <summary>VLC starts something from the phone: the TV browser goes away so that VLC is what the TV shows.</summary>
