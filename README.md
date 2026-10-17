@@ -1,7 +1,8 @@
 # Sofabird
 
 Sofabird turns a Windows PC or laptop connected to a TV into a media station you run from the couch with your
-Android phone: an Android remote for [VLC media player](https://www.videolan.org/vlc/) plus a small Windows companion.
+Android phone: an Android remote for [VLC media player](https://www.videolan.org/vlc/) plus a small Windows companion,
+which also puts YouTube videos and a [Moonlight](https://moonlight-stream.org/) stream of another computer on the TV.
 Formerly called *VLC Remote*.
 
 [![CI](https://github.com/lex019020/sofabird/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/sofabird/actions/workflows/ci.yml)
@@ -42,6 +43,11 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - Starts VLC with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
   (speakers / TV / headphones) from the phone.
 - Bluetooth fallback: the remote keeps working with Wi‑Fi off and switches back when it returns.
+- YouTube on the TV: share a video to Sofabird from the YouTube app (or paste a link) and it plays fullscreen on the
+  TV in Firefox, with a TV profile of its own you sign in to once; the remote, the phone's notification, lock screen
+  and volume keys control it, and a movie started from the phone closes it.
+- Another PC's screen: start and end a [Moonlight](https://moonlight-stream.org/) stream of a gaming PC's desktop on
+  the TV (Moonlight and Sunshine are installed separately); the remote shows that the TV is streaming.
 - PC controls: system volume, turn the screen off, sleep, "keep awake during a movie".
 - Media station mode: the laptop keeps working with the lid closed, survives the TV being switched off and on
   (VLC pauses and comes back fullscreen on the TV).
@@ -104,7 +110,7 @@ the current tracks and chapter names (level 1).
 ## Building
 
 ```powershell
-# Companion (.NET SDK 9)
+# Companion (.NET SDK 10)
 dotnet build companion\Sofabird.sln -c Release
 dotnet test  companion\Sofabird.sln
 
@@ -118,8 +124,9 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: Wake-on-LAN (wake the PC from the phone) and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS,
-subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+Next: YouTube setup from the companion's setup window (installing Firefox, signing in, the optional uBlock Origin) and
+an extension of our own for exact control; the TV screen chosen once for VLC, YouTube and Moonlight; Wake-on-LAN and a
+sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 
@@ -132,4 +139,5 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
 
 Third-party libraries keep their own licenses (MIT / Apache-2.0). Movie and series metadata and images come from
 [TMDB](https://www.themoviedb.org/): this product uses the TMDB API but is not endorsed or certified by TMDB.
-VLC is a trademark of VideoLAN; this project is not affiliated with VideoLAN.
+VLC is a trademark of VideoLAN; YouTube is a trademark of Google LLC; Firefox is a trademark of the Mozilla
+Foundation. This project is not affiliated with VideoLAN, Google, Mozilla or the Moonlight project.
