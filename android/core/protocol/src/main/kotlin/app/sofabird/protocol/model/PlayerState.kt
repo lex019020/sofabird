@@ -233,6 +233,10 @@ data class YouTubeState(
     val length: Double? = null,
     val canNext: Boolean = false,
     val canPrevious: Boolean = false,
+    /** An ad plays (the companion's TV extension tells); [time] and [length] are the ad's then. */
+    val ad: Boolean = false,
+    /** The ad can be skipped now ([app.sofabird.protocol.backend.YouTubeAction.SKIP_AD]). */
+    val adSkippable: Boolean = false,
     @kotlinx.serialization.Transient val updatedAt: Long = 0,
 ) {
     val thumbnailUrl: String? get() = videoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }

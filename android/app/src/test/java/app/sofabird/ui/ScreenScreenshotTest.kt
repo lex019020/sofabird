@@ -140,6 +140,22 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     }
 
     @Test
+    fun remoteYouTubeAd() = snapshot("remote_youtube_ad") {
+        val state = playing.copy(
+            state = playing.state.copy(
+                playback = playing.state.playback.copy(state = PlaybackStatus.PAUSED),
+                system = SystemState(volume = 40, muted = false),
+                youtube = YouTubeState(
+                    open = true, playing = true, videoId = null, title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+                    channel = "Blender", time = 7.0, length = 15.0, ad = true, adSkippable = true,
+                ),
+            ),
+            capabilities = Capabilities(playing.capabilities.flags + Capability.YOUTUBE + Capability.SYSTEM_VOLUME),
+        )
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
     fun remoteOffline() = snapshot("remote_offline") {
         val state = RemoteUiState(connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true)
         RemoteContent(state, next = null, actions = object : RemoteActions {})

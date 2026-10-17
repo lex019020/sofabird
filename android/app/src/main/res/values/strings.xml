@@ -213,6 +213,9 @@
     <string name="action_youtube_show">Show on the TV</string>
     <string name="youtube_share_hint">Or share a video to Sofabird from the YouTube app.</string>
     <string name="action_youtube_close">Close YouTube</string>
+    <string name="youtube_ad">Ad</string>
+    <string name="action_skip_ad">Skip</string>
+    <string name="youtube_ad_playing">An ad plays; the video starts after it</string>
     <string name="action_youtube_fullscreen">Fullscreen</string>
     <string name="youtube_on_tv">YouTube</string>
     <string name="share_not_connected">Sofabird is not connected to the PC: the video was not sent.</string>

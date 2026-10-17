@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: TV extension is signed and matches its source
+        run: python scripts/sign_extension.py check
       - name: Restore
         run: dotnet restore companion/Sofabird.sln
       - name: Build

@@ -90,7 +90,7 @@ public sealed class UpdateService
         }
         if (!UpdatePolicy.CanApplyNow(_vlcPlaying()))
         {
-            _log.LogInformation("Update {Version} is ready; it is applied when VLC stops playing", target.Version);
+            _log.LogInformation("Update {Version} is ready; it is applied when nothing plays on the TV", target.Version);
             return true;
         }
         _log.LogInformation("Restarting into update {Version}", target.Version);

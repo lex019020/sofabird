@@ -88,9 +88,18 @@ internal fun YouTubeArtwork(yt: YouTubeState, haptics: Boolean, modifier: Modifi
     }
 }
 
-/** The video's title and channel ("YouTube" until the browser reports them). */
+/** The video's title and channel ("YouTube" until the browser reports them), and whether an ad plays first. */
 @Composable
 internal fun YouTubeTitleBlock(yt: YouTubeState) {
+    if (yt.ad) {
+        Text(
+            stringResource(R.string.youtube_ad_playing),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 2.dp),
+        )
+    }
     Text(
         yt.title ?: stringResource(R.string.youtube_on_tv),
         style = MaterialTheme.typography.titleLarge,
