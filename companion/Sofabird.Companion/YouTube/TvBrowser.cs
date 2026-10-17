@@ -47,16 +47,16 @@ public sealed class TvBrowser
     private readonly ILogger _log;
     private readonly string? _overridePath;
     private readonly TvAddons _addons;
-    private readonly Func<bool> _blockAds;
+    private readonly Func<TvAddon, bool> _addonOn;
     private DateTime _runningCheckedAt;
     private bool _running;
 
-    public TvBrowser(string dataDir, string? overridePath, TvAddons addons, Func<bool> blockAds, ILogger<TvBrowser> log)
+    public TvBrowser(string dataDir, string? overridePath, TvAddons addons, Func<TvAddon, bool> addonOn, ILogger<TvBrowser> log)
     {
         _log = log;
         _overridePath = overridePath;
         _addons = addons;
-        _blockAds = blockAds;
+        _addonOn = addonOn;
         ProfileDir = Path.Combine(dataDir, "tv-browser");
         Refresh();
     }
@@ -207,12 +207,12 @@ public sealed class TvBrowser
         return list;
     }
 
-    /// <summary>Before the browser starts: its preferences, the TV extension, uBlock Origin or not, no start at sign-in.</summary>
+    /// <summary>Before the browser starts: its preferences, the TV extension, the optional add-ons, no start at sign-in.</summary>
     private void PrepareProfile()
     {
         WritePreferences();
         TvExtension.InstallInto(ProfileDir, _log);
-        _addons.ApplyTo(ProfileDir, _blockAds());
+        _addons.ApplyTo(ProfileDir, _addonOn);
         RemoveLaunchOnLogin();
     }
 

@@ -399,7 +399,10 @@ accepts Firefox's terms there if it asks).
 `uBlock0@raymondhill.net`, kept in `tv-addons\` in the data folder; it is not shipped with the companion) and puts it
 into the profile's `extensions` folder before the browser starts, only when it is not there, so the version Firefox
 updated it to stays; turning it off removes it. An open TV browser is restarted at once and opens the same video at the
-same position.
+same position. **Skip sponsor segments** works the same way with SponsorBlock (`sponsorBlocker@ajay.app`, LGPL-3.0,
+`sys youtubeSponsorBlock`, `skipSponsors`; it asks sponsor.ajay.app for each video's segments) — both are `TvAddon`s.
+The TV extension closes other add-ons' own pages (SponsorBlock's welcome page at its first start), so that the TV
+keeps showing YouTube.
 
 ### The TV extension
 

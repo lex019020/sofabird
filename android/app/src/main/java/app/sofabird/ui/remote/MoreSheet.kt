@@ -196,6 +196,8 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                     enabled = online,
                     adBlock = ui.state.youtube?.adBlock,
                     onAdBlock = { tick(); viewModel.sendSystem(SystemCommand.YouTubeAdBlock(it)) },
+                    sponsorBlock = ui.state.youtube?.sponsorBlock,
+                    onSponsorBlock = { tick(); viewModel.sendSystem(SystemCommand.YouTubeSponsorBlock(it)) },
                 ) {
                     tick()
                     viewModel.sendSystem(SystemCommand.YouTubeOpen(it))
@@ -360,7 +362,7 @@ internal fun MoonlightSection(host: String?, streaming: Boolean, enabled: Boolea
 
 /**
  * `youtube`: a pasted link to a YouTube video goes to the TV (sharing from the YouTube app does the same); blocking ads
- * with uBlock Origin in the TV browser ([adBlock] `null` — a companion that cannot).
+ * with uBlock Origin and skipping sponsor segments with SponsorBlock in the TV browser (`null` — a companion that cannot).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -369,6 +371,8 @@ internal fun YouTubeLinkSection(
     initial: String = "",
     adBlock: Boolean? = null,
     onAdBlock: (Boolean) -> Unit = {},
+    sponsorBlock: Boolean? = null,
+    onSponsorBlock: (Boolean) -> Unit = {},
     onOpen: (String) -> Unit,
 ) {
     var link by remember { mutableStateOf(initial) }
@@ -398,18 +402,24 @@ internal fun YouTubeLinkSection(
         modifier = Modifier.padding(top = 8.dp),
     )
     if (adBlock != null) {
-        // Shown at once; the companion may need a few seconds to download uBlock Origin and restart the browser.
-        var wanted by remember(adBlock) { mutableStateOf(adBlock) }
         Spacer(Modifier.height(8.dp))
-        SwitchRow(stringResource(R.string.youtube_block_ads), checked = wanted, enabled = enabled) {
-            wanted = !wanted
-            onAdBlock(wanted)
-        }
+        AddonSwitch(stringResource(R.string.youtube_block_ads), adBlock, enabled, onAdBlock)
+        sponsorBlock?.let { AddonSwitch(stringResource(R.string.youtube_skip_sponsors), it, enabled, onSponsorBlock) }
         Text(
             stringResource(R.string.youtube_block_ads_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** Shown at once; the companion may need a few seconds to download the add-on and restart the browser. */
+@Composable
+private fun AddonSwitch(title: String, on: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    var wanted by remember(on) { mutableStateOf(on) }
+    SwitchRow(title, checked = wanted, enabled = enabled) {
+        wanted = !wanted
+        onChange(wanted)
     }
 }
 

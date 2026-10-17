@@ -313,5 +313,9 @@ class CompanionMessagesTest {
             known("""{"t":"state","vlc":{"running":false},"youtube":{"open":false,"adBlock":true}}""") as CompanionMessage.State
             ).toPlayerState().youtube!!
         assertTrue(blocked.adBlock)
+        assertFalse(blocked.sponsorBlock)
+        val sponsors = obj(CommandMapping.toSys("6", SystemCommand.YouTubeSponsorBlock(false)))
+        assertEquals("youtubeSponsorBlock", sponsors["name"]!!.jsonPrimitive.content)
+        assertEquals("false", sponsors.args()["on"]!!.jsonPrimitive.content)
     }
 }

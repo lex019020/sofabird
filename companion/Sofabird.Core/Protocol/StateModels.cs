@@ -226,6 +226,8 @@ public sealed class YouTubeInfo
     public bool AdSkippable { get; set; }
     /// <summary>Ads are blocked with uBlock Origin in the TV browser (<c>sys youtubeAdBlock</c>).</summary>
     public bool AdBlock { get; set; }
+    /// <summary>Sponsor segments are skipped with SponsorBlock in the TV browser (<c>sys youtubeSponsorBlock</c>).</summary>
+    public bool SponsorBlock { get; set; }
 }
 
 public sealed class LibraryInfo

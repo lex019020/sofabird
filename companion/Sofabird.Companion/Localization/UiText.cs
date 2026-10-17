@@ -288,4 +288,12 @@ internal static class UiText
     public static string SetupAdBlockNoBrowser => S("SetupAdBlockNoBrowser");
     /// <summary>uBlock Origin could not be downloaded: check the internet connection</summary>
     public static string SetupAdBlockFailed => S("SetupAdBlockFailed");
+    /// <summary>Skip sponsor segments on YouTube (optional)</summary>
+    public static string SetupSponsorBlockTitle => S("SetupSponsorBlockTitle");
+    /// <summary>Adds SponsorBlock, a free and open-source add-on, to the TV browser: it skips the sponsor segments and self-promotion that its community has marked in a video. It asks sponsor.ajay.app for the segments of each video watched. It can be switched on the phone too.</summary>
+    public static string SetupSponsorBlockText => S("SetupSponsorBlockText");
+    /// <summary>✓ Sponsor segments are skipped (SponsorBlock)</summary>
+    public static string SetupSponsorBlockOn => S("SetupSponsorBlockOn");
+    /// <summary>SponsorBlock could not be downloaded: check the internet connection</summary>
+    public static string SetupSponsorBlockFailed => S("SetupSponsorBlockFailed");
 }
