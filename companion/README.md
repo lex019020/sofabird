@@ -341,7 +341,7 @@ shares) are the phone's library of movies and series (`Services/LibraryService.c
   system and unreadable entries, `sample` files and `Extras`/`Featurettes`/`Trailers` folders are skipped). A folder
   that cannot be reached is reported (`missingFolders` in `library`, a warning in the log and in the setup window).
 - **Network folders** are kept as network paths: a folder picked on a mapped drive letter (`Y:\`) is saved as
-  `\server\share`, and saved letters are converted at the start while they are mapped (`NetworkDrives`) — a letter
+  `\\server\share`, and saved letters are converted at the start while they are mapped (`NetworkDrives`) — a letter
   mapped without "Reconnect at sign-in" is gone after a restart, the network path is not.
 - **Names** (`ReleaseNameParser`, the PTN / guessit approach): the title is what comes before the first anchor — the
   year, `SxxEyy` / `1x02`, a quality tag (`2160p`, `BDRemux`, `x265`, …). "1917.2019…" is "1917" from 2019; an
