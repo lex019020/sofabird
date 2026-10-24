@@ -25,7 +25,8 @@ phone.
   updates.
 - YouTube on the TV: "Share → Sofabird" from the YouTube app or a pasted link opens the video fullscreen in Firefox
   (a TV profile of its own, signed in once) on the TV; a Sofabird extension in that browser gives exact seeking,
-  fullscreen after ads and "Skip ad"; the remote, notification, lock screen and volume keys control it.
+  fullscreen after ads and "Skip ad"; the remote, notification, lock screen and volume keys control it; optional ad
+  blocking with uBlock Origin; the companion's setup window installs Firefox.
 - One TV screen: the display chosen for the TV is used by VLC, YouTube and Moonlight alike.
 - Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone.
 - Works in English and Russian (follows the system language).
