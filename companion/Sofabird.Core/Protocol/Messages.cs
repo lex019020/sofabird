@@ -332,6 +332,8 @@ public sealed class LibraryMessage : Message
     public bool Scanning { get; set; }
     public IReadOnlyList<MovieItem> Movies { get; set; } = [];
     public IReadOnlyList<ShowItem> Shows { get; set; } = [];
+    /// <summary>Media folders that cannot be reached now (their movies and series are missing from the lists).</summary>
+    public IReadOnlyList<string> MissingFolders { get; set; } = [];
 }
 
 /// <summary><c>getShow</c>: the episodes of one series (<see cref="LibraryTitle.Key"/>).</summary>

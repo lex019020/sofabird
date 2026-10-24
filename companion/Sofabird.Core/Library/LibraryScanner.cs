@@ -38,6 +38,9 @@ public sealed record LibraryShow(string Key, string Title, int? Year, IReadOnlyL
 public sealed record LibraryScan(IReadOnlyList<LibraryMovie> Movies, IReadOnlyList<LibraryShow> Shows)
 {
     public static LibraryScan Empty { get; } = new([], []);
+
+    /// <summary>Media folders that could not be reached (a disconnected disk, a network folder that is off).</summary>
+    public IReadOnlyList<string> MissingRoots { get; init; } = [];
 }
 
 /// <summary>
@@ -62,9 +65,14 @@ public static class LibraryScanner
             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
         };
         var files = new List<LibraryFile>();
+        var missing = new List<string>();
         foreach (var root in roots.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            if (!Directory.Exists(root)) continue;
+            if (!Directory.Exists(root))
+            {
+                missing.Add(root);
+                continue;
+            }
             foreach (var path in Directory.EnumerateFiles(root, "*", options))
             {
                 ct.ThrowIfCancellationRequested();
@@ -78,7 +86,7 @@ public static class LibraryScanner
                 catch (UnauthorizedAccessException) { }
             }
         }
-        return Group(files);
+        return Group(files) with { MissingRoots = missing };
     }
 
     /// <summary>Movies and series from a list of files (pure).</summary>

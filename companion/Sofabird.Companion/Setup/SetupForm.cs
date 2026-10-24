@@ -373,7 +373,8 @@ public sealed class SetupForm : Form
     {
         using var dialog = new FolderBrowserDialog { Description = UiText.SetupMediaPick, UseDescriptionForTitle = true, ShowNewFolderButton = false };
         if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.SelectedPath)) return;
-        var path = dialog.SelectedPath;
+        // A mapped drive letter can disappear after a restart; the network path stays.
+        var path = Interop.NetworkDrives.ToNetworkPath(dialog.SelectedPath);
         if (!MediaFolders.Contains(path, StringComparer.OrdinalIgnoreCase)) _mediaList.Items.Add(path);
         RenderMedia();
     }
@@ -387,7 +388,11 @@ public sealed class SetupForm : Form
     private void RenderMedia()
     {
         var count = _mediaList.Items.Count;
-        SetStatus(_media, count == 0 ? UiText.SetupMediaNone : UiText.SetupMediaCount(count), count == 0 ? Tone.Neutral : Tone.Ok);
+        var missing = MediaFolders.Where(f => _snapshot?.MissingMediaFolders?.Contains(f, StringComparer.OrdinalIgnoreCase) == true).ToList();
+        if (missing.Count > 0)
+            SetStatus(_media, UiText.SetupMediaMissing(string.Join(", ", missing)), Tone.Warning);
+        else
+            SetStatus(_media, count == 0 ? UiText.SetupMediaNone : UiText.SetupMediaCount(count), count == 0 ? Tone.Neutral : Tone.Ok);
     }
 
     private void Render(SetupSnapshot s)

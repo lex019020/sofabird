@@ -70,6 +70,8 @@ data class Library(
     val scanning: Boolean = false,
     val movies: List<LibraryMovie> = emptyList(),
     val shows: List<LibraryShow> = emptyList(),
+    /** Media folders the PC cannot reach now (a disconnected disk, a network folder that is off). */
+    val missingFolders: List<String> = emptyList(),
 )
 
 /** Answer to `getShow`. */

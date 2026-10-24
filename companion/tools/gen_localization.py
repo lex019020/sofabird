@@ -163,6 +163,8 @@ UI = [
     ("SetupMediaPick", "Choose a folder with movies or series", "Выберите папку с фильмами или сериалами"),
     ("SetupMediaNone", "No folders yet: the phone browses the drives only", "Папок пока нет: телефон показывает только диски"),
     ("SetupMediaCount", "Folders: {0}", "Папок: {0}"),
+    ("SetupMediaMissing", "Not available now: {0}. A disconnected disk, or a network folder whose PC is off?",
+     "Сейчас недоступно: {0}. Отключён диск или выключен компьютер с сетевой папкой?"),
     ("SetupMediaTmdb", "Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.",
      "Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB."),
     ("SetupMediaStationTitle", "This PC is a media station", "Этот ПК — медиастанция"),

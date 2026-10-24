@@ -144,6 +144,13 @@ internal static class Program
         using var background = new BackgroundWork(lf.CreateLogger<BackgroundWork>());
         using var library = new LibraryService(settings, paths, vlc.History?.Store, background, lf.CreateLogger<LibraryService>());
         using var moonlight = new MoonlightService(lf.CreateLogger<MoonlightService>());
+        // Media folders on a mapped drive letter are kept as network paths: the letter is gone after a restart unless
+        // it was mapped to reconnect at sign-in.
+        settingsStore.Update(s =>
+        {
+            var roots = s.MediaRoots.Select(Interop.NetworkDrives.ToNetworkPath).ToList();
+            if (!roots.SequenceEqual(s.MediaRoots)) s.MediaRoots = roots;
+        });
         using var tvAddons = new TvAddons(paths.DataDir, lf.CreateLogger<TvAddons>());
         var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, tvAddons, () => settings.BlockAds, lf.CreateLogger<TvBrowser>());
         tvBrowser.RemoveLaunchOnLogin(); // before the next sign-in, not only when YouTube opens

@@ -200,6 +200,14 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     }
 
     @Test
+    fun postersFolderMissing() = snapshot("posters_missing") {
+        val missing = MediaUiState(available = true, loaded = true, missingFolders = listOf("\\\\192.168.0.43\\shared\\"))
+        MediaContent(missing, object : MediaActions {}, onOpenShow = {}, onPlayed = {}) {
+            LibraryViewSwitch(posters = true, onChange = {})
+        }
+    }
+
+    @Test
     fun posters() = snapshot("posters") {
         MediaContent(posters, object : MediaActions {}, onOpenShow = {}, onPlayed = {}) {
             LibraryViewSwitch(posters = true, onChange = {})

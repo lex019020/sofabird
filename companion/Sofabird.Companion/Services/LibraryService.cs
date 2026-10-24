@@ -79,10 +79,12 @@ public sealed class LibraryService : IDisposable
         {
             var roots = _settings.MediaRoots.ToList();
             var scan = await Task.Run(() => LibraryScanner.Scan(roots, ct), ct).ConfigureAwait(false);
-            if (!SameFiles(Catalog.Scan, scan))
+            if (!SameFiles(Catalog.Scan, scan) || !Catalog.Scan.MissingRoots.SequenceEqual(scan.MissingRoots, StringComparer.OrdinalIgnoreCase))
             {
                 Catalog.Scan = scan;
                 _log.LogInformation("Library: {Movies} movies, {Shows} series in {Roots} folders", scan.Movies.Count, scan.Shows.Count, roots.Count);
+                if (scan.MissingRoots.Count > 0)
+                    _log.LogWarning("Library: not available now: {Folders}", string.Join(", ", scan.MissingRoots));
                 Bump();
             }
             if (TmdbToken() is { } token) await EnrichAsync(token, ct).ConfigureAwait(false);
