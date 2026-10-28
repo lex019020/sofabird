@@ -58,6 +58,20 @@ public static class LibraryScanner
     /// <summary>Walks the media folders (skips hidden, system and inaccessible entries). Blocking: call it off the UI thread.</summary>
     public static LibraryScan Scan(IEnumerable<string> roots, CancellationToken ct = default)
     {
+        var files = new List<LibraryFile>();
+        var missing = new List<string>();
+        foreach (var root in roots.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (ListFiles(root, ct) is { } found) files.AddRange(found);
+            else missing.Add(root);
+        }
+        return Group(files) with { MissingRoots = missing };
+    }
+
+    /// <summary>The video files under one media folder; <c>null</c> when it cannot be reached. Blocking.</summary>
+    public static IReadOnlyList<LibraryFile>? ListFiles(string root, CancellationToken ct = default)
+    {
+        if (!Directory.Exists(root)) return null;
         var options = new EnumerationOptions
         {
             RecurseSubdirectories = true,
@@ -65,28 +79,19 @@ public static class LibraryScanner
             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
         };
         var files = new List<LibraryFile>();
-        var missing = new List<string>();
-        foreach (var root in roots.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var path in Directory.EnumerateFiles(root, "*", options))
         {
-            if (!Directory.Exists(root))
+            ct.ThrowIfCancellationRequested();
+            if (!HistoryRules.IsVideoFile(path)) continue;
+            try
             {
-                missing.Add(root);
-                continue;
+                var info = new FileInfo(path);
+                files.Add(new LibraryFile(root, path, info.Length, info.LastWriteTimeUtc));
             }
-            foreach (var path in Directory.EnumerateFiles(root, "*", options))
-            {
-                ct.ThrowIfCancellationRequested();
-                if (!HistoryRules.IsVideoFile(path)) continue;
-                try
-                {
-                    var info = new FileInfo(path);
-                    files.Add(new LibraryFile(root, path, info.Length, info.LastWriteTimeUtc));
-                }
-                catch (IOException) { } // gone or unreadable since it was listed
-                catch (UnauthorizedAccessException) { }
-            }
+            catch (IOException) { } // gone or unreadable since it was listed
+            catch (UnauthorizedAccessException) { }
         }
-        return Group(files) with { MissingRoots = missing };
+        return files;
     }
 
     /// <summary>Movies and series from a list of files (pure).</summary>
