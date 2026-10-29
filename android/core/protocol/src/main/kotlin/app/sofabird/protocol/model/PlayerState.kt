@@ -38,7 +38,7 @@ data class VlcInfo(
     val running: Boolean = false,
     val version: String? = null,
     val apiVersion: Int? = null,
-    /** 0 — plain HTTP, 1 — HTTP + Lua pages, 2 — companion. */
+    /** The companion always says 2 (levels 0/1 were the app's direct VLC mode, removed in 0.5). */
     val level: Int = 0,
     /** Companion only, optional: old companions don't send it. Use [effectiveStatus]. */
     val status: VlcProcessStatus? = null,
@@ -149,7 +149,7 @@ data class Tracks(
     val audio: List<Track> = emptyList(),
     val subtitle: List<Track> = emptyList(),
     val video: List<Track> = emptyList(),
-    /** `null` when the backend cannot tell which track is active (level 0). */
+    /** `null` when VLC does not tell which track is active. */
     val currentAudio: Int? = null,
     val currentSubtitle: Int? = null,
     val currentVideo: Int? = null,
@@ -178,7 +178,7 @@ data class Chapters(
     /** Current chapter index or -1. */
     val index: Int = -1,
     val count: Int = 0,
-    /** Chapter names when the level provides them (Lua page / companion). */
+    /** Chapter names when the companion knows them. */
     val names: List<String>? = null,
 )
 
@@ -272,10 +272,7 @@ data class SystemState(
     val moonlightStreaming: Boolean? = null,
 )
 
-/**
- * Unified player model. Mirrors the `state` message of the companion protocol; the direct VLC
- * backend fills the same structure from `status.json` (+ `tracks.json` on level 1).
- */
+/** Player model. Mirrors the `state` message of the companion protocol. */
 @Serializable
 data class PlayerState(
     val vlc: VlcInfo = VlcInfo(),

@@ -70,7 +70,7 @@ import app.sofabird.ui.history.RecentVideosRow
 private val RATE_PRESETS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2.21:1", "2.35:1", "2.39:1", "5:4")
 
-/** "More": chapters, rate, aspect, fullscreen, companion-only system actions. */
+/** "More": chapters, rate, aspect, fullscreen, VLC and the PC's system actions. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit, onOpenDisplays: () -> Unit) {
@@ -168,21 +168,19 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 onToggle = { tick(); viewModel.toggleFullscreen() },
             )
 
-            // Companion-only sections, gated by capabilities.
+            // The PC's sections, gated by capabilities.
             val caps = ui.capabilities
-            if (ui.isCompanion || caps.launchVlc) {
-                HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                SectionTitle(stringResource(R.string.section_pc))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { tick(); viewModel.launchVlc() },
-                        enabled = online && caps.launchVlc && !ui.state.vlc.running,
-                    ) {
-                        LabelText(stringResource(R.string.action_launch_vlc))
-                    }
-                    OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online && ui.state.vlc.running) {
-                        LabelText(stringResource(R.string.action_quit_vlc))
-                    }
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            SectionTitle(stringResource(R.string.section_pc))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { tick(); viewModel.launchVlc() },
+                    enabled = online && caps.launchVlc && !ui.state.vlc.running,
+                ) {
+                    LabelText(stringResource(R.string.action_launch_vlc))
+                }
+                OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online && ui.state.vlc.running) {
+                    LabelText(stringResource(R.string.action_quit_vlc))
                 }
             }
             if (caps.moonlight) {
@@ -228,18 +226,6 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
             if (caps.power) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 PowerSection(ui, viewModel, onDismiss)
-            }
-            if (!ui.isCompanion && online) {
-                HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                OutlinedButton(onClick = { tick(); viewModel.quitVlc(); onDismiss() }, enabled = online) {
-                    LabelText(stringResource(R.string.action_quit_vlc))
-                }
-                Text(
-                    stringResource(R.string.needs_companion_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
             }
         }
     }

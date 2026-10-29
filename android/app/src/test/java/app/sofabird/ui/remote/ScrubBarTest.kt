@@ -26,7 +26,7 @@ class ScrubBarTest {
 
     private fun ui(state: PlaybackStatus, time: Long) = RemoteUiState(
         state = PlayerState(playback = Playback(state = state, time = time, length = 10705)),
-        connection = ConnectionState.Connected("PC", level = 2),
+        connection = ConnectionState.Connected("PC"),
     )
 
     @Test

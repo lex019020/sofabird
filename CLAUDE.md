@@ -26,7 +26,7 @@ translation is available.** No UI literals in code:
 - `docs/PLAN.md` — plan and milestones (M0–M5), `docs/adr/` — architecture decisions, `docs/research/` — research
   and live measurements of VLC 3.0.23 (`samples/` — real responses, also used as test fixtures).
 - `protocol/README.md` — the phone ↔ companion protocol v1 (the source of truth for both sides),
-  `protocol/vlc-http.md` — VLC's direct HTTP mode and all its quirks.
+  `protocol/vlc-http.md` — VLC's HTTP interface (what the companion drives) and all its quirks.
 - `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 10 (`Sofabird.Core`,
   `Sofabird.Companion`, tests), `companion/lua/` — Lua pages for VLC.
 - `scripts/deploy-windows.ps1` — the companion on Windows, `scripts/deploy-android.ps1` — the app on the phone,

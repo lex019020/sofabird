@@ -1,9 +1,8 @@
 # Sofabird — Android app
 
-A remote for VLC 3.0.x running on a Windows PC at the TV. It works in two modes: directly with VLC's
-HTTP interface (levels 0/1) and through the Windows companion (level 2) — over Wi‑Fi (WebSocket) or, if
-Wi‑Fi is unavailable, over Bluetooth (RFCOMM).
-Protocol — [`../protocol/README.md`](../protocol/README.md) and [`../protocol/vlc-http.md`](../protocol/vlc-http.md).
+A remote for VLC 3.0.x running on a Windows PC at the TV. It works only through the Windows companion (Sofabird for
+Windows) — over Wi‑Fi (WebSocket) or, if Wi‑Fi is unavailable, over Bluetooth (RFCOMM); the companion controls VLC.
+Protocol — [`../protocol/README.md`](../protocol/README.md).
 
 ## Build
 
@@ -66,24 +65,21 @@ android/
     model/              PlayerState and its parts (Playback, Tracks, Chapters, Volume…), Capabilities,
                         ConnectionState/ConnectionError, Entry, PlaylistItem
     backend/            PlayerBackend (interface), PlayerCommand, SystemCommand
-    vlc/                VlcStatusParser (status/playlist/browse/tracks.json), VlcStateMapper,
-                        VlcCommands (request strings), VlcErrorPage (detects "Error loading")
     companion/          CompanionMessage (sealed, discriminator `t`), CompanionCodec,
                         CommandMapping (PlayerCommand → cmd/sys), NdjsonFramer/NdjsonReader (NDJSON
                         lines over the RFCOMM byte stream, ≤ 1 MiB), BtAddress, COMPANION_RFCOMM_UUID
-    src/test/           tests on fixtures from docs/research/samples (copied into resources)
+    src/test/           tests of the models and the companion messages
   app/                  Android app (app.sofabird)
-    data/vlc/           VlcHttpApi, VlcErrorClassifier, VlcHttpBackend (polling, commands, levels 0/1)
     data/companion/     CompanionTransport (+ handshake over any channel), WebSocketTransport,
                         RfcommTransport, BluetoothSupport (permission, radio, bonded devices),
-                        AndroidCompanionTransports (WS / RFCOMM / LAN probe), CompanionBackend (level 2,
+                        AndroidCompanionTransports (WS / RFCOMM / LAN probe), CompanionBackend (the session,
                         channel choice, return to Wi‑Fi)
-    data/discovery/     NsdDiscovery, UdpBeaconDiscovery, SubnetScanner, LocalNetwork, DiscoveryRepository
+    data/discovery/     NsdDiscovery, UdpBeaconDiscovery, LocalNetwork, DiscoveryRepository
     data/history/       resume / next-episode prompts shared by the screens and the notification
     data/player/        PlayerController (the single owner of the active backend), ConnectionTester, AppVisibility,
                         PairingFlow (connecting/pairing with the companion) + CompanionPairingLink, DeviceIdentity
     data/servers/       ServerRepository, CompanionServerSync (LAN/Bluetooth addresses from discovery → saved PCs)
-    data/settings|secrets|net
+    data/settings|secrets|net   net: shared HTTP clients, artwork auth and pinning, network error classes
     service/            PlaybackService (FGS + MediaSession), RemotePlayer (SimpleBasePlayer), ServiceCoordinator
     domain/permissions/ PermissionRegistry: the single list of runtime permissions (see "Runtime permissions")
     ui/                 AppRoot (navigation, status bar), remote/, connection/, library/, history/, playlist/,
@@ -94,30 +90,23 @@ android/
 
 ## Where secrets are stored
 
-- The VLC HTTP interface password and the companion token — `EncryptedSharedPreferences` (`secrets`, AES‑256 via
+- The companion token — `EncryptedSharedPreferences` (`secrets`, AES‑256 via
   the Android Keystore), the key is the id of the saved PC (for companions found on the network this is the
   companion's installation GUID from the beacon/`welcome`). If the Keystore is unavailable on the device, `SecretStore`
   falls back to plain SharedPreferences (`secrets_fallback`) and writes a warning to the log.
 - The list of PCs (without secrets) and the settings — DataStore (`servers`, `settings`).
 - `local.properties` with the SDK path is not committed.
 
-## How the modes and levels work
+## How the app talks to the PC
 
-| Mode | What runs on the PC | How it is detected | What the remote can do |
-|---|---|---|---|
-| Direct, level 0 | VLC with the web interface enabled and a password | `GET /requests/tracks.json` → 404 | transport, volume, chapters by number, speed, delays, track list (from `Stream N`), file browsing, playlist, artwork |
-| Direct, level 1 | + our Lua pages in `%APPDATA%\vlc\lua\http` | `tracks.json` → 200 | + current track, chapter names |
-| Companion, level 2 | tray app on Windows | `welcome.caps` | + discovery, push state, start/close VLC, "keep awake", sleep, display, system volume, audio device |
+Only through the companion, Sofabird for Windows: it finds VLC, starts it with its web interface and talks to it, and
+the phone talks to the companion. What the PC can do comes from `welcome.caps` (discovery, push state, start/close
+VLC, "keep awake", sleep, display, system volume, audio device, history, library…).
 
-**Direct mode** (`VlcHttpBackend`): Basic auth with an empty user name; an OkHttp network interceptor
-removes the `Connection` header (otherwise VLC drops the connection after every request); polling every 1 s during
-playback, 3 s when paused/stopped; polling stops when the app is not visible and there is no
-foreground service; one request in flight per type (status/playlist/browse), sequence numbers,
-stale responses are discarded; the response to a command is applied at once, a "clean" status follows after 500 ms;
-the position is interpolated locally (`PlayerState.interpolatedTime`). Mute is emulated (we remember the
-volume and set 0). At level 0 the current track is remembered on the phone and reset when
-`currentplid` changes. Errors are told apart: 403 "password not set", 401 "wrong password", refused,
-timeout, empty body, a Lua page with `<title>Error loading`.
+The app had a **direct VLC mode** until 0.5 (levels 0/1: the phone polled VLC's own web interface on port 8080 with
+its password, optionally with our Lua pages); the owner removed it on 2026-10-29. Saved PCs of that mode are dropped
+when the saved list is read (`SavedServer.decodeList`); companion entries keep working (their old `mode`/`httpPort`
+keys are ignored).
 
 **Companion** (`CompanionBackend`): `ws://host:47555/ws`, `hello` with the token, `welcome` with `caps`,
 push `state`, requests `cmd`/`sys`/`browse`/`getPlaylist` by `id`, `ping` every 30 s (no `pong` within 10 s →
@@ -189,22 +178,22 @@ reconnect), exponential backoff, commands are buffered for up to 5 s while recon
    last PC (`PlayerController.autoConnectLast`), as before.
 4. If the active companion rejected the token, the code dialog appears as soon as the screen opens (and the
    current connection's card has an "Enter code" button).
-5. Everything technical — direct VLC mode, address/port, web interface password, subnet scan, web interface
-   instructions — is under the collapsed "Other ways to connect" block. It expands by itself only
-   if no companion is found within ~6 s of searching. Manually entering a companion goes the same way (the code
-   appears on the PC screen).
+5. The rest — "Connect via Bluetooth", the companion's address and port typed by hand, and how to set up the PC
+   (install Sofabird for Windows, allow it in the firewall, VLC 3.0) — is under the collapsed "Other ways to connect"
+   block. It expands by itself only if no companion is found within ~6 s of searching. Manually entering a companion
+   goes the same way (the code appears on the PC screen).
 
 A PC is matched to a saved one by id, then by the installation GUID (`pcId`; the address is updated if DHCP
 gave the PC a different IP), then by address and port.
 
-**VLC state on the remote (companion)**: `vlc.status` (absent in old companions → derived from
+**VLC state on the remote**: `vlc.status` (absent in old companions → derived from
 `running`). While VLC cannot be controlled, a card replaces the seek bar, the volume and the transport buttons:
 `notRunning` — the home screen (see "Home screen"; "Launch VLC", `cmd launch`, is in "More");
 `starting` — "VLC is starting…"; `noControl` (VLC was opened by hand before the companion configured it) —
 "VLC is open without phone control" + "Restart with control" (`cmd launch`, the position in the movie
 is not kept); `notInstalled` — "VLC was not found on the computer". After a tap the button shows
 progress until the companion reports a new state (up to 20 s). The "More" sheet (Windows volume, sleep,
-etc.) is available in these states too. In direct mode the behaviour is unchanged.
+etc.) is available in these states too.
 
 **TV screen (companion, `caps.windowControl`)** — one monitor for VLC, YouTube and Moonlight: on the remote, next to the "Audio"/"Subtitles" chips, there is
 a "Display: <name>" chip (a TV icon for an external monitor, a laptop icon for the built-in panel). It shows the monitor
@@ -224,15 +213,14 @@ by index and only while VLC is open, there is no "Do not manage" item.
 
 **Discovery**: NSD `_sofabird._tcp` (one discovery session, sequential resolve,
 MulticastLock, "loss" with a 3 s delay), UDP beacon `SOFABIRD_DISCOVER 1` → `255.255.255.255:47556`
-(plus the subnet's directed broadcast), an optional `/24` scan on port 8080 (48 in parallel,
-1 s timeout, addresses closest to our own IP first; 200/401/403 = "VLC is there"), manual entry.
-For discovered companions `GET /info` is read as well (VLC state, whether pairing is needed) —
-right away and then at most once every 8 s while the screen is open.
+(plus the subnet's directed broadcast), manual entry of the address. There is no network scan: plain VLC web
+interfaces are not looked for since the direct mode is gone. For discovered companions `GET /info` is read as well
+(VLC state, whether pairing is needed) — right away and then at most once every 8 s while the screen is open.
 
-**Connection in the UI**: the status is always in the header (dot + level + latency), reconnecting is quiet,
-with a snackbar; there are no blocking dialogs (except the pairing code dialog on the "Connection" screen).
-Authorization errors (VLC 401/403, the companion's `pairing_required`/`unauthorized`) are terminal: the password
-has to be fixed on the "Connection" screen or a code entered.
+**Connection in the UI**: the status is always in the header (dot + "Companion · Wi‑Fi"/"Bluetooth" + latency),
+reconnecting is quiet, with a snackbar; there are no blocking dialogs (except the pairing code dialog on the
+"Connection" screen). Authorization errors (the companion's `pairing_required`/`unauthorized`) are terminal: a code
+has to be entered on the "Connection" screen.
 
 **Background**: `PlaybackService` is a foreground service of type `connectedDevice` (prerequisite —
 `CHANGE_WIFI_MULTICAST_STATE` in the manifest) with a media notification (prev / −10 / play‑pause / +30 / next)
@@ -280,7 +268,7 @@ Behaviour:
   from scratch; `adb shell pm clear <package>` resets everything, including pairings.
 
 **Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
-connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
+connection, sends `cmd volume` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
 ## Wake-on-LAN
 
@@ -310,7 +298,7 @@ listener (`artOverTls`), and the shared OkHttp client trusts the pinned certific
 
 ## Home screen
 
-When nothing is on the TV (`RemoteUiState.home`: a companion, online, VLC closed or open with nothing in it, no
+When nothing is on the TV (`RemoteUiState.home`: online, VLC closed or open with nothing in it, no
 YouTube, no stream) the remote shows `RemoteHome` instead of an empty cover, "VLC is not running / Launch VLC" and
 idle controls: "What shall we watch?", the next-episode card, **Continue watching** (`getHistory continue`, loaded by
 `RemoteViewModel` while the home shows and again after `state.history.revision` changes; files with their TMDB
@@ -324,16 +312,15 @@ or not installed keeps its card.
 
 ## Watch history
 
-Companion mode with the `history` capability only (protocol: "Watch history and resume" in
-[`../protocol/README.md`](../protocol/README.md)); direct VLC mode and older companions show none of this.
+With the `history` capability only (protocol: "Watch history and resume" in
+[`../protocol/README.md`](../protocol/README.md)); older companions show none of this.
 The companion is the source of truth: the phone keeps no history of its own.
 
 - **Protocol** (`:core:protocol`): `Capability.HISTORY`; `PlayerState.resume` / `next` / `history`
   (`ResumePrompt`, `NextEpisode`, `HistoryInfo`); `Entry.progress` / `finished`; messages `getHistory` → `history`,
   `historyUpdate` (only `finished` or `remove` is sent), `historyClear`; `PlayerCommand.Resume(ResumeChoice)` →
-  `cmd resume {"choice"}`, `PlayerCommand.DismissNext` → `cmd dismissNext`. `PlayerBackend.history` /
-  `updateHistory` / `clearHistory` fail with `UnsupportedOperationException` unless the backend implements them
-  (only `CompanionBackend` does). All new fields are optional: old payloads decode as before.
+  `cmd resume {"choice"}`, `PlayerCommand.DismissNext` → `cmd dismissNext`. All new fields are optional: old
+  payloads decode as before.
 - **Resume prompt** (`data/history/WatchPrompts.kt`, a Koin singleton): while `state.resume.pending` is set and the
   link is up, `ResumePromptHost` (called from `AppRoot`, so over any screen, including the permissions screen) shows
   a modal dialog: the movie title (up to 3 lines), a progress bar, "Stopped at 1:23:45 of 2:58:25" and two large
@@ -373,9 +360,8 @@ The companion is the source of truth: the phone keeps no history of its own.
 ## Known limitations
 
 - Chapter ticks on the seek bar are evenly spaced: VLC 3's HTTP interface does not report chapter offsets,
-  only their count and index (names — at level ≥ 1).
+  only their count, index and names.
 - `pl_delete` in VLC is unreliable — the list is re-read after removing an item from the playlist.
-- At level 0 the selected track is known only to the phone; if it is switched on the PC, the remote will not see it.
 - VLC's `/art` serves artwork only for the current item; the URL carries `?item=<plid>` as the Coil cache key.
 - Remote volume through the MediaSession with the screen off depends on the firmware (see research §2.1).
 - Android 17 / targetSdk 37 will require the `ACCESS_LOCAL_NETWORK` runtime permission — targetSdk is 35 for now.
@@ -396,7 +382,7 @@ The companion is the source of truth: the phone keeps no history of its own.
 
 ## To check on a device
 
-Automated: unit tests (parsers, commands, companion messages, `VlcHttpBackend` on the Ktor `MockEngine`) and the
+Automated: unit tests (companion messages and commands, models, pairing, transport choice, the saved list) and the
 screenshot tests. Everything below has been checked on a Galaxy S24 with the TV laptop; repeat the relevant items
 after changing that area:
 
@@ -404,7 +390,7 @@ after changing that area:
 2. The `connectedDevice` foreground service on Android 14/15: start from `ServiceCoordinator`, the notification with buttons, stopping after 10 minutes; the `POST_NOTIFICATIONS` request on Android 13+.
 3. MediaSession: headset buttons and the lock screen; volume keys with the screen off (`RemotePlayer`, `PLAYBACK_TYPE_REMOTE`).
 4. Volume keys in the foreground (`dispatchKeyEvent`), haptics on buttons.
-5. Coil and `/art` with Basic auth (the `ArtAuth` interceptor), artwork in the notification.
+5. Coil and the companion's `/art` with the token (Bearer, the `ArtAuth` interceptor), artwork in the notification.
 6. `EncryptedSharedPreferences` on the target device (the fallback must not kick in).
 7. Predictive back in sheets.
 8. Pairing: first launch with one companion on the network → auto-start, the code appears on the TV, the code dialog
@@ -489,4 +475,7 @@ after changing that area:
     8. History: groups Today / Yesterday / This week / Earlier; rows with folder and progress or "Watched"; swipe left
        removes; menu → Mark as unwatched resets the progress; scroll through 50+ entries loads more; "Clear history" →
        confirmation with the PC name → empty screen text; the Library row is empty too ("History" link).
-    9. Old companion (no `history`) and direct VLC mode: no dialog, no card, no row, no History link, no marks.
+    9. Old companion (no `history`): no dialog, no card, no row, no History link, no marks.
+17. **Companion only** (0.5): a phone that had a direct VLC server saved updates without a crash; that entry is gone
+    from "Saved PCs", companions stay paired. "Other ways to connect" shows Bluetooth, the manual address (port 47555)
+    and "How to set up the PC"; a wrong address ends in the pairing-failed card with a hint.

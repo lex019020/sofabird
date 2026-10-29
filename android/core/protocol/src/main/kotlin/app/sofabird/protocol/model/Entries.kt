@@ -15,7 +15,7 @@ enum class EntryType {
     UNKNOWN,
 }
 
-/** One item of a directory listing (`browse.json` element or companion `entries.items[]`). */
+/** One item of a directory listing (companion `entries.items[]`). */
 @Serializable
 data class Entry(
     val name: String,
@@ -48,7 +48,7 @@ data class Entry(
     }
 }
 
-/** One playlist entry (leaf of `playlist.json` or companion `playlist.items[]`). */
+/** One playlist entry (companion `playlist.items[]`). */
 @Serializable
 data class PlaylistItem(
     val plId: Int,

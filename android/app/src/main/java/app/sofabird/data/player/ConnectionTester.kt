@@ -6,9 +6,6 @@ import app.sofabird.data.companion.CompanionTransports
 import app.sofabird.data.companion.classifyCompanionError
 import app.sofabird.data.companion.handshake
 import app.sofabird.data.companion.isTerminalHandshakeError
-import app.sofabird.data.vlc.VlcErrorClassifier
-import app.sofabird.data.vlc.VlcHttpApi
-import app.sofabird.data.vlc.VlcHttpException
 import app.sofabird.protocol.companion.BtAddress
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DeviceInfo
@@ -16,15 +13,12 @@ import app.sofabird.protocol.companion.lanRoutes
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.VlcInfo
-import app.sofabird.protocol.vlc.VlcStatusParser
-import io.ktor.client.HttpClient
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
 sealed class TestResult {
-    data class DirectOk(val level: Int, val version: String?, val state: String) : TestResult()
     data class CompanionOk(
         val name: String,
         val pcId: String?,
@@ -41,30 +35,8 @@ sealed class TestResult {
     data class Failed(val error: ConnectionError) : TestResult()
 }
 
-/** "Test connection" for the onboarding screen: one request, a precise verdict. */
-class ConnectionTester(private val ktor: HttpClient, private val transports: CompanionTransports) {
-
-    suspend fun testDirect(host: String, port: Int, password: String): TestResult {
-        val api = VlcHttpApi(ktor, host, port, password)
-        return try {
-            val status = VlcStatusParser.parseStatus(api.status().body)
-            val level = try {
-                val page = VlcStatusParser.parseTracks(api.tracks().body)
-                if (page.audio != null || page.chapter != null || page.video != null) 1 else 0
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Throwable) {
-                0
-            }
-            TestResult.DirectOk(level, status.version, status.state)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: VlcHttpException) {
-            TestResult.Failed(e.error)
-        } catch (e: Throwable) {
-            TestResult.Failed(VlcErrorClassifier.fromThrowable(e))
-        }
-    }
+/** One `hello` to a companion for the pairing flow: a precise verdict, the link is not kept. */
+class ConnectionTester(private val transports: CompanionTransports) {
 
     /**
      * One `hello` over the LAN WebSocket; the link is closed afterwards. Encrypted first ([lanRoutes]; a known

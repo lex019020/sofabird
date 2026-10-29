@@ -5,7 +5,8 @@ done; M4 is nearly done: watch history and "Continue watching", the library with
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
 and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
-with what to watch. Next, in 0.5: the sleep timer, dropping the unencrypted connection (§ 10).
+with what to watch. In 0.5 the app works only with the companion: the direct VLC mode (levels 0/1) is removed (the
+owner's decision, 2026-10-29). Next, in 0.5: the sleep timer, dropping the unencrypted connection (§ 10).
 
 ## 0. Essence
 
@@ -21,6 +22,9 @@ Three levels, from simple to full (details in [ADR-0001](adr/0001-control-paths.
 | 1 "VLC + Lua pages" | a copy of the stock `lua\http` folder + our pages in `%APPDATA%\vlc\lua\http\`, VLC restart | + current track, chapter names, aspect/crop/deinterlace |
 | 2 "companion" | a .NET tray application | + Bluetooth, auto-discovery, push events, audio device, launching VLC, window on the TV, "keep awake", PC sleep, posters/metadata |
 
+Since 0.5 the app has only level 2: levels 0/1 (the phone talking to VLC's web interface itself) were removed by the
+owner's decision (2026-10-29). The companion still drives VLC through its web interface and our Lua pages.
+
 The main difference from existing remotes (see [prior-art](research/prior-art.md)): not cycling through
 tracks blindly but a list with languages; a connection that does not "drop"; setup that the companion
 does for the user; and Bluetooth as a fallback when Wi-Fi lets you down.
@@ -30,7 +34,8 @@ does for the user; and Bluetooth as a fallback when Wi-Fi lets you down.
 **v1 goals**
 - Control the real VLC 3.0.x on Windows 11 (no embedded player of our own).
 - Work without the companion (level 0/1) and with it (level 2); features are enabled based on what is available.
-- Two transports: LAN (HTTP to VLC or WebSocket to the companion) and Bluetooth RFCOMM to the companion.
+  (Until 0.5; since then the app works only with the companion.)
+- Two transports: LAN (WebSocket to the companion; HTTP to VLC until 0.5) and Bluetooth RFCOMM to the companion.
 - An "eyes-free" remote: large buttons, haptics, hardware volume keys.
 - A library with posters and "Continue watching".
 
@@ -111,9 +116,10 @@ Full reports in `docs/research/`:
 └─────────────────────────────┘          └──────────────────────────────────────────┘
 ```
 
-- **The Android app** is the only mandatory component.
+- **The Android app** was the only mandatory component until 0.5; since then it needs the companion (there is no
+  `VlcHttpBackend` and no `/24` scan on the phone any more).
 - **Lua pages** — our `requests/tracks.json`, `requests/setvar.json` plus a copy of VLC's stock
-  pages; installed by the companion or by the `companion/lua/install.ps1` script, they also work without the companion.
+  pages; installed by the companion (or by the `companion/lua/install.ps1` script).
 - **The companion** — a single exe in the tray, without administrator rights (except for a one-time helper
   for the firewall), autostart via HKCU\Run, quiet updates via Velopack.
 
@@ -133,16 +139,16 @@ interface PlayerBackend {
 
 `Capabilities` is a set of flags: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`,
 `launchVlc`, `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`. The UI shows
-elements only when the flag is present. After connecting, `VlcHttpBackend` tries
+elements only when the flag is present. Until 0.5, after connecting, `VlcHttpBackend` tried
 `GET /requests/tracks.json`: `200` → level 1, `404` → level 0.
 
 ### 4.3. Transports and discovery ([ADR-0002](adr/0002-transports-and-discovery.md))
 
-Order at startup: the saved PC over LAN (WS to the companion → otherwise HTTP to VLC) →
+Order at startup: the saved PC over LAN (WS to the companion) →
 mDNS `_sofabird._tcp` + UDP beacon (companion) → with no network and a paired PC —
-RFCOMM, switching back to Wi-Fi automatically when it returns → otherwise the "Connection" screen with a `/24` scan,
-manual entry and QR. Reconnecting is silent, with exponential backoff, commands are buffered for 5 s, the connection
-status is always in the header.
+RFCOMM, switching back to Wi-Fi automatically when it returns → otherwise the "Connection" screen with manual entry
+and Bluetooth (the `/24` scan for plain VLC went with the direct mode in 0.5). Reconnecting is silent, with
+exponential backoff, commands are buffered for 5 s, the connection status is always in the header.
 
 ### 4.4. Phone ↔ companion protocol
 
@@ -186,18 +192,19 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
   Koin, DataStore, Coil 3. The exact versions are pinned to the installed SDK (see `CLAUDE.md`); reference points in
   [mobile-stack-and-ux § 1.5](research/mobile-stack-and-ux.md) (a spot check showed that some of the
   numbers there could not be confirmed by search).
-- Network: poll VLC once per 1 s while playing, 3 s when paused/stopped, no polling in the background without an FGS;
-  one request in flight per type, sequence numbers, stale responses are discarded; a command's response is
-  applied immediately as status, plus a "clean" status after 500 ms. Do not send the `Connection`
-  header (otherwise VLC closes the connection after each request); treat a body with
+- Network (the direct mode, until 0.5): poll VLC once per 1 s while playing, 3 s when paused/stopped, no polling in
+  the background without an FGS; one request in flight per type, sequence numbers, stale responses are discarded; a
+  command's response is applied immediately as status, plus a "clean" status after 500 ms. Do not send the
+  `Connection` header (otherwise VLC closes the connection after each request); treat a body with
   `<title>Error loading` as a command error despite the `200`.
 - Track ID: `Original_ID` from `Stream N` if present, otherwise `N` (category keys are localized —
   search by `Type`, not by the key name).
 - Volume: `dispatchKeyEvent` in the activity; with the screen off — a Media3 `Player` with
   `DeviceInfo.PLAYBACK_TYPE_REMOTE` (check on a real phone).
-- Secrets: the VLC password and the companion token — in `EncryptedSharedPreferences`/Keystore.
-- Errors by class: `403` "no password set in VLC", `401` "wrong password", refused "web interface
-  off/port", timeout "firewall/other network/PC asleep", empty response "VLC is just starting".
+- Secrets: the companion token (and, until 0.5, the VLC password) — in `EncryptedSharedPreferences`/Keystore.
+- Errors by class: refused "companion not running/port", timeout "firewall/other network/PC asleep", pairing
+  required, wrong code, another certificate; until 0.5 also `403` "no password set in VLC", `401` "wrong password",
+  empty response "VLC is just starting".
 - UI language follows the system (Android 13+ per-app language too), English by default, Russian translation.
 
 ### 4.7. Companion (Windows)
@@ -243,8 +250,8 @@ MVP screens (mockups in [mobile-stack-and-ux § 5.6](research/mobile-stack-and-u
 4. **Library** — folders (`browse.json` or the companion's browsing) + a poster grid + "Continue watching";
    favourite folders.
 5. **Playlist** with a mini player.
-6. **Connection/onboarding** — "Find the PC → Password or code → Check (pause on the TV)";
-   without the companion — an honest step-by-step guide with a "check now" button.
+6. **Connection/onboarding** — "Find the PC → code on the TV → done"; "How to set up the PC" explains installing the
+   companion (until 0.5 also a step-by-step guide for VLC's web interface with a "check now" button).
 7. **Settings** — volume keys, seek steps, theme (dark by default, true black),
    background behaviour.
 8. **Background** — `MediaSessionService` + a notification with buttons, a Quick Settings play/pause tile.
@@ -265,7 +272,12 @@ Goal: remove technical risks before writing the UI. In practice the spikes were 
 - [ ] Media3 "remote volume" with the screen off on the target phone.
 - [ ] Ktor fake VLC with fixtures from `docs/research/samples/` (the fixtures are used directly in unit tests).
 
-### M1 — MVP "Lite" (levels 0/1) — done
+### M1 — MVP "Lite" (levels 0/1) — done, removed in 0.5
+
+> The direct mode built here (the phone talking to VLC's web interface on port 8080 with its password, the `/24`
+> scan, the level-1 Lua pages read by the phone) was removed in 0.5 by the owner's decision (2026-10-29): the app works
+> only with the companion, which drives VLC itself. Saved PCs of that mode are dropped on update.
+
 - [x] `:core:protocol`: `status.json`/`playlist.json`/`browse.json` parser, commands, `Capabilities`.
 - [x] Connection screen: `/24` scan, manual entry, test with distinguishable errors, Keystore.
 - [x] Remote: transport, seek bar, volume, phone keys, chapters by number.
@@ -447,7 +459,7 @@ companion.
 sofabird/
   README.md, CLAUDE.md, VERSION
   docs/            PLAN.md, adr/, research/ (+ samples/ — real VLC responses, test fixtures)
-  protocol/        protocol description, message schema (JSON Schema), direct VLC HTTP reference
+  protocol/        protocol description, message schema (JSON Schema), VLC HTTP reference (for the companion)
   android/         Gradle project: app, core/protocol
   companion/       Sofabird.Core, Sofabird.Companion, tests (.NET), lua/ (tracks.json, setvar.json,
                    install.ps1), tools/ (localization generator)

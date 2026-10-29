@@ -1,7 +1,6 @@
 package app.sofabird.data.player
 
 import app.sofabird.domain.model.SavedServer
-import app.sofabird.domain.model.ServerMode
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.VlcInfo
@@ -53,7 +52,7 @@ class PairingFlowTest {
         override suspend fun connect(target: PairingTarget, welcome: TestResult.CompanionOk, newToken: String?): SavedServer {
             if (newToken != null) token = newToken
             connected += target to newToken
-            return SavedServer(id = welcome.pcId ?: "id", name = welcome.name, host = target.host, mode = ServerMode.COMPANION, pcId = welcome.pcId)
+            return SavedServer(id = welcome.pcId ?: "id", name = welcome.name, host = target.host, pcId = welcome.pcId)
         }
     }
 

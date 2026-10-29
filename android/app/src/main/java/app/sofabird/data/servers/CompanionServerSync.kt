@@ -26,7 +26,7 @@ class CompanionServerSync(
         discovery.hosts
             .map { hosts ->
                 hosts.values
-                    .filter { it.hasCompanion && (it.pcId != null || it.bt != null) }
+                    .filter { it.pcId != null || it.bt != null }
                     .map { CompanionSighting(pcId = it.pcId, host = it.host, wsPort = it.wsPort, btAddress = it.bt) }
                     .toSet()
             }

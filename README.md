@@ -23,9 +23,9 @@ Formerly called *VLC Remote*.
 **Website:** [sofabird.app](https://sofabird.app/) ·
 **Download:** [latest release](https://github.com/lex019020/sofabird/releases/latest)
 
-The phone controls VLC over the local network. Without anything installed on the PC it talks to VLC's own web
-interface; with the companion it finds the PC by itself, starts VLC on the TV, keeps working over Bluetooth when
-Wi‑Fi is gone and remembers where you stopped watching. The apps follow the system language: English and Russian.
+The phone controls VLC through the companion on the PC (Sofabird for Windows): it finds the PC by itself, starts VLC
+on the TV, keeps working over Bluetooth when Wi‑Fi is gone and remembers where you stopped watching. The apps follow
+the system language: English and Russian.
 
 ## What it can do
 
@@ -41,7 +41,7 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - A media notification with lock-screen controls while a movie plays.
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
-**With the companion on the PC**
+**On the PC (the companion)**
 - Automatic discovery and one-time pairing with a 6-digit code shown on the TV; the connection is encrypted (TLS,
   the PC's certificate is pinned when the phone pairs).
 - A media library: pick the media folders once, and the phone shows movies and series as posters with
@@ -80,6 +80,8 @@ publishes a test build; releases are published from time to time.
    own updates (Settings → "Updates": test builds or releases only); Android asks you to confirm each one.
 3. Open the app: it finds the PC, the PC shows a code on the TV, enter it on the phone. Done.
 
+The phone app needs the companion: it no longer talks to VLC's web interface directly (that mode was removed in 0.5).
+
 <details>
 <summary>Installing with scripts (also installs VLC and puts the APK on a phone via adb)</summary>
 
@@ -95,19 +97,6 @@ $tag = @(Invoke-RestMethod 'https://api.github.com/repos/lex019020/sofabird/rele
 No GitHub account is needed. From a working copy: `scripts\deploy-windows.ps1`, `scripts\deploy-android.ps1`
 (`-Local` builds from source); all switches are in [CLAUDE.md](CLAUDE.md).
 </details>
-
-### Without the companion
-
-The app also works with plain VLC: in VLC open Tools → Preferences → "All" → Interface → Main interfaces, tick
-"Web", set a password under "Lua", restart VLC and allow it in the firewall. In the app choose "Other ways to
-connect" → find the PC or enter its address and the password. Running `companion\lua\install.ps1` on the PC adds
-the current tracks and chapter names (level 1).
-
-| Mode | On the PC | What you get |
-|---|---|---|
-| Level 0 | VLC with the web interface | playback, seeking, volume, tracks by number, browsing, playlist |
-| Level 1 | + our Lua pages for VLC | + track languages and names, chapter names |
-| Level 2 | the companion | + discovery, pairing, push updates, starting VLC on the TV, audio devices, Bluetooth, history, PC controls |
 
 ## Repository
 

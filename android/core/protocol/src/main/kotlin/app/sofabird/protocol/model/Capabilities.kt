@@ -55,12 +55,6 @@ data class Capabilities(val flags: Set<Capability> = emptySet()) {
     companion object {
         val NONE = Capabilities()
 
-        /** Level 0: plain HTTP interface. */
-        val LEVEL0 = Capabilities()
-
-        /** Level 1: HTTP + our Lua pages. */
-        val LEVEL1 = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES))
-
         fun fromWire(values: Collection<String>): Capabilities =
             Capabilities(values.mapNotNull { Capability.fromWire(it) }.toSet())
 

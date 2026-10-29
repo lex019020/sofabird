@@ -37,7 +37,6 @@ fun TracksSheet(kind: TrackKind, ui: RemoteUiState, viewModel: RemoteViewModel, 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tracks = ui.state.tracks.of(kind)
     val current = ui.state.tracks.current(kind)
-    val knowsCurrent = ui.capabilities.currentTrack || current != null
     val tick = rememberTick(ui.settings.haptics)
     val delay = if (kind == TrackKind.AUDIO) ui.state.delays.audio else ui.state.delays.subtitle
 
@@ -57,16 +56,6 @@ fun TracksSheet(kind: TrackKind, ui: RemoteUiState, viewModel: RemoteViewModel, 
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
-            }
-            if (!knowsCurrent && tracks.isNotEmpty()) {
-                item {
-                    Text(
-                        stringResource(R.string.tracks_current_unknown_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                    )
-                }
             }
             if (tracks.isEmpty()) {
                 item {

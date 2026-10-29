@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -22,13 +21,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Runs the discovery methods together and merges the results by host:
- * NSD browse (continuous), UDP beacon rounds (every 10 s), optional /24 HTTP sweep (on demand).
- * Companion hosts are enriched from `GET /info` (VLC running? pairing needed?).
+ * NSD browse (continuous) and UDP beacon rounds (every 10 s). Companion hosts are enriched from
+ * `GET /info` (VLC running? pairing needed?).
  */
 class DiscoveryRepository(
     private val nsd: NsdDiscovery,
     private val beacon: UdpBeaconDiscovery,
-    private val scanner: SubnetScanner,
     private val ktor: HttpClient,
     private val scope: CoroutineScope,
 ) {
@@ -38,12 +36,8 @@ class DiscoveryRepository(
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
 
-    private val _sweeping = MutableStateFlow(false)
-    val sweeping: StateFlow<Boolean> = _sweeping.asStateFlow()
-
     private var nsdJob: Job? = null
     private var beaconJob: Job? = null
-    private var sweepJob: Job? = null
     private val pendingLost = HashMap<String, Job>()
     private val nsdNames = HashMap<String, String>() // serviceName -> host
     private val infoInFlight = HashSet<String>()
@@ -85,23 +79,9 @@ class DiscoveryRepository(
     fun stop() {
         nsdJob?.cancel(); nsdJob = null
         beaconJob?.cancel(); beaconJob = null
-        sweepJob?.cancel(); sweepJob = null
         pendingLost.values.forEach { it.cancel() }
         pendingLost.clear()
         _scanning.value = false
-        _sweeping.value = false
-    }
-
-    /** One-off /24 sweep for port 8080. */
-    fun sweepSubnet() {
-        if (sweepJob?.isActive == true) return
-        _sweeping.value = true
-        sweepJob = scope.launch {
-            scanner.scan()
-                .catch { Log.d(TAG, "sweep failed: ${it.message}") }
-                .onCompletion { _sweeping.value = false }
-                .collect { add(it) }
-        }
     }
 
     private fun add(host: DiscoveredHost) {
@@ -112,7 +92,7 @@ class DiscoveryRepository(
         // `/info` once, then again every few beacon rounds so "VLC running / no control" stays fresh.
         val known = _hosts.value[host.host] ?: host
         val now = System.currentTimeMillis()
-        if (known.hasCompanion && now - known.infoAt > INFO_REFRESH_MS && infoInFlight.add(host.host)) {
+        if (now - known.infoAt > INFO_REFRESH_MS && infoInFlight.add(host.host)) {
             scope.launch {
                 try {
                     enrichFromInfo(known)
@@ -144,8 +124,6 @@ class DiscoveryRepository(
                 host.host to existing.copy(
                     name = info.name.ifBlank { existing.name },
                     needsPairing = info.needsPairing,
-                    vlcRunning = info.vlc?.running,
-                    vlcVersion = info.vlc?.version ?: existing.vlcVersion,
                     vlcStatus = info.vlc?.effectiveStatus,
                     infoAt = System.currentTimeMillis(),
                     wsPort = info.wsPort,
