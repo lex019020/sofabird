@@ -1238,7 +1238,8 @@
         "filter": {
           "enum": [
             "continue",
-            "all"
+            "all",
+            "youtube"
           ]
         },
         "limit": {
@@ -1318,6 +1319,14 @@
               },
               "next": {
                 "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "youtube"
+                ]
+              },
+              "channel": {
+                "type": "string"
               }
             }
           }

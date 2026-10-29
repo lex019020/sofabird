@@ -284,9 +284,22 @@ sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title
   finished one (marked `"next": true`); sorted by `lastWatched` descending.
 - `{"t":"historyUpdate","id":"10","uri":"...","finished":true|false}` (mark watched / unwatched; unwatched resets
   `position` to 0) or `{"t":"historyUpdate","id":"10","uri":"...","remove":true}` → `ok`.
-- `{"t":"historyClear","id":"11"}` → `ok`.
+- `{"t":"historyClear","id":"11"}` → `ok` (the YouTube history too).
 - `entries` items of `browse` get optional `progress` (0..1) and `finished` for files that are in the history.
 - `state.history = {"revision": n}` changes whenever the history changes, so phones can refresh lists.
+
+**YouTube videos** (user request, 2026-10-29). With the TV extension (cap `youtube`) the companion also keeps the
+videos played in the TV browser — sent from a phone or played by YouTube itself — in `youtube-history.json`: the
+title, channel, length and where it stopped (saved every 10 s while it plays, on pause and when the video is left;
+ads are not recorded; less than 5% left = finished; kept 183 days, at most 500). They come in the same lists as
+items with `"kind": "youtube"`, `"channel"`, `uri` = `https://www.youtube.com/watch?v=<id>` and an absolute
+`artUrl` (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`, the phone loads it itself); no `name`/`folderUri`:
+- `getHistory` `all` — files and videos together, newest first; `continue` — plus videos not finished and watched
+  at least 60 s (YouTube videos are short; files need 5 min); the new filter `youtube` — the videos only.
+- `cmd open {"uri": "<a YouTube link>"}` opens the video in the TV browser (not VLC), so a tap on such an item works
+  like a file's — also in older apps. A video opened this way or with `youtubeOpen` without `t` continues where it
+  stopped (when not finished and at least 60 s in); no prompt (YouTube does the same for a signed-in account).
+- `historyUpdate` / `historyClear` accept them too; `state.history.revision` changes for them as well.
 
 ## Library (capability `library`)
 

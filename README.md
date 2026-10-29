@@ -33,7 +33,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
   playback speed, aspect ratio, fullscreen; the phone's volume keys control the PC.
 - Audio and subtitle tracks with their languages, audio/subtitle delay.
 - Browse the PC's drives and network shares, favourite folders, play or enqueue; playlist with swipe to remove.
-- "Continue watching" and a watch history: resume where you stopped, mark as watched, the next episode of a series.
+- "Continue watching" and a watch history: resume where you stopped, mark as watched, the next episode of a series;
+  YouTube videos played on the TV are there too.
 - A media notification with lock-screen controls while a movie plays.
 
 **With the companion on the PC**

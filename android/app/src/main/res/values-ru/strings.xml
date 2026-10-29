@@ -223,6 +223,8 @@
     <string name="youtube_link_hint">Ссылка на видео YouTube</string>
     <string name="action_paste">Вставить</string>
     <string name="action_youtube_show">Показать на ТВ</string>
+    <string name="youtube_recent">Недавно на ТВ</string>
+    <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>
     <string name="action_youtube_close">Закрыть YouTube</string>
     <string name="youtube_ad">Реклама</string>

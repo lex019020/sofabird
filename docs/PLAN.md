@@ -358,8 +358,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       Sofabird TV extension signed by Mozilla (#55: exact state and seeking, ads told apart, "Skip", fullscreen without
       a key press; native messaging to the companion); the setup window's items and ad blocking (#57: install Firefox,
       "Sign in to YouTube…", uBlock Origin opt-in from the setup window or the phone); SponsorBlock (#59, user request:
-      opt-in like uBlock Origin, the browser restarts at the same moment). Left: recently sent videos on the phone;
-      later captions and quality.
+      opt-in like uBlock Origin, the browser restarts at the same moment); the YouTube history (user request: every
+      video played on the TV with where it stopped, in History, "Continue watching" and "More → Recently on the TV",
+      opened where it stopped). Later: captions and quality.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.

@@ -22,6 +22,10 @@ val HistoryItem.displayTitle: String
 val HistoryItem.folderName: String?
     get() = folderUri?.takeIf { it.isNotBlank() }?.let(::displayNameFromUri)?.takeIf { it.isNotBlank() }
 
+/** Second line of a history row: the folder of a file, the channel of a YouTube video. */
+val HistoryItem.subtitle: String?
+    get() = if (isYouTube) channel?.takeIf { it.isNotBlank() } else folderName
+
 /** Started and not finished: worth a progress bar and "1:23:45 of 2:58:25". */
 val HistoryItem.isStarted: Boolean
     get() = !finished && position > 0

@@ -55,6 +55,9 @@ enum class HistoryFilter(val wire: String) {
 
     /** Everything, newest first. */
     ALL("all"),
+
+    /** The YouTube videos played on the TV only, newest first. */
+    YOUTUBE("youtube"),
 }
 
 /** One element of `history.items`. */
@@ -80,10 +83,20 @@ data class HistoryItem(
     val artUrl: String? = null,
     /** `continue` only: the next unfinished episode after the last finished one (not started yet). */
     val next: Boolean = false,
+    /** [KIND_YOUTUBE] — a video played in the TV browser ([uri] is its watch page, [artUrl] its thumbnail); `null` — a file. */
+    val kind: String? = null,
+    /** The YouTube channel of a video. */
+    val channel: String? = null,
 ) {
+    val isYouTube: Boolean get() = kind == KIND_YOUTUBE
+
     /** Fraction watched, 0..1. */
     val fraction: Double
         get() = (progress ?: if (length > 0) position.toDouble() / length else 0.0).coerceIn(0.0, 1.0)
+
+    companion object {
+        const val KIND_YOUTUBE = "youtube"
+    }
 }
 
 /** A page of `getHistory`: [total] is the size of the whole filtered list. */

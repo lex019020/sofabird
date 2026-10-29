@@ -316,8 +316,8 @@ private fun HistoryRow(item: HistoryItem, onClick: () -> Unit, onMenu: () -> Uni
         headlineContent = { Text(item.displayTitle.withNameBreaks(), maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
-                item.folderName?.let { folder ->
-                    Text(folder, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                item.subtitle?.let { line ->
+                    Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 when {
                     item.finished -> Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +339,11 @@ private fun HistoryRow(item: HistoryItem, onClick: () -> Unit, onMenu: () -> Uni
             }
         },
         leadingContent = {
-            Icon(Icons.Default.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (item.isYouTube) {
+                VideoThumbnail(item.artUrl, Modifier.width(64.dp))
+            } else {
+                Icon(Icons.Default.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         },
         trailingContent = {
             IconButton(onClick = onMenu) { Icon(Icons.Default.MoreVert, stringResource(R.string.more_actions)) }
