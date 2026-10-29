@@ -20,6 +20,7 @@ public class ReleaseNameParserTests
     [InlineData("Mr. Robot (2015) 720p.mkv", "Mr. Robot", 2015)]
     [InlineData("[Group] Movie Name (2010) [BDRip 1080p].mkv", "Movie Name", 2010)]
     [InlineData("Movie_Name_2012_DVDRip.avi", "Movie Name", 2012)]
+    [InlineData("Серийный убийца 2010.mkv", "Серийный убийца", 2010)]
     public void Movies(string file, string title, int? year)
     {
         var p = ReleaseNameParser.Parse(file);
@@ -36,6 +37,11 @@ public class ReleaseNameParserTests
     [InlineData("Show.Name.2021.S01E01.mkv", "Show Name", 1, 1)]
     [InlineData("Show.Name.S01.E03.mkv", "Show Name", 1, 3)]
     [InlineData("Сериал.S01E07.WEB-DL.mkv", "Сериал", 1, 7)]
+    [InlineData("Семнадцать мгновений весны (1973) 04 серия.mkv", "Семнадцать мгновений весны", 1, 4)]
+    [InlineData("Сериал - 4-я серия.avi", "Сериал", 1, 4)]
+    [InlineData("Сериал. Серия 12.avi", "Сериал", 1, 12)]
+    [InlineData("Сериал.2.сезон.05.серия.mkv", "Сериал", 2, 5)]
+    [InlineData("Сериал Сезон 3 Серия 2 WEBRip.mkv", "Сериал", 3, 2)]
     public void Episodes(string file, string title, int season, int episode)
     {
         var p = ReleaseNameParser.Parse(file);
@@ -58,6 +64,9 @@ public class ReleaseNameParserTests
         Assert.False(inPack.IsEpisode); // a bare number is not an episode without an "E"
         var episodeInPack = ReleaseNameParser.Parse("E03.mkv", ["Show.Name.S01.1080p.WEB-DL"]);
         Assert.Equal(("Show Name", 1, 3), (episodeInPack.Title, episodeInPack.Season, episodeInPack.Episode));
+
+        var russian = ReleaseNameParser.Parse("Серия 07.mkv", ["2 сезон", "Сериал (2010)"]);
+        Assert.Equal(("Сериал", 2, 7), (russian.Title, russian.Season, russian.Episode));
     }
 
     [Theory]
@@ -65,6 +74,7 @@ public class ReleaseNameParserTests
     [InlineData("S03", 3)]
     [InlineData("Сезон 1", 1)]
     [InlineData("4 сезон", 4)]
+    [InlineData("Сериал 3 сезон", 3)]
     [InlineData("Show.Name.S02.1080p.WEB-DL", 2)]
     [InlineData("Movies", null)]
     [InlineData("Seasons of Love", null)]

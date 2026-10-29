@@ -47,6 +47,22 @@ public class LibraryScannerTests
     }
 
     [Fact]
+    public void Russian_episodes_are_a_series_in_episode_order()
+    {
+        var scan = LibraryScanner.Group(
+        [
+            F(@"D:\Movies", "Семнадцать мгновений весны (1973) 04 серия.mkv", size: 90),
+            F(@"D:\Movies", "Семнадцать мгновений весны (1973) 02 серия.mkv", size: 89),
+            F(@"D:\Movies", "Семнадцать мгновений весны (1973) 12 серия.mkv", size: 75),
+            F(@"D:\Movies", "Семнадцать мгновений весны (1973) 01 серия.mkv", size: 88),
+        ]);
+        Assert.Empty(scan.Movies);
+        var show = Assert.Single(scan.Shows);
+        Assert.Equal(("Семнадцать мгновений весны", 1973), (show.Title, show.Year));
+        Assert.Equal([1, 2, 4, 12], show.Episodes.Select(e => e.Episode));
+    }
+
+    [Fact]
     public void SameMovieTwice_IsOneMovieWithVersions_BiggestFirst()
     {
         var scan = LibraryScanner.Group(

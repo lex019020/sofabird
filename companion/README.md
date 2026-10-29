@@ -350,8 +350,9 @@ shares) are the phone's library of movies and series (`Services/LibraryService.c
 - **Names** (`ReleaseNameParser`, the PTN / guessit approach): the title is what comes before the first anchor — the
   year, `SxxEyy` / `1x02`, a quality tag (`2160p`, `BDRemux`, `x265`, …). "1917.2019…" is "1917" from 2019; an
   episode without a season (`E05.mkv`) takes it from a season folder ("Season 2", "S02", "Сезон 2"), the series name
-  from the folder above; a movie file without a year in a folder with one ("Inception (2010)/movie.mkv") takes the
-  folder's name. A series is every episode with the same title, wherever it is; two files of the same movie are its
+  from the folder above. Russian releases number episodes in words: "Show (1973) 04 серия", "4-я серия",
+  "Серия 4", "2 сезон 05 серия", "Сезон 3 Серия 2" (Ukrainian "серія" too). A movie file without a year in a folder
+  with one ("Inception (2010)/movie.mkv") takes the folder's name. A series is every episode with the same title, wherever it is; two files of the same movie are its
   versions.
 - **TMDB** (`TmdbClient`): the movie / series by title and year (and again without the year), and the seasons'
   episode names and stills, in Windows' UI language. Answers are kept in `library-metadata.json` for at most 6 months
