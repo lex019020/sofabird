@@ -3,9 +3,9 @@
 Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
-Stable v0.3.0 is released; 0.4.0 adds Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock and
-a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen with
-what to watch; next: the stable 0.4.0, then the sleep timer (§ 10).
+Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
+and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
+with what to watch. Next, in 0.5: the sleep timer, dropping the unencrypted connection (§ 10).
 
 ## 0. Essence
 
@@ -457,8 +457,8 @@ sofabird/
 
 ## 10. Next steps
 
-Before the stable 0.4.0 (owner's list): the app updates itself, the YouTube history, Wake-on-LAN, the encrypted
-connection and the home screen are done (§ 9); left: **release v0.4.0**.
+The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
+Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
 Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
