@@ -98,7 +98,8 @@ public sealed class CompanionHost : ISessionHost
         _youtube.PlaceOnTv = window => PlaceOnTv(window, null);
         _moonlight.PlaceOnTv = window => PlaceOnTv(window, null);
         Displays.TvScreenChosen += OnTvScreenChosen;
-        _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
+        // /art is served over TLS only; a phone on Bluetooth gets no artwork (it is HTTP over the LAN).
+        _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"https://{ip}:{_settings.TlsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
     }
