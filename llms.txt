@@ -21,6 +21,8 @@ phone.
 - Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
   subtitle choice for series; YouTube videos played on the TV are in the history and "Continue watching" and open
   where they stopped.
+- Home screen: when nothing plays, the remote opens on "What shall we watch?" — continue watching (TMDB stills,
+  YouTube thumbnails), the library, YouTube and another PC's screen (Moonlight).
 - Companion (Windows tray app): pairing with a 6-digit code shown on the TV (the connection is then encrypted with
   TLS, the PC's certificate pinned), starts VLC fullscreen on the TV monitor,
   audio output device switching, system volume, screen off, sleep and Wake-on-LAN from the phone, keep-awake during playback, "media station" power

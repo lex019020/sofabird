@@ -3,9 +3,9 @@
 Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
-Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV (with uBlock Origin and
-SponsorBlock); the app updates itself. Next, before the stable 0.4.0: YouTube history, Wake-on-LAN, encryption
-(§ 10).
+Stable v0.3.0 is released; 0.4.0 adds Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock and
+a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen with
+what to watch; next: the stable 0.4.0, then the sleep timer (§ 10).
 
 ## 0. Essence
 
@@ -379,6 +379,12 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       unable to wake it from sleep (only its Wi-Fi card may, `powercfg /devicequery wake_from_any`): the companion
       now checks that, says so in the setup window and offers no waking then. Not seen working on a device; shipped
       as a feature anyway (owner's decision, 2026-10-29).
+- [x] **Encrypted connection** (user request): the WebSocket over TLS (`wss`, port 47557) with the companion's
+      self-signed certificate pinned by the phone (trust on first use); 0.4 still accepts plain `ws` for older apps,
+      0.5 drops it.
+- [x] **Home screen** (user request): with nothing on the TV the remote offers what to watch instead of "Launch VLC" —
+      "Continue watching" (TMDB stills, YouTube thumbnails; a long press marks watched or removes), the Library,
+      YouTube and another PC's screen; it never scrolls.
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
 - [ ] Fake-VLC scenario tests.
@@ -451,8 +457,8 @@ sofabird/
 
 ## 10. Next steps
 
-Before the stable 0.4.0 (owner's list): the YouTube history, Wake-on-LAN and the encrypted connection are done
-(§ 9); left: **release v0.4.0**.
+Before the stable 0.4.0 (owner's list): the app updates itself, the YouTube history, Wake-on-LAN, the encrypted
+connection and the home screen are done (§ 9); left: **release v0.4.0**.
 
 Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
