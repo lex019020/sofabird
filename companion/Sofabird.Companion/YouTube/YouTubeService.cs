@@ -57,6 +57,9 @@ public sealed class YouTubeService : IDisposable
         _page.Changed += () =>
         {
             _history.Record(_page.State);
+            var ended = _page.State is { Ended: true };
+            if (ended && !_ended) VideoEnded?.Invoke();
+            _ended = ended;
             Changed?.Invoke();
         };
         _historyTimer = new System.Threading.Timer(_ => RecordPlaying(), null, HistoryEvery, HistoryEvery);
@@ -69,6 +72,11 @@ public sealed class YouTubeService : IDisposable
 
     /// <summary>Something changed on the TV (phones get the new state).</summary>
     public event Action? Changed;
+
+    /// <summary>The video on the TV played to its end (YouTube may go on with the next one).</summary>
+    public event Action? VideoEnded;
+
+    private bool _ended;
 
     /// <summary>Moves a window of the TV browser to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
     public Action<IntPtr>? PlaceOnTv { get; set; }
