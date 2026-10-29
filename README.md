@@ -36,6 +36,7 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - "Continue watching" and a watch history: resume where you stopped, mark as watched, the next episode of a series;
   YouTube videos played on the TV are there too.
 - A media notification with lock-screen controls while a movie plays.
+- Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
 **With the companion on the PC**
 - Automatic discovery and one-time pairing with a 6-digit code shown on the TV.
@@ -68,7 +69,8 @@ publishes a test build; releases are published from time to time.
 1. **PC:** download and run `Sofabird-Setup.exe`. It installs for the current user (the .NET 10
    runtime is added when missing, with one administrator prompt), opens the setup window — allow the firewall rules
    there — and then keeps itself up to date. VLC media player must be installed (3.0.x).
-2. **Phone (Android 8+):** install `Sofabird-<version>.apk` from the same release.
+2. **Phone (Android 8+):** install `Sofabird-<version>.apk` from the same release. After that the app offers its
+   own updates (Settings → "Updates": test builds or releases only); Android asks you to confirm each one.
 3. Open the app: it finds the PC, the PC shows a code on the TV, enter it on the phone. Done.
 
 **Coming from VLC Remote?** Install both parts as above. On the PC, Sofabird replaces VLC Remote Companion and keeps
@@ -131,7 +133,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: recently sent videos for YouTube, Wake-on-LAN and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+Next: a YouTube history, Wake-on-LAN and an encrypted connection, then the stable 0.4.0; after it a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

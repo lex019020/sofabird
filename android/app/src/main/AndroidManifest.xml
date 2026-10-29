@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The app installs its own updates from GitHub Releases (the system asks the user to confirm each one). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Bluetooth RFCOMM to the companion (bonded PCs only: no BLUETOOTH_SCAN, no location). -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -45,6 +47,10 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".data.update.UpdateInstallReceiver"
+            android:exported="false" />
 
         <service
             android:name=".service.PlaybackService"

@@ -21,6 +21,7 @@ import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.CompanionServerSync
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
+import app.sofabird.data.update.AppUpdates
 import app.sofabird.service.ServiceCoordinator
 import app.sofabird.ui.connection.ConnectionViewModel
 import app.sofabird.ui.history.HistoryViewModel
@@ -68,6 +69,7 @@ val appModule = module {
     single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
     single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
     single { WatchPrompts(get(), get(named("appScope"))) }
+    single { AppUpdates(androidContext(), get(), get(named("appScope"))) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
     viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }

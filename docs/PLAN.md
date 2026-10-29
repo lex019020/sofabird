@@ -4,7 +4,8 @@ Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV (with uBlock Origin and
-SponsorBlock). Next: recently sent videos for YouTube, Wake-on-LAN and the sleep timer (§ 10).
+SponsorBlock); the app updates itself. Next, before the stable 0.4.0: YouTube history, Wake-on-LAN, encryption
+(§ 10).
 
 ## 0. Essence
 
@@ -337,6 +338,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       longer reads them, so the computer they are on can sleep (they are read when the library is opened).
 - [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
       updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
+- [x] **The app updates itself** (user request): it checks GitHub Releases when it comes to the front (at most every
+      6 h), asks once per version when the new builds change something users notice, downloads the APK and hands it
+      to the system installer (one confirmation by Android); Settings → "Updates": test builds or releases only.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
       item in the setup window, tray warning when Windows changes it back); after a monitor change the VLC window
       returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
@@ -441,10 +445,17 @@ sofabird/
 
 ## 10. Next steps
 
-1. **YouTube, third part**: recently sent videos on the phone (M4).
-2. **Wake-on-LAN**: wake the PC from the phone (M4).
-3. **Sleep timer** (M4).
-4. **Fake-VLC scenario tests** (M4).
-5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+Before the stable 0.4.0 (owner's list, in this order):
+
+1. **YouTube history**: every video played on the TV, with its position, kept by the companion; a list in
+   "More → YouTube on the TV" that reopens a video where it stopped, and unfinished videos in "Continue watching".
+2. **Wake-on-LAN**: "Wake up the PC" on the phone when the saved PC does not answer; the setup window checks and
+   turns on the network adapter's wake settings.
+3. **Encryption**: the WebSocket over TLS with the companion's certificate pinned at pairing; 0.4.0 still accepts
+   the old unencrypted connection (old apps), the next version drops it.
+4. **Release v0.4.0.**
+
+Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+download, VLC 4.x, iOS.
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.
