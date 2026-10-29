@@ -26,7 +26,7 @@ translation is available.** No UI literals in code:
 - `docs/PLAN.md` — plan and milestones (M0–M5), `docs/adr/` — architecture decisions, `docs/research/` — research
   and live measurements of VLC 3.0.23 (`samples/` — real responses, also used as test fixtures).
 - `protocol/README.md` — the phone ↔ companion protocol v1 (the source of truth for both sides),
-  `protocol/vlc-http.md` — VLC's direct HTTP mode and all its quirks.
+  `protocol/vlc-http.md` — VLC's HTTP interface (what the companion drives) and all its quirks.
 - `android/` — Kotlin + Compose (`:app`, `:core:protocol`). `companion/` — .NET 10 (`Sofabird.Core`,
   `Sofabird.Companion`, tests), `companion/lua/` — Lua pages for VLC.
 - `scripts/deploy-windows.ps1` — the companion on Windows, `scripts/deploy-android.ps1` — the app on the phone,
@@ -45,6 +45,13 @@ android\gradlew.bat -p android :app:verifyRoborazziDebug   # layout screenshots;
 UI texts must not break inside a word at any font scale: labels in tabs, buttons, chips and badges use
 `LabelText` (one line, ellipsis, limited growth), groups of chips/buttons go into `FlowRow`, file names are shown
 with `withNameBreaks()`. Check new screens in both languages at font scale 2.0.
+
+**Screenshots stay current** (owner's rule). The Roborazzi screenshots (`android/app/src/test/screenshots/`) are
+re-recorded and looked at in the PR that changes a screen. The phone screenshots of the README and the site
+(`docs/images/*.png`: whole phone screens taken with `adb exec-out screencap`, 540 px wide, the PC name in the app bar
+blurred; the site publishes them) are re-taken in the PR that makes one outdated — a screen shown there changed, or a
+new main screen or feature is worth showing — or in a docs PR right after it; a new one also goes into `README.md` and
+`site/index.html`. Ask the owner before driving the phone into the state to capture.
 
 **The remote screen never scrolls** (owner's rule), in any orientation, language, font scale or state: everything
 fits on one screen. When space runs short the cover gives way first (it takes only the height left after the other
@@ -135,9 +142,8 @@ messages in English:
 The companion is installed by its Velopack installer (`Sofabird-Setup.exe`, which a user can also just
 run) into `%LOCALAPPDATA%\Sofabird` (`current\Sofabird.exe` — a stable path for the firewall
 rules and autostart) for the current user; the .NET 10 runtime, when missing, is installed by it with one administrator
-prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the
-companion and replaces the companion under its earlier name, VLC Remote Companion (`%LOCALAPPDATA%\VlcRemoteCompanion`;
-Sofabird takes its settings and history over at the first start). Settings, pairings, history and logs stay in
+prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly and starts the
+companion. Settings, pairings, history and logs stay in
 `%APPDATA%\Sofabird`. If VLC media player is not installed, the script installs it via winget
 (`VideoLAN.VLC`, one administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
 Packing (`dotnet vpk`, pinned in `dotnet-tools.json`) is `New-CompanionPackage` in `deploy-lib.ps1`, shared by the

@@ -7,9 +7,6 @@
   built from the working copy with -Local) into %LOCALAPPDATA%\Sofabird, for the current user, and then
   updates itself. This script runs that installer quietly and adds what it does not do: VLC when it is missing, the
   firewall rules and autostart. Settings, paired phones, history and logs stay in %APPDATA%\Sofabird.
-  The companion under its earlier name, VLC Remote Companion (%LOCALAPPDATA%\VlcRemoteCompanion, or the script
-  install in %LOCALAPPDATA%\VlcRemote\app), is stopped and uninstalled; Sofabird takes its settings and history over
-  at its first start.
   The phone is handled by a separate script, deploy-android.ps1.
 
 .EXAMPLE
@@ -47,11 +44,6 @@ $Exe         = Join-Path $InstallRoot "current\$ExeName"
 $DataRoot    = $SofabirdDataRoot                        # settings, pairings, logs (an update never touches them)
 $RunKey      = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $RunValue    = 'Sofabird'
-# The companion under its earlier name, VLC Remote Companion: its Velopack install and the older script install.
-$LegacyInstallRoot = Join-Path $env:LOCALAPPDATA 'VlcRemoteCompanion'
-$LegacyDirs        = @('app', 'app.prev', 'app.new') | ForEach-Object { Join-Path $env:LOCALAPPDATA "VlcRemote\$_" }
-$LegacyRunValue    = 'VlcRemoteCompanion'
-$LegacyRuleNames   = @('VLC Remote Companion', 'VLC (VLC Remote)')
 
 # Over SSH, processes run outside the user's desktop: there would be no tray icon and the pairing window would not
 # appear. So the installer (which starts the companion) and the shutdown run through a scheduled task in the
@@ -79,8 +71,6 @@ function Invoke-InUserSession([string]$File, [string]$Arguments, [string]$Purpos
 
 function Get-InstalledVersion {
     if (Test-Path $Exe) { return (Get-Item $Exe).VersionInfo.ProductVersion }
-    $legacy = Join-Path $DataRoot 'app\version.txt'
-    if (Test-Path $legacy) { return (Get-Content $legacy -TotalCount 1).Trim() + ' (script install)' }
     return $null
 }
 
@@ -147,28 +137,6 @@ function Stop-Companion {
     Start-Sleep -Milliseconds 500
 }
 
-function Remove-LegacyInstall {
-    # Both earlier installs run as VlcRemote.Companion.exe and would hold the same ports as Sofabird.
-    $procs = Get-Process -Name 'VlcRemote.Companion' -ErrorAction SilentlyContinue
-    if ($procs) { $procs | Stop-Process -Force; Start-Sleep -Milliseconds 500 }
-    # Read the old autostart first: the old uninstaller removes it.
-    if ((Get-ItemProperty -Path $RunKey -Name $LegacyRunValue -ErrorAction SilentlyContinue).$LegacyRunValue) {
-        Remove-ItemProperty -Path $RunKey -Name $LegacyRunValue
-        $script:Autostart = $true   # it was on for the old name: keep it on for Sofabird
-    }
-    $found = $false
-    foreach ($d in $LegacyDirs) { if (Test-Path $d) { Remove-Item $d -Recurse -Force; $found = $true } }
-    $update = Join-Path $LegacyInstallRoot 'Update.exe'
-    if (Test-Path $update) {
-        $p = Start-Process -FilePath $update -ArgumentList 'uninstall', '--silent' -Wait -PassThru
-        if ($p.ExitCode -ne 0) { Write-Note "The uninstaller of VLC Remote Companion exited with code $($p.ExitCode)" }
-        $found = $true
-    }
-    $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'VLC Remote Companion.lnk'
-    if (Test-Path $lnk) { Remove-Item $lnk -Force }
-    if ($found) { Write-Ok 'VLC Remote Companion (the earlier name) is uninstalled; Sofabird takes its settings and history over' }
-}
-
 function Update-Autostart {
     $current = (Get-ItemProperty -Path $RunKey -Name $RunValue -ErrorAction SilentlyContinue).$RunValue
     if ($Autostart -or $current) {
@@ -179,8 +147,7 @@ function Update-Autostart {
 
 function Add-FirewallRules {
     $vlc = Find-Vlc
-    $cmds = @($LegacyRuleNames | ForEach-Object { "netsh advfirewall firewall delete rule name=`"$_`"" })
-    $cmds += @(
+    $cmds = @(
         "netsh advfirewall firewall delete rule name=`"Sofabird`"",
         "netsh advfirewall firewall add rule name=`"Sofabird`" dir=in action=allow profile=private program=`"$Exe`" enable=yes"
     )
@@ -227,7 +194,6 @@ function Install-Companion([string]$Setup, [string]$Version) {
     Install-VlcIfMissing
     Write-Step "Installing the companion $Version"
     Stop-Companion
-    Remove-LegacyInstall
     # The installer replaces the installed version (newer or older) and installs the .NET 10 runtime when it is missing.
     if ($InSsh) { Invoke-InUserSession $Setup '--silent' 'Setup' -WaitSeconds 180 }
     else {
@@ -254,7 +220,6 @@ if ($Uninstall) {
         $p = Start-Process -FilePath $update -ArgumentList 'uninstall', '--silent' -Wait -PassThru
         if ($p.ExitCode -ne 0) { Write-Note "The uninstaller exited with code $($p.ExitCode)" }
     }
-    Remove-LegacyInstall
     Remove-ItemProperty -Path $RunKey -Name $RunValue -ErrorAction SilentlyContinue
     if ($Purge -and (Test-Path $DataRoot)) { Remove-Item $DataRoot -Recurse -Force; Write-Ok 'Settings and logs removed' }
     if ($Purge) {

@@ -196,31 +196,6 @@ public class FirewallPlannerTests
         Assert.True(again.IsEmpty);
     }
 
-    [Fact]
-    public void Rules_of_the_earlier_name_do_not_count_and_are_replaced()
-    {
-        const string oldCompanion = @"C:\Users\u\AppData\Local\VlcRemoteCompanion\current\VlcRemote.Companion.exe";
-        const string oldScriptInstall = @"C:\users\u\appdata\local\vlcremote\app\vlcremote.companion.exe";
-        var source = new InMemoryFirewall(
-        [
-            Rule(0, "VLC Remote Companion", oldCompanion, FwAction.Allow, FwProfiles.Private),
-            Rule(1, "VLC (VLC Remote)", Vlc, FwAction.Allow, FwProfiles.Private),
-            // What the Windows prompt created for the old program: named after the file.
-            .. AllowedPrivateOnly(2, oldCompanion, "vlcremote.companion.exe"),
-            .. AllowedPrivateOnly(6, oldScriptInstall, "vlcremote.companion.exe"),
-        ]);
-
-        // The old VLC rule still lets VLC in, but Sofabird treats it as missing, so the setup window replaces it.
-        Assert.True(FirewallPlanner.Inspect(source, Programs).AnyMissing);
-
-        var (plan, after) = FirewallPlanner.Fix(source, Programs);
-        Assert.Equal(10, plan.Remove.Count);
-        Assert.DoesNotContain(source.Rules, r => r.Program!.EndsWith(FirewallPlanner.LegacyProgramFile, StringComparison.OrdinalIgnoreCase));
-        Assert.Equal([FirewallPlanner.CompanionRuleName, FirewallPlanner.VlcRuleName], plan.Add.Select(a => a.Name));
-        Assert.True(after.Ok);
-        Assert.DoesNotContain(source.Rules, r => FirewallPlanner.LegacyRuleNames.Contains(r.Name));
-    }
-
     private sealed class InMemoryFirewall : IFirewallRuleSource
     {
         public List<FirewallRule> Rules { get; }
