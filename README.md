@@ -39,6 +39,7 @@ the system language: English and Russian.
 - When nothing is on the TV, the remote opens on "What shall we watch?": continue watching (with TMDB stills and
   YouTube thumbnails), the Library, YouTube and another PC's screen.
 - A media notification with lock-screen controls while a movie plays.
+- A sleep timer: pause the TV after 15 min … 2 h or at the end of the episode, and put the PC to sleep if you like.
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
 **On the PC (the companion)**
@@ -126,7 +127,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. Next: a sleep timer, then 0.5 drops the unencrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. In 0.5 so far: a sleep timer; 0.5 also drops the unencrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

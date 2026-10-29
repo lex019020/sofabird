@@ -28,6 +28,7 @@ import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlayingItem
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
+import app.sofabird.protocol.model.SleepTimerState
 import app.sofabird.protocol.model.SystemState
 import app.sofabird.protocol.model.Track
 import app.sofabird.protocol.model.Tracks
@@ -119,6 +120,17 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun remoteHomeEmpty() = snapshot("remote_home_empty") {
         RemoteContent(home.copy(continueItems = emptyList()), next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteSleepTimer() = snapshot("remote_sleep_timer") {
+        val state = playing.copy(
+            state = playing.state.copy(
+                system = SystemState(sleepTimer = SleepTimerState(endsAt = System.currentTimeMillis() + 23 * 60_000L, action = "sleep")),
+            ),
+            capabilities = Capabilities(playing.capabilities.flags + Capability.SLEEP_TIMER + Capability.POWER),
+        )
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 
     @Test

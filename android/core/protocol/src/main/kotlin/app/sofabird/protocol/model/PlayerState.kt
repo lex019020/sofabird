@@ -270,7 +270,31 @@ data class SystemState(
     val moonlightHost: String? = null,
     /** A Moonlight stream is on the TV; `null` = Moonlight is not installed (or an old companion). */
     val moonlightStreaming: Boolean? = null,
+    /** The sleep timer (`sys sleepTimer`); `null` = off. */
+    val sleepTimer: SleepTimerState? = null,
 )
+
+/** `state.system.sleepTimer`: when it runs out (or at the end of what plays) and what it does then. */
+@Serializable
+data class SleepTimerState(
+    /** Unix time in ms when it runs out; `null` with [endOfItem]. */
+    val endsAt: Long? = null,
+    /** It runs out when the movie, episode or video that plays now ends. */
+    val endOfItem: Boolean = false,
+    /** `pause`, or `sleep` (pause, then the PC sleeps). */
+    val action: String = ACTION_PAUSE,
+) {
+    val sleepsPc: Boolean get() = action == ACTION_SLEEP
+
+    /** Whole minutes left at [nowMs], at least 1 while it runs; `null` for [endOfItem]. */
+    fun minutesLeft(nowMs: Long): Long? = endsAt?.let { ((it - nowMs).coerceAtLeast(0) + MINUTE_MS - 1) / MINUTE_MS }
+
+    companion object {
+        const val ACTION_PAUSE = "pause"
+        const val ACTION_SLEEP = "sleep"
+        private const val MINUTE_MS = 60_000L
+    }
+}
 
 /** Player model. Mirrors the `state` message of the companion protocol. */
 @Serializable
