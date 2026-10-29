@@ -94,7 +94,6 @@ class PairingFlow(private val scope: CoroutineScope, private val link: Companion
                     }
                     else -> _state.value = PairingState.Failed(target, result.error)
                 }
-                is TestResult.DirectOk -> _state.value = PairingState.Failed(target, ConnectionError.Other("not a companion"))
             }
         }
     }
@@ -119,7 +118,6 @@ class PairingFlow(private val scope: CoroutineScope, private val link: Companion
                     }
                 }
                 is TestResult.Failed -> rejectCode(current, result.error)
-                is TestResult.DirectOk -> rejectCode(current, ConnectionError.Other("not a companion"))
             }
         }
     }

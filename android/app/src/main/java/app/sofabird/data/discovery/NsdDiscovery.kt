@@ -107,7 +107,6 @@ class NsdDiscovery(private val context: Context) {
                         val host = DiscoveredHost(
                             host = hostAddress,
                             name = txt["name"]?.takeIf { it.isNotBlank() } ?: serviceInfo.serviceName,
-                            hasCompanion = true,
                             wsPort = serviceInfo.port.takeIf { it > 0 } ?: COMPANION_WS_PORT,
                             pcId = txt["id"],
                             sources = setOf(DiscoverySource.NSD),

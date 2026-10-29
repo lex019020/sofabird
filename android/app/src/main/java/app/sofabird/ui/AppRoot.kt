@@ -221,7 +221,6 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                 ConnectionTopBar(
                     connection = connection,
                     hostName = server?.displayName,
-                    showTransport = server?.isCompanion == true,
                     onClick = { navController.navigate(Routes.CONNECTION) { launchSingleTop = true } },
                     onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
                 )
@@ -331,7 +330,6 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
 private fun ConnectionTopBar(
     connection: ConnectionState,
     hostName: String?,
-    showTransport: Boolean,
     onClick: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -359,7 +357,7 @@ private fun ConnectionTopBar(
         },
         actions = {
             val transport = connection.transportOrNull
-            if (showTransport && transport != null) TransportIndicator(transport)
+            if (transport != null) TransportIndicator(transport)
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -407,17 +405,13 @@ fun connectionSummary(connection: ConnectionState): Pair<Color, String> {
         }
         is ConnectionState.Connected -> Color(0xFF4CAF50) to buildString {
             append(
-                when (connection.level) {
-                    2 -> context.getString(
-                        R.string.connection_level_transport,
-                        context.getString(R.string.level_companion),
-                        context.getString(
-                            if (connection.transport == TransportKind.BLUETOOTH) R.string.transport_bluetooth else R.string.transport_wifi,
-                        ),
-                    )
-                    1 -> context.getString(R.string.level_lua)
-                    else -> context.getString(R.string.level_http)
-                },
+                context.getString(
+                    R.string.connection_level_transport,
+                    context.getString(R.string.level_companion),
+                    context.getString(
+                        if (connection.transport == TransportKind.BLUETOOTH) R.string.transport_bluetooth else R.string.transport_wifi,
+                    ),
+                ),
             )
             connection.latencyMs?.let { append(" · ").append(context.getString(R.string.latency_ms, it)) }
         }

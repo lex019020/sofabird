@@ -9,7 +9,6 @@ import app.sofabird.data.discovery.DiscoveredHost
 import app.sofabird.data.player.PcWaker
 import app.sofabird.domain.model.AppSettings
 import app.sofabird.domain.model.SavedServer
-import app.sofabird.domain.model.ServerMode
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.Capability
 import app.sofabird.protocol.model.Chapters
@@ -169,7 +168,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun remoteOffline() = snapshot("remote_offline") {
         val state = RemoteUiState(
-            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC",
             wake = PcWaker.State.IDLE,
         )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
@@ -178,7 +177,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun remoteWakeFailed() = snapshot("remote_wake_failed") {
         val state = RemoteUiState(
-            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC",
             wake = PcWaker.State.FAILED,
         )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
@@ -196,7 +195,6 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 nearby = emptyList(),
                 searchTimedOut = true,
                 otherOptionsExpanded = true,
-                otherHosts = listOf(DiscoveredHost("192.168.1.50", "HTPC-LIVINGROOM", hasCompanion = false, vlcRunning = true, vlcVersion = "3.0.21")),
             ),
             object : ConnectionActions {},
         )
@@ -268,10 +266,9 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 ),
                 chapters = Chapters(index = 7, count = 40, names = List(40) { if (it == 7) "The Shadow of the Past" else "Chapter ${it + 1}" }),
             ),
-            connection = ConnectionState.Connected("LIVING-ROOM-PC", level = 2),
+            connection = ConnectionState.Connected("LIVING-ROOM-PC"),
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
             hostName = "LIVING-ROOM-PC",
-            companionMode = true,
         )
 
         /** VLC closed, a history with a file, a YouTube video and a next episode; YouTube and Moonlight on the PC. */
@@ -381,12 +378,12 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
         )
 
         private val savedPc = SavedServer(
-            id = "pc", name = "LIVING-ROOM-PC", host = "192.168.1.17", mode = ServerMode.COMPANION, pcId = "guid-1",
+            id = "pc", name = "LIVING-ROOM-PC", host = "192.168.1.17", pcId = "guid-1",
         )
         private val connection = ConnectionUiState(
             nearby = listOf(
                 NearbyPc(
-                    DiscoveredHost("192.168.1.17", "LIVING-ROOM-PC", hasCompanion = true, vlcStatus = VlcProcessStatus.RUNNING),
+                    DiscoveredHost("192.168.1.17", "LIVING-ROOM-PC", vlcStatus = VlcProcessStatus.RUNNING),
                     saved = savedPc,
                     paired = true,
                 ),
@@ -395,7 +392,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             saved = listOf(savedPc.copy(id = "old", name = "Office PC", host = "192.168.1.30", pcId = "guid-2")),
             activeServerId = savedPc.id,
             activeServer = savedPc,
-            connection = ConnectionState.Connected("LIVING-ROOM-PC", level = 2),
+            connection = ConnectionState.Connected("LIVING-ROOM-PC"),
         )
 
         @JvmStatic

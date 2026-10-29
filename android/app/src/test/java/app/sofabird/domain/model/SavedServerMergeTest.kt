@@ -5,7 +5,9 @@ import app.sofabird.data.player.TestResult
 import app.sofabird.data.player.mergePairedServer
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.VlcInfo
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -16,12 +18,11 @@ class SavedServerMergeTest {
     private val bt = "AA:BB:CC:DD:EE:FF"
 
     private val lanPaired = SavedServer(
-        id = "guid-1", name = "HTPC", host = "192.168.0.10", mode = ServerMode.COMPANION, pcId = "guid-1",
+        id = "guid-1", name = "HTPC", host = "192.168.0.10", pcId = "guid-1",
     )
     private val btPaired = SavedServer(
-        id = "guid-2", name = "Laptop", host = "", mode = ServerMode.COMPANION, pcId = "guid-2", btAddress = bt,
+        id = "guid-2", name = "Laptop", host = "", pcId = "guid-2", btAddress = bt,
     )
-    private val direct = SavedServer(id = "d", name = "VLC", host = "192.168.0.20", mode = ServerMode.DIRECT)
 
     private fun ok(pcId: String?, bt: String?, name: String = "PC") = TestResult.CompanionOk(
         name = name, pcId = pcId, token = "t", capabilities = Capabilities.NONE, vlc = VlcInfo(), bt = bt,
@@ -29,7 +30,7 @@ class SavedServerMergeTest {
 
     @Test
     fun `beacon of a bluetooth-paired PC fills in its LAN address`() {
-        val list = listOf(lanPaired, btPaired, direct)
+        val list = listOf(lanPaired, btPaired)
         val sighting = CompanionSighting(pcId = "guid-2", host = "192.168.0.33", wsPort = 47555, btAddress = bt)
         val match = list.matchSighting(sighting)
         assertSame(btPaired, match)
@@ -63,14 +64,12 @@ class SavedServerMergeTest {
 
     @Test
     fun `sightings match only by GUID or bluetooth address`() {
-        val list = listOf(lanPaired, btPaired, direct)
+        val list = listOf(lanPaired, btPaired)
         // Same IP, unknown GUID: could be another PC after DHCP — no match.
         assertNull(list.matchSighting(CompanionSighting(pcId = null, host = "192.168.0.10", wsPort = 47555)))
         assertNull(list.matchSighting(CompanionSighting(pcId = "guid-other", host = "192.168.0.10", wsPort = 47555)))
         // Bluetooth address without GUID.
         assertSame(btPaired, list.matchSighting(CompanionSighting(pcId = null, host = "10.0.0.5", btAddress = "aa-bb-cc-dd-ee-ff")))
-        // Direct VLC entries are never touched.
-        assertNull(listOf(direct).matchSighting(CompanionSighting(pcId = "guid-1", host = "192.168.0.20")))
     }
 
     @Test
@@ -90,7 +89,6 @@ class SavedServerMergeTest {
         assertEquals("", server.host)
         assertEquals(bt, server.btAddress)
         assertEquals("Laptop", server.name)
-        assertEquals(ServerMode.COMPANION, server.mode)
         assertEquals(5, server.lastUsedAt)
     }
 
@@ -111,6 +109,26 @@ class SavedServerMergeTest {
         assertEquals("192.168.0.44", server.host)
         assertEquals(bt, server.btAddress)
         assertEquals("guid-2", server.id)
+    }
+
+    @Test
+    fun `saved list written before 0_5 loses its direct VLC entries and keeps the companions`() {
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val old = """
+            [
+              {"id":"d","name":"VLC","host":"192.168.0.20","httpPort":8080,"wsPort":47555,"mode":"DIRECT","lastUsedAt":9},
+              {"id":"guid-1","name":"HTPC","host":"192.168.0.10","httpPort":8080,"wsPort":47555,"mode":"COMPANION",
+               "lastUsedAt":5,"pcId":"guid-1","favoriteFolders":["file:///D:/Movies/"]},
+              {"id":"x","name":"Odd","host":"192.168.0.30","mode":"SOMETHING"}
+            ]
+        """.trimIndent()
+        val list = SavedServer.decodeList(json, old)
+        assertEquals(listOf("guid-1"), list.map { it.id })
+        assertEquals(listOf("file:///D:/Movies/"), list.single().favoriteFolders)
+        // Written back without the old keys, and read again unchanged.
+        val again = SavedServer.encodeList(json, list)
+        assertFalse(again.contains("\"mode\"") || again.contains("httpPort"))
+        assertEquals(list, SavedServer.decodeList(json, again))
     }
 
     @Test

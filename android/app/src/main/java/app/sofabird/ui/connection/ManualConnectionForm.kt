@@ -11,80 +11,47 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
 import app.sofabird.data.player.PairingState
-import app.sofabird.data.player.TestResult
-import app.sofabird.domain.model.ServerMode
 import app.sofabird.protocol.model.ConnectionError
-import app.sofabird.ui.common.hint
 import app.sofabird.ui.common.message
 
+/** The companion's address typed by hand; "Connect" starts the same connect-or-pair flow as a found PC. */
 @Composable
 internal fun ManualForm(ui: ConnectionUiState, actions: ConnectionActions) {
     val f = ui.form
-    val context = LocalContext.current
-    var showPassword by remember { mutableStateOf(false) }
 
+    // One field per line: beside the address, the port's five digits did not fit at a large font.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = f.mode == ServerMode.DIRECT,
-                onClick = { actions.setMode(ServerMode.DIRECT) },
-                label = { Text(stringResource(R.string.mode_direct)) },
-            )
-            FilterChip(
-                selected = f.mode == ServerMode.COMPANION,
-                onClick = { actions.setMode(ServerMode.COMPANION) },
-                label = { Text(stringResource(R.string.mode_companion)) },
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = f.host,
-                onValueChange = { v -> actions.updateForm { it.copy(host = v) } },
-                label = { Text(stringResource(R.string.field_host)) },
-                singleLine = true,
-                modifier = Modifier.weight(2f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            )
-            OutlinedTextField(
-                value = f.port,
-                onValueChange = { v -> actions.updateForm { it.copy(port = v.filter(Char::isDigit).take(5)) } },
-                label = { Text(stringResource(R.string.field_port)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-        }
+        OutlinedTextField(
+            value = f.host,
+            onValueChange = { v -> actions.updateForm { it.copy(host = v) } },
+            label = { Text(stringResource(R.string.field_host)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+        OutlinedTextField(
+            value = f.port,
+            onValueChange = { v -> actions.updateForm { it.copy(port = v.filter(Char::isDigit).take(5)) } },
+            label = { Text(stringResource(R.string.field_port)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(PORT_WIDTH_FRACTION),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
         OutlinedTextField(
             value = f.name,
             onValueChange = { v -> actions.updateForm { it.copy(name = v) } },
@@ -92,69 +59,16 @@ internal fun ManualForm(ui: ConnectionUiState, actions: ConnectionActions) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        when (f.mode) {
-            ServerMode.DIRECT -> OutlinedTextField(
-                value = f.password,
-                onValueChange = { v -> actions.updateForm { it.copy(password = v) } },
-                label = { Text(stringResource(R.string.field_password)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                trailingIcon = {
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
-                    }
-                },
-            )
-            ServerMode.COMPANION -> Text(
-                stringResource(if (f.hasToken) R.string.already_paired else R.string.manual_companion_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (f.hasToken) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        // Test result (direct mode)
-        when (val t = ui.test) {
-            TestState.Idle -> Unit
-            TestState.Running -> Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.testing))
-            }
-            is TestState.Ok -> (t.result as? TestResult.DirectOk)?.let { r ->
-                Text(
-                    stringResource(
-                        R.string.test_ok_direct,
-                        r.version ?: "VLC",
-                        stringResource(if (r.level >= 1) R.string.level_lua else R.string.level_http),
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            is TestState.Failed -> Column {
-                Text(t.error.message(context), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                t.error.hint(context)?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (f.mode == ServerMode.DIRECT) {
-                OutlinedButton(
-                    onClick = actions::testConnection,
-                    enabled = f.host.isNotBlank() && ui.test != TestState.Running,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.action_test)) }
-            }
-            Button(
-                onClick = actions::saveAndConnect,
-                enabled = f.host.isNotBlank() && ui.pairing !is PairingState.Connecting,
-                modifier = Modifier.weight(1f),
-            ) { Text(stringResource(if (f.serverId != null) R.string.action_save_connect else R.string.action_connect)) }
-        }
+        Text(
+            stringResource(if (f.hasToken) R.string.already_paired else R.string.manual_companion_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (f.hasToken) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(
+            onClick = actions::saveAndConnect,
+            enabled = f.host.isNotBlank() && ui.pairing !is PairingState.Connecting,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(if (f.serverId != null) R.string.action_save_connect else R.string.action_connect)) }
     }
 }
 
@@ -179,26 +93,21 @@ internal fun Instructions(expanded: Boolean, onToggle: () -> Unit) {
                     R.string.instructions_step6,
                 ).forEachIndexed { i, res ->
                     Row(Modifier.padding(vertical = 3.dp)) {
-                        Text("${i + 1}.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(24.dp))
+                        Text(
+                            "${i + 1}.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.widthIn(min = 24.dp).padding(end = 6.dp),
+                        )
                         Text(stringResource(res), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.instructions_lua),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    stringResource(R.string.instructions_companion),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }
 }
+
+/** The port field's share of the width: five digits fit at any font scale. */
+private const val PORT_WIDTH_FRACTION = 0.5f
 
 /** Error text for the code dialog (shorter than the connection-screen messages). */
 @Composable

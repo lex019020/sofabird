@@ -2,23 +2,11 @@ package app.sofabird.protocol.model
 
 /** Why a connection attempt failed — mapped to distinct, human messages in the UI. */
 sealed class ConnectionError {
-    /** HTTP 403: VLC refuses because no `http-password` is configured. */
-    data object NoPasswordSet : ConnectionError()
-
-    /** HTTP 401: password mismatch. */
-    data object WrongPassword : ConnectionError()
-
-    /** TCP connection refused: web interface disabled or wrong port. */
+    /** TCP connection refused: the companion is not running or the port is wrong. */
     data object Refused : ConnectionError()
 
     /** No answer in time: firewall, other network, PC asleep. */
     data object Timeout : ConnectionError()
-
-    /** 200 with an empty body: VLC is still starting. */
-    data object EmptyBody : ConnectionError()
-
-    /** 200 with HTML `<title>Error loading` — a Lua page failed. */
-    data class LuaError(val detail: String? = null) : ConnectionError()
 
     /** Host name could not be resolved. */
     data object UnknownHost : ConnectionError()
@@ -32,7 +20,7 @@ sealed class ConnectionError {
     /** Companion: the pairing code is wrong or expired (or too many attempts). */
     data object InvalidPairCode : ConnectionError()
 
-    /** Companion reports VLC is not running (level 2 only; UI offers "launch"). */
+    /** Companion reports VLC is not running (UI offers "launch"). */
     data object VlcNotRunning : ConnectionError()
 
     /** Companion speaks an incompatible protocol version. */
@@ -56,7 +44,7 @@ sealed class ConnectionError {
     data class Other(val message: String?) : ConnectionError()
 }
 
-/** Which link carries the companion session. Direct VLC is always [WIFI]. */
+/** Which link carries the companion session. */
 enum class TransportKind { WIFI, BLUETOOTH }
 
 /** Connection lifecycle of a backend. Never blocks the UI: degraded states are shown inline. */
@@ -68,8 +56,6 @@ sealed class ConnectionState {
 
     data class Connected(
         val hostName: String,
-        /** 0/1 — direct VLC, 2 — companion. */
-        val level: Int,
         val latencyMs: Long? = null,
         val transport: TransportKind = TransportKind.WIFI,
     ) : ConnectionState()
