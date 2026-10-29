@@ -81,7 +81,7 @@ data class CompanionTiming(
 )
 
 /**
- * Level 2: session with the Windows companion over a [CompanionTransport] — WebSocket on the LAN,
+ * Session with the Windows companion over a [CompanionTransport] — WebSocket on the LAN,
  * RFCOMM when the LAN is unavailable. `hello`/`welcome` with token or pairing code, pushed `state`,
  * request/response by `id`, ping every 30 s (WS) / 15 s (RFCOMM) with reconnect when no pong in
  * 10 s, exponential backoff, commands buffered up to 5 s while reconnecting.
@@ -365,7 +365,7 @@ class CompanionBackend(
         _state.value = _state.value.copy(vlc = welcome.vlc.copy(level = 2))
         _bluetoothNeed.value = null
         asleep = false
-        _connection.value = ConnectionState.Connected(hostName, level = 2, transport = currentKind)
+        _connection.value = ConnectionState.Connected(hostName, transport = currentKind)
         wake.tryReceive() // a stale "retry now" must not skip a future backoff
         runCatching { onWelcome(welcome, link.newPin) }.onFailure { Log.w(TAG, "onWelcome failed", it) }
     }
@@ -420,7 +420,7 @@ class CompanionBackend(
                     }
                     _state.value = s
                     if (_connection.value !is ConnectionState.Connected && transport === t) {
-                        _connection.value = ConnectionState.Connected(hostName, 2, transport = t.kind)
+                        _connection.value = ConnectionState.Connected(hostName, transport = t.kind)
                     }
                 }
                 is CompanionMessage.Pong -> pongDeferred?.complete(Unit)

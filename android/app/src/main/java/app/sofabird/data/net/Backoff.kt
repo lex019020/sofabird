@@ -18,8 +18,5 @@ class Backoff(private val maxDoublings: Int, private val capMs: Long, private va
 
         /** The companion link: up to 15 s between attempts, so a PC woken by hand is found soon. */
         val CompanionLink = Backoff(maxDoublings = 4, capMs = 15_000, jitterMs = 750)
-
-        /** Polling VLC's HTTP interface directly: up to 16 s. */
-        val VlcHttp = Backoff(maxDoublings = 4, capMs = 16_000, jitterMs = 500)
     }
 }

@@ -7,7 +7,6 @@ import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.SavedServer
-import app.sofabird.domain.model.ServerMode
 import app.sofabird.domain.model.findCompanion
 import app.sofabird.protocol.companion.BtAddress
 import kotlinx.coroutines.flow.first
@@ -98,7 +97,6 @@ internal fun mergePairedServer(
         name = keptName ?: welcome.name.ifBlank { target.name },
         host = if (viaLan) target.host else existing?.host.orEmpty(),
         wsPort = if (viaLan) target.wsPort else existing?.wsPort ?: target.wsPort,
-        mode = ServerMode.COMPANION,
         pcId = pcId,
         btAddress = BtAddress.normalize(welcome.bt) ?: BtAddress.normalize(target.btAddress) ?: existing?.btAddress,
         // Pairing again (a new code) is how a PC with a new certificate is trusted again.

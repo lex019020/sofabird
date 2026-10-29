@@ -1,4 +1,8 @@
-# Direct mode: the VLC 3.0.x HTTP interface (levels 0/1)
+# The VLC 3.0.x HTTP interface (levels 0/1)
+
+> Since 0.5 the phone no longer talks to this interface: the app's direct mode was removed (the owner's decision,
+> 2026-10-29) and the phone works only through the companion. The companion still drives VLC through it, so this
+> digest stays for the companion's side (`VlcManager`, the Lua pages).
 
 A short digest for the implementation. Details and links to the sources —
 [docs/research/vlc-protocols.md](../docs/research/vlc-protocols.md), live measurements —

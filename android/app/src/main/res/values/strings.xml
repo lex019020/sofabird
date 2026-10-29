@@ -20,20 +20,14 @@
     <string name="state_reconnecting">Reconnecting (attempt %1$d)…</string>
     <string name="state_degraded">PC is not responding, retrying…</string>
     <string name="state_asleep">The PC is asleep</string>
-    <string name="level_http">VLC over HTTP</string>
-    <string name="level_lua">VLC + Lua pages</string>
     <string name="level_companion">Companion</string>
     <string name="latency_ms">%1$d ms</string>
     <string name="reconnecting_detail">Connection lost: %1$s. Reconnecting…</string>
     <string name="paired_with">Paired with %1$s</string>
     <string name="volume_percent">Volume %1$d %%</string>
 
-    <string name="err_no_password_set">No web-interface password is set in VLC (HTTP 403)</string>
-    <string name="err_wrong_password">Wrong web-interface password (HTTP 401)</string>
-    <string name="err_refused">Connection refused: VLC web interface is off or the port differs</string>
+    <string name="err_refused">Connection refused: Sofabird is not running on the PC or the port differs</string>
     <string name="err_timeout">PC is not responding: firewall, different network or the PC is asleep</string>
-    <string name="err_empty_body">Empty reply: VLC is still starting, try again in a few seconds</string>
-    <string name="err_lua">VLC Lua page error %1$s</string>
     <string name="err_unknown_host">Could not resolve the PC address</string>
     <string name="err_pairing_required">This phone is not paired with the computer</string>
     <string name="err_vlc_not_running">VLC is not running on the PC</string>
@@ -41,14 +35,10 @@
     <string name="err_other">Error: %1$s</string>
     <string name="err_command_failed">Command failed: %1$s</string>
     <string name="err_unsupported">The companion does not support this command</string>
-    <string name="err_needs_companion">This needs the companion on the PC</string>
     <string name="err_not_connected">Not connected to a PC</string>
 
-    <string name="hint_no_password_set">Tools → Preferences → All → Interface → Main interfaces → Lua: set the Lua HTTP password and restart VLC.</string>
-    <string name="hint_wrong_password">The password is "Lua HTTP → Password" in VLC preferences. The user name stays empty.</string>
-    <string name="hint_refused">Check that "Web" is enabled under Main interfaces in VLC and the port matches (8080 by default).</string>
-    <string name="hint_timeout">Phone and PC must be on the same Wi-Fi. Windows Firewall must allow vlc.exe on private networks.</string>
-    <string name="hint_empty_body">Wait for VLC to finish starting and press "Test" again.</string>
+    <string name="hint_refused">Check that Sofabird runs on the PC (tray icon) and the port matches (47555 by default).</string>
+    <string name="hint_timeout">Phone and PC must be on the same Wi‑Fi. Windows Firewall must let the phone in: tray icon → Setup and permissions → Network access.</string>
     <string name="hint_pairing_required">Tap the computer in the list — a code appears on its screen. No window? Sofabird tray icon → “Pair phone…”.</string>
 
     <string name="not_connected_title">Not connected</string>
@@ -83,7 +73,6 @@
     <string name="sheet_audio_title">Audio track</string>
     <string name="sheet_subtitles_title">Subtitles</string>
     <string name="sheet_video_title">Video track</string>
-    <string name="tracks_current_unknown_hint">VLC does not report the active track without Lua pages or the companion — the one chosen here is remembered on the phone.</string>
     <string name="tracks_none">No tracks: nothing is playing</string>
     <string name="track_disable">Disable</string>
     <string name="delay_audio">Audio delay</string>
@@ -104,7 +93,6 @@
     <string name="keep_awake">Keep PC awake</string>
     <string name="action_display_off">Turn display off</string>
     <string name="action_sleep_pc">Sleep PC</string>
-    <string name="needs_companion_hint">Launching VLC, moving the window to the TV, audio device and PC sleep need the Windows companion.</string>
 
     <string name="up">Up</string>
     <string name="drives">Drives</string>
@@ -120,38 +108,25 @@
 
     <string name="connection_title">Connection</string>
     <string name="saved_pcs">Saved PCs</string>
-    <string name="found_pcs">VLC on the network without the companion</string>
     <string name="searching">Looking for a computer with the companion…</string>
-    <string name="sweep_subnet">Find VLC by scanning the network</string>
-    <string name="sweeping">Scanning the network…</string>
-    <string name="sweep_hint">Probes port 8080 on every address of your subnet (about 10 seconds).</string>
     <string name="manual_entry">Manual</string>
-    <string name="mode_direct">Directly to VLC</string>
-    <string name="mode_companion">Companion</string>
     <string name="field_host">PC address or name</string>
     <string name="field_port">Port</string>
     <string name="field_name_optional">Name (optional)</string>
-    <string name="field_password">VLC web-interface password</string>
     <string name="already_paired">This phone is already paired with this PC</string>
-    <string name="testing">Testing…</string>
-    <string name="test_ok_direct">Works: %1$s, %2$s</string>
-    <string name="action_test">Test</string>
     <string name="action_save_connect">Save and connect</string>
-    <string name="badge_pc_found">PC found</string>
     <string name="badge_vlc_running">VLC running</string>
     <string name="badge_vlc_not_running">VLC not running</string>
 
-    <string name="instructions_show">How to enable the VLC web interface</string>
+    <string name="instructions_show">How to set up the PC</string>
     <string name="instructions_hide">Hide instructions</string>
-    <string name="instructions_title">Without the companion: enable the web interface in VLC on the PC</string>
-    <string name="instructions_step1">In VLC open Tools → Preferences (Ctrl+P) and choose "Show settings: All" at the bottom left.</string>
-    <string name="instructions_step2">Interface → Main interfaces: tick "Web".</string>
-    <string name="instructions_step3">Interface → Main interfaces → Lua: set a password in "Lua HTTP → Password". Without a password VLC answers 403.</string>
-    <string name="instructions_step4">Save and fully restart VLC. On first start allow vlc.exe in Windows Firewall for private networks.</string>
-    <string name="instructions_step5">Find the PC address: run ipconfig in Windows (IPv4 address) or use the PC name.</string>
-    <string name="instructions_step6">Enter the address, port 8080 and the password above and press "Test" — nothing changes on the TV, we only read the status.</string>
-    <string name="instructions_lua" formatted="false">To see the current track and chapter names without the companion, copy the pages from companion/lua into %APPDATA%\\vlc\\lua\\http (install.ps1) and restart VLC.</string>
-    <string name="instructions_companion">With the Windows companion all of this is automatic: the PC is discovered, VLC starts on the TV, and audio device, sleep and Bluetooth become available.</string>
+    <string name="instructions_title">Install Sofabird for Windows on the PC at the TV</string>
+    <string name="instructions_step1">On the PC, download Sofabird‑Setup.exe from sofabird.app and run it. It installs for the current user and keeps itself up to date.</string>
+    <string name="instructions_step2">In the setup window that opens, allow network access (Windows Firewall): otherwise Windows blocks the phone.</string>
+    <string name="instructions_step3">VLC media player 3.0 must be installed on the PC (videolan.org).</string>
+    <string name="instructions_step4">Put the phone on the same Wi‑Fi as the PC: the PC appears under “Computers nearby”. Tap it and type the code shown on the TV.</string>
+    <string name="instructions_step5">Not in the list? Enter the PC address above: the code window on the PC shows it. The port stays 47555.</string>
+    <string name="instructions_step6">No Wi‑Fi? Pair the phone with the PC in the Bluetooth settings and use “Connect via Bluetooth”.</string>
 
     <string name="settings_control">Control</string>
     <string name="settings_volume_keys">Volume keys control the PC</string>
@@ -174,7 +149,7 @@
     <string name="settings_about">About</string>
     <string name="about_license">Sofabird is free software under the GNU General Public License v3 or later and comes without any warranty.</string>
     <string name="about_source">Source code</string>
-    <string name="about_text">Sofabird — a remote for VLC 3.0.x on Windows. The VLC password and companion token are kept in the phone\'s encrypted storage. Levels: VLC over HTTP → VLC + Lua pages (current track, chapters) → companion (discovery, VLC launch, system functions).</string>
+    <string name="about_text">Sofabird — a remote for VLC media player on a Windows PC at the TV, working through Sofabird for Windows on that PC. The pairing token is kept in the phone\'s encrypted storage.</string>
 
     <string name="notif_channel_name">VLC control</string>
     <string name="notif_channel_description">Transport buttons and PC connection status</string>
@@ -268,7 +243,7 @@
     <string name="badge_vlc_not_installed">VLC not installed</string>
     <string name="forget_pc">Forget this computer</string>
     <string name="other_ways">Other ways to connect</string>
-    <string name="other_ways_hint">Bluetooth, VLC without the companion, manual address, network scan</string>
+    <string name="other_ways_hint">Bluetooth, the PC address, how to set up the PC</string>
     <string name="manual_companion_hint">After you tap “Connect”, a code appears on the computer screen — type it on the phone.</string>
     <string name="pairing_connecting">Connecting to %1$s…</string>
     <string name="pairing_auto_found">Found computer %1$s — connecting…</string>

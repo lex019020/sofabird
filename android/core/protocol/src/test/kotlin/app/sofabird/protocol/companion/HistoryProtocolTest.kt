@@ -11,7 +11,6 @@ import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.ResumeChoice
 import app.sofabird.protocol.model.ResumePrompt
-import app.sofabird.protocol.vlc.VlcCommands
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
@@ -186,8 +185,6 @@ class HistoryProtocolTest {
         val dismiss = CommandMapping.toCmd("3", PlayerCommand.DismissNext)
         assertEquals("dismissNext", dismiss.name)
         assertTrue(dismiss.args.isEmpty())
-        // Direct VLC mode has nothing to send for them.
-        assertTrue(VlcCommands.forCommand(PlayerCommand.DismissNext, VlcCommands.CurrentToggles()).isEmpty())
     }
 
     @Test

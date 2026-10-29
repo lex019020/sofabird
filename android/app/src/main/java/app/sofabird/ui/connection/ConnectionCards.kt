@@ -50,7 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
-import app.sofabird.data.discovery.DiscoveredHost
 import app.sofabird.data.player.PairingState
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.protocol.model.ConnectionError
@@ -134,7 +133,7 @@ internal fun CurrentConnectionCard(ui: ConnectionUiState, onDisconnect: () -> Un
             }
             val c = ui.connection
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                if (server.isCompanion && c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
+                if (c is ConnectionState.Failed && c.error == ConnectionError.PairingRequired) {
                     TextButton(onClick = onEnterCode) { LabelText(stringResource(R.string.action_enter_code)) }
                 } else {
                     TextButton(onClick = onDisconnect) { LabelText(stringResource(R.string.action_disconnect)) }
@@ -174,7 +173,7 @@ internal fun NearbyPcCard(
             Column(Modifier.weight(1f)) {
                 // A PC name is one long word: one line, growing with the font only like a label.
                 LabelText(host.displayName, style = MaterialTheme.typography.titleMedium)
-                val status = host.vlcStatus ?: host.vlcRunning?.let { if (it) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING }
+                val status = host.vlcStatus
                 vlcStatusLabel(status)?.let { label ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
                         StatusDot(vlcStatusColor(status))
@@ -257,19 +256,11 @@ internal fun SavedServerRow(server: SavedServer, active: Boolean, onConnect: () 
             Column(Modifier.weight(1f)) {
                 LabelText(server.displayName, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    if (server.isCompanion && !server.hasLanAddress) {
-                        stringResource(R.string.saved_via_bluetooth, server.btAddress.orEmpty()) + " · " +
-                            stringResource(R.string.mode_companion)
+                    if (!server.hasLanAddress) {
+                        stringResource(R.string.saved_via_bluetooth, server.btAddress.orEmpty())
                     } else {
-                        "${server.host}:${if (server.isCompanion) server.wsPort else server.httpPort}".withNameBreaks() + " · " +
-                            stringResource(if (server.isCompanion) R.string.mode_companion else R.string.mode_direct) +
-                            (
-                                if (server.isCompanion && server.btAddress != null) {
-                                    " · " + stringResource(R.string.transport_bluetooth)
-                                } else {
-                                    ""
-                                }
-                                )
+                        "${server.host}:${server.wsPort}".withNameBreaks() +
+                            (if (server.btAddress != null) " · " + stringResource(R.string.transport_bluetooth) else "")
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -319,39 +310,6 @@ internal fun OtherWaysHeader(expanded: Boolean, onToggle: () -> Unit) {
             if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
             contentDescription = stringResource(if (expanded) R.string.collapse else R.string.expand),
         )
-    }
-}
-
-@Composable
-internal fun DiscoveredRow(host: DiscoveredHost, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .clickable(onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Computer, null)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                LabelText(host.displayName, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    host.host.withNameBreaks(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    Badge(stringResource(R.string.badge_pc_found))
-                    if (host.vlcRunning == true) {
-                        Badge(stringResource(R.string.badge_vlc_running) + (host.vlcVersion?.let { " $it" } ?: ""))
-                    }
-                }
-            }
-        }
     }
 }
 
