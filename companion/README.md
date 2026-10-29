@@ -464,9 +464,8 @@ It reports on every change and the position at most once a second.
 
 ## Where settings and logs are stored
 
-`%AppData%\Sofabird\` (`%LocalAppData%\Sofabird\` is the installation itself, which updates replace). The first start of
-Sofabird takes `settings.json`, `history.json` and `library-metadata.json` over from the companion's earlier name,
-VLC Remote Companion (`%LocalAppData%\VlcRemote\`), stops and uninstalls it and moves its autostart; phones pair again.
+`%AppData%\Sofabird\` (`%LocalAppData%\Sofabird\` is the installation itself, which updates replace). The companion
+under its earlier name, VLC Remote Companion, is no longer taken over (0.5, no users left on it): uninstall it by hand.
 
 | File | What |
 |---|---|
