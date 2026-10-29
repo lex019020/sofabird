@@ -139,7 +139,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: a YouTube history, Wake-on-LAN and an encrypted connection, then the stable 0.4.0; after it a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. Next: a sleep timer, then 0.5 drops the unencrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 
