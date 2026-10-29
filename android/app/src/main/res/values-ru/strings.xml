@@ -237,6 +237,27 @@
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
+    <string name="settings_updates">Обновления</string>
+    <string name="updates_test_builds">Тестовые сборки</string>
+    <string name="updates_test_builds_hint">Новая сборка после каждого изменения. Выключено — только релизы</string>
+    <string name="updates_checking">Проверка обновлений…</string>
+    <string name="updates_latest">Установлена последняя версия</string>
+    <string name="updates_check_failed">Не удалось проверить обновления. Проверьте подключение к интернету</string>
+    <string name="updates_available">Доступна версия %1$s</string>
+    <string name="updates_downloading">Загрузка…</string>
+    <string name="updates_downloading_percent">Загрузка… %1$d%%</string>
+    <string name="updates_installing">Ожидание установщика…</string>
+    <string name="updates_install_failed">Не удалось установить обновление</string>
+    <string name="updates_permission_hint">Разрешите Sofabird устанавливать приложения и снова нажмите «Обновить»</string>
+    <string name="updates_check">Проверить</string>
+    <string name="updates_install">Обновить</string>
+    <string name="updates_later">Позже</string>
+    <string name="updates_whats_new">Что нового</string>
+    <string name="updates_disabled">Эта сборка не обновляется сама.</string>
+    <string name="update_title">Доступно обновление</string>
+    <string name="update_text">Sofabird %1$s готов к установке.</string>
+    <string name="update_text_size">Sofabird %1$s готов к установке (%2$s).</string>
+    <string name="update_confirm_hint">Android попросит подтвердить установку.</string>
 
     <!-- Pairing and VLC state -->
     <string name="close">Закрыть</string>

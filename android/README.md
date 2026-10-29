@@ -37,6 +37,27 @@ DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`ta
 - Version: `versionName` from the `VERSION` file + `-Psofabird.versionSuffix=beta0042`, `versionCode` from
   `-Psofabird.versionCode=<number of commits>`. Shown in "Settings → About".
 
+## Updates
+
+The app updates itself from GitHub Releases, like the companion (`data/update`):
+
+- `AppUpdates` asks `GET api.github.com/repos/lex019020/sofabird/releases` when the app comes to the front (the first
+  time in a run, then at most every 6 h; a failed quiet check changes nothing). `ReleaseFeed.newest` (pure, tested)
+  picks the newest release of the channel newer than the installed version (SemVer, `AppVersion`: a release is newer
+  than its test builds) that has `Sofabird-<version>.apk`.
+- Channel (Settings → "Updates" → "Test builds", DataStore `updates`): by default the one of the installed build — a
+  test build follows test builds (and releases), a release follows releases. Debug and `-local` builds never update
+  themselves (the section says so).
+- A dialog asks once per version ("Later" puts that version off; the settings still offer it), and only when one of
+  the new builds changed something users notice: a docs-only merge also makes a test build, whose notes are
+  "No user-visible changes.".
+- "Update" downloads the APK into the cache (progress in the dialog / settings), checks that it is `app.sofabird` at
+  the expected version, and commits it to a `PackageInstaller` session; `UpdateInstallReceiver` opens the system's
+  confirmation (Android asks every time for apps outside a store), a "Cancel" returns to "available". Android checks
+  the signature, so only builds signed with our key install. The first time Android asks to allow
+  "Install unknown apps" for Sofabird (`REQUEST_INSTALL_PACKAGES`); the app opens that page. A Google Play build would
+  have to leave this out (Play forbids updating outside it).
+
 ## Structure
 
 ```

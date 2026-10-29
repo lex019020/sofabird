@@ -28,6 +28,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
+import app.sofabird.data.update.AvailableUpdate
+import app.sofabird.data.update.UpdateChannel
+import app.sofabird.data.update.UpdateState
 import app.sofabird.domain.model.AppSettings
 import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.NextEpisode
@@ -39,6 +42,8 @@ import app.sofabird.ui.remote.MoonlightSection
 import app.sofabird.ui.remote.QuickAction
 import app.sofabird.ui.remote.QuickActionsRow
 import app.sofabird.ui.remote.YouTubeLinkSection
+import app.sofabird.ui.settings.UpdatesSection
+import app.sofabird.ui.settings.UpdatesUi
 import app.sofabird.ui.theme.SofabirdTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Before
@@ -148,6 +153,16 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
     fun youtubeLink() = snapshot("youtube_link") {
         Column(Modifier.padding(16.dp)) {
             YouTubeLinkSection(enabled = true, initial = "https://youtu.be/aqz-KE-bpKQ", adBlock = true, sponsorBlock = false) {}
+        }
+    }
+
+    @Test
+    fun updates() = snapshot("updates") {
+        val update = AvailableUpdate("0.4.0-beta0070", "", 17_361_198, "", noteworthy = true)
+        Column(Modifier.padding(16.dp)) {
+            UpdatesSection(UpdatesUi(true, UpdateChannel.TEST, UpdateState.Available(update)), {}, {}, {}, {})
+            UpdatesSection(UpdatesUi(true, UpdateChannel.STABLE, UpdateState.Downloading(update, 0.42f)), {}, {}, {}, {})
+            UpdatesSection(UpdatesUi(true, UpdateChannel.TEST, UpdateState.CheckFailed), {}, {}, {}, {})
         }
     }
 
