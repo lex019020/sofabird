@@ -79,6 +79,7 @@ import app.sofabird.ui.permissions.isGranted
 import app.sofabird.ui.playlist.PlaylistScreen
 import app.sofabird.ui.remote.RemoteScreen
 import app.sofabird.ui.settings.SettingsScreen
+import app.sofabird.ui.update.UpdatePromptHost
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -205,6 +206,9 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
         }
         false -> Unit
     }
+
+    // "Update available" — once per version, not over the permissions screen.
+    UpdatePromptHost()
 
     val showChrome = route in Routes.tabs
     Scaffold(
