@@ -57,21 +57,17 @@ data class RemoteUiState(
     val displayPending: String? = null,
     /** Last `listDisplays` / display action failure, shown inside the sheet. */
     val displayError: Throwable? = null,
-    /** The active server is a companion (known before the first `welcome`). */
-    val companionMode: Boolean = false,
     /** "Launch VLC" / "Restart with control" was pressed and VLC has not changed state yet. */
     val launching: Boolean = false,
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
     /** YouTube videos played on the TV (`getHistory youtube`); loaded when the "More" sheet opens. */
     val recentVideos: List<HistoryItem> = emptyList(),
-    /** "Wake up the PC": `null` — not possible (direct VLC mode, or the companion never named its adapters). */
+    /** "Wake up the PC": `null` — not possible (no PC, or the companion never named its adapters). */
     val wake: PcWaker.State? = null,
     /** `getHistory continue` for the home screen ([home]); loaded while it shows. */
     val continueItems: List<HistoryItem> = emptyList(),
 ) {
-    val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
-
     /**
      * A Moonlight stream is on the TV instead of VLC: the computer it shows (`""` when unknown); `null` = no stream.
      * The remote then shows a streaming card instead of the movie and its controls.
@@ -102,22 +98,22 @@ data class RemoteUiState(
     val asleep: Boolean get() = (connection as? ConnectionState.Connecting)?.lastError == ConnectionError.PcAsleep
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
-    val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
+    val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(connection, state.vlc)
 
     /**
-     * Nothing is on the TV — VLC closed or open with nothing in it, no YouTube, no stream — and a companion can offer
+     * Nothing is on the TV — VLC closed or open with nothing in it, no YouTube, no stream — and the companion can offer
      * what to watch: the remote shows [RemoteHome] instead of an empty cover and idle controls. VLC starting, open
      * without control or not installed keeps its card.
      */
     val home: Boolean
-        get() = isCompanion && connection.isOnline && streamingHost == null && youtube == null && when (vlcBlock) {
+        get() = connection.isOnline && streamingHost == null && youtube == null && when (vlcBlock) {
             VlcProcessStatus.NOT_RUNNING, VlcProcessStatus.UNKNOWN -> true
             null -> state.isStopped && state.item.title == null && state.item.uri == null
             else -> false
         }
 
     /** "Display: …" chip and the "Display for VLC" sheet. */
-    val showDisplayChoice: Boolean get() = isCompanion && capabilities.windowControl
+    val showDisplayChoice: Boolean get() = capabilities.windowControl
 
     companion object {
         /** [displayPending] value for "Do not manage" (never a monitor key). */
@@ -130,12 +126,11 @@ val VlcInfo.windowOpen: Boolean
     get() = effectiveStatus == VlcProcessStatus.RUNNING || effectiveStatus == VlcProcessStatus.NO_CONTROL
 
 /**
- * Companion mode only: when VLC is not controllable ([VlcInfo.effectiveStatus] other than running)
- * the remote shows a state card instead of transport controls. Direct VLC mode never blocks — there
- * a dead VLC simply means no connection.
+ * When VLC is not controllable ([VlcInfo.effectiveStatus] other than running) the remote shows a state card instead of
+ * transport controls; offline it shows the connection instead.
  */
-fun vlcBlockingStatus(companion: Boolean, connection: ConnectionState, vlc: VlcInfo): VlcProcessStatus? {
-    if (!companion || !connection.isOnline) return null
+fun vlcBlockingStatus(connection: ConnectionState, vlc: VlcInfo): VlcProcessStatus? {
+    if (!connection.isOnline) return null
     return vlc.effectiveStatus.takeIf { it != VlcProcessStatus.RUNNING }
 }
 
@@ -192,11 +187,10 @@ class RemoteViewModel(
             displaysLoading = l.displays.loading,
             displayPending = l.displays.pendingKey,
             displayError = l.displays.error,
-            companionMode = server?.isCompanion == true,
             launching = l.launching,
             bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
             recentVideos = l.recentVideos,
-            wake = wake.takeIf { server?.isCompanion == true && server.wakeMacs.isNotEmpty() },
+            wake = wake.takeIf { server?.wakeMacs?.isNotEmpty() == true },
             continueItems = l.continueItems,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())

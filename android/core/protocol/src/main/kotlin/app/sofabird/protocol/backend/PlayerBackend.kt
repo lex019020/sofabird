@@ -15,8 +15,8 @@ import app.sofabird.protocol.model.ShowDetails
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * A connection to a player: direct VLC HTTP (levels 0/1) or the Windows companion (level 2).
- * Implementations live in the app module; this interface is pure Kotlin.
+ * A connection to the Windows companion, which controls VLC on the PC. The implementation lives in the app
+ * module; this interface is pure Kotlin.
  */
 interface PlayerBackend {
     /** What the current connection can do. */
@@ -35,41 +35,33 @@ interface PlayerBackend {
 
     suspend fun send(command: PlayerCommand): Result<Unit>
 
-    suspend fun sendSystem(command: SystemCommand): Result<Unit> =
-        Result.failure(UnsupportedOperationException("system commands need the companion"))
+    suspend fun sendSystem(command: SystemCommand): Result<Unit>
 
     /** List [uri] (a `file:///…/` directory; `file:///` = drives). `..` is never included. */
     suspend fun browse(uri: String): Result<List<Entry>>
 
     suspend fun playlist(): Result<List<PlaylistItem>>
 
-    /** Companion `getAudioDevices` (needs `audioDevices` capability). */
-    suspend fun audioDevices(): Result<List<AudioDevice>> =
-        Result.failure(UnsupportedOperationException("audio devices need the companion"))
+    /** `getAudioDevices` (needs `audioDevices` capability). */
+    suspend fun audioDevices(): Result<List<AudioDevice>>
 
-    /** Companion `sys listDisplays` (needs `windowControl` capability). */
-    suspend fun listDisplays(): Result<DisplayList> =
-        Result.failure(UnsupportedOperationException("displays need the companion"))
+    /** `sys listDisplays` (needs `windowControl` capability). */
+    suspend fun listDisplays(): Result<DisplayList>
 
-    /** Companion `getHistory` (needs `history` capability). */
-    suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage> =
-        Result.failure(UnsupportedOperationException("watch history needs the companion"))
+    /** `getHistory` (needs `history` capability). */
+    suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage>
 
-    /** Companion `historyUpdate`: mark watched / unwatched or remove one entry. */
-    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit> =
-        Result.failure(UnsupportedOperationException("watch history needs the companion"))
+    /** `historyUpdate`: mark watched / unwatched or remove one entry. */
+    suspend fun updateHistory(uri: String, change: HistoryChange): Result<Unit>
 
-    /** Companion `historyClear`. */
-    suspend fun clearHistory(): Result<Unit> =
-        Result.failure(UnsupportedOperationException("watch history needs the companion"))
+    /** `historyClear`. */
+    suspend fun clearHistory(): Result<Unit>
 
-    /** Companion `getLibrary` (needs `library` capability). */
-    suspend fun library(): Result<Library> =
-        Result.failure(UnsupportedOperationException("the library needs the companion"))
+    /** `getLibrary` (needs `library` capability). */
+    suspend fun library(): Result<Library>
 
-    /** Companion `getShow`: one series with its episodes. */
-    suspend fun show(key: String): Result<ShowDetails> =
-        Result.failure(UnsupportedOperationException("the library needs the companion"))
+    /** `getShow`: one series with its episodes. */
+    suspend fun show(key: String): Result<ShowDetails>
 
     /** Ask the backend to re-fetch state now (e.g. after returning to the foreground). */
     suspend fun refresh()

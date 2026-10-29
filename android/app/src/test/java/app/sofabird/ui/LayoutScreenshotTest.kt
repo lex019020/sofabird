@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -35,6 +37,11 @@ import app.sofabird.domain.model.AppSettings
 import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.ui.common.LabelText
+import app.sofabird.ui.connection.ConnectionActions
+import app.sofabird.ui.connection.ConnectionForm
+import app.sofabird.ui.connection.ConnectionUiState
+import app.sofabird.ui.connection.Instructions
+import app.sofabird.ui.connection.ManualForm
 import app.sofabird.ui.history.ContinueCard
 import app.sofabird.ui.history.ContinueWatchingRow
 import app.sofabird.ui.history.NextEpisodeCard
@@ -176,6 +183,17 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
                     ),
                 ),
             ) {}
+        }
+    }
+
+    /** "Other ways to connect": the companion's address by hand and how to set up the PC (tall: all the steps fit). */
+    @Test
+    @Config(qualifiers = "w360dp-h3000dp-xxhdpi")
+    fun connectionSetup() = snapshot("connection_setup") {
+        Column(Modifier.padding(16.dp)) {
+            ManualForm(ConnectionUiState(form = ConnectionForm(host = "192.168.1.17")), object : ConnectionActions {})
+            Spacer(Modifier.height(16.dp))
+            Instructions(expanded = true, onToggle = {})
         }
     }
 

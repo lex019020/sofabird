@@ -5,12 +5,10 @@ Since the rename from VLC Remote the discovery names are `_sofabird._tcp`, `SOFA
 pairing link (were `_vlcremote._tcp`, `VLCREMOTE_DISCOVER`, `vlcr://`): apps and companions of the two names do not
 find each other; the messages themselves did not change.
 
-Two levels:
-
-1. **Direct mode (levels 0/1)** — the app talks to the VLC HTTP interface itself. Described in
-   [vlc-http.md](vlc-http.md).
-2. **Companion mode (level 2)** — the app talks to the companion using NDJSON over
-   WebSocket (LAN) or RFCOMM (Bluetooth, milestone M3). Described below and in [messages.schema.json](messages.schema.json).
+The app talks to the companion using NDJSON over WebSocket (LAN) or RFCOMM (Bluetooth). Described below and in
+[messages.schema.json](messages.schema.json). The companion drives VLC through its HTTP interface,
+[vlc-http.md](vlc-http.md); the app's direct mode on that interface (levels 0/1) was removed in 0.5, so `vlc.level`
+is always 2 now.
 
 ## Transport
 

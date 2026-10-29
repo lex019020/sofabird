@@ -3,7 +3,6 @@
 package app.sofabird.ui.connection
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,7 +21,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,10 +39,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.R
-import app.sofabird.data.discovery.DiscoveredHost
 import app.sofabird.data.player.PairingState
 import app.sofabird.domain.model.SavedServer
-import app.sofabird.domain.model.ServerMode
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -62,12 +58,8 @@ interface ConnectionActions {
     fun forget(server: SavedServer) {}
     fun setOtherOptionsExpanded(expanded: Boolean) {}
     fun openBluetoothPicker() {}
-    fun pick(host: DiscoveredHost) {}
-    fun sweepSubnet() {}
     fun toggleInstructions() {}
-    fun setMode(mode: ServerMode) {}
     fun updateForm(block: (ConnectionForm) -> ConnectionForm) {}
-    fun testConnection() {}
     fun saveAndConnect() {}
 }
 
@@ -78,7 +70,6 @@ fun ConnectionScreen(
     viewModel: ConnectionViewModel = koinViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
-    val connected by rememberUpdatedState(onConnected)
     val back by rememberUpdatedState(onBack)
     val actions = remember(viewModel) {
         object : ConnectionActions {
@@ -86,19 +77,15 @@ fun ConnectionScreen(
             override fun cancelPairing() = viewModel.cancelPairing()
             override fun retryPairing() = viewModel.retryPairing()
             override fun disconnect() = viewModel.disconnect()
-            override fun connectSaved(server: SavedServer) = viewModel.connectSaved(server) { connected() }
+            override fun connectSaved(server: SavedServer) = viewModel.connectSaved(server)
             override fun connectNearby(pc: NearbyPc) = viewModel.connectNearby(pc)
             override fun edit(server: SavedServer) = viewModel.edit(server)
             override fun forget(server: SavedServer) = viewModel.forget(server)
             override fun setOtherOptionsExpanded(expanded: Boolean) = viewModel.setOtherOptionsExpanded(expanded)
             override fun openBluetoothPicker() = viewModel.openBluetoothPicker()
-            override fun pick(host: DiscoveredHost) = viewModel.pick(host)
-            override fun sweepSubnet() = viewModel.sweepSubnet()
             override fun toggleInstructions() = viewModel.toggleInstructions()
-            override fun setMode(mode: ServerMode) = viewModel.setMode(mode)
             override fun updateForm(block: (ConnectionForm) -> ConnectionForm) = viewModel.updateForm(block)
-            override fun testConnection() = viewModel.testConnection()
-            override fun saveAndConnect() = viewModel.saveAndConnect { connected() }
+            override fun saveAndConnect() = viewModel.saveAndConnect()
         }
     }
 
@@ -220,28 +207,6 @@ fun ConnectionContent(ui: ConnectionUiState, actions: ConnectionActions) {
                         busy = (ui.pairing as? PairingState.Connecting)?.target?.viaBluetooth == true,
                         onClick = actions::openBluetoothPicker,
                     )
-                }
-                item(key = "bt-divider") { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-                item(key = "other-found-header") {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        SectionHeader(stringResource(R.string.found_pcs), Modifier.weight(1f))
-                        if (ui.sweeping) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    }
-                }
-                items(ui.otherHosts, key = { "found-" + it.host }) { host ->
-                    DiscoveredRow(host, onClick = { actions.pick(host) })
-                }
-                item(key = "sweep") {
-                    Column {
-                        OutlinedButton(onClick = actions::sweepSubnet, enabled = !ui.sweeping) {
-                            Text(stringResource(if (ui.sweeping) R.string.sweeping else R.string.sweep_subnet))
-                        }
-                        Text(
-                            stringResource(R.string.sweep_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
                 item(key = "manual-divider") { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
                 item(key = "manual-header") { SectionHeader(stringResource(R.string.manual_entry)) }

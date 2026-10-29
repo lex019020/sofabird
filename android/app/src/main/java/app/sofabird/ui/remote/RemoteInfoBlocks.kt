@@ -112,7 +112,7 @@ internal fun Artwork(ui: RemoteUiState, modifier: Modifier, onStop: () -> Unit =
 internal fun TitleBlock(ui: RemoteUiState) {
     val title = ui.state.item.title ?: when {
         !ui.connection.isOnline -> stringResource(R.string.not_connected_title)
-        !ui.state.vlc.running && ui.isCompanion -> stringResource(R.string.vlc_not_running_title)
+        !ui.state.vlc.running -> stringResource(R.string.vlc_not_running_title)
         else -> stringResource(R.string.nothing_playing)
     }
     Text(

@@ -132,5 +132,5 @@ private fun classifyOther(t: Throwable): ConnectionError = when (t) {
     is CompanionHandshakeException -> t.error
     is BluetoothConnectException -> ConnectionError.BluetoothFailed
     is app.sofabird.protocol.companion.CompanionErrorException -> ConnectionError.Other(t.message)
-    else -> app.sofabird.data.vlc.VlcErrorClassifier.fromThrowable(t)
+    else -> app.sofabird.data.net.classifyNetworkError(t)
 }

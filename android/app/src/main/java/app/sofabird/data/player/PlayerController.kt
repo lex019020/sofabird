@@ -11,11 +11,8 @@ import app.sofabird.data.net.PinnedServers
 import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
-import app.sofabird.data.vlc.VlcHttpApi
-import app.sofabird.data.vlc.VlcHttpBackend
 import app.sofabird.domain.model.CompanionSighting
 import app.sofabird.domain.model.SavedServer
-import app.sofabird.domain.model.ServerMode
 import app.sofabird.domain.model.mergeSighting
 import app.sofabird.protocol.backend.PlayerBackend
 import app.sofabird.protocol.backend.PlayerCommand
@@ -37,7 +34,6 @@ import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
 import app.sofabird.protocol.model.VlcVolume
-import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -76,7 +72,6 @@ sealed class PlayerEvent {
  * the foreground service) talks to the player through this class.
  */
 class PlayerController(
-    private val ktor: HttpClient,
     private val servers: ServerRepository,
     private val secrets: SecretStore,
     private val artAuth: ArtAuth,
@@ -149,7 +144,7 @@ class PlayerController(
                     _activeServer.value = fresh
                     // A Bluetooth-paired PC got its LAN address (or DHCP moved it): artwork needs the token there.
                     val addressChanged = fresh.host != active.host || fresh.wsPort != active.wsPort
-                    if (fresh.isCompanion && fresh.host.isNotBlank() && addressChanged) {
+                    if (fresh.host.isNotBlank() && addressChanged) {
                         secrets.companionToken(fresh.id)?.let { artAuth.set(fresh.host, fresh.wsPort, "Bearer $it") }
                     }
                 }
@@ -198,57 +193,50 @@ class PlayerController(
         }
     }
 
-    private fun createBackend(server: SavedServer, backendScope: CoroutineScope): PlayerBackend = when (server.mode) {
-        ServerMode.DIRECT -> {
-            val api = VlcHttpApi(ktor, server.host, server.httpPort, secrets.vlcPassword(server.id).orEmpty())
-            artAuth.set(server.host, server.httpPort, api.authorizationHeader())
-            VlcHttpBackend(api, server.displayName, backendScope)
-        }
-        ServerMode.COMPANION -> {
-            val token = secrets.companionToken(server.id)
-            // The freshest copy of this server: discovery / welcome may fill in the LAN or Bluetooth address.
-            val current = { _activeServer.value?.takeIf { it.id == server.id } ?: server }
-            val backend = CompanionBackend(
-                transports = transports,
-                endpoint = { current().let { CompanionEndpoint(it.host, it.wsPort, it.btAddress, it.pcId, it.tlsPort, it.certPin) } },
-                initialName = server.displayName,
-                device = identity.deviceInfo(),
-                credentials = CompanionCredentials(token = token),
-                onToken = { newToken ->
-                    secrets.setCompanionToken(server.id, newToken)
-                    current().takeIf { it.host.isNotBlank() }?.let { artAuth.set(it.host, it.wsPort, "Bearer $newToken") }
-                    _events.tryEmit(PlayerEvent.Paired(server))
-                },
-                scope = backendScope,
-                onWelcome = { welcome, pin ->
-                    // A plain session with a companion that has the encrypted WebSocket: the next connection uses it.
-                    welcome.tls?.port?.takeIf { pin == null && current().certPin == null && it != current().tlsPort }?.let { port ->
-                        scope.launch { servers.update(server.id) { it.copy(tlsPort = port) } }
+    private fun createBackend(server: SavedServer, backendScope: CoroutineScope): PlayerBackend {
+        val token = secrets.companionToken(server.id)
+        // The freshest copy of this server: discovery / welcome may fill in the LAN or Bluetooth address.
+        val current = { _activeServer.value?.takeIf { it.id == server.id } ?: server }
+        val backend = CompanionBackend(
+            transports = transports,
+            endpoint = { current().let { CompanionEndpoint(it.host, it.wsPort, it.btAddress, it.pcId, it.tlsPort, it.certPin) } },
+            initialName = server.displayName,
+            device = identity.deviceInfo(),
+            credentials = CompanionCredentials(token = token),
+            onToken = { newToken ->
+                secrets.setCompanionToken(server.id, newToken)
+                current().takeIf { it.host.isNotBlank() }?.let { artAuth.set(it.host, it.wsPort, "Bearer $newToken") }
+                _events.tryEmit(PlayerEvent.Paired(server))
+            },
+            scope = backendScope,
+            onWelcome = { welcome, pin ->
+                // A plain session with a companion that has the encrypted WebSocket: the next connection uses it.
+                welcome.tls?.port?.takeIf { pin == null && current().certPin == null && it != current().tlsPort }?.let { port ->
+                    scope.launch { servers.update(server.id) { it.copy(tlsPort = port) } }
+                }
+                if (pin != null) {
+                    current().takeIf { it.host.isNotBlank() }?.let {
+                        pinArt(it.host, pin.port, pin.sha256, secrets.companionToken(server.id))
                     }
-                    if (pin != null) {
-                        current().takeIf { it.host.isNotBlank() }?.let {
-                            pinArt(it.host, pin.port, pin.sha256, secrets.companionToken(server.id))
-                        }
-                        scope.launch { servers.update(server.id) { it.copy(tlsPort = pin.port, certPin = pin.sha256) } }
-                    }
-                    val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt, macs = welcome.macs)
-                    if (current().mergeSighting(sighting) != current()) {
-                        scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
-                    }
-                },
-                onLanFound = { lan ->
-                    val sighting = CompanionSighting(pcId = null, host = lan.host, wsPort = lan.port, btAddress = lan.btAddress)
+                    scope.launch { servers.update(server.id) { it.copy(tlsPort = pin.port, certPin = pin.sha256) } }
+                }
+                val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt, macs = welcome.macs)
+                if (current().mergeSighting(sighting) != current()) {
                     scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
-                },
-                // A PC known only by Bluetooth is always reached over it; otherwise the user setting decides.
-                bluetoothAllowed = { settings.settings.value.bluetoothFallback || current().host.isBlank() },
-            )
-            if (token != null && server.host.isNotBlank()) artAuth.set(server.host, server.wsPort, "Bearer $token")
-            if (server.certPin != null && server.host.isNotBlank()) {
-                pinArt(server.host, server.tlsPort ?: COMPANION_TLS_PORT, server.certPin, token)
-            }
-            backend
+                }
+            },
+            onLanFound = { lan ->
+                val sighting = CompanionSighting(pcId = null, host = lan.host, wsPort = lan.port, btAddress = lan.btAddress)
+                scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
+            },
+            // A PC known only by Bluetooth is always reached over it; otherwise the user setting decides.
+            bluetoothAllowed = { settings.settings.value.bluetoothFallback || current().host.isBlank() },
+        )
+        if (token != null && server.host.isNotBlank()) artAuth.set(server.host, server.wsPort, "Bearer $token")
+        if (server.certPin != null && server.host.isNotBlank()) {
+            pinArt(server.host, server.tlsPort ?: COMPANION_TLS_PORT, server.certPin, token)
         }
+        return backend
     }
 
     /** The pairing flow got a token itself (before [connect]); show the usual "paired" notice. */
