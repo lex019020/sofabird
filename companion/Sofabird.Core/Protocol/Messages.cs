@@ -74,6 +74,11 @@ public sealed class WelcomeMessage : Message
     public VlcInfo Vlc { get; set; } = new();
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
+    /// <summary>
+    /// MAC addresses (<c>AA:BB:CC:DD:EE:FF</c>, wired first) of the connected adapters that will wake the PC from sleep:
+    /// a phone wakes it with them (Wake-on-LAN). Empty — it cannot be woken; absent — not known yet.
+    /// </summary>
+    public IReadOnlyList<string>? Macs { get; set; }
     /// <summary>The encrypted WebSocket (<c>wss</c>): its port and the certificate's SHA-256 a phone pins; absent without one.</summary>
     public TlsInfo? Tls { get; set; }
 }
@@ -272,6 +277,10 @@ public sealed class HistoryItem
     public string? ArtUrl { get; set; }
     /// <summary>The next episode of a series (in the <c>continue</c> list); absent otherwise.</summary>
     public bool? Next { get; set; }
+    /// <summary><c>youtube</c> — a video played in the TV browser (<see cref="Uri"/> is its watch page); absent — a file.</summary>
+    public string? Kind { get; set; }
+    /// <summary>The YouTube channel of a <c>youtube</c> item.</summary>
+    public string? Channel { get; set; }
 }
 
 public sealed class HistoryMessage : Message
@@ -386,6 +395,11 @@ public sealed class BeaconMessage : Message
     public bool NeedsPairing { get; set; }
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
+    /// <summary>
+    /// MAC addresses (<c>AA:BB:CC:DD:EE:FF</c>, wired first) of the connected adapters that will wake the PC from sleep:
+    /// a phone wakes it with them (Wake-on-LAN). Empty — it cannot be woken; absent — not known yet.
+    /// </summary>
+    public IReadOnlyList<string>? Macs { get; set; }
     /// <summary>The encrypted WebSocket (<c>wss</c>): its port and the certificate's SHA-256 a phone pins; absent without one.</summary>
     public TlsInfo? Tls { get; set; }
 }
@@ -450,4 +464,6 @@ public static class EventNames
     public const string Paired = "paired";
     public const string ResumePrompt = "resumePrompt";
     public const string NextEpisode = "nextEpisode";
+    /// <summary>Windows suspends in a moment: phones drop the link at once and offer to wake the PC.</summary>
+    public const string Sleeping = "sleeping";
 }

@@ -89,6 +89,9 @@ class TransportSelectionTest {
             incoming.close()
         }
 
+        /** A message the companion sends by itself (`event`, `state`). */
+        fun push(msg: CompanionMessage) = reply(msg)
+
         /** The other side went away (Wi-Fi lost, PC asleep). */
         fun drop() {
             incoming.close()
@@ -106,8 +109,10 @@ class TransportSelectionTest {
         val ws = mutableListOf<FakeLink>()
         val rfcomm = mutableListOf<FakeLink>()
         var probes = 0
+        var wsAttempts = 0
 
         override suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport {
+            wsAttempts++
             if (lanHangs) awaitCancellation()
             if (!lanUp) throw ConnectException("Connection refused")
             return FakeLink(TransportKind.WIFI, refuse, title = "via wifi").also { ws += it }
@@ -261,6 +266,36 @@ class TransportSelectionTest {
         advanceTimeBy(2_000) // backoff after a clean close: ~1 s
         runCurrent()
         assertEquals(TransportKind.BLUETOOTH, h.backend.transport)
+    }
+
+    @Test
+    fun `a PC going to sleep ends the link at once and counts as asleep until it answers`() = runTest {
+        val t = FakeTransports()
+        val h = backend(t, bluetoothAllowed = false)
+        h.backend.connect()
+        runCurrent()
+        assertEquals(TransportKind.WIFI, h.backend.transport)
+
+        t.lanUp = false
+        t.ws.single().push(CompanionMessage.Event(name = "sleeping"))
+        runCurrent()
+        assertEquals(ConnectionError.PcAsleep, (h.backend.connection.value as ConnectionState.Connecting).lastError)
+        assertTrue("link closed", t.ws.single().closed)
+
+        // Not in its last second: the first retry comes after ~8 s, and a failed one keeps it "asleep".
+        advanceTimeBy(7_000)
+        runCurrent()
+        assertEquals(1, t.wsAttempts)
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(2, t.wsAttempts)
+        assertEquals(ConnectionError.PcAsleep, (h.backend.connection.value as ConnectionState.Connecting).lastError)
+
+        // Woken up ("Wake up the PC" knocks at once): connected again.
+        t.lanUp = true
+        h.backend.retryNow()
+        runCurrent()
+        assertEquals(TransportKind.WIFI, h.backend.transport)
     }
 
     @Test

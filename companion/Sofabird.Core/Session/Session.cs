@@ -143,6 +143,7 @@ public sealed class Session : IAsyncDisposable
             Token = newToken,
             Vlc = _host.VlcInfo,
             Bt = _host.BluetoothAddress,
+            Macs = _host.WakeMacs,
             Tls = _host.Tls,
         }, ct).ConfigureAwait(false);
         _log.LogInformation("Session {Desc} authenticated as {Device}", Description, hello.Device?.Name ?? "?");
@@ -239,7 +240,7 @@ public sealed class Session : IAsyncDisposable
     private async Task<Message> GetHistoryAsync(GetHistoryMessage m, CancellationToken ct)
     {
         var filter = string.IsNullOrEmpty(m.Filter) ? "all" : m.Filter;
-        if (filter is not ("continue" or "all")) throw ProtocolException.BadRequest("getHistory.filter must be continue|all");
+        if (filter is not ("continue" or "all" or "youtube")) throw ProtocolException.BadRequest("getHistory.filter must be continue|all|youtube");
         var limit = Math.Clamp(m.Limit ?? DefaultHistoryLimit, 0, MaxHistoryLimit);
         var offset = Math.Max(0, m.Offset ?? 0);
         var reply = await _host.GetHistoryAsync(filter, limit, offset, ct).ConfigureAwait(false);

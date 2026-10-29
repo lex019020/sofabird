@@ -111,6 +111,11 @@ public sealed partial class VlcManager : IAsyncDisposable
     /// <summary><c>state.youtube</c> (YouTube in the TV browser); <c>null</c> — not reported.</summary>
     public Func<YouTubeInfo?>? YouTubeInfoProvider { get; set; }
 
+    /// <summary>The revision of the YouTube history, added to <c>state.history.revision</c> (one number for both).</summary>
+    public Func<long>? YouTubeHistoryRevision { get; set; }
+
+    private long HistoryRevision => (_history?.Store.Revision ?? 0) + (YouTubeHistoryRevision?.Invoke() ?? 0);
+
     public event Action<StateMessage>? StateChanged;
     public event Action<EventMessage>? Event;
     public event Action? RunStateChanged;
@@ -309,7 +314,7 @@ public sealed partial class VlcManager : IAsyncDisposable
                 if (actions.Count > 0) await RunHistoryActionsAsync(actions, ct).ConfigureAwait(false);
                 state.Resume = _history.Resume;
                 state.Next = _history.Next;
-                state.History = new HistoryInfo { Revision = _history.Store.Revision };
+                state.History = new HistoryInfo { Revision = HistoryRevision };
             }
             PublishState(state);
         }
@@ -433,7 +438,7 @@ public sealed partial class VlcManager : IAsyncDisposable
             Muted = _muted,
             Resume = _history?.Resume,
             Next = _history?.Next,
-            HistoryRevision = _history?.Store.Revision,
+            HistoryRevision = _history is null ? null : HistoryRevision,
             Library = LibraryInfoProvider?.Invoke(),
             YouTube = YouTubeInfoProvider?.Invoke(),
         });

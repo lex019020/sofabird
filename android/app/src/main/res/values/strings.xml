@@ -19,6 +19,7 @@
     <string name="state_connecting">Connecting…</string>
     <string name="state_reconnecting">Reconnecting (attempt %1$d)…</string>
     <string name="state_degraded">PC is not responding, retrying…</string>
+    <string name="state_asleep">The PC is asleep</string>
     <string name="level_http">VLC over HTTP</string>
     <string name="level_lua">VLC + Lua pages</string>
     <string name="level_companion">Companion</string>
@@ -54,7 +55,11 @@
     <string name="vlc_not_running_title">VLC is not running</string>
     <string name="nothing_playing">Nothing is playing</string>
     <string name="no_link_with">No connection to %1$s</string>
+    <string name="pc_asleep">%1$s is asleep</string>
     <string name="no_server_configured">No PC configured yet</string>
+    <string name="action_wake_pc">Wake up the PC</string>
+    <string name="waking_pc">Waking up %1$s…</string>
+    <string name="wake_pc_failed">The PC did not wake up</string>
     <string name="action_connect">Connect</string>
     <string name="action_disconnect">Disconnect</string>
     <string name="action_play">Play</string>
@@ -211,6 +216,8 @@
     <string name="youtube_link_hint">Link to a YouTube video</string>
     <string name="action_paste">Paste</string>
     <string name="action_youtube_show">Show on the TV</string>
+    <string name="youtube_recent">Recently on the TV</string>
+    <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Or share a video to Sofabird from the YouTube app.</string>
     <string name="action_youtube_close">Close YouTube</string>
     <string name="youtube_ad">Ad</string>
@@ -225,6 +232,27 @@
     <string name="moonlight_streaming_host">The screen of %1$s; the movie is paused</string>
     <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
     <string name="settings_version">Version %1$s (build %2$d)</string>
+    <string name="settings_updates">Updates</string>
+    <string name="updates_test_builds">Test builds</string>
+    <string name="updates_test_builds_hint">A new build after every change. Off: releases only</string>
+    <string name="updates_checking">Checking for updates…</string>
+    <string name="updates_latest">You have the latest version</string>
+    <string name="updates_check_failed">Could not check for updates. Check the internet connection</string>
+    <string name="updates_available">Version %1$s is available</string>
+    <string name="updates_downloading">Downloading…</string>
+    <string name="updates_downloading_percent">Downloading… %1$d%%</string>
+    <string name="updates_installing">Waiting for the installer…</string>
+    <string name="updates_install_failed">Could not install the update</string>
+    <string name="updates_permission_hint">Allow Sofabird to install apps, then tap "Update" again</string>
+    <string name="updates_check">Check now</string>
+    <string name="updates_install">Update</string>
+    <string name="updates_later">Later</string>
+    <string name="updates_whats_new">What\'s new</string>
+    <string name="updates_disabled">This build does not update itself.</string>
+    <string name="update_title">Update available</string>
+    <string name="update_text">Sofabird %1$s is ready to install.</string>
+    <string name="update_text_size">Sofabird %1$s is ready to install (%2$s).</string>
+    <string name="update_confirm_hint">Android will ask you to confirm the installation.</string>
 
     <string name="close">Close</string>
     <string name="expand">Expand</string>
@@ -264,6 +292,7 @@
     <string name="unit_ms">ms</string>
 
     <!-- Bluetooth (M3) -->
+    <string name="err_pc_asleep">The PC is asleep</string>
     <string name="err_bluetooth_failed">The companion is not answering over Bluetooth: check that the PC is paired with the phone and the companion is running</string>
     <string name="err_certificate_changed">The PC presented another security certificate than when the phone paired with it</string>
     <string name="hint_certificate_changed">If the companion was reinstalled, pair again with the code shown on the PC. Otherwise something on the network may be pretending to be your PC.</string>

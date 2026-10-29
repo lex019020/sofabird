@@ -48,6 +48,19 @@ names the port and the certificate's SHA-256 (DER, upper-case hex) as `"tls": {"
 - UDP beacon: the app broadcasts the text `SOFABIRD_DISCOVER 1` to `255.255.255.255:47556`;
   the companion replies with unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
 
+### Wake-on-LAN
+
+- The companion lists in `macs` (`["AA:BB:CC:DD:EE:FF", …]`, wired first) the MAC addresses of the adapters that will
+  wake it from sleep: connected, "Wake on Magic Packet" on, allowed to wake the PC, and able to (driver and firmware,
+  `powercfg /devicequery wake_from_any`) — in `/info`, `beacon` and `welcome`. `[]` — the PC cannot be woken (a phone
+  then forgets the MACs and offers no waking); absent — not known yet (an older companion, or the first look, ~1 s
+  after the start, is not done): a phone keeps what it knew.
+- A phone keeps them with the PC. When the PC does not answer, the phone offers "Wake up the PC": it sends the magic
+  packet (6 × `0xFF` + the MAC 16 times) for every MAC as a UDP broadcast (`255.255.255.255` and the subnet-directed
+  broadcast, ports 9 and 7) and reconnects for up to 90 s. Nothing in the protocol is needed while the PC sleeps.
+- The PC's side (the adapter's "Wake on Magic Packet", "Allow this device to wake the computer") is an item of the
+  companion's setup window.
+
 ### Bluetooth
 
 - The companion reports its Bluetooth adapter address in the `bt` field (`"AA:BB:CC:DD:EE:FF"`, upper case, `:`-separated)
@@ -305,9 +318,22 @@ sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title
   finished one (marked `"next": true`); sorted by `lastWatched` descending.
 - `{"t":"historyUpdate","id":"10","uri":"...","finished":true|false}` (mark watched / unwatched; unwatched resets
   `position` to 0) or `{"t":"historyUpdate","id":"10","uri":"...","remove":true}` → `ok`.
-- `{"t":"historyClear","id":"11"}` → `ok`.
+- `{"t":"historyClear","id":"11"}` → `ok` (the YouTube history too).
 - `entries` items of `browse` get optional `progress` (0..1) and `finished` for files that are in the history.
 - `state.history = {"revision": n}` changes whenever the history changes, so phones can refresh lists.
+
+**YouTube videos** (user request, 2026-10-29). With the TV extension (cap `youtube`) the companion also keeps the
+videos played in the TV browser — sent from a phone or played by YouTube itself — in `youtube-history.json`: the
+title, channel, length and where it stopped (saved every 10 s while it plays, on pause and when the video is left;
+ads are not recorded; less than 5% left = finished; kept 183 days, at most 500). They come in the same lists as
+items with `"kind": "youtube"`, `"channel"`, `uri` = `https://www.youtube.com/watch?v=<id>` and an absolute
+`artUrl` (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`, the phone loads it itself); no `name`/`folderUri`:
+- `getHistory` `all` — files and videos together, newest first; `continue` — plus videos not finished and watched
+  at least 15 s (YouTube videos are short; files need 5 min); the new filter `youtube` — the videos only.
+- `cmd open {"uri": "<a YouTube link>"}` opens the video in the TV browser (not VLC), so a tap on such an item works
+  like a file's — also in older apps. A video opened this way or with `youtubeOpen` without `t` continues where it
+  stopped (when not finished and at least 15 s in); no prompt (YouTube does the same for a signed-in account).
+- `historyUpdate` / `historyClear` accept them too; `state.history.revision` changes for them as well.
 
 ## Library (capability `library`)
 
@@ -336,7 +362,12 @@ Without a TMDB token or a match the item keeps the title parsed from its file na
 
 ## Events: `event`
 
-`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode", ...}`.
+`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode"|"sleeping", ...}`.
+
+`sleeping`: Windows suspends in a moment (`sys sleep` — sent after its reply —, the Start menu, the lid, the idle
+timer). The phone ends the link at once instead of noticing a missed `pong` up to 40 s later, shows that the PC is
+asleep with "Wake up the PC" (`macs`), and retries with its backoff (the first time after ~8 s, so that it does not
+catch the PC in its last second) in case the PC wakes by itself.
 
 ## Keep-alive
 

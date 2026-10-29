@@ -331,6 +331,14 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
   startup and once a day (with the track choices of folders left without entries).
 - **Logs.** INFO: resume prompt, answer, cleared without an answer, next-episode offer, applied/remembered track
   choices, phone marks/removals.
+- **YouTube videos** (`YouTubeHistory`, `youtube-history.json`): what the TV extension reports — the video, title,
+  channel, length and where it stopped — is kept for every video played in the TV browser (sent from a phone or
+  played by YouTube itself): on every change the page reports, and every 10 s while it plays (`YouTubeService`'s
+  timer); ads and live streams (no length) are not; less than 5% left = finished; at most 500, 183 days. Phones get
+  them in `getHistory` (`kind: "youtube"`, the thumbnail as `artUrl`; `continue` from 15 s watched; the filter
+  `youtube` for the videos alone); `cmd open` with a YouTube link goes to the TV browser, and a video watched before
+  opens where it stopped (also through `youtubeOpen` when the link has no `t`). `state.history.revision` is the sum of
+  both histories' revisions.
 
 ## Library
 
@@ -464,6 +472,7 @@ VLC Remote Companion (`%LocalAppData%\VlcRemote\`), stops and uninstalls it and 
 | `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
+| `youtube-history.json` | the YouTube videos played on the TV and where they stopped (see "Watch history") |
 | `logs\companion-YYYYMMDD.log` | Serilog, daily rotation, 14 files |
 
 The VLC HTTP interface password is never written to the log.
@@ -492,6 +501,7 @@ user presses **Apply**; **Later** closes the window (it opens again at the next 
 | Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes | on |
 | Keep the PC awake during a movie | `keepAwake` | on |
 | This PC is a media station | `mediaStation`: the active power plan gets lid close action "do nothing", sleep and hibernate "never", **plugged in and on battery** (powrprof, no admin rights); unticking does not restore the old values | on |
+| Wake this PC from the phone | Wake-on-LAN (see below): "Wake on Magic Packet" on and "Allow this device to wake the computer" for the adapters that can (the same elevated helper as the firewall, one UAC prompt for both); unticking changes nothing back | on (when an adapter can) |
 | Bluetooth (info only) | nothing: Windows needs no permission; a link opens `ms-settings:bluetooth` to pair the phone | — |
 
 Each item shows its current state (✓ / not set up / ⚠ / ✗ with the reason) and, after Apply, the result. If a
@@ -508,6 +518,33 @@ update, the user) changed it back, a notification offers to fix it (once per set
 > must be added as an item of this window, with a short "what and why" text in `tools/gen_localization.py`, and
 > `SetupPolicy.CurrentVersion` must be bumped so users who completed the window see it once more.
 
+### Wake-on-LAN
+
+A phone wakes a sleeping PC with a magic packet (`macs` in `welcome`, see the protocol README); the PC has to let its
+network adapter do that.
+
+- **Reading** (`WakeOnLanService`, no admin rights, ~1 s, off the UI thread): PowerShell
+  (`WakeOnLan.InspectScript`: `Get-NetAdapter -Physical` + `Get-NetAdapterAdvancedProperty *WakeOnMagicPacket`) lists
+  the adapters that have the setting and whether they are connected, `powercfg /devicequery wake_armed` the devices
+  that may wake the PC, `wake_from_any` the devices that can (their driver and the firmware let them wake it from
+  sleep). An adapter is ready when all three are true; the item is ready when a connected adapter is
+  (`WakeOnLan.State`, tested); wired adapters first. A connected adapter that cannot (the TV laptop's Realtek card
+  with Windows' own driver: armed, magic packet on, yet the firmware lets only the Wi-Fi card wake it) is shown as
+  such, with a hint (the card maker's driver, the BIOS's Wake on LAN); there is nothing to apply then.
+  The look runs at the start, 5 s after the network changes, and when the setup window opens or applies.
+- **Applying**: the elevated helper (see "Firewall") gets `--wake-adapter "<name>"` for each adapter that is not
+  ready (and `--skip-firewall` when only this has something to do) and runs `WakeOnLan.FixScript`:
+  `Set-NetAdapterAdvancedProperty *WakeOnMagicPacket 1` (the adapter restarts: the network drops for a few seconds)
+  and `powercfg /deviceenablewake "<device>"`; exit code `5` when that failed. The window then reads the state again.
+- From sleep this works over a cable. From shutdown it also needs the BIOS ("Wake on LAN", often also Windows' fast
+  startup off), over Wi-Fi only some PCs can; the window's text says so, the companion does not change those.
+- `macs` (`WakeOnLanService.Macs`, from the last look): the connected, ready adapters (`WakeOnLan.WakeMacs`); `[]`
+  when there is none, so phones stop offering to wake a PC that cannot be woken; left out before the first look.
+- **Going to sleep**: `PowerService.Suspending` (before `SetSuspendState` for `sys sleep`, which now runs 300 ms after
+  its reply, and on `SystemEvents.PowerModeChanged` → `Suspend` for the Start menu, the lid and the idle timer; once
+  per sleep) sends `event sleeping` to every phone and waits up to 1 s for it to go out. The phones then show the PC
+  as asleep with "Wake up the PC" at once instead of noticing a missed `pong` up to 40 s later.
+
 ### Firewall
 
 Windows shows its "allow access" prompt the first time a program listens on the network. **Cancel** there silently
@@ -522,7 +559,8 @@ manages the rules itself:
   `SetupPolicy`) with unit tests.
 - **Applying** needs admin rights, the companion runs without them. It starts **one elevated copy of itself**
   (`Verb=runas`, one UAC prompt):
-  `Sofabird.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>"`.
+  `Sofabird.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>" [--skip-firewall]
+  [--wake-adapter "<name>"]…` (`SetupElevation`; the Wake-on-LAN part is described above).
   The helper removes the blocking rules, replaces our own rules for these paths with fresh ones — inbound allow,
   **private profile**, any protocol, names `Sofabird` and `VLC (Sofabird)` (the same as
   `deploy-windows.ps1 -Firewall`), group `Sofabird` — reads the rules again and exits: `0` OK, `2` bad arguments,
@@ -563,7 +601,7 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
   `getHistory continue/all`, `browse` with `progress`/`finished`, `historyUpdate finished`, `historyUpdate` of a
   non-file URI → `bad_request` in Russian. Next episode and VLC-side track changes — unit tests only.
 - Bluetooth (MediaTek adapter, no devices paired or connected, the radio state was not changed): the RFCOMM service
-  is published from a regular process without administrator rights (`… advertising on adapter 04:68:74:9A:2B:FC`), the
+  is published from a regular process without administrator rights (`… advertising on adapter 02:1A:2B:3C:4D:60`), the
   `bt` field is present in `/info`, the beacon and `welcome`, `caps` contains `bluetooth`; with `bluetooth: false` the
   field is absent; `--shutdown` removes the service. RFCOMM framing (`StreamLineTransport`) — unit tests.
 

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.BuildConfig
 import app.sofabird.R
+import app.sofabird.data.update.AppUpdates
 import app.sofabird.domain.model.AppSettings
 import app.sofabird.domain.model.ThemeMode
 import app.sofabird.ui.common.BluetoothPermissionDeniedDialog
@@ -47,6 +48,7 @@ import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.rememberBluetoothRequests
 import app.sofabird.ui.permissions.PermissionsSettingsSection
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
@@ -63,12 +65,26 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                 Section(stringResource(R.string.settings_permissions))
             }
         },
+        updates = {
+            val updates: AppUpdates = koinInject()
+            val state by updates.state.collectAsStateWithLifecycle()
+            val channel by updates.channel.collectAsStateWithLifecycle()
+            val uriHandler = LocalUriHandler.current
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            UpdatesSection(
+                UpdatesUi(updates.enabled, channel, state),
+                onChannel = updates::setChannel,
+                onCheck = updates::checkNow,
+                onInstall = updates::install,
+                onWhatsNew = { uriHandler.openUri(it.page) },
+            )
+        },
     )
 }
 
 /**
- * [update] changes the stored settings. [permissions] is the "Permissions" section: it reads the live system state,
- * so previews and screenshot tests leave it out.
+ * [update] changes the stored settings. [permissions] is the "Permissions" section and [updates] the "Updates" one:
+ * they read live state (the system, the app's update), so previews and screenshot tests leave them out.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,6 +95,7 @@ fun SettingsContent(
     versionName: String,
     versionCode: Int,
     permissions: @Composable () -> Unit = {},
+    updates: @Composable () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -171,6 +188,7 @@ fun SettingsContent(
             ) { v -> update { it.copy(keepConnectionInBackground = v) } }
 
             permissions()
+            updates()
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Section(stringResource(R.string.settings_about))
@@ -242,7 +260,7 @@ private fun BluetoothFallbackRow(checked: Boolean, onChange: (Boolean) -> Unit) 
 }
 
 @Composable
-private fun Section(text: String) {
+internal fun Section(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.titleMedium,
@@ -252,7 +270,7 @@ private fun Section(text: String) {
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

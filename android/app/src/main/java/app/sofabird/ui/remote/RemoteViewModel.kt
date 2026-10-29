@@ -3,6 +3,7 @@ package app.sofabird.ui.remote
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.sofabird.data.companion.BluetoothStatus
+import app.sofabird.data.player.PcWaker
 import app.sofabird.data.player.PlayerController
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.AppSettings
@@ -11,7 +12,10 @@ import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.companion.AudioDevice
 import app.sofabird.protocol.companion.Display
 import app.sofabird.protocol.model.Capabilities
+import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
+import app.sofabird.protocol.model.HistoryFilter
+import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.SystemState
 import app.sofabird.protocol.model.TrackKind
@@ -57,6 +61,10 @@ data class RemoteUiState(
     val launching: Boolean = false,
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
+    /** YouTube videos played on the TV (`getHistory youtube`); loaded when the "More" sheet opens. */
+    val recentVideos: List<HistoryItem> = emptyList(),
+    /** "Wake up the PC": `null` — not possible (direct VLC mode, or the companion never named its adapters). */
+    val wake: PcWaker.State? = null,
 ) {
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
 
@@ -74,6 +82,20 @@ data class RemoteUiState(
     /** YouTube is open in the TV browser: the remote controls it instead of VLC; `null` = it is not. */
     val youtube: YouTubeState?
         get() = state.youtube?.takeIf { it.open && capabilities.youtube && connection.isOnline }
+
+    /**
+     * The PC does not answer: nothing configured, a final error, or a reconnect that failed at least once (also a PC
+     * that said it went to sleep). The remote then offers "Connect" and, when it can, "Wake up the PC".
+     */
+    val offline: Boolean
+        get() = when (val c = connection) {
+            is ConnectionState.Failed, ConnectionState.Disconnected -> true
+            is ConnectionState.Connecting -> c.attempt > 0
+            else -> false
+        }
+
+    /** The PC said it went to sleep and has not answered since. */
+    val asleep: Boolean get() = (connection as? ConnectionState.Connecting)?.lastError == ConnectionError.PcAsleep
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
@@ -104,6 +126,7 @@ fun vlcBlockingStatus(companion: Boolean, connection: ConnectionState, vlc: VlcI
 class RemoteViewModel(
     private val controller: PlayerController,
     settings: SettingsRepository,
+    waker: PcWaker,
 ) : ViewModel() {
 
     /** What this screen adds to the player state; one flow, changed with [update]. */
@@ -115,6 +138,7 @@ class RemoteViewModel(
         val launching: Boolean = false,
         /** "Not now" on the Bluetooth card: hidden while this screen lives. */
         val bluetoothDismissed: Boolean = false,
+        val recentVideos: List<HistoryItem> = emptyList(),
     )
 
     private data class DisplayPanel(
@@ -135,9 +159,9 @@ class RemoteViewModel(
         combine(controller.state, controller.connection, controller.capabilities, ::Triple),
         settings.flow,
         controller.activeServer,
-        controller.bluetoothNeed,
+        combine(controller.bluetoothNeed, waker.state, ::Pair),
         local,
-    ) { (state, connection, caps), prefs, server, bluetoothNeed, l ->
+    ) { (state, connection, caps), prefs, server, (bluetoothNeed, wake), l ->
         RemoteUiState(
             state = state,
             connection = connection,
@@ -154,6 +178,8 @@ class RemoteViewModel(
             companionMode = server?.isCompanion == true,
             launching = l.launching,
             bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
+            recentVideos = l.recentVideos,
+            wake = wake.takeIf { server?.isCompanion == true && server.wakeMacs.isNotEmpty() },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
@@ -261,8 +287,16 @@ class RemoteViewModel(
     // ---------------------------------------------------------------- companion system controls
 
     /** Refresh audio devices / displays (only the lists the capabilities allow). */
+    /** The "More" sheet opened: audio devices, monitors and the YouTube videos played on the TV. */
     fun loadPcInfo() {
         val caps = controller.capabilities.value
+        if (caps.youtube && caps.history) {
+            viewModelScope.launch {
+                controller.history(HistoryFilter.YOUTUBE, RECENT_VIDEOS).onSuccess { page ->
+                    local.update { it.copy(recentVideos = page.items) }
+                }
+            }
+        }
         if (!caps.audioDevices && !caps.windowControl) return
         pcInfoJob?.cancel()
         pcInfoJob = viewModelScope.launch {
@@ -343,6 +377,7 @@ class RemoteViewModel(
     fun toggleSystemMute() = sendSystem(SystemCommand.SystemVolume(mute = controller.state.value.system?.muted != true))
 
     private companion object {
+        const val RECENT_VIDEOS = 20
         const val LAUNCH_WAIT_MS = 20_000L
 
         /** A finished scrub keeps its target this long, until VLC reports the new position. */

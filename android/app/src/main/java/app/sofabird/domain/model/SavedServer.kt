@@ -25,6 +25,8 @@ data class SavedServer(
     val pcId: String? = null,
     /** Companion PC's Bluetooth address (`welcome`/beacon/`/info` `bt`): RFCOMM fallback when the LAN is unavailable. */
     val btAddress: String? = null,
+    /** Companion PC's network adapters (`welcome.macs`): "Wake up the PC" when it does not answer. */
+    val wakeMacs: List<String> = emptyList(),
     /** The companion's encrypted WebSocket port (`tls.port`), once used. */
     val tlsPort: Int? = null,
     /** SHA-256 of the companion's certificate, pinned at the first encrypted connection: from then on only that. */
@@ -71,6 +73,8 @@ data class CompanionSighting(
     val host: String? = null,
     val wsPort: Int? = null,
     val btAddress: String? = null,
+    /** `welcome.macs`; `null` — not said. */
+    val macs: List<String>? = null,
 )
 
 /**
@@ -87,11 +91,13 @@ fun List<SavedServer>.matchSighting(sighting: CompanionSighting): SavedServer? {
 /**
  * Merges what was seen about this companion into the saved entry: a LAN address for a PC paired
  * over Bluetooth (or one that moved), the Bluetooth address for a PC paired over Wi-Fi, the GUID.
- * Never clears anything: a beacon without `bt` (radio off on the PC) keeps the known address.
+ * Never clears anything (a beacon without `bt`, radio off on the PC, keeps the known address) but `macs: []`.
  */
 fun SavedServer.mergeSighting(sighting: CompanionSighting): SavedServer = copy(
     host = sighting.host?.takeIf { it.isNotBlank() } ?: host,
     wsPort = sighting.wsPort?.takeIf { sighting.host?.isNotBlank() == true } ?: wsPort,
     btAddress = BtAddress.normalize(sighting.btAddress) ?: btAddress,
     pcId = pcId ?: sighting.pcId,
+    // The one exception: a companion saying `macs: []` means the PC cannot be woken (no "Wake up the PC" then).
+    wakeMacs = sighting.macs ?: wakeMacs,
 )

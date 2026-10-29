@@ -4,7 +4,8 @@ Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV (with uBlock Origin and
-SponsorBlock). Next: recently sent videos for YouTube, Wake-on-LAN and the sleep timer (§ 10).
+SponsorBlock); the app updates itself. Next, before the stable 0.4.0: YouTube history, Wake-on-LAN, encryption
+(§ 10).
 
 ## 0. Essence
 
@@ -338,6 +339,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       longer reads them, so the computer they are on can sleep (they are read when the library is opened).
 - [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
       updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
+- [x] **The app updates itself** (user request): it checks GitHub Releases when it comes to the front (at most every
+      6 h), asks once per version when the new builds change something users notice, downloads the APK and hands it
+      to the system installer (one confirmation by Android); Settings → "Updates": test builds or releases only.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
       item in the setup window, tray warning when Windows changes it back); after a monitor change the VLC window
       returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
@@ -359,16 +363,22 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       Sofabird TV extension signed by Mozilla (#55: exact state and seeking, ads told apart, "Skip", fullscreen without
       a key press; native messaging to the companion); the setup window's items and ad blocking (#57: install Firefox,
       "Sign in to YouTube…", uBlock Origin opt-in from the setup window or the phone); SponsorBlock (#59, user request:
-      opt-in like uBlock Origin, the browser restarts at the same moment). Left: recently sent videos on the phone;
-      later captions and quality.
+      opt-in like uBlock Origin, the browser restarts at the same moment); the YouTube history (user request: every
+      video played on the TV with where it stopped, in History, "Continue watching" and "More → Recently on the TV",
+      opened where it stopped). Later: captions and quality.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
-- [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
+- [x] **Wake-on-LAN** (user request): "Wake up the PC" on the phone's "No connection" card (the magic packet for the
+      MACs the companion names in `welcome`, then reconnecting for up to 90 s); the setup window turns on "Wake on
+      Magic Packet" and arms the adapter (the same elevated helper as the firewall).
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
       checks that the network adapter may wake the PC and warns about settings that prevent it (Fast Startup,
       wake on magic packet only). Best effort: Wake-on-Wireless is unreliable on laptops
-      ([transport-and-companion](research/transport-and-companion.md)), so verify on the TV laptop first.
+      ([transport-and-companion](research/transport-and-companion.md)). On the TV laptop the wired card turned out
+      unable to wake it from sleep (only its Wi-Fi card may, `powercfg /devicequery wake_from_any`): the companion
+      now checks that, says so in the setup window and offers no waking then. Not seen working on a device; shipped
+      as a feature anyway (owner's decision, 2026-10-29).
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
 - [ ] Fake-VLC scenario tests.
@@ -441,10 +451,10 @@ sofabird/
 
 ## 10. Next steps
 
-1. **YouTube, third part**: recently sent videos on the phone (M4).
-2. **Wake-on-LAN**: wake the PC from the phone (M4).
-3. **Sleep timer** (M4).
-4. **Fake-VLC scenario tests** (M4).
-5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
+Before the stable 0.4.0 (owner's list): the YouTube history, Wake-on-LAN and the encrypted connection are done
+(§ 9); left: **release v0.4.0**.
+
+Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

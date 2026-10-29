@@ -15,12 +15,16 @@ using Sofabird.Core.Pairing;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Setup;
 using Sofabird.Core.Updates;
+using Sofabird.Core.YouTube;
 using Sofabird.Companion.Localization;
 
 namespace Sofabird.Companion;
 
 internal static class Program
 {
+    /// <summary>How long Windows' sleep waits for "sleeping" to reach the phones (it allows about two seconds).</summary>
+    private static readonly TimeSpan SleepNoticeTimeout = TimeSpan.FromSeconds(1);
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -54,10 +58,10 @@ internal static class Program
             .CreateLogger();
 
         // Elevated firewall helper (started by the setup window with one UAC prompt): runs next to the main instance.
-        if (args.Contains(FirewallElevation.HelperArg, StringComparer.OrdinalIgnoreCase))
+        if (args.Contains(SetupElevation.HelperArg, StringComparer.OrdinalIgnoreCase))
         {
             using var helperLf = new SerilogLoggerFactory(Log.Logger, dispose: false);
-            try { return FirewallElevation.RunHelper(args, helperLf.CreateLogger("FirewallHelper")); }
+            try { return SetupElevation.RunHelper(args, helperLf.CreateLogger("FirewallHelper")); }
             finally { Log.CloseAndFlush(); }
         }
 
@@ -137,7 +141,7 @@ internal static class Program
         var vlc = new VlcManager(settings, installation, lua, lf, history);
         var pairing = new PairingService(new JsonFileTokenStore(paths.PairedDevicesFile));
         var display = new DisplayService(lf.CreateLogger<DisplayService>());
-        var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
+        using var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
         var audio = new AudioService(lf.CreateLogger<AudioService>());
         var audioWatcher = new AudioDeviceWatcher(lf.CreateLogger<AudioDeviceWatcher>());
         var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
@@ -161,14 +165,21 @@ internal static class Program
         using var youtubeMedia = new YouTubeMediaSession(settings.YouTubeSessionId,
             id => settingsStore.Update(s => s.YouTubeSessionId = id), lf.CreateLogger<YouTubeMediaSession>());
         _ = youtubeMedia.StartAsync();
+        using var youtubeHistory = new YouTubeHistory(Path.Combine(paths.DataDir, "youtube-history.json"),
+            logger: lf.CreateLogger<YouTubeHistory>());
         using var youtube = new YouTubeService(tvBrowser, youtubeMedia, tvPage, tvAddons, new FirefoxInstaller(lf.CreateLogger<FirefoxInstaller>()),
-            settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
+            youtubeHistory, settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
+        using var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
+        wake.Start();
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, youtube, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, youtubeHistory, wake, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
         pairing.Paired += d => sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = d.DeviceName });
+        // The phones drop the link at once and offer to wake the PC, instead of noticing a missed pong much later.
+        power.Suspending += () => sessions.PublishEventAsync(new EventMessage { Name = EventNames.Sleeping }).Wait(SleepNoticeTimeout);
+        power.Start();
 
         var tlsCertificate = TlsCertificate.LoadOrCreate(settings, settingsStore, lf.CreateLogger<WebServer>());
         var web = new WebServer(settings, host, sessions, vlc, tlsCertificate, lf.CreateLogger<WebServer>());
@@ -176,7 +187,7 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, lf.CreateLogger<SetupBackend>());
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, wake, lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
         SetupForm? earlySetup = null;

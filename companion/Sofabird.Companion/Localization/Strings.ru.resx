@@ -123,6 +123,14 @@
   <data name="SetupMediaStationDrift" xml:space="preserve"><value>⚠ Настройки электропитания изменились: {0}. Нажмите «Применить», чтобы вернуть их.</value></data>
   <data name="SetupMediaStationUnknown" xml:space="preserve"><value>Не удалось прочитать схему электропитания Windows</value></data>
   <data name="SetupMediaStationFailed" xml:space="preserve"><value>✗ Не удалось изменить схему электропитания ({0}). Подробности в журнале.</value></data>
+  <data name="SetupWakeTitle" xml:space="preserve"><value>Будить этот ПК с телефона</value></data>
+  <data name="SetupWakeText" xml:space="preserve"><value>Когда ПК спит, телефон предложит разбудить его по сети (Wake-on-LAN). Компаньон включает у сетевой карты «Wake on Magic Packet» и разрешает ей будить компьютер (один запрос администратора; сеть пропадёт на несколько секунд). Из сна это работает по кабелю; из выключенного состояния и по Wi‑Fi — зависит от ПК и настроек BIOS.</value></data>
+  <data name="SetupWakeReady" xml:space="preserve"><value>✓ Телефон сможет разбудить этот ПК: {0}</value></data>
+  <data name="SetupWakeOff" xml:space="preserve"><value>Выключено для: {0}</value></data>
+  <data name="SetupWakeUnsupported" xml:space="preserve"><value>Сетевые карты этого ПК не умеют его будить</value></data>
+  <data name="SetupWakeBlocked" xml:space="preserve"><value>✗ {0} не может будить этот ПК из сна: не позволяет драйвер или BIOS. Может помочь драйвер от производителя сетевой карты (вместо стандартного драйвера Windows) или настройка Wake on LAN в BIOS.</value></data>
+  <data name="SetupWakeCancelled" xml:space="preserve"><value>⚠ Права администратора не выданы. Нажмите «Применить», чтобы попробовать снова.</value></data>
+  <data name="SetupWakeFailed" xml:space="preserve"><value>✗ Не удалось включить пробуждение ({0}). Подробности в журнале.</value></data>
   <data name="PowerPluggedIn" xml:space="preserve"><value>от сети</value></data>
   <data name="PowerOnBattery" xml:space="preserve"><value>от батареи</value></data>
   <data name="PowerLidStops" xml:space="preserve"><value>закрытие крышки его останавливает ({0})</value></data>

@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import app.sofabird.data.discovery.DiscoveredHost
+import app.sofabird.data.player.PcWaker
 import app.sofabird.domain.model.AppSettings
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.domain.model.ServerMode
@@ -157,7 +158,19 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
 
     @Test
     fun remoteOffline() = snapshot("remote_offline") {
-        val state = RemoteUiState(connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true)
+        val state = RemoteUiState(
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            wake = PcWaker.State.IDLE,
+        )
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteWakeFailed() = snapshot("remote_wake_failed") {
+        val state = RemoteUiState(
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            wake = PcWaker.State.FAILED,
+        )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 
@@ -266,6 +279,10 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             "file:///D:/Movies/lotr.mkv", title = "The Lord of the Rings: The Fellowship of the Ring", position = 2246, length = 10705,
         )
         private val episode = HistoryItem("file:///D:/Series/Show.S01E02.mkv", name = "Show.S01E02.1080p.WEB-DL.mkv", finished = true)
+        private val video = HistoryItem(
+            "https://www.youtube.com/watch?v=aqz-KE-bpKQ", title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+            position = 125, length = 634, kind = HistoryItem.KIND_YOUTUBE, channel = "Blender",
+        )
 
         private val library = LibraryUiState(
             uri = "file:///D:/Movies/",
@@ -279,15 +296,15 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             favorites = listOf("file:///D:/Movies/"),
             online = true,
             historyEnabled = true,
-            continueCards = continueCards(listOf(lotr)),
+            continueCards = continueCards(listOf(lotr, video)),
         )
 
         private val history = HistoryUiState(
             available = true,
             online = true,
-            items = listOf(lotr, episode),
-            groups = listOf(HistoryGroup(DateGroup.TODAY, listOf(lotr)), HistoryGroup(DateGroup.THIS_WEEK, listOf(episode))),
-            total = 2,
+            items = listOf(lotr, video, episode),
+            groups = listOf(HistoryGroup(DateGroup.TODAY, listOf(lotr, video)), HistoryGroup(DateGroup.THIS_WEEK, listOf(episode))),
+            total = 3,
         )
 
         private fun file(name: String, progress: Double? = null, finished: Boolean? = null) =

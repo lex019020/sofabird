@@ -134,6 +134,23 @@ class HistoryProtocolTest {
     }
 
     @Test
+    fun `youtube videos in the history`() {
+        assertEquals("youtube", obj(CompanionMessage.GetHistory("9", HistoryFilter.YOUTUBE.wire))["filter"]!!.jsonPrimitive.content)
+        val msg = known(
+            """{"t":"history","id":"9","total":1,"items":[
+                {"uri":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","title":"Big Buck Bunny","position":125,"length":600,
+                 "progress":0.21,"finished":false,"lastWatched":1761768000000,"playCount":1,
+                 "artUrl":"https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg","kind":"youtube","channel":"Blender"}]}""",
+        ) as CompanionMessage.History
+        val video = msg.items.single()
+        assertTrue(video.isYouTube)
+        assertEquals("Blender", video.channel)
+        assertNull(video.folderUri)
+        assertFalse(HistoryItem("file:///x.mkv").isYouTube)
+        assertEquals(msg, known(CompanionCodec.encode(msg)))
+    }
+
+    @Test
     fun `item fraction falls back to position over length`() {
         assertEquals(0.25, HistoryItem("u", position = 300, length = 1200).fraction, 1e-9)
         assertEquals(0.5, HistoryItem("u", position = 300, length = 1200, progress = 0.5).fraction, 1e-9)

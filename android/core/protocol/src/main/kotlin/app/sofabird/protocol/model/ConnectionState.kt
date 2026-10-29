@@ -47,6 +47,12 @@ sealed class ConnectionError {
      */
     data object CertificateChanged : ConnectionError()
 
+    /**
+     * Companion: the PC said it was going to sleep (`event sleeping`) and has not answered since. Retried with a
+     * backoff (it may wake by itself); the remote offers to wake it.
+     */
+    data object PcAsleep : ConnectionError()
+
     data class Other(val message: String?) : ConnectionError()
 }
 

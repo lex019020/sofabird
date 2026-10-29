@@ -16,6 +16,11 @@ public interface ISessionHost
     VlcInfo VlcInfo { get; }
     /// <summary>Bluetooth adapter address for <c>welcome.bt</c>; <c>null</c> — no adapter, radio off or Bluetooth disabled.</summary>
     string? BluetoothAddress { get; }
+    /// <summary>
+    /// <c>welcome.macs</c> (Wake-on-LAN): the adapters that will wake the PC; empty — it cannot be woken; <c>null</c> —
+    /// not known yet (left out).
+    /// </summary>
+    IReadOnlyList<string>? WakeMacs { get; }
     /// <summary>The encrypted WebSocket for <c>welcome.tls</c>; <c>null</c> — none.</summary>
     TlsInfo? Tls { get; }
     PairingService Pairing { get; }
@@ -36,7 +41,7 @@ public interface ISessionHost
     Task<TracksInfo> GetTracksAsync(CancellationToken ct);
     Task<IReadOnlyList<AudioDeviceEntry>> GetAudioDevicesAsync(CancellationToken ct);
 
-    /// <summary><c>getHistory</c> with a validated <paramref name="filter"/> (<c>continue</c>|<c>all</c>) and paging.</summary>
+    /// <summary><c>getHistory</c> with a validated <paramref name="filter"/> (<c>continue</c>|<c>all</c>|<c>youtube</c>) and paging.</summary>
     Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct);
     /// <summary><c>historyUpdate</c>: mark watched/unwatched (<paramref name="finished"/>) or <paramref name="remove"/>.</summary>
     Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct);

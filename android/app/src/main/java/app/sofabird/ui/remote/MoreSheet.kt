@@ -58,10 +58,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
+import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
+import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.formatRate
 import app.sofabird.ui.common.rememberTick
+import app.sofabird.ui.history.RecentVideosRow
 
 private val RATE_PRESETS = listOf(0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2.21:1", "2.35:1", "2.39:1", "5:4")
@@ -198,6 +201,9 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                     onAdBlock = { tick(); viewModel.sendSystem(SystemCommand.YouTubeAdBlock(it)) },
                     sponsorBlock = ui.state.youtube?.sponsorBlock,
                     onSponsorBlock = { tick(); viewModel.sendSystem(SystemCommand.YouTubeSponsorBlock(it)) },
+                    recent = ui.recentVideos,
+                    // The companion opens a video of the history on the TV where it stopped.
+                    onRecent = { tick(); viewModel.send(PlayerCommand.Open(it.uri)); onDismiss() },
                 ) {
                     tick()
                     viewModel.sendSystem(SystemCommand.YouTubeOpen(it))
@@ -373,6 +379,8 @@ internal fun YouTubeLinkSection(
     onAdBlock: (Boolean) -> Unit = {},
     sponsorBlock: Boolean? = null,
     onSponsorBlock: (Boolean) -> Unit = {},
+    recent: List<HistoryItem> = emptyList(),
+    onRecent: (HistoryItem) -> Unit = {},
     onOpen: (String) -> Unit,
 ) {
     var link by remember { mutableStateOf(initial) }
@@ -401,6 +409,14 @@ internal fun YouTubeLinkSection(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 8.dp),
     )
+    if (recent.isNotEmpty()) {
+        Text(
+            stringResource(R.string.youtube_recent),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+        )
+        RecentVideosRow(recent, enabled, onRecent)
+    }
     if (adBlock != null) {
         Spacer(Modifier.height(8.dp))
         AddonSwitch(stringResource(R.string.youtube_block_ads), adBlock, enabled, onAdBlock)

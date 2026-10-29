@@ -143,6 +143,9 @@ class CompanionBackend(
 
     @Volatile private var pongDeferred: CompletableDeferred<Unit>? = null
 
+    /** The PC said it was going to sleep (`event sleeping`); until it answers again the link is "asleep". */
+    @Volatile private var asleep = false
+
     /** [artRoute]: an encrypted LAN link's host and port, where the artwork is fetched too; [newPin]: trust on first use. */
     private class Link(
         val transport: CompanionTransport,
@@ -199,9 +202,10 @@ class CompanionBackend(
             _connection.value = ConnectionState.Connecting(attempt, lastError)
             try {
                 runSession()
-                // Clean close from the other side: reconnect quickly.
+                // Clean close from the other side: reconnect quickly. A PC going to sleep is given time to fall
+                // asleep first: a link opened in its last second would hang until a pong is missed.
                 lastError = ConnectionError.Other("closed")
-                attempt = 0
+                attempt = if (asleep) ASLEEP_FIRST_ATTEMPT else 0
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CompanionHandshakeException) {
@@ -218,6 +222,7 @@ class CompanionBackend(
                 transport = null
                 failPending(IllegalStateException("connection lost"))
             }
+            if (asleep) lastError = ConnectionError.PcAsleep // the remote offers to wake it
             if (_connection.value !is ConnectionState.Failed) {
                 _connection.value = ConnectionState.Connecting(attempt + 1, lastError)
             }
@@ -359,6 +364,7 @@ class CompanionBackend(
         _capabilities.value = Capabilities.fromWire(welcome.caps)
         _state.value = _state.value.copy(vlc = welcome.vlc.copy(level = 2))
         _bluetoothNeed.value = null
+        asleep = false
         _connection.value = ConnectionState.Connected(hostName, level = 2, transport = currentKind)
         wake.tryReceive() // a stale "retry now" must not skip a future backoff
         runCatching { onWelcome(welcome, link.newPin) }.onFailure { Log.w(TAG, "onWelcome failed", it) }
@@ -419,9 +425,13 @@ class CompanionBackend(
                 }
                 is CompanionMessage.Pong -> pongDeferred?.complete(Unit)
                 is CompanionMessage.Ping -> t.sendMessage(CompanionMessage.Pong())
-                is CompanionMessage.Event -> {
-                    if (msg.name == "vlcExited") {
-                        _state.value = _state.value.copy(vlc = _state.value.vlc.exited())
+                is CompanionMessage.Event -> when (msg.name) {
+                    "vlcExited" -> _state.value = _state.value.copy(vlc = _state.value.vlc.exited())
+                    // Windows suspends in a moment: end the link now instead of noticing it by a missed pong.
+                    "sleeping" -> {
+                        Log.i(TAG, "$hostName is going to sleep")
+                        asleep = true
+                        return
                     }
                 }
                 else -> {
@@ -582,5 +592,8 @@ class CompanionBackend(
     private companion object {
         const val TAG = "CompanionBackend"
         const val DRAIN_POLL_MS = 50L
+
+        /** After `event sleeping` the first retry waits [Backoff] of this attempt (~8 s). */
+        const val ASLEEP_FIRST_ATTEMPT = 3
     }
 }

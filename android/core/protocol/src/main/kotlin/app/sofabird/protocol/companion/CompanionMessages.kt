@@ -158,6 +158,11 @@ sealed class CompanionMessage {
         val vlc: VlcInfo = VlcInfo(),
         /** PC Bluetooth adapter address (`AA:BB:CC:DD:EE:FF`); absent without an adapter or with BT off. */
         val bt: String? = null,
+        /**
+         * MACs of the connected adapters that will wake the PC from sleep (wired first): the phone wakes it with them
+         * ([MagicPacket]). Empty — it cannot be woken; `null` — not said (an older companion, or not known yet).
+         */
+        val macs: List<String>? = null,
         /** The encrypted WebSocket; `null` — an older companion (plain `ws` only). */
         val tls: TlsInfo? = null,
     ) : CompanionMessage() {
@@ -326,6 +331,8 @@ sealed class CompanionMessage {
         val needsPairing: Boolean = false,
         /** PC Bluetooth adapter address, see [Welcome.bt]. */
         val bt: String? = null,
+        /** See [Welcome.macs]. */
+        val macs: List<String>? = null,
         /** See [Welcome.tls]. */
         val tls: TlsInfo? = null,
     ) : CompanionMessage() {
@@ -400,6 +407,8 @@ data class CompanionInfo(
     val needsPairing: Boolean = false,
     /** PC Bluetooth adapter address, see [CompanionMessage.Welcome.bt]. */
     val bt: String? = null,
+    /** See [CompanionMessage.Welcome.macs]. */
+    val macs: List<String>? = null,
     /** See [CompanionMessage.Welcome.tls]. */
     val tls: TlsInfo? = null,
 )

@@ -63,6 +63,7 @@ import app.sofabird.data.player.PlayerEvent
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.permissions.PermissionRegistry
+import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.protocol.model.TransportKind
 import app.sofabird.ui.common.LabelText
@@ -79,6 +80,7 @@ import app.sofabird.ui.permissions.isGranted
 import app.sofabird.ui.playlist.PlaylistScreen
 import app.sofabird.ui.remote.RemoteScreen
 import app.sofabird.ui.settings.SettingsScreen
+import app.sofabird.ui.update.UpdatePromptHost
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -205,6 +207,9 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
         }
         false -> Unit
     }
+
+    // "Update available" — once per version, not over the permissions screen.
+    UpdatePromptHost()
 
     val showChrome = route in Routes.tabs
     Scaffold(
@@ -382,10 +387,11 @@ fun connectionSummary(connection: ConnectionState): Pair<Color, String> {
     val context = LocalContext.current
     return when (connection) {
         is ConnectionState.Disconnected -> Color.Gray to stringResource(R.string.state_disconnected)
-        is ConnectionState.Connecting -> MaterialTheme.colorScheme.tertiary to (
-            if (connection.attempt == 0) stringResource(R.string.state_connecting)
-            else stringResource(R.string.state_reconnecting, connection.attempt)
-            )
+        is ConnectionState.Connecting -> MaterialTheme.colorScheme.tertiary to when {
+            connection.lastError == ConnectionError.PcAsleep -> stringResource(R.string.state_asleep)
+            connection.attempt == 0 -> stringResource(R.string.state_connecting)
+            else -> stringResource(R.string.state_reconnecting, connection.attempt)
+        }
         is ConnectionState.Connected -> Color(0xFF4CAF50) to buildString {
             append(
                 when (connection.level) {

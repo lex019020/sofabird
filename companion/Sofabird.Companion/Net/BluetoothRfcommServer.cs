@@ -353,7 +353,7 @@ public sealed class BluetoothRfcommServer : IAsyncDisposable
     {
         try
         {
-            // Bluetooth host names look like "(04:68:74:9a:2b:fc)".
+            // Bluetooth host names look like "(02:1a:2b:3c:4d:60)".
             var raw = socket.Information.RemoteHostName?.RawName ?? socket.Information.RemoteAddress?.RawName ?? "?";
             return raw.Trim('(', ')', '{', '}').ToUpperInvariant();
         }

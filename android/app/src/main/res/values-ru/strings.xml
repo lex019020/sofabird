@@ -20,6 +20,7 @@
     <string name="state_disconnected">Не подключено</string>
     <string name="state_connecting">Подключение…</string>
     <string name="state_reconnecting">Переподключение (попытка %1$d)…</string>
+    <string name="state_asleep">ПК спит</string>
     <string name="state_degraded">ПК не отвечает, пробую снова…</string>
     <string name="level_http">VLC по HTTP</string>
     <string name="level_lua">VLC + Lua‑страницы</string>
@@ -57,8 +58,12 @@
     <string name="not_connected_title">Нет подключения</string>
     <string name="vlc_not_running_title">VLC не запущен</string>
     <string name="nothing_playing">Ничего не играет</string>
+    <string name="pc_asleep">%1$s спит</string>
     <string name="no_link_with">Нет связи с %1$s</string>
     <string name="no_server_configured">ПК ещё не настроен</string>
+    <string name="action_wake_pc">Разбудить ПК</string>
+    <string name="waking_pc">Будим %1$s…</string>
+    <string name="wake_pc_failed">ПК не проснулся</string>
     <string name="action_connect">Подключить</string>
     <string name="action_disconnect">Отключиться</string>
     <string name="action_play">Воспроизвести</string>
@@ -223,6 +228,8 @@
     <string name="youtube_link_hint">Ссылка на видео YouTube</string>
     <string name="action_paste">Вставить</string>
     <string name="action_youtube_show">Показать на ТВ</string>
+    <string name="youtube_recent">Недавно на ТВ</string>
+    <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>
     <string name="action_youtube_close">Закрыть YouTube</string>
     <string name="youtube_ad">Реклама</string>
@@ -237,6 +244,27 @@
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
+    <string name="settings_updates">Обновления</string>
+    <string name="updates_test_builds">Тестовые сборки</string>
+    <string name="updates_test_builds_hint">Новая сборка после каждого изменения. Выключено — только релизы</string>
+    <string name="updates_checking">Проверка обновлений…</string>
+    <string name="updates_latest">Установлена последняя версия</string>
+    <string name="updates_check_failed">Не удалось проверить обновления. Проверьте подключение к интернету</string>
+    <string name="updates_available">Доступна версия %1$s</string>
+    <string name="updates_downloading">Загрузка…</string>
+    <string name="updates_downloading_percent">Загрузка… %1$d%%</string>
+    <string name="updates_installing">Ожидание установщика…</string>
+    <string name="updates_install_failed">Не удалось установить обновление</string>
+    <string name="updates_permission_hint">Разрешите Sofabird устанавливать приложения и снова нажмите «Обновить»</string>
+    <string name="updates_check">Проверить</string>
+    <string name="updates_install">Обновить</string>
+    <string name="updates_later">Позже</string>
+    <string name="updates_whats_new">Что нового</string>
+    <string name="updates_disabled">Эта сборка не обновляется сама.</string>
+    <string name="update_title">Доступно обновление</string>
+    <string name="update_text">Sofabird %1$s готов к установке.</string>
+    <string name="update_text_size">Sofabird %1$s готов к установке (%2$s).</string>
+    <string name="update_confirm_hint">Android попросит подтвердить установку.</string>
 
     <!-- Pairing and VLC state -->
     <string name="close">Закрыть</string>
@@ -277,6 +305,7 @@
     <string name="unit_ms">мс</string>
 
     <!-- Bluetooth (M3) -->
+    <string name="err_pc_asleep">ПК спит</string>
     <string name="err_bluetooth_failed">Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен</string>
     <string name="err_certificate_changed">ПК предъявил другой сертификат безопасности, чем при сопряжении с телефоном</string>
     <string name="hint_certificate_changed">Если компаньон переустанавливали, выполните сопряжение заново с кодом с экрана ПК. Иначе в сети может быть кто-то, кто выдаёт себя за ваш ПК.</string>

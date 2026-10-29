@@ -37,6 +37,27 @@ DataStore 1.1.1, Coil 3.0.4, security‑crypto 1.1.0‑alpha06. `compileSdk`/`ta
 - Version: `versionName` from the `VERSION` file + `-Psofabird.versionSuffix=beta0042`, `versionCode` from
   `-Psofabird.versionCode=<number of commits>`. Shown in "Settings → About".
 
+## Updates
+
+The app updates itself from GitHub Releases, like the companion (`data/update`):
+
+- `AppUpdates` asks `GET api.github.com/repos/lex019020/sofabird/releases` when the app comes to the front (the first
+  time in a run, then at most every 6 h; a failed quiet check changes nothing). `ReleaseFeed.newest` (pure, tested)
+  picks the newest release of the channel newer than the installed version (SemVer, `AppVersion`: a release is newer
+  than its test builds) that has `Sofabird-<version>.apk`.
+- Channel (Settings → "Updates" → "Test builds", DataStore `updates`): by default the one of the installed build — a
+  test build follows test builds (and releases), a release follows releases. Debug and `-local` builds never update
+  themselves (the section says so).
+- A dialog asks once per version ("Later" puts that version off; the settings still offer it), and only when one of
+  the new builds changed something users notice: a docs-only merge also makes a test build, whose notes are
+  "No user-visible changes.".
+- "Update" downloads the APK into the cache (progress in the dialog / settings), checks that it is `app.sofabird` at
+  the expected version, and commits it to a `PackageInstaller` session; `UpdateInstallReceiver` opens the system's
+  confirmation (Android asks every time for apps outside a store), a "Cancel" returns to "available". Android checks
+  the signature, so only builds signed with our key install. The first time Android asks to allow
+  "Install unknown apps" for Sofabird (`REQUEST_INSTALL_PACKAGES`); the app opens that page. A Google Play build would
+  have to leave this out (Play forbids updating outside it).
+
 ## Structure
 
 ```
@@ -261,6 +282,19 @@ Behaviour:
 **Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
 connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
+## Wake-on-LAN
+
+The companion names the adapters that will wake it in `welcome.macs`; they are kept with the saved PC
+(`SavedServer.wakeMacs`, merged like the Bluetooth address: an absent `macs` keeps them, `[]` — the PC cannot be
+woken — clears them, and the remote offers no waking). When the PC does not answer (`RemoteUiState.offline`: a final
+error, or a reconnect that failed at least once), the remote's "No connection" card offers **Wake up the PC**
+(`PcWaker`) as its first button. A companion going to sleep says so (`event sleeping`): `CompanionBackend` ends the
+link at once, keeps `ConnectionError.PcAsleep` as the reason until the PC answers again ("<PC> is asleep"), and
+retries after ~8 s, then with its backoff (at most 15 s), in case the PC wakes by itself. Waking sends the magic packet (`MagicPacket`, `:core:protocol`, tested) for every MAC as a
+UDP broadcast (`255.255.255.255` and the subnet's, ports 9 and 7), then reconnecting every 4 s and sending again every
+15 s, for up to 90 s; the card says "Waking up …" meanwhile and "The PC did not wake up" when it did not. The PC's
+side is an item of the companion's setup window.
+
 ## Encryption
 
 `lanRoutes` (`:core:protocol`, tested) decides how to reach the companion on the LAN: a pinned PC
@@ -309,6 +343,11 @@ The companion is the source of truth: the phone keeps no history of its own.
   toolbar then sticks to the top. With nothing to continue the row is replaced by a "History" link; the row header
   has a "History" button too. Files of the folder that are in the history show a thin progress bar (started) or a
   check mark (finished), from the optional `progress` / `finished` of `entries`.
+- **YouTube videos** (`kind: "youtube"`, `HistoryItem.isYouTube`): in "Continue watching" with a video icon before the
+  time, in History with the thumbnail (`VideoThumbnail`, loaded from YouTube by the phone) and the channel, and in
+  "More → YouTube on the TV" → "Recently on the TV" (`getHistory youtube`, up to 20, loaded when the sheet opens;
+  `RecentVideosRow`). A tap sends `cmd open {uri}` like for a file: the companion opens the video on the TV where it
+  stopped.
 - **History screen** (route `history`): `getHistory all`, pages of 50 loaded as the end comes into view; grouped
   into Today / Yesterday / This week (calendar week, first day from the locale) / Earlier (`groupHistoryByDate`,
   clock injectable); each row: title, folder, progress bar + times or "Watched" with a check mark. Swipe left to
@@ -330,11 +369,13 @@ The companion is the source of truth: the phone keeps no history of its own.
 - Bluetooth pairing (phone ↔ PC) is done in the Android/Windows settings; the app does not initiate it and
   does not search for new devices (no `BLUETOOTH_SCAN`). `CompanionDeviceManager` is not used.
 - Artwork and thumbnails are not transferred over Bluetooth (`/art` is HTTP over the LAN).
+- Waking the PC (Wake-on-LAN) has not been seen working on a device: the TV laptop's wired card cannot wake it from
+  sleep (its firmware lets only the Wi-Fi card), which the companion now tells. It ships as is (owner's decision,
+  2026-10-29); the magic packet itself is tested.
 
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- Wake-on-LAN: a "Wake up the PC" action when the saved PC does not answer (next).
 - Sleep timer (next).
 - A Quick Settings tile, a Glance widget.
 - Landscape and tablet layouts (postponed).
