@@ -9,6 +9,7 @@ using Sofabird.Core.Pairing;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Session;
 using Sofabird.Core.Streaming;
+using Sofabird.Core.YouTube;
 using Message = Sofabird.Core.Protocol.Message;
 using Sofabird.Core.Localization;
 
@@ -30,6 +31,7 @@ public sealed class CompanionHost : ISessionHost
     private readonly LibraryService _library;
     private readonly MoonlightService _moonlight;
     private readonly YouTubeService _youtube;
+    private readonly YouTubeHistory _youtubeHistory;
     private readonly WakeOnLanService _wake;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
@@ -37,7 +39,8 @@ public sealed class CompanionHost : ISessionHost
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
-        LibraryService library, MoonlightService moonlight, YouTubeService youtube, WakeOnLanService wake, ILogger<CompanionHost> log)
+        LibraryService library, MoonlightService moonlight, YouTubeService youtube, YouTubeHistory youtubeHistory,
+        WakeOnLanService wake, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -51,6 +54,7 @@ public sealed class CompanionHost : ISessionHost
         _library = library;
         _moonlight = moonlight;
         _youtube = youtube;
+        _youtubeHistory = youtubeHistory;
         _wake = wake;
         _log = log;
         _baseCaps =
@@ -94,6 +98,8 @@ public sealed class CompanionHost : ISessionHost
         _moonlight.Changed += _vlc.Poke;
         _youtube.Changed += _vlc.Poke;
         _vlc.YouTubeInfoProvider = _youtube.Info;
+        _vlc.YouTubeHistoryRevision = () => _youtubeHistory.Revision;
+        _youtubeHistory.Changed += _vlc.Poke;
         _youtube.PlaceOnTv = window => PlaceOnTv(window, null);
         _moonlight.PlaceOnTv = window => PlaceOnTv(window, null);
         Displays.TvScreenChosen += OnTvScreenChosen;
@@ -255,6 +261,12 @@ public sealed class CompanionHost : ISessionHost
 
     public Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct)
     {
+        // A YouTube video of the history ("Continue watching"): to the TV browser, where it stopped.
+        if (name == "open" && YouTubeHistory.VideoIdOf(args.GetString("uri")) is not null && _youtube.Available)
+        {
+            _youtube.Open(args.GetString("uri")!);
+            return Task.CompletedTask;
+        }
         // One thing on the TV at a time: the TV browser would cover what VLC starts, and the phones would stay in
         // their YouTube mode.
         if (StartsVlcItem(name, args)) _youtube.CloseForVlc();
@@ -372,14 +384,26 @@ public sealed class CompanionHost : ISessionHost
     public async Task<HistoryMessage> GetHistoryAsync(string filter, int limit, int offset, CancellationToken ct)
     {
         var store = HistoryStore;
+        var youtube = _youtubeHistory.Items(filter);
+        if (filter == "youtube") return Page(youtube, limit, offset);
         // "continue" lists series folders (possibly on a network share): off the session thread.
-        var (total, items) = await Task.Run(() => store.Query(filter, limit, offset), ct).ConfigureAwait(false);
-        return new HistoryMessage { Total = total, Items = items };
+        var (_, files) = await Task.Run(() => store.Query(filter, int.MaxValue, 0), ct).ConfigureAwait(false);
+        return Page(YouTubeHistory.Merge(files, youtube), limit, offset);
     }
+
+    private static HistoryMessage Page(List<HistoryItem> items, int limit, int offset) =>
+        new() { Total = items.Count, Items = items.Skip(offset).Take(limit).ToList() };
 
     public Task UpdateHistoryAsync(string uri, bool? finished, bool remove, CancellationToken ct)
     {
         var store = HistoryStore;
+        if (YouTubeHistory.VideoIdOf(uri) is { } videoId)
+        {
+            var changed = remove ? _youtubeHistory.Remove(videoId) : finished is bool done && _youtubeHistory.SetFinished(videoId, done);
+            _log.LogInformation("YouTube history: {Video} {Action} by a phone ({Result})", videoId,
+                remove ? "removed" : finished == true ? "marked watched" : "marked unwatched", changed ? "done" : "nothing to change");
+            return Task.CompletedTask;
+        }
         if (MediaUri.Normalize(uri) is null) throw ProtocolException.BadRequest(ProtocolText.HistoryNotAFile(uri));
         if (remove)
         {
@@ -398,6 +422,7 @@ public sealed class CompanionHost : ISessionHost
     public Task ClearHistoryAsync(CancellationToken ct)
     {
         HistoryStore.Clear();
+        _youtubeHistory.Clear();
         _log.LogInformation("History cleared by a phone");
         _vlc.Poke();
         return Task.CompletedTask;

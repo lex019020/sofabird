@@ -265,6 +265,10 @@ public sealed class HistoryItem
     public string? ArtUrl { get; set; }
     /// <summary>The next episode of a series (in the <c>continue</c> list); absent otherwise.</summary>
     public bool? Next { get; set; }
+    /// <summary><c>youtube</c> — a video played in the TV browser (<see cref="Uri"/> is its watch page); absent — a file.</summary>
+    public string? Kind { get; set; }
+    /// <summary>The YouTube channel of a <c>youtube</c> item.</summary>
+    public string? Channel { get; set; }
 }
 
 public sealed class HistoryMessage : Message

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -325,13 +326,25 @@ private fun ContinueCardView(card: ContinueCard, modifier: Modifier, onClick: ()
             } else {
                 WatchProgressBar(card.fraction, Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    positionOfLength(card.position, card.length),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (card.item.isYouTube) {
+                        // A YouTube video (it opens on the TV in the browser).
+                        Icon(
+                            Icons.Default.SmartDisplay,
+                            contentDescription = stringResource(R.string.history_youtube),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        positionOfLength(card.position, card.length),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

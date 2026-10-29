@@ -14,6 +14,8 @@ import app.sofabird.protocol.companion.Display
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
+import app.sofabird.protocol.model.HistoryFilter
+import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.SystemState
 import app.sofabird.protocol.model.TrackKind
@@ -59,6 +61,8 @@ data class RemoteUiState(
     val launching: Boolean = false,
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
+    /** YouTube videos played on the TV (`getHistory youtube`); loaded when the "More" sheet opens. */
+    val recentVideos: List<HistoryItem> = emptyList(),
     /** "Wake up the PC": `null` — not possible (direct VLC mode, or the companion never named its adapters). */
     val wake: PcWaker.State? = null,
 ) {
@@ -134,6 +138,7 @@ class RemoteViewModel(
         val launching: Boolean = false,
         /** "Not now" on the Bluetooth card: hidden while this screen lives. */
         val bluetoothDismissed: Boolean = false,
+        val recentVideos: List<HistoryItem> = emptyList(),
     )
 
     private data class DisplayPanel(
@@ -173,6 +178,7 @@ class RemoteViewModel(
             companionMode = server?.isCompanion == true,
             launching = l.launching,
             bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
+            recentVideos = l.recentVideos,
             wake = wake.takeIf { server?.isCompanion == true && server.wakeMacs.isNotEmpty() },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
@@ -281,8 +287,16 @@ class RemoteViewModel(
     // ---------------------------------------------------------------- companion system controls
 
     /** Refresh audio devices / displays (only the lists the capabilities allow). */
+    /** The "More" sheet opened: audio devices, monitors and the YouTube videos played on the TV. */
     fun loadPcInfo() {
         val caps = controller.capabilities.value
+        if (caps.youtube && caps.history) {
+            viewModelScope.launch {
+                controller.history(HistoryFilter.YOUTUBE, RECENT_VIDEOS).onSuccess { page ->
+                    local.update { it.copy(recentVideos = page.items) }
+                }
+            }
+        }
         if (!caps.audioDevices && !caps.windowControl) return
         pcInfoJob?.cancel()
         pcInfoJob = viewModelScope.launch {
@@ -363,6 +377,7 @@ class RemoteViewModel(
     fun toggleSystemMute() = sendSystem(SystemCommand.SystemVolume(mute = controller.state.value.system?.muted != true))
 
     private companion object {
+        const val RECENT_VIDEOS = 20
         const val LAUNCH_WAIT_MS = 20_000L
 
         /** A finished scrub keeps its target this long, until VLC reports the new position. */

@@ -3,6 +3,7 @@ package app.sofabird
 import android.app.Application
 import app.sofabird.data.player.PlayerController
 import app.sofabird.data.servers.CompanionServerSync
+import app.sofabird.data.update.AppUpdates
 import app.sofabird.di.appModule
 import app.sofabird.service.ServiceCoordinator
 import coil3.ImageLoader
@@ -22,6 +23,7 @@ class SofabirdApp : Application(), SingletonImageLoader.Factory {
     private val controller: PlayerController by inject()
     private val serviceCoordinator: ServiceCoordinator by inject()
     private val serverSync: CompanionServerSync by inject()
+    private val updates: AppUpdates by inject()
 
     override fun onCreate() {
         super.onCreate()
@@ -33,6 +35,7 @@ class SofabirdApp : Application(), SingletonImageLoader.Factory {
         serviceCoordinator.start()
         serverSync.start()
         controller.autoConnectLast()
+        updates.start()
     }
 
     /** Coil shares the OkHttp client so `/art` requests get the `Authorization` header. */

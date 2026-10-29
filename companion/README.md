@@ -331,6 +331,14 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
   startup and once a day (with the track choices of folders left without entries).
 - **Logs.** INFO: resume prompt, answer, cleared without an answer, next-episode offer, applied/remembered track
   choices, phone marks/removals.
+- **YouTube videos** (`YouTubeHistory`, `youtube-history.json`): what the TV extension reports — the video, title,
+  channel, length and where it stopped — is kept for every video played in the TV browser (sent from a phone or
+  played by YouTube itself): on every change the page reports, and every 10 s while it plays (`YouTubeService`'s
+  timer); ads and live streams (no length) are not; less than 5% left = finished; at most 500, 183 days. Phones get
+  them in `getHistory` (`kind: "youtube"`, the thumbnail as `artUrl`; `continue` from 15 s watched; the filter
+  `youtube` for the videos alone); `cmd open` with a YouTube link goes to the TV browser, and a video watched before
+  opens where it stopped (also through `youtubeOpen` when the link has no `t`). `state.history.revision` is the sum of
+  both histories' revisions.
 
 ## Library
 
@@ -464,6 +472,7 @@ VLC Remote Companion (`%LocalAppData%\VlcRemote\`), stops and uninstalls it and 
 | `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
+| `youtube-history.json` | the YouTube videos played on the TV and where they stopped (see "Watch history") |
 | `logs\companion-YYYYMMDD.log` | Serilog, daily rotation, 14 files |
 
 The VLC HTTP interface password is never written to the log.
