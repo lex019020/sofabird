@@ -360,6 +360,7 @@
     <string name="media_view_folders">Папки</string>
     <string name="media_filter_all">Все</string>
     <string name="media_movies">Фильмы</string>
+    <string name="media_missing_folders">Компьютер сейчас не видит %1$s: отключён диск или выключен компьютер с сетевой папкой? Её фильмы и сериалы вернутся, когда она снова будет доступна.</string>
     <string name="media_shows">Сериалы</string>
     <string name="media_scanning">ПК просматривает медиапапки…</string>
     <string name="media_empty">Фильмов и сериалов пока нет. Выберите медиапапки на ПК: значок в трее → Настройка и разрешения → Медиапапки.</string>

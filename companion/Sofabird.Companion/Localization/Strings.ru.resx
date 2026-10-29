@@ -113,6 +113,7 @@
   <data name="SetupMediaPick" xml:space="preserve"><value>Выберите папку с фильмами или сериалами</value></data>
   <data name="SetupMediaNone" xml:space="preserve"><value>Папок пока нет: телефон показывает только диски</value></data>
   <data name="SetupMediaCount" xml:space="preserve"><value>Папок: {0}</value></data>
+  <data name="SetupMediaMissing" xml:space="preserve"><value>Сейчас недоступно: {0}. Отключён диск или выключен компьютер с сетевой папкой?</value></data>
   <data name="SetupMediaTmdb" xml:space="preserve"><value>Постеры и описания: TMDB. Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.</value></data>
   <data name="SetupMediaStationTitle" xml:space="preserve"><value>Этот ПК — медиастанция</value></data>
   <data name="SetupMediaStationText" xml:space="preserve"><value>Для компьютера или ноутбука у телевизора: он продолжает работать с закрытой крышкой и сам не засыпает и не уходит в гибернацию — и от сети, и от батареи, чтобы его не остановило даже отключение света. Компаньон меняет эти настройки текущей схемы электропитания Windows; если потом снять галочку, они не вернутся назад. Экран по‑прежнему может гаснуть, а телевизор — уходить в дежурный режим.</value></data>

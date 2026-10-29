@@ -37,7 +37,8 @@ public sealed record SetupSnapshot(
     IReadOnlyList<string>? MediaFolders = null,
     string? Browser = null,
     bool BlockAds = false,
-    bool SkipSponsors = false);
+    bool SkipSponsors = false,
+    IReadOnlyList<string>? MissingMediaFolders = null);
 
 /// <summary>What the user ticked.</summary>
 public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
@@ -142,7 +143,8 @@ public sealed class SetupBackend : ISetupBackend
         return new SetupSnapshot(fw, fwError, publicNets, autostart, InspectVlc(), _settings.KeepAwake, _bluetooth.Status,
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
             _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList(),
-            _youtube.BrowserPath, _youtube.BlockAds, _youtube.SkipSponsors);
+            _youtube.BrowserPath, _youtube.BlockAds, _youtube.SkipSponsors,
+            _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList());
     }
 
     private VlcSetupState InspectVlc()

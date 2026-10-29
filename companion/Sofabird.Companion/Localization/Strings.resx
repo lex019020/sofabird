@@ -113,6 +113,7 @@ Posters and descriptions: TMDB. This product uses the TMDB API but is not endors
   <data name="SetupMediaPick" xml:space="preserve"><value>Choose a folder with movies or series</value></data>
   <data name="SetupMediaNone" xml:space="preserve"><value>No folders yet: the phone browses the drives only</value></data>
   <data name="SetupMediaCount" xml:space="preserve"><value>Folders: {0}</value></data>
+  <data name="SetupMediaMissing" xml:space="preserve"><value>Not available now: {0}. A disconnected disk, or a network folder whose PC is off?</value></data>
   <data name="SetupMediaTmdb" xml:space="preserve"><value>Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</value></data>
   <data name="SetupMediaStationTitle" xml:space="preserve"><value>This PC is a media station</value></data>
   <data name="SetupMediaStationText" xml:space="preserve"><value>For a PC or laptop that lives at the TV: it keeps working with the lid closed and never goes to sleep or hibernates by itself — plugged in and on battery, so a power cut does not stop it either. The companion changes these settings of the current Windows power plan; unticking this later does not change them back. The screen may still turn off, and the TV may go to standby.</value></data>

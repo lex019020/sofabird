@@ -60,3 +60,13 @@ fun LabelText(
  * addresses such as `192.168.1.30:47555`).
  */
 fun String.withNameBreaks(): String = replace(".", ".\u200B").replace("_", "_\u200B").replace(":", ":\u200B")
+
+/**
+ * A Windows path (`D:\Movies`, `\\server\share`) that wraps after a separator, never between the two backslashes
+ * that start a network path.
+ */
+fun String.withPathBreaks(): String {
+    val network = startsWith("\\\\")
+    val rest = (if (network) substring(2) else this).replace("\\", "\\\u200B")
+    return if (network) "\\\u2060\\\u2060" + rest else rest
+}

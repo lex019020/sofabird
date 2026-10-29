@@ -299,7 +299,9 @@ rating; episode names and stills), kept by the companion for at most 6 months (T
 it. Images are full `https://image.tmdb.org/…` URLs: the phone loads them itself (they are not sent over Bluetooth).
 Without a TMDB token or a match the item keeps the title parsed from its file name and has no images.
 
-- `{"t":"getLibrary","id":"5"}` → `{"t":"library","id":"5","revision":12,"scanning":false,"movies":[…],"shows":[…]}`.
+- `{"t":"getLibrary","id":"5"}` → `{"t":"library","id":"5","revision":12,"scanning":false,"movies":[…],"shows":[…],"missingFolders":[…]}`;
+  `missingFolders` — media folders the PC cannot reach now (a disconnected disk, a network folder whose computer is
+  off): their titles are missing until they are back, and the phone says so instead of "no movies".
   A movie: `{"key","title","year"?,"overview"?,"poster"?,"backdrop"?,"rating"?,"files":[file…]}` (several files =
   versions, the biggest first). A series: the same fields without `files`, plus `"episodes": n, "unwatched": n`.
   A file: `{"uri","name","size","progress"?,"finished"?}` (`progress`/`finished` from the watch history).

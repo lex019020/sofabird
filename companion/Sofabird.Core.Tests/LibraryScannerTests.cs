@@ -9,6 +9,24 @@ public class LibraryScannerTests
         new(root, Path.Combine(root, relative), size, DateTimeOffset.UnixEpoch);
 
     [Fact]
+    public void A_folder_that_cannot_be_reached_is_reported()
+    {
+        var present = Directory.CreateTempSubdirectory("sofabird-lib-");
+        try
+        {
+            File.WriteAllBytes(Path.Combine(present.FullName, "The.Matrix.1999.mkv"), [1]);
+            var gone = Path.Combine(present.FullName, "not-there");
+            var scan = LibraryScanner.Scan([present.FullName, gone]);
+            Assert.Single(scan.Movies);
+            Assert.Equal([gone], scan.MissingRoots);
+        }
+        finally
+        {
+            present.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void Groups_MoviesAndSeries_AcrossFolders()
     {
         var scan = LibraryScanner.Group(

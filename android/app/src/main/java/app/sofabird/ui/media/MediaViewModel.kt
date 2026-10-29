@@ -36,6 +36,8 @@ data class MediaUiState(
     val loaded: Boolean = false,
     val movies: List<LibraryMovie> = emptyList(),
     val shows: List<LibraryShow> = emptyList(),
+    /** Media folders the PC cannot reach now: their movies and series are missing. */
+    val missingFolders: List<String> = emptyList(),
     val filter: MediaFilter = MediaFilter.ALL,
     /** The movie whose card is open. */
     val openMovie: LibraryMovie? = null,
@@ -90,6 +92,7 @@ class MediaViewModel(
             loaded = l.library != null,
             movies = l.library?.movies.orEmpty(),
             shows = l.library?.shows.orEmpty(),
+            missingFolders = l.library?.missingFolders.orEmpty(),
             filter = l.filter,
             openMovie = l.openMovie,
             haptics = prefs.haptics,

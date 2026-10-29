@@ -337,8 +337,16 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
 The **media folders** (setup window → "Media folders", `mediaRoots` in `settings.json`; local disks or network
 shares) are the phone's library of movies and series (`Services/LibraryService.cs`, `Sofabird.Core/Library/`):
 
-- **Scan** at the start, every 30 minutes and right after the folders change: every video file under them (hidden,
-  system and unreadable entries, `sample` files and `Extras`/`Featurettes`/`Trailers` folders are skipped).
+- **Scan** at the start, right after the folders change and every 30 minutes: every video file under them (hidden,
+  system and unreadable entries, `sample` files and `Extras`/`Featurettes`/`Trailers` folders are skipped). A folder
+  that cannot be reached is reported (`missingFolders` in `library`, a warning in the log and in the setup window).
+- **Network folders** are kept as network paths: a folder picked on a mapped drive letter (`Y:\`) is saved as
+  `\\server\share`, and saved letters are converted at the start while they are mapped (`NetworkDrives`) — a letter
+  mapped without "Reconnect at sign-in" is gone after a restart, the network path is not.
+- **Network folders and sleep:** reading a network folder wakes the computer it is on, so the 30-minute timer reads
+  local folders only (`LibraryRescanPolicy`); a network folder is read at the start, when the folders change, and when
+  a phone asks for the library (`getLibrary`) and its last scan is older than 30 minutes. Until then its last list
+  stays.
 - **Names** (`ReleaseNameParser`, the PTN / guessit approach): the title is what comes before the first anchor — the
   year, `SxxEyy` / `1x02`, a quality tag (`2160p`, `BDRemux`, `x265`, …). "1917.2019…" is "1917" from 2019; an
   episode without a season (`E05.mkv`) takes it from a season folder ("Season 2", "S02", "Сезон 2"), the series name

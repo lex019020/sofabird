@@ -62,6 +62,7 @@ import app.sofabird.ui.common.commandErrorMessage
 import app.sofabird.ui.common.formatSize
 import app.sofabird.ui.common.rememberTick
 import app.sofabird.ui.common.withNameBreaks
+import app.sofabird.ui.common.withPathBreaks
 import app.sofabird.ui.history.WatchProgressBar
 import app.sofabird.ui.history.WatchedMark
 import coil3.compose.AsyncImage
@@ -107,6 +108,17 @@ fun MediaContent(
     ) {
         fullWidth("header") { Column(Modifier.bleed(GridPadding)) { header() } }
         fullWidth("filters") { Filters(ui, actions) }
+        if (ui.missingFolders.isNotEmpty()) {
+            fullWidth("missing") {
+                Text(
+                    stringResource(R.string.media_missing_folders, ui.missingFolders.joinToString(", ") { it.withPathBreaks() }),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                )
+            }
+        }
         when {
             ui.error != null && !ui.loaded -> fullWidth("error") {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -117,6 +129,7 @@ fun MediaContent(
             !ui.loaded -> fullWidth("loading") {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
+            ui.isEmpty && !ui.scanning && ui.missingFolders.isNotEmpty() -> Unit // the line above says why
             ui.isEmpty && !ui.scanning -> fullWidth("empty") {
                 Text(
                     stringResource(R.string.media_empty),

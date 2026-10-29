@@ -347,6 +347,7 @@
     <string name="media_view_folders">Folders</string>
     <string name="media_filter_all">All</string>
     <string name="media_movies">Movies</string>
+    <string name="media_missing_folders">The PC cannot reach %1$s now: a disconnected disk, or a network folder whose computer is off? Its movies and series are missing until it is back.</string>
     <string name="media_shows">Series</string>
     <string name="media_scanning">The PC is looking through the media folders…</string>
     <string name="media_empty">No movies or series yet. Choose the media folders on the PC: tray icon → Setup and permissions → Media folders.</string>

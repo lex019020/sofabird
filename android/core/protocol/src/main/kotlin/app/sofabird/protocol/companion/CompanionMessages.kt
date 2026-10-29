@@ -280,8 +280,9 @@ sealed class CompanionMessage {
         val scanning: Boolean = false,
         val movies: List<LibraryMovie> = emptyList(),
         val shows: List<LibraryShow> = emptyList(),
+        val missingFolders: List<String> = emptyList(),
     ) : CompanionMessage() {
-        fun toLibrary() = app.sofabird.protocol.model.Library(revision, scanning, movies, shows)
+        fun toLibrary() = app.sofabird.protocol.model.Library(revision, scanning, movies, shows, missingFolders)
     }
 
     /** Answer to [GetShow]. */

@@ -85,6 +85,7 @@ public sealed class LibraryCatalog
             {
                 Revision = revision,
                 Scanning = scanning,
+                MissingFolders = _scan.MissingRoots,
                 Movies = _scan.Movies.Select(m =>
                 {
                     var item = Fill(new MovieItem { Key = m.Key }, m.Title, m.Year,

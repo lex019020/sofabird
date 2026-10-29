@@ -214,6 +214,8 @@ internal static class UiText
     public static string SetupMediaNone => S("SetupMediaNone");
     /// <summary>Folders: {0}</summary>
     public static string SetupMediaCount(object a0) => F("SetupMediaCount", a0);
+    /// <summary>Not available now: {0}. A disconnected disk, or a network folder whose PC is off?</summary>
+    public static string SetupMediaMissing(object a0) => F("SetupMediaMissing", a0);
     /// <summary>Posters and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</summary>
     public static string SetupMediaTmdb => S("SetupMediaTmdb");
     /// <summary>This PC is a media station</summary>
