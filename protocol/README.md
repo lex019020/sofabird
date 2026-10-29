@@ -295,10 +295,10 @@ ads are not recorded; less than 5% left = finished; kept 183 days, at most 500).
 items with `"kind": "youtube"`, `"channel"`, `uri` = `https://www.youtube.com/watch?v=<id>` and an absolute
 `artUrl` (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`, the phone loads it itself); no `name`/`folderUri`:
 - `getHistory` `all` — files and videos together, newest first; `continue` — plus videos not finished and watched
-  at least 60 s (YouTube videos are short; files need 5 min); the new filter `youtube` — the videos only.
+  at least 15 s (YouTube videos are short; files need 5 min); the new filter `youtube` — the videos only.
 - `cmd open {"uri": "<a YouTube link>"}` opens the video in the TV browser (not VLC), so a tap on such an item works
   like a file's — also in older apps. A video opened this way or with `youtubeOpen` without `t` continues where it
-  stopped (when not finished and at least 60 s in); no prompt (YouTube does the same for a signed-in account).
+  stopped (when not finished and at least 15 s in); no prompt (YouTube does the same for a signed-in account).
 - `historyUpdate` / `historyClear` accept them too; `state.history.revision` changes for them as well.
 
 ## Library (capability `library`)

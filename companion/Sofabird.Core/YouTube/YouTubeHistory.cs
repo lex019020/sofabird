@@ -61,8 +61,11 @@ public partial class YouTubeHistoryJsonContext : JsonSerializerContext
 /// </summary>
 public sealed class YouTubeHistory : IDisposable
 {
-    /// <summary>Watched this long, a video is worth continuing (YouTube videos are shorter than movies).</summary>
-    public const long ContinueThresholdSeconds = 60;
+    /// <summary>
+    /// Watched this long, a video is worth continuing: YouTube videos are short, and closing one after 40 s to watch
+    /// later is common (a minute left such a video out of "Continue watching").
+    /// </summary>
+    public const long ContinueThresholdSeconds = 15;
     public const int MaxEntries = 500;
     public const string Kind = "youtube";
     private static readonly TimeSpan PositionEvery = TimeSpan.FromSeconds(10);

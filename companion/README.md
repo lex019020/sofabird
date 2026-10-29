@@ -335,7 +335,7 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
   channel, length and where it stopped — is kept for every video played in the TV browser (sent from a phone or
   played by YouTube itself): on every change the page reports, and every 10 s while it plays (`YouTubeService`'s
   timer); ads and live streams (no length) are not; less than 5% left = finished; at most 500, 183 days. Phones get
-  them in `getHistory` (`kind: "youtube"`, the thumbnail as `artUrl`; `continue` from 60 s watched; the filter
+  them in `getHistory` (`kind: "youtube"`, the thumbnail as `artUrl`; `continue` from 15 s watched; the filter
   `youtube` for the videos alone); `cmd open` with a YouTube link goes to the TV browser, and a video watched before
   opens where it stopped (also through `youtubeOpen` when the link has no `t`). `state.history.revision` is the sum of
   both histories' revisions.

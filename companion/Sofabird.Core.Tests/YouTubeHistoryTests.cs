@@ -52,11 +52,16 @@ public sealed class YouTubeHistoryTests
         history.Record(Page("adVideo0001", 30, ad: true)); // an ad: not recorded at all
         Assert.Empty(history.Items("all"));
 
-        history.Record(Page("shortWatch1", 20));
+        history.Record(Page("shortWatch1", 10));
         history.Record(Page("liveStream1", 900, duration: 0)); // no length: nothing to continue
         Assert.Single(history.Items("all"));
         Assert.Empty(history.Items("continue"));
         Assert.Null(history.ResumeAt("shortWatch1"));
+
+        // Closed after 43 s of an 8-minute video (seen on the TV): worth continuing.
+        history.Record(Page("closedEarly", 43));
+        Assert.Equal("https://www.youtube.com/watch?v=closedEarly", Assert.Single(history.Items("continue")).Uri);
+        Assert.Equal(43, history.ResumeAt("closedEarly"));
     }
 
     [Fact]
