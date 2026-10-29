@@ -1,10 +1,10 @@
 # Sofabird — project plan
 
-Date: 2026-10-16. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
-Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV. Next: SponsorBlock and
-recently sent videos for YouTube, Wake-on-LAN and the sleep timer (§ 10).
+Stable v0.3.0 is released; test builds of 0.4.0 add Moonlight streams and YouTube on the TV (with uBlock Origin and
+SponsorBlock). Next: recently sent videos for YouTube, Wake-on-LAN and the sleep timer (§ 10).
 
 ## 0. Essence
 
@@ -331,7 +331,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [x] **Library with posters** (user request): media folders in the setup window, file name parsing, TMDB metadata
       via the companion (built-in token from CI + the user's own), cache ≤ 6 months; the protocol (`getLibrary`,
       `getShow`, `state.library`); on the phone a poster grid next to the folders (can be turned off), a movie card
-      with the backdrop, rating and description, a series page with seasons, episode names and stills.
+      with the backdrop, rating and description, a series page with seasons, episode names and stills. Network
+      folders (#60): saved as network paths (a mapped letter can be gone after a restart), a folder that cannot be
+      reached is named on the phone and in the setup window instead of "no movies", and the 30-minute timer no
+      longer reads them, so the computer they are on can sleep (they are read when the library is opened).
 - [x] Installer and auto-update for the companion (Velopack): `Setup.exe` per user with the .NET runtime, quiet
       updates from GitHub Releases applied when VLC is not playing, test builds follow test builds.
 - [x] **Media station** (user request): the PC at the TV keeps working with the lid closed and never sleeps (power plan
@@ -354,8 +357,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       YouTube, fullscreen after the ads, the browser on the TV monitor, a movie from the phone closing YouTube; the
       Sofabird TV extension signed by Mozilla (#55: exact state and seeking, ads told apart, "Skip", fullscreen without
       a key press; native messaging to the companion); the setup window's items and ad blocking (#57: install Firefox,
-      "Sign in to YouTube…", uBlock Origin opt-in from the setup window or the phone). Left: SponsorBlock (user request),
-      recently sent videos on the phone; later captions and quality.
+      "Sign in to YouTube…", uBlock Origin opt-in from the setup window or the phone); SponsorBlock (#59, user request:
+      opt-in like uBlock Origin, the browser restarts at the same moment). Left: recently sent videos on the phone;
+      later captions and quality.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
 - [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
@@ -436,7 +440,7 @@ sofabird/
 
 ## 10. Next steps
 
-1. **YouTube, third part**: SponsorBlock (opt-in, like uBlock Origin), recently sent videos (M4).
+1. **YouTube, third part**: recently sent videos on the phone (M4).
 2. **Wake-on-LAN**: wake the PC from the phone (M4).
 3. **Sleep timer** (M4).
 4. **Fake-VLC scenario tests** (M4).

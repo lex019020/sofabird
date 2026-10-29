@@ -16,7 +16,8 @@ phone.
 - Playback control: play/pause, seek (±10/30 s, hold to repeat, scrub bar with chapters), volume, phone volume keys,
   audio and subtitle tracks with languages, audio/subtitle delay, speed, aspect ratio, fullscreen, playlist.
 - Library: browse the PC's drives and network shares; with the companion, movies and series from the chosen media
-  folders as a poster grid with TMDB metadata (title, year, rating, description, backdrops, episode names).
+  folders as a poster grid with TMDB metadata (title, year, rating, description, backdrops, episode names); network
+  media folders are not polled (their computer can sleep) and an unreachable one is named on the phone.
 - Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
   subtitle choice for series.
 - Companion (Windows tray app): pairing with a 6-digit code shown on the TV, starts VLC fullscreen on the TV monitor,
@@ -26,7 +27,7 @@ phone.
 - YouTube on the TV: "Share → Sofabird" from the YouTube app or a pasted link opens the video fullscreen in Firefox
   (a TV profile of its own, signed in once) on the TV; a Sofabird extension in that browser gives exact seeking,
   fullscreen after ads and "Skip ad"; the remote, notification, lock screen and volume keys control it; optional ad
-  blocking with uBlock Origin; the companion's setup window installs Firefox.
+  blocking with uBlock Origin and sponsor skipping with SponsorBlock; the companion's setup window installs Firefox.
 - One TV screen: the display chosen for the TV is used by VLC, YouTube and Moonlight alike.
 - Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone.
 - Works in English and Russian (follows the system language).
