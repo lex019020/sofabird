@@ -39,7 +39,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 **With the companion on the PC**
 - Automatic discovery and one-time pairing with a 6-digit code shown on the TV.
 - A media library: pick the media folders once, and the phone shows movies and series as posters with
-  descriptions, ratings, seasons and episodes (metadata from TMDB).
+  descriptions, ratings, seasons and episodes (metadata from TMDB). Network shares work too: the companion does not
+  wake the computer they are on every half hour, and a folder that cannot be reached is named on the phone.
 - Starts VLC with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
   (speakers / TV / headphones) from the phone.
 - Bluetooth fallback: the remote keeps working with Wi‑Fi off and switches back when it returns.
@@ -47,8 +48,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
   TV in Firefox, with a TV profile of its own you sign in to once. A small Sofabird extension in that browser gives
   exact control: precise seeking, fullscreen after the ads, "Skip" for an ad as soon as YouTube allows it. The remote,
   the phone's notification, lock screen and volume keys control it, and a movie started from the phone closes it.
-  Ads can be blocked with uBlock Origin (one switch on the phone or in the setup window); the setup window installs
-  Firefox and opens the YouTube sign-in.
+  Ads can be blocked with uBlock Origin and sponsor segments skipped with SponsorBlock (a switch each, on the phone
+  or in the setup window); the setup window installs Firefox and opens the YouTube sign-in.
 - One TV screen: the display chosen on the phone (or in the tray) is where VLC, YouTube and Moonlight open; choosing
   it moves whatever is on the TV.
 - Another PC's screen: start and end a [Moonlight](https://moonlight-stream.org/) stream of a gaming PC's desktop on
@@ -129,7 +130,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-Next: SponsorBlock and recently sent videos for YouTube, Wake-on-LAN and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+Next: recently sent videos for YouTube, Wake-on-LAN and a sleep timer. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4, an encrypted connection. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 
