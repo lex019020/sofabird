@@ -330,11 +330,13 @@ The companion is the source of truth: the phone keeps no history of its own.
 - Bluetooth pairing (phone ↔ PC) is done in the Android/Windows settings; the app does not initiate it and
   does not search for new devices (no `BLUETOOTH_SCAN`). `CompanionDeviceManager` is not used.
 - Artwork and thumbnails are not transferred over Bluetooth (`/art` is HTTP over the LAN).
+- Waking the PC (Wake-on-LAN) has not been seen working on a device: the TV laptop's wired card cannot wake it from
+  sleep (its firmware lets only the Wi-Fi card), which the companion now tells. It ships as is (owner's decision,
+  2026-10-29); the magic packet itself is tested.
 
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- Wake-on-LAN: a "Wake up the PC" action when the saved PC does not answer (next).
 - Sleep timer (next).
 - A Quick Settings tile, a Glance widget.
 - Landscape and tablet layouts (postponed).

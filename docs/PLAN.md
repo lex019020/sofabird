@@ -369,7 +369,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
       checks that the network adapter may wake the PC and warns about settings that prevent it (Fast Startup,
       wake on magic packet only). Best effort: Wake-on-Wireless is unreliable on laptops
-      ([transport-and-companion](research/transport-and-companion.md)), so verify on the TV laptop first.
+      ([transport-and-companion](research/transport-and-companion.md)). On the TV laptop the wired card turned out
+      unable to wake it from sleep (only its Wi-Fi card may, `powercfg /devicequery wake_from_any`): the companion
+      now checks that, says so in the setup window and offers no waking then. Not seen working on a device; shipped
+      as a feature anyway (owner's decision, 2026-10-29).
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
 - [ ] Fake-VLC scenario tests.
