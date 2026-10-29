@@ -334,7 +334,8 @@
             "systemVolume",
             "youtube",
             "youtubeAdBlock",
-            "youtubeOpen"
+            "youtubeOpen",
+            "youtubeSponsorBlock"
           ]
         },
         "args": {
@@ -1129,6 +1130,10 @@
             "adBlock": {
               "type": "boolean",
               "description": "ads are blocked with uBlock Origin (sys youtubeAdBlock)"
+            },
+            "sponsorBlock": {
+              "type": "boolean",
+              "description": "sponsor segments are skipped with SponsorBlock (sys youtubeSponsorBlock)"
             }
           }
         }

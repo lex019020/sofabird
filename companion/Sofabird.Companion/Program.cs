@@ -152,7 +152,7 @@ internal static class Program
             if (!roots.SequenceEqual(s.MediaRoots)) s.MediaRoots = roots;
         });
         using var tvAddons = new TvAddons(paths.DataDir, lf.CreateLogger<TvAddons>());
-        var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, tvAddons, () => settings.BlockAds, lf.CreateLogger<TvBrowser>());
+        var tvBrowser = new TvBrowser(paths.DataDir, settings.BrowserPath, tvAddons, settings.IsOn, lf.CreateLogger<TvBrowser>());
         tvBrowser.RemoveLaunchOnLogin(); // before the next sign-in, not only when YouTube opens
         if (tvBrowser.ExePath is not null && Environment.ProcessPath is { } exe)
             TvExtension.Register(exe, paths.DataDir, lf.CreateLogger<TvExtensionBridge>());

@@ -215,6 +215,7 @@
     <string name="action_youtube_close">Close YouTube</string>
     <string name="youtube_ad">Ad</string>
     <string name="youtube_block_ads">Block ads (uBlock Origin)</string>
+    <string name="youtube_skip_sponsors">Skip sponsor segments (SponsorBlock)</string>
     <string name="youtube_block_ads_hint">An open YouTube restarts on the TV and continues where it was.</string>
     <string name="action_skip_ad">Skip</string>
     <string name="youtube_ad_playing">An ad plays; the video starts after it</string>

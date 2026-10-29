@@ -69,4 +69,16 @@ browser.runtime.onConnect.addListener((port) => {
   });
 });
 
+// The TV shows YouTube only: another add-on's own page (SponsorBlock's welcome page at its first start) would cover it.
+const OWN_PAGES = browser.runtime.getURL("");
+
+function closeIfAddonPage(tabId, url) {
+  if (typeof url === "string" && url.startsWith("moz-extension://") && !url.startsWith(OWN_PAGES)) {
+    browser.tabs.remove(tabId).catch(() => {});
+  }
+}
+
+browser.tabs.onUpdated.addListener((tabId, change) => closeIfAddonPage(tabId, change.url), { properties: ["url"] });
+browser.tabs.query({}).then((tabs) => tabs.forEach((tab) => closeIfAddonPage(tab.id, tab.url)));
+
 connect();

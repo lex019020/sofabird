@@ -37,11 +37,12 @@ public sealed record SetupSnapshot(
     IReadOnlyList<string>? MediaFolders = null,
     string? Browser = null,
     bool BlockAds = false,
+    bool SkipSponsors = false,
     IReadOnlyList<string>? MissingMediaFolders = null);
 
 /// <summary>What the user ticked.</summary>
 public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
-    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false);
+    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false, bool SkipSponsors = false);
 
 public enum StepOutcome
 {
@@ -62,7 +63,7 @@ public sealed record StepResult(StepOutcome Outcome, string? Detail = null)
 }
 
 public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake, StepResult? MediaStation = null,
-    StepResult? BlockAds = null);
+    StepResult? BlockAds = null, StepResult? SkipSponsors = null);
 
 /// <summary>
 /// Everything the "Setup and permissions" window reads and changes. The window talks only to this interface, so it
@@ -142,7 +143,7 @@ public sealed class SetupBackend : ISetupBackend
         return new SetupSnapshot(fw, fwError, publicNets, autostart, InspectVlc(), _settings.KeepAwake, _bluetooth.Status,
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
             _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList(),
-            _youtube.BrowserPath, _youtube.BlockAds,
+            _youtube.BrowserPath, _youtube.BlockAds, _youtube.SkipSponsors,
             _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList());
     }
 
@@ -182,19 +183,20 @@ public sealed class SetupBackend : ISetupBackend
         _host.SetKeepAwake(choices.KeepAwake);
         var mediaStation = ApplyMediaStation(choices.MediaStation);
 
-        var blockAds = await ApplyBlockAdsAsync(choices.BlockAds, ct);
+        var blockAds = await ApplyAddonAsync(TvAddon.UBlock, choices.BlockAds, ct);
+        var skipSponsors = await ApplyAddonAsync(TvAddon.SponsorBlock, choices.SkipSponsors, ct);
         var firewall = choices.Firewall ? await ApplyFirewallAsync(ct) : StepResult.Skipped;
         _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}, ad blocking {BlockAds}",
             firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome, blockAds.Outcome);
-        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation, blockAds);
+        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation, blockAds, skipSponsors);
     }
 
-    private async Task<StepResult> ApplyBlockAdsAsync(bool on, CancellationToken ct)
+    private async Task<StepResult> ApplyAddonAsync(TvAddon addon, bool on, CancellationToken ct)
     {
-        if (on == _youtube.BlockAds || (on && _youtube.BrowserPath is null)) return StepResult.Skipped;
+        if (on == _settings.IsOn(addon) || (on && _youtube.BrowserPath is null)) return StepResult.Skipped;
         try
         {
-            await _youtube.SetBlockAdsAsync(on, ct);
+            await _youtube.SetAddonAsync(addon, on, ct);
             return StepResult.Done;
         }
         catch (Core.Session.ProtocolException ex)

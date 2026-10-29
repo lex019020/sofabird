@@ -228,6 +228,16 @@ UI = [
     ("SetupAdBlockNoBrowser", "Install Firefox first", "Сначала установите Firefox"),
     ("SetupAdBlockFailed", "uBlock Origin could not be downloaded: check the internet connection",
      "Не удалось скачать uBlock Origin — проверьте подключение к интернету"),
+    ("SetupSponsorBlockTitle", "Skip sponsor segments on YouTube (optional)", "Пропускать спонсорские вставки на YouTube (необязательно)"),
+    ("SetupSponsorBlockText", "Adds SponsorBlock, a free and open-source add-on, to the TV browser: it skips the sponsor segments "
+                              "and self-promotion that its community has marked in a video. It asks sponsor.ajay.app for the "
+                              "segments of each video watched. It can be switched on the phone too.",
+     "Добавляет в браузер для ТВ SponsorBlock — бесплатное дополнение с открытым кодом: оно пропускает спонсорские вставки "
+     "и саморекламу, отмеченные его сообществом. Для каждого просмотренного видео оно запрашивает отрезки у sponsor.ajay.app. "
+     "Переключается и с телефона."),
+    ("SetupSponsorBlockOn", "✓ Sponsor segments are skipped (SponsorBlock)", "✓ Спонсорские вставки пропускаются (SponsorBlock)"),
+    ("SetupSponsorBlockFailed", "SponsorBlock could not be downloaded: check the internet connection",
+     "Не удалось скачать SponsorBlock — проверьте подключение к интернету"),
 ]
 
 PROTO = [
@@ -254,8 +264,8 @@ PROTO = [
      "На компьютере нет браузера для YouTube. Установите Firefox в окне настройки компаньона."),
     ("YouTubeBadLink", "This is not a link to a YouTube video", "Это не ссылка на видео YouTube"),
     ("YouTubeNotOpen", "YouTube is not open on the TV", "YouTube на телевизоре не открыт"),
-    ("YouTubeAdBlockFailed", "uBlock Origin could not be downloaded from addons.mozilla.org. Check the PC's internet connection.",
-     "Не удалось скачать uBlock Origin с addons.mozilla.org. Проверьте интернет на компьютере."),
+    ("YouTubeAddonFailed", "{0} could not be downloaded from addons.mozilla.org. Check the PC's internet connection.",
+     "Не удалось скачать {0} с addons.mozilla.org. Проверьте интернет на компьютере."),
     ("FolderNotFound", "Folder not found: {0}", "Папка не найдена: {0}"),
     ("FolderUnavailable", "Folder is not available: {0}", "Папка недоступна: {0}"),
     ("HistoryNotAFile", "Only files on this PC are kept in the watch history: {0}",

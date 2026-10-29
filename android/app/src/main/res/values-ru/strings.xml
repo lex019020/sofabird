@@ -227,6 +227,7 @@
     <string name="action_youtube_close">Закрыть YouTube</string>
     <string name="youtube_ad">Реклама</string>
     <string name="youtube_block_ads">Блокировать рекламу (uBlock Origin)</string>
+    <string name="youtube_skip_sponsors">Пропускать спонсорские вставки (SponsorBlock)</string>
     <string name="youtube_block_ads_hint">Открытый YouTube перезапустится на ТВ и продолжит с того же места.</string>
     <string name="action_skip_ad">Пропустить</string>
     <string name="youtube_ad_playing">Идёт реклама, видео начнётся после неё</string>

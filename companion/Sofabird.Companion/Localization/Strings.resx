@@ -151,4 +151,8 @@ Posters and descriptions: TMDB. This product uses the TMDB API but is not endors
   <data name="SetupAdBlockOn" xml:space="preserve"><value>✓ Ads are blocked (uBlock Origin)</value></data>
   <data name="SetupAdBlockNoBrowser" xml:space="preserve"><value>Install Firefox first</value></data>
   <data name="SetupAdBlockFailed" xml:space="preserve"><value>uBlock Origin could not be downloaded: check the internet connection</value></data>
+  <data name="SetupSponsorBlockTitle" xml:space="preserve"><value>Skip sponsor segments on YouTube (optional)</value></data>
+  <data name="SetupSponsorBlockText" xml:space="preserve"><value>Adds SponsorBlock, a free and open-source add-on, to the TV browser: it skips the sponsor segments and self-promotion that its community has marked in a video. It asks sponsor.ajay.app for the segments of each video watched. It can be switched on the phone too.</value></data>
+  <data name="SetupSponsorBlockOn" xml:space="preserve"><value>✓ Sponsor segments are skipped (SponsorBlock)</value></data>
+  <data name="SetupSponsorBlockFailed" xml:space="preserve"><value>SponsorBlock could not be downloaded: check the internet connection</value></data>
 </root>
