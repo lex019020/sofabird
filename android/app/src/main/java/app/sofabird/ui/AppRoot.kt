@@ -270,7 +270,20 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
             startDestination = Routes.REMOTE,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Routes.REMOTE) { RemoteScreen(onOpenConnection = { navController.navigate(Routes.CONNECTION) }) }
+            composable(Routes.REMOTE) {
+                RemoteScreen(
+                    onOpenConnection = { navController.navigate(Routes.CONNECTION) },
+                    // Like the tab: the Library keeps its place in the back stack.
+                    onOpenLibrary = {
+                        navController.navigate(Routes.LIBRARY) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                )
+            }
             composable(Routes.LIBRARY) {
                 LibraryScreen(
                     onPlayed = { navController.navigate(Routes.REMOTE) },

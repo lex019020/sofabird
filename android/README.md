@@ -199,7 +199,7 @@ gave the PC a different IP), then by address and port.
 
 **VLC state on the remote (companion)**: `vlc.status` (absent in old companions → derived from
 `running`). While VLC cannot be controlled, a card replaces the seek bar, the volume and the transport buttons:
-`notRunning` — "VLC is not running" + "Launch VLC" (`cmd launch`, only with `caps.launchVlc`);
+`notRunning` — the home screen (see "Home screen"; "Launch VLC", `cmd launch`, is in "More");
 `starting` — "VLC is starting…"; `noControl` (VLC was opened by hand before the companion configured it) —
 "VLC is open without phone control" + "Restart with control" (`cmd launch`, the position in the movie
 is not kept); `notInstalled` — "VLC was not found on the computer". After a tap the button shows
@@ -308,6 +308,20 @@ stored token requires the pinned one. Artwork: on an encrypted link `/art` URLs 
 listener (`artOverTls`), and the shared OkHttp client trusts the pinned certificate for that host and port only
 (`PinnedServers`; everything else — TMDB, YouTube — is checked by the system as usual).
 
+## Home screen
+
+When nothing is on the TV (`RemoteUiState.home`: a companion, online, VLC closed or open with nothing in it, no
+YouTube, no stream) the remote shows `RemoteHome` instead of an empty cover, "VLC is not running / Launch VLC" and
+idle controls: "What shall we watch?", the next-episode card, **Continue watching** (`getHistory continue`, loaded by
+`RemoteViewModel` while the home shows and again after `state.history.revision` changes; files with their TMDB
+picture, YouTube videos with their thumbnail; a tap is `cmd open`, which starts VLC when needed or opens the video in
+the TV browser; a long press offers "Mark as watched" and "Remove from history", `RemoteViewModel.changeHistory`) with a
+link to the History, and tiles: **Library** (the tab), **YouTube** (`YouTubeSheet`: a link,
+the videos played on the TV, "Open YouTube" to pick one and share it to Sofabird, the add-on switches) and **Another
+PC** (Moonlight, when the PC has a paired computer). Below: the TV screen and "More" (where "Launch VLC" stays). It
+never scrolls: `FittingColumn` shows as many entries as fit and leaves out the rest. VLC starting, open without control
+or not installed keeps its card.
+
 ## Watch history
 
 Companion mode with the `history` capability only (protocol: "Watch history and resume" in
@@ -399,7 +413,8 @@ after changing that area:
    reconnect after the laptop sleeps; "Forget this computer" → a code again on the next tap.
 9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "TV screen" item opens the "TV screen" sheet (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Show on the TV" / "End streaming" (`sys moonlightStart|moonlightStop`, cap `moonlight`), "YouTube on the TV" with a link field and "Paste" (`sys youtubeOpen`, cap `youtube`) and the "Block ads (uBlock Origin)" and "Skip sponsor segments (SponsorBlock)" switches (`sys youtubeAdBlock|youtubeSponsorBlock`, `state.youtube.adBlock|sponsorBlock`); "Share → Sofabird" from the YouTube app sends the shared text the same way (it waits up to 15 s for the PC); while YouTube is open the remote shows its thumbnail, title, channel, position, the transport buttons and the PC's volume, with "Close YouTube" in the thumbnail's corner, "An ad plays…" over the title during an ad and a "Skip" tile while it can be skipped (`youtube.ad` / `adSkippable`, `skipAd`), "Fullscreen" and the TV screen; the media notification, the lock screen, headset buttons and the volume keys then follow YouTube and the PC's volume (`onTv()` / `routeToYouTube()` in `:core:protocol`) — the sections appear only with the corresponding `caps`.
 10. The phone name in the pairing window on the PC (`Settings.Global.DEVICE_NAME`, e.g. "Galaxy S24").
-11. VLC states on the remote: VLC closed → "Launch VLC"; VLC opened by hand → "without control" →
+11. VLC states on the remote: VLC closed → the home screen (Continue watching, Library, YouTube, Another PC); VLC
+    opened by hand → "without control" →
     "Restart with control" (the same movie on the TV); the status on the PC card updates (~8–10 s).
 12. "Other ways to connect" expands by itself if no companion is found within ~6 s.
 13. **Bluetooth** (Galaxy S24 ↔ the TV laptop with Intel BT, already paired):

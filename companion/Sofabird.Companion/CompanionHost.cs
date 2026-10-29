@@ -5,6 +5,7 @@ using Sofabird.Companion.Vlc;
 using Sofabird.Companion.YouTube;
 using Sofabird.Core.Displays;
 using Sofabird.Core.History;
+using Sofabird.Core.Library;
 using Sofabird.Core.Pairing;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Session;
@@ -392,7 +393,14 @@ public sealed class CompanionHost : ISessionHost
         if (filter == "youtube") return Page(youtube, limit, offset);
         // "continue" lists series folders (possibly on a network share): off the session thread.
         var (_, files) = await Task.Run(() => store.Query(filter, int.MaxValue, 0), ct).ConfigureAwait(false);
-        return Page(YouTubeHistory.Merge(files, youtube), limit, offset);
+        var page = Page(YouTubeHistory.Merge(files, youtube), limit, offset);
+        // Files of the library get its TMDB picture (a YouTube video has its thumbnail already).
+        var art = _library.Catalog.ArtOf(page.Items.Where(i => i.ArtUrl is null && i.Kind is null).Select(i => i.Uri));
+        foreach (var item in page.Items)
+        {
+            if (item.ArtUrl is null && art.TryGetValue(LibraryCatalog.UriKey(item.Uri), out var url)) item.ArtUrl = url;
+        }
+        return page;
     }
 
     private static HistoryMessage Page(List<HistoryItem> items, int limit, int offset) =>

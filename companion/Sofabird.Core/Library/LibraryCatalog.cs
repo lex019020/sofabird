@@ -1,3 +1,4 @@
+using Sofabird.Core.History;
 using Sofabird.Core.Protocol;
 
 namespace Sofabird.Core.Library;
@@ -134,6 +135,50 @@ public sealed class LibraryCatalog
             };
         }
     }
+
+    /// <summary>
+    /// Pictures for history entries ("Continue watching" on the phone), by normalized URI: an episode's still, else the
+    /// movie's or series' backdrop, else its poster — 16:9 where TMDB has one. Files outside the library or without a
+    /// TMDB match get none.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ArtOf(IEnumerable<string> uris)
+    {
+        var wanted = new HashSet<string>(uris.Select(UriKey), StringComparer.OrdinalIgnoreCase);
+        var art = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (wanted.Count == 0) return art;
+        lock (_lock)
+        {
+            foreach (var m in _scan.Movies)
+            {
+                var hits = m.Files.Select(f => UriKey(f.Uri)).Where(wanted.Contains).ToList();
+                if (hits.Count == 0) continue;
+                var match = Match(MetadataCache.TitleKey("movie", ReleaseNameParser.Key(m.Title), m.Year));
+                if (Picture(match) is not { } url) continue;
+                foreach (var hit in hits) art[hit] = url;
+            }
+            foreach (var s in _scan.Shows)
+            {
+                var hits = s.Episodes.Where(e => wanted.Contains(UriKey(e.File.Uri))).ToList();
+                if (hits.Count == 0) continue;
+                var match = Match(MetadataCache.TitleKey("tv", s.Key, null));
+                foreach (var e in hits)
+                {
+                    var still = match is not null
+                        && _cache.TryGetSeason(MetadataCache.SeasonKey(match.Id, e.Season), _language, _time.GetUtcNow(), out var episodes)
+                            ? episodes.FirstOrDefault(x => x.Episode == e.Episode)?.Still
+                            : null;
+                    if ((TmdbClient.ImageUrl(still, "w300") ?? Picture(match)) is { } url) art[UriKey(e.File.Uri)] = url;
+                }
+            }
+        }
+        return art;
+    }
+
+    /// <summary>The key <see cref="ArtOf"/> answers by: the history's normalized form of a file URI.</summary>
+    public static string UriKey(string uri) => MediaUri.Normalize(uri) ?? uri;
+
+    private static string? Picture(TmdbMatch? match) =>
+        TmdbClient.ImageUrl(match?.Backdrop, "w300") ?? TmdbClient.ImageUrl(match?.Poster, "w342");
 
     private ShowItem BuildShowItem(LibraryShow s, WatchLookup watched)
     {

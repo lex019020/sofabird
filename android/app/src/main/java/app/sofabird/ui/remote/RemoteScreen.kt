@@ -36,6 +36,8 @@ import app.sofabird.data.player.PcWaker
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.backend.YouTubeAction
+import app.sofabird.protocol.model.HistoryChange
+import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.protocol.model.TrackKind
 import app.sofabird.protocol.model.TrackKind.AUDIO
@@ -64,18 +66,25 @@ interface RemoteActions {
     fun playNext() {}
     fun dismissNext() {}
     fun openTracks(kind: TrackKind) {}
-    fun openDisplays() {}
-    fun openMore() {}
     fun openConnection() {}
     fun wakePc() {}
+    fun open(place: RemotePlace) {}
+
+    /** The home screen's menu of a "Continue watching" entry: mark it watched, remove it. */
+    fun changeHistory(item: HistoryItem, change: HistoryChange) {}
 
     /** PC-side commands: end a Moonlight stream, control YouTube on the TV, the PC's volume. */
     fun system(command: SystemCommand) {}
 }
 
+/** Where the remote leads: its sheets (the TV screen, "More", YouTube) and other screens of the app. */
+enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, LIBRARY, HISTORY }
+
 @Composable
 fun RemoteScreen(
     onOpenConnection: () -> Unit,
+    onOpenLibrary: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
     viewModel: RemoteViewModel = koinViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,7 +93,10 @@ fun RemoteScreen(
     var tracksSheet by remember { mutableStateOf<TrackKind?>(null) }
     var moreSheet by remember { mutableStateOf(false) }
     var displaySheet by remember { mutableStateOf(false) }
+    var youtubeSheet by remember { mutableStateOf(false) }
     val openConnection by rememberUpdatedState(onOpenConnection)
+    val openLibrary by rememberUpdatedState(onOpenLibrary)
+    val openHistory by rememberUpdatedState(onOpenHistory)
 
     val waker: PcWaker = koinInject()
     val actions = remember(viewModel, prompts, waker) {
@@ -104,14 +116,16 @@ fun RemoteScreen(
             override fun openTracks(kind: TrackKind) {
                 tracksSheet = kind
             }
-            override fun openDisplays() {
-                displaySheet = true
-            }
-            override fun openMore() {
-                moreSheet = true
-            }
             override fun openConnection() = openConnection()
             override fun wakePc() = waker.wake()
+            override fun open(place: RemotePlace) = when (place) {
+                RemotePlace.DISPLAYS -> displaySheet = true
+                RemotePlace.MORE -> moreSheet = true
+                RemotePlace.YOUTUBE -> youtubeSheet = true
+                RemotePlace.LIBRARY -> openLibrary()
+                RemotePlace.HISTORY -> openHistory()
+            }
+            override fun changeHistory(item: HistoryItem, change: HistoryChange) = viewModel.changeHistory(item, change)
             override fun system(command: SystemCommand) = viewModel.sendSystem(command)
         }
     }
@@ -135,6 +149,9 @@ fun RemoteScreen(
     if (displaySheet && ui.showDisplayChoice) {
         DisplaySheet(ui = ui, viewModel = viewModel, onDismiss = { displaySheet = false })
     }
+    if (youtubeSheet) {
+        YouTubeSheet(ui = ui, viewModel = viewModel, onDismiss = { youtubeSheet = false })
+    }
 }
 
 /**
@@ -150,7 +167,9 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
     val onYouTube: (YouTubeAction, Double?) -> Unit = { action, time -> actions.system(SystemCommand.YouTube(action, time)) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
-        if (landscape) {
+        if (ui.home) {
+            RemoteHome(ui, next, actions, landscape)
+        } else if (landscape) {
             Row(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 Column(
                     Modifier
@@ -285,18 +304,23 @@ private fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: Re
                     actions.system(SystemCommand.YouTube(YouTubeAction.FULLSCREEN))
                 },
             )
-            displayAction(ui, actions::openDisplays)?.let(::add)
-            add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true, actions::openMore))
+            displayAction(ui) { actions.open(RemotePlace.DISPLAYS) }?.let(::add)
+            add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true) { actions.open(RemotePlace.MORE) })
         }
         QuickActionsRow(list)
     } else {
-        QuickActions(ui, onTracks = actions::openTracks, onDisplays = actions::openDisplays, onMore = actions::openMore)
+        QuickActions(
+            ui,
+            onTracks = actions::openTracks,
+            onDisplays = { actions.open(RemotePlace.DISPLAYS) },
+            onMore = { actions.open(RemotePlace.MORE) },
+        )
     }
 }
 
 /** The TV screen: where VLC is now, or (VLC closed) where VLC, YouTube and Moonlight open. Usable while VLC is closed. */
 @Composable
-private fun displayAction(ui: RemoteUiState, onDisplays: () -> Unit): QuickAction? {
+internal fun displayAction(ui: RemoteUiState, onDisplays: () -> Unit): QuickAction? {
     if (!ui.showDisplayChoice) return null
     val shown = ui.displayChoice.chipDisplay
     val title = stringResource(R.string.section_display)

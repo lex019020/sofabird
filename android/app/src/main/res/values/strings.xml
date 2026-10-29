@@ -355,6 +355,13 @@
     <string name="next_episode_play">Play</string>
     <string name="next_episode_dismiss">Dismiss</string>
     <string name="continue_watching">Continue watching</string>
+    <string name="home_title">What shall we watch?</string>
+    <string name="home_empty_hint">Pick a movie in the Library, or share a YouTube video to Sofabird.</string>
+    <string name="home_library_hint">Movies, folders</string>
+    <string name="home_youtube">YouTube</string>
+    <string name="home_youtube_hint">On the TV</string>
+    <string name="home_stream">Another PC</string>
+    <string name="action_open_youtube_app">Open YouTube</string>
     <string name="history_title">History</string>
     <string name="history_position_of">%1$s of %2$s</string>
     <string name="history_next_badge">Next episode</string>

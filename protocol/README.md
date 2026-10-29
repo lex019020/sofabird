@@ -315,7 +315,9 @@ sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title
 - `{"t":"getHistory","id":"9","filter":"continue"|"all","limit":50,"offset":0}` → `{"t":"history","id":"9","total":N,
   "items":[{"uri","title","name","folderUri","position","length","progress","finished","lastWatched","playCount","artUrl"?}]}`;
   `continue` = not finished and `position >= 300`, plus for each series folder the next unfinished episode after the last
-  finished one (marked `"next": true`); sorted by `lastWatched` descending.
+  finished one (marked `"next": true`); sorted by `lastWatched` descending. A file of the media library gets an
+  absolute `artUrl` from TMDB (the episode's still, else the movie's or series' backdrop, else its poster; the phone
+  loads it itself); other files have none.
 - `{"t":"historyUpdate","id":"10","uri":"...","finished":true|false}` (mark watched / unwatched; unwatched resets
   `position` to 0) or `{"t":"historyUpdate","id":"10","uri":"...","remove":true}` → `ok`.
 - `{"t":"historyClear","id":"11"}` → `ok` (the YouTube history too).
