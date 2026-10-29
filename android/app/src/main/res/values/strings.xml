@@ -265,6 +265,8 @@
 
     <!-- Bluetooth (M3) -->
     <string name="err_bluetooth_failed">The companion is not answering over Bluetooth: check that the PC is paired with the phone and the companion is running</string>
+    <string name="err_certificate_changed">The PC presented another security certificate than when the phone paired with it</string>
+    <string name="hint_certificate_changed">If the companion was reinstalled, pair again with the code shown on the PC. Otherwise something on the network may be pretending to be your PC.</string>
     <string name="hint_bluetooth_failed">Pair the phone with the PC in the Bluetooth settings of Android or Windows. The PC must be nearby (about 10 m) with Bluetooth on.</string>
     <string name="transport_wifi">Wi‑Fi</string>
     <string name="transport_bluetooth">Bluetooth</string>

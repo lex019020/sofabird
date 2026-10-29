@@ -198,6 +198,23 @@
           ],
           "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
           "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "port",
+            "sha256"
+          ],
+          "properties": {
+            "port": {
+              "type": "integer"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9A-F]{64}$"
+            }
+          },
+          "description": "The encrypted WebSocket (wss://host:port/ws) and the SHA-256 of its self-signed certificate, which a phone pins"
         }
       }
     },
@@ -1219,6 +1236,23 @@
           ],
           "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
           "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "port",
+            "sha256"
+          ],
+          "properties": {
+            "port": {
+              "type": "integer"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9A-F]{64}$"
+            }
+          },
+          "description": "The encrypted WebSocket (wss://host:port/ws) and the SHA-256 of its self-signed certificate, which a phone pins"
         }
       }
     },

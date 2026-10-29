@@ -170,7 +170,8 @@ internal static class Program
         vlc.Event += sessions.PublishEvent;
         pairing.Paired += d => sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = d.DeviceName });
 
-        var web = new WebServer(settings, host, sessions, vlc, lf.CreateLogger<WebServer>());
+        var tlsCertificate = TlsCertificate.LoadOrCreate(settings, settingsStore, lf.CreateLogger<WebServer>());
+        var web = new WebServer(settings, host, sessions, vlc, tlsCertificate, lf.CreateLogger<WebServer>());
         var beacon = new UdpBeaconResponder(IPAddress.Parse(settings.ListenAddress), settings.BeaconPort, host.BuildBeacon, lf.CreateLogger<UdpBeaconResponder>());
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);

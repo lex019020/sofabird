@@ -130,7 +130,7 @@ messages in English:
 | `-Package <Setup.exe>` | install a ready-made installer (used by `dev-laptop.ps1 -Deploy`) |
 | `-CheckOnly` | compare the installed version with the latest one |
 | `-Firewall` / `-Autostart` | firewall rules for the companion and VLC (private network, one UAC prompt) / autostart |
-| `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs) |
+| `-Uninstall [-Purge]` | uninstall (with `-Purge` — also settings, pairings, logs and the certificate of the encrypted connection) |
 
 The companion is installed by its Velopack installer (`Sofabird-Setup.exe`, which a user can also just
 run) into `%LOCALAPPDATA%\Sofabird` (`current\Sofabird.exe` — a stable path for the firewall

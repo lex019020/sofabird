@@ -37,7 +37,7 @@ does for the user; and Bluetooth as a fallback when Wi-Fi lets you down.
 - iOS, Wear OS, Android TV, widgets (left for later; the protocol and model live in pure Kotlin modules).
 - Downloading subtitles from the internet, transcoding, streaming video to the phone.
 - VLC 4.x support (we prepare for it: branching on `apiversion`, not crashing on new fields).
-- Access from outside the home network, TLS (a field is reserved in the protocol for future pinning).
+- Access from outside the home network.
 - Controlling the TV itself (postponed, see § 6 "Postponed").
 
 ## 2. Scenarios ("from the couch")
@@ -162,8 +162,9 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 
 Pairing: the phone asks to pair, a window with a 6-digit code pops up on the PC (and on the TV), the user enters
 the code on the phone (QR `sofabird://pair?host=&port=&code=&bt=&fp=` is an alternative);
-the phone receives a long-lived token, the PC stores its hash. No TLS in v1 (home network, token);
-the `fp` field is reserved for pinning a self-signed certificate.
+the phone receives a long-lived token, the PC stores its hash. Since 0.4 the WebSocket is encrypted (`wss`, a
+self-signed certificate pinned by the phone at the first encrypted connection, trust on first use; plain `ws` stays
+for older apps in 0.4 only).
 
 ### 4.5. State model
 
@@ -373,7 +374,7 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [ ] Fake-VLC scenario tests.
 
 ### M5 — Later
-Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x, TLS pinning,
+Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x,
 iOS via Compose Multiplatform.
 
 ### Later ideas (user requests)
@@ -444,6 +445,6 @@ sofabird/
 2. **Wake-on-LAN**: wake the PC from the phone (M4).
 3. **Sleep timer** (M4).
 4. **Fake-VLC scenario tests** (M4).
-5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.
+5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

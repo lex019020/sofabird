@@ -19,6 +19,7 @@ public class SessionTests
         public VlcInfo VlcInfo { get; } = new() { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 };
         public PairingService Pairing { get; }
         public string? BluetoothAddress { get; set; } = "04:68:74:9A:2B:FC";
+        public TlsInfo? Tls { get; set; } = new() { Port = 47557, Sha256 = "AB12" };
         public List<(string Name, CommandArgs Args)> Commands { get; } = new();
         public bool VlcDown { get; set; }
         public List<DeviceInfo?> PairingRequests { get; } = new();
@@ -155,6 +156,8 @@ public class SessionTests
         Assert.True(pairing.ValidateToken(token));
         Assert.True(welcome.GetProperty("vlc").GetProperty("running").GetBoolean());
         Assert.Equal("04:68:74:9A:2B:FC", welcome.GetProperty("bt").GetString());
+        Assert.Equal(47557, welcome.GetProperty("tls").GetProperty("port").GetInt32());
+        Assert.Equal("AB12", welcome.GetProperty("tls").GetProperty("sha256").GetString());
         Assert.True(session.IsAuthenticated);
         Assert.Equal("Pixel 8", session.Device!.Name);
 

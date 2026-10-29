@@ -7,6 +7,7 @@ import app.sofabird.data.companion.CompanionCredentials
 import app.sofabird.data.companion.CompanionEndpoint
 import app.sofabird.data.companion.CompanionTransports
 import app.sofabird.data.net.ArtAuth
+import app.sofabird.data.net.PinnedServers
 import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
@@ -23,6 +24,7 @@ import app.sofabird.protocol.backend.onTv
 import app.sofabird.protocol.backend.resultOf
 import app.sofabird.protocol.backend.routeToYouTube
 import app.sofabird.protocol.companion.AudioDevice
+import app.sofabird.protocol.companion.COMPANION_TLS_PORT
 import app.sofabird.protocol.companion.DisplayList
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionState
@@ -78,6 +80,7 @@ class PlayerController(
     private val servers: ServerRepository,
     private val secrets: SecretStore,
     private val artAuth: ArtAuth,
+    private val pinned: PinnedServers,
     private val appVisibility: AppVisibility,
     private val identity: DeviceIdentity,
     private val transports: CompanionTransports,
@@ -207,7 +210,7 @@ class PlayerController(
             val current = { _activeServer.value?.takeIf { it.id == server.id } ?: server }
             val backend = CompanionBackend(
                 transports = transports,
-                endpoint = { current().let { CompanionEndpoint(it.host, it.wsPort, it.btAddress, it.pcId) } },
+                endpoint = { current().let { CompanionEndpoint(it.host, it.wsPort, it.btAddress, it.pcId, it.tlsPort, it.certPin) } },
                 initialName = server.displayName,
                 device = identity.deviceInfo(),
                 credentials = CompanionCredentials(token = token),
@@ -217,7 +220,17 @@ class PlayerController(
                     _events.tryEmit(PlayerEvent.Paired(server))
                 },
                 scope = backendScope,
-                onWelcome = { welcome ->
+                onWelcome = { welcome, pin ->
+                    // A plain session with a companion that has the encrypted WebSocket: the next connection uses it.
+                    welcome.tls?.port?.takeIf { pin == null && current().certPin == null && it != current().tlsPort }?.let { port ->
+                        scope.launch { servers.update(server.id) { it.copy(tlsPort = port) } }
+                    }
+                    if (pin != null) {
+                        current().takeIf { it.host.isNotBlank() }?.let {
+                            pinArt(it.host, pin.port, pin.sha256, secrets.companionToken(server.id))
+                        }
+                        scope.launch { servers.update(server.id) { it.copy(tlsPort = pin.port, certPin = pin.sha256) } }
+                    }
                     val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt)
                     if (current().mergeSighting(sighting) != current()) {
                         scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
@@ -231,6 +244,9 @@ class PlayerController(
                 bluetoothAllowed = { settings.settings.value.bluetoothFallback || current().host.isBlank() },
             )
             if (token != null && server.host.isNotBlank()) artAuth.set(server.host, server.wsPort, "Bearer $token")
+            if (server.certPin != null && server.host.isNotBlank()) {
+                pinArt(server.host, server.tlsPort ?: COMPANION_TLS_PORT, server.certPin, token)
+            }
             backend
         }
     }
@@ -307,6 +323,12 @@ class PlayerController(
     suspend fun library(): Result<Library> = withBackend { it.library() }
 
     suspend fun show(key: String): Result<ShowDetails> = withBackend { it.show(key) }
+
+    /** The artwork of an encrypted link comes from [host]:[port] over https with the companion's own certificate. */
+    private fun pinArt(host: String, port: Int, sha256: String, token: String?) {
+        pinned.set(host, port, sha256)
+        if (token != null) artAuth.set(host, port, "Bearer $token")
+    }
 
     /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */
     fun retryNow() {

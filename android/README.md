@@ -261,6 +261,19 @@ Behaviour:
 **Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
 connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
+## Encryption
+
+`lanRoutes` (`:core:protocol`, tested) decides how to reach the companion on the LAN: a pinned PC
+(`SavedServer.certPin`) only over `wss` with that certificate; a PC known to have it (`tlsPort` from `welcome`) over
+`wss` first (trust on first use), then plain; otherwise plain `ws`, and its `welcome` tells `tls` for next time.
+`WebSocketTransport.openTls` opens `wss` with its own OkHttp client and `PinningTrustManager` (SHA-256 of the
+certificate, no host name check); the first accepted encrypted session hands the certificate to `onWelcome`, and it
+is saved. Another certificate than the pinned one → `ConnectionError.CertificateChanged` ("pair again with the code
+shown on the PC"), never a fallback to plain. Pairing with a code trusts the certificate anew; connecting with the
+stored token requires the pinned one. Artwork: on an encrypted link `/art` URLs are rewritten to the encrypted
+listener (`artOverTls`), and the shared OkHttp client trusts the pinned certificate for that host and port only
+(`PinnedServers`; everything else — TMDB, YouTube — is checked by the system as usual).
+
 ## Watch history
 
 Companion mode with the `history` capability only (protocol: "Watch history and resume" in

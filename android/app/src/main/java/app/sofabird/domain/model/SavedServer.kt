@@ -25,6 +25,10 @@ data class SavedServer(
     val pcId: String? = null,
     /** Companion PC's Bluetooth address (`welcome`/beacon/`/info` `bt`): RFCOMM fallback when the LAN is unavailable. */
     val btAddress: String? = null,
+    /** The companion's encrypted WebSocket port (`tls.port`), once used. */
+    val tlsPort: Int? = null,
+    /** SHA-256 of the companion's certificate, pinned at the first encrypted connection: from then on only that. */
+    val certPin: String? = null,
 ) {
     val displayName: String get() = name.ifBlank { host.ifBlank { btAddress.orEmpty() } }
 

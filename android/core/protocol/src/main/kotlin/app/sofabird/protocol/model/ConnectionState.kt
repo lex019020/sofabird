@@ -41,6 +41,12 @@ sealed class ConnectionError {
     /** Companion over Bluetooth: the RFCOMM connection failed (PC not bonded, out of range, companion not running). */
     data object BluetoothFailed : ConnectionError()
 
+    /**
+     * Companion: the PC presented another certificate than the one pinned when this phone paired (the companion was
+     * reinstalled with its data removed — or something pretends to be the PC). Not retried.
+     */
+    data object CertificateChanged : ConnectionError()
+
     data class Other(val message: String?) : ConnectionError()
 }
 

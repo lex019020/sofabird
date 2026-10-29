@@ -14,12 +14,33 @@ Two levels:
 
 ## Transport
 
-- WebSocket: `ws://<host>:47555/ws`. Text frames, one JSON object per frame. The same NDJSON
+- WebSocket: `wss://<host>:47557/ws` (encrypted, see "Encryption") and `ws://<host>:47555/ws` (plain, for older
+  apps; it goes away in the next version). Text frames, one JSON object per frame. The same NDJSON
   (a trailing `\n`) is allowed and ignored when parsing.
 - RFCOMM (Bluetooth Classic): service with UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, SDP name `Sofabird`.
   A UTF-8 byte stream, one JSON line per message, `\n` as the separator, at most 1 MiB per line. The same messages,
   handshake and token as over WebSocket. The channel is encrypted by Bluetooth pairing; the token is still required.
 - Diagnostics without WebSocket: `GET http://<host>:47555/info` → `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool}` (no authorization, only for display in the list of discovered PCs).
+
+## Encryption
+
+The companion has a self-signed certificate (ECDSA P-256, made at its first start, kept in the Windows user's
+certificate store) and listens with TLS on `tlsPort` (47557) — the same `/ws`, `/info` and `/art` as on 47555. It
+names the port and the certificate's SHA-256 (DER, upper-case hex) as `"tls": {"port": 47557, "sha256": "…"}` in
+`/info`, `beacon` and `welcome` (absent without a certificate).
+
+- **Pinning, trust on first use.** A phone trusts no authority and no host name, only the certificate it pinned:
+  the first encrypted connection that the companion accepts (a pairing code or the stored token) pins the
+  certificate it showed, after checking that `welcome.tls.sha256` names the same one. From then on the phone uses
+  only `wss` with that certificate; it never goes back to plain `ws`, and another certificate is an error
+  (`CertificateChanged`) until the user pairs again with a code (how a reinstalled companion with a new certificate
+  is trusted again).
+- **Moving over.** A phone that does not know `tls` yet (paired with an older app, or found by an address only)
+  connects plainly; the `welcome` tells it `tls`, and its next connection is encrypted and pins. A phone talking to an
+  older companion (no `tls`) stays on `ws`.
+- **Artwork.** On an encrypted link the phone fetches `/art` from the encrypted listener too (it rewrites
+  `http://<pc>:47555/art…` to `https://<host>:47557/art…`), so the token in `Authorization` is never sent in plain text.
+- Bluetooth needs none of this: the RFCOMM link is encrypted by the Bluetooth pairing.
 
 ## Discovery
 

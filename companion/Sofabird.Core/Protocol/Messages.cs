@@ -74,6 +74,18 @@ public sealed class WelcomeMessage : Message
     public VlcInfo Vlc { get; set; } = new();
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
+    /// <summary>The encrypted WebSocket (<c>wss</c>): its port and the certificate's SHA-256 a phone pins; absent without one.</summary>
+    public TlsInfo? Tls { get; set; }
+}
+
+/// <summary>
+/// The encrypted WebSocket: <c>wss://host:Port/ws</c> with a self-signed certificate whose SHA-256 (DER, hex) is
+/// <see cref="Sha256"/>; a phone pins it at pairing and accepts no other.
+/// </summary>
+public sealed class TlsInfo
+{
+    public int Port { get; set; }
+    public string Sha256 { get; set; } = "";
 }
 
 public sealed class ErrMessage : Message
@@ -374,6 +386,8 @@ public sealed class BeaconMessage : Message
     public bool NeedsPairing { get; set; }
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
+    /// <summary>The encrypted WebSocket (<c>wss</c>): its port and the certificate's SHA-256 a phone pins; absent without one.</summary>
+    public TlsInfo? Tls { get; set; }
 }
 
 public static class ProtocolConstants
@@ -381,6 +395,7 @@ public static class ProtocolConstants
     public const int Version = 1;
     public const int DefaultWsPort = 47555;
     public const int DefaultBeaconPort = 47556;
+    public const int DefaultTlsPort = 47557;
     public const string DnsSdServiceType = "_sofabird._tcp";
     public const string BeaconRequest = "SOFABIRD_DISCOVER 1";
 

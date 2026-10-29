@@ -12,6 +12,9 @@ import app.sofabird.protocol.companion.CompanionErrorException
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
 import app.sofabird.protocol.companion.DeviceInfo
+import app.sofabird.protocol.companion.LanRoute
+import app.sofabird.protocol.companion.artOverTls
+import app.sofabird.protocol.companion.lanRoutes
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
@@ -53,7 +56,14 @@ data class CompanionEndpoint(
     val port: Int,
     val btAddress: String? = null,
     val pcId: String? = null,
+    /** The encrypted WebSocket's port, when known (`tls.port`). */
+    val tlsPort: Int? = null,
+    /** The pinned certificate: then the PC is reached only encrypted ([lanRoutes]). */
+    val certPin: String? = null,
 )
+
+/** A companion certificate to pin: the encrypted WebSocket's port and the certificate's SHA-256. */
+data class TlsPin(val port: Int, val sha256: String)
 
 /** Timeouts and intervals of [CompanionBackend] (protocol/README.md "Keep-alive", "Bluetooth"). */
 data class CompanionTiming(
@@ -90,8 +100,8 @@ class CompanionBackend(
     /** Called with the token issued after a successful pairing; persist it. */
     private val onToken: (String) -> Unit,
     private val scope: CoroutineScope,
-    /** Every `welcome` (persist `bt`, the GUID). */
-    private val onWelcome: (CompanionMessage.Welcome) -> Unit = {},
+    /** Every `welcome` (persist `bt`, the GUID) and, after the first encrypted connection, the certificate to pin. */
+    private val onWelcome: (CompanionMessage.Welcome, TlsPin?) -> Unit = { _, _ -> },
     /** The LAN probe found the companion at another address than [endpoint] says (persist it). */
     private val onLanFound: (LanEndpoint) -> Unit = {},
     /** User setting "Use Bluetooth when Wi-Fi is unavailable". */
@@ -133,7 +143,15 @@ class CompanionBackend(
 
     @Volatile private var pongDeferred: CompletableDeferred<Unit>? = null
 
-    private class Link(val transport: CompanionTransport, val welcome: CompanionMessage.Welcome)
+    /** [artRoute]: an encrypted LAN link's host and port, where the artwork is fetched too; [newPin]: trust on first use. */
+    private class Link(
+        val transport: CompanionTransport,
+        val welcome: CompanionMessage.Welcome,
+        val artRoute: Pair<String, Int>? = null,
+        val newPin: TlsPin? = null,
+    )
+
+    @Volatile private var artRoute: Pair<String, Int>? = null
 
     override suspend fun connect() {
         if (sessionJob?.isActive == true) return
@@ -278,15 +296,44 @@ class CompanionBackend(
         }
     }
 
-    /** WebSocket + handshake; `null` when the PC did not answer within the LAN timeout. */
+    /**
+     * WebSocket + handshake; `null` when the PC did not answer within the LAN timeout. The routes come from
+     * [lanRoutes]: encrypted first (only that once pinned), plain for an older companion.
+     */
     private suspend fun tryLan(host: String, port: Int): Link? {
-        val ws = withTimeoutOrNull(timing.lanConnectTimeoutMs) { transports.openWebSocket(host, port) } ?: return null
-        return try {
-            Link(ws, handshakeOn(ws))
-        } catch (e: Throwable) {
-            closeQuietly(ws)
-            throw e
+        val ep = endpoint()
+        val routes = lanRoutes(port, ep.tlsPort, ep.certPin)
+        var failure: Throwable? = null
+        for (route in routes) {
+            val opened = runCatching { withTimeoutOrNull(timing.lanConnectTimeoutMs) { transports.openWebSocket(host, route) } }
+            opened.exceptionOrNull()?.let { e ->
+                if (e is CancellationException) throw e
+                if (e.isCertificateChanged) throw CompanionHandshakeException(ConnectionError.CertificateChanged, e.message)
+                failure = e
+            }
+            val ws = opened.getOrNull() ?: continue
+            return try {
+                val welcome = handshakeOn(ws)
+                Link(ws, welcome, artRoute = route.takeIf { it.tls }?.let { host to it.port }, newPin = newPin(ws, route, welcome))
+            } catch (e: Throwable) {
+                closeQuietly(ws)
+                throw e
+            }
         }
+        failure?.let { throw it }
+        return null
+    }
+
+    /** Trust on first use: the companion accepted us over this certificate, and its own `welcome` names the same one. */
+    private fun newPin(ws: CompanionTransport, route: LanRoute, welcome: CompanionMessage.Welcome): TlsPin? {
+        val seen = ws.certificate ?: return null
+        if (route.pin != null) return null
+        val said = welcome.tls?.sha256
+        if (said != null && !said.equals(seen, ignoreCase = true)) {
+            throw CompanionHandshakeException(ConnectionError.CertificateChanged, "welcome names $said, the link shows $seen")
+        }
+        Log.i(TAG, "pinning the companion's certificate $seen (port ${route.port})")
+        return TlsPin(route.port, seen)
     }
 
     private suspend fun handshakeOn(t: CompanionTransport): CompanionMessage.Welcome {
@@ -308,12 +355,13 @@ class CompanionBackend(
         hostName = welcome.name
         currentKind = link.transport.kind
         transport = link.transport
+        artRoute = link.artRoute
         _capabilities.value = Capabilities.fromWire(welcome.caps)
         _state.value = _state.value.copy(vlc = welcome.vlc.copy(level = 2))
         _bluetoothNeed.value = null
         _connection.value = ConnectionState.Connected(hostName, level = 2, transport = currentKind)
         wake.tryReceive() // a stale "retry now" must not skip a future backoff
-        runCatching { onWelcome(welcome) }.onFailure { Log.w(TAG, "onWelcome failed", it) }
+        runCatching { onWelcome(welcome, link.newPin) }.onFailure { Log.w(TAG, "onWelcome failed", it) }
     }
 
     /** Runs one link until it closes (`null`) or the LAN came back while on RFCOMM (the new link). */
@@ -361,6 +409,9 @@ class CompanionBackend(
                         s = s.copy(playback = s.playback.copy(updatedAt = System.currentTimeMillis()))
                     }
                     s.youtube?.let { yt -> s = s.copy(youtube = yt.copy(updatedAt = System.currentTimeMillis())) }
+                    artRoute?.let { (host, port) ->
+                        s = s.copy(item = s.item.copy(artUrl = artOverTls(s.item.artUrl, host, endpoint().port, port)))
+                    }
                     _state.value = s
                     if (_connection.value !is ConnectionState.Connected && transport === t) {
                         _connection.value = ConnectionState.Connected(hostName, 2, transport = t.kind)

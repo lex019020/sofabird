@@ -1,15 +1,18 @@
 package app.sofabird.data.player
 
+import app.sofabird.data.companion.CompanionHandshakeException
 import app.sofabird.data.companion.CompanionTransport
 import app.sofabird.data.companion.CompanionTransports
 import app.sofabird.data.companion.classifyCompanionError
 import app.sofabird.data.companion.handshake
+import app.sofabird.data.companion.isTerminalHandshakeError
 import app.sofabird.data.vlc.VlcErrorClassifier
 import app.sofabird.data.vlc.VlcHttpApi
 import app.sofabird.data.vlc.VlcHttpException
 import app.sofabird.protocol.companion.BtAddress
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DeviceInfo
+import app.sofabird.protocol.companion.lanRoutes
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.VlcInfo
@@ -30,6 +33,9 @@ sealed class TestResult {
         val vlc: VlcInfo,
         /** PC Bluetooth address from `welcome`, normalized. */
         val bt: String? = null,
+        /** The encrypted WebSocket used for this test: its port and the certificate to pin; `null` — plain. */
+        val tlsPort: Int? = null,
+        val certPin: String? = null,
     ) : TestResult()
 
     data class Failed(val error: ConnectionError) : TestResult()
@@ -60,14 +66,31 @@ class ConnectionTester(private val ktor: HttpClient, private val transports: Com
         }
     }
 
-    /** One `hello` over the LAN WebSocket; the link is closed afterwards. */
+    /**
+     * One `hello` over the LAN WebSocket; the link is closed afterwards. Encrypted first ([lanRoutes]; a known
+     * [certPin] is required), plain for an older companion; an encrypted success carries the certificate to pin.
+     */
     suspend fun testCompanion(
         host: String,
         wsPort: Int,
         token: String?,
         pairCode: String?,
         device: DeviceInfo,
-    ): TestResult = helloOver(token, pairCode, device, timeoutMs = 12_000) { transports.openWebSocket(host, wsPort) }
+        tlsPort: Int? = null,
+        certPin: String? = null,
+    ): TestResult {
+        var last: TestResult = TestResult.Failed(ConnectionError.Timeout)
+        for (route in lanRoutes(wsPort, tlsPort, certPin)) {
+            last = helloOver(token, pairCode, device, timeoutMs = if (route.tls) TLS_TRY_MS else 12_000) {
+                transports.openWebSocket(host, route)
+            }
+            val result = last
+            if (result is TestResult.CompanionOk) return if (route.tls) result.copy(tlsPort = route.port) else result.copy(certPin = null)
+            // A refusal (wrong code, pairing needed, another certificate) is the companion's answer: do not go plain.
+            if (result is TestResult.Failed && result.error.isTerminalHandshakeError) return result
+        }
+        return last
+    }
 
     /** The same over RFCOMM to the bonded PC at [address] (first connection via Bluetooth). */
     suspend fun testCompanionBluetooth(
@@ -92,6 +115,10 @@ class ConnectionTester(private val ktor: HttpClient, private val transports: Com
                 val link = open()
                 try {
                     val welcome = link.handshake(CompanionMessage.Hello(device = device, token = token, pairCode = pairCode))
+                    val certificate = link.certificate
+                    if (certificate != null && welcome.tls?.sha256?.equals(certificate, ignoreCase = true) == false) {
+                        throw CompanionHandshakeException(ConnectionError.CertificateChanged, "welcome names another certificate")
+                    }
                     TestResult.CompanionOk(
                         name = welcome.name,
                         pcId = welcome.pcId,
@@ -99,6 +126,9 @@ class ConnectionTester(private val ktor: HttpClient, private val transports: Com
                         capabilities = Capabilities.fromWire(welcome.caps),
                         vlc = welcome.vlc,
                         bt = BtAddress.normalize(welcome.bt),
+                        // Plain: the companion says it has the encrypted one; the first session then pins it.
+                        tlsPort = welcome.tls?.port,
+                        certPin = certificate,
                     )
                 } finally {
                     withContext(NonCancellable) { link.close() }
@@ -112,3 +142,6 @@ class ConnectionTester(private val ktor: HttpClient, private val transports: Com
         }
     }
 }
+
+/** An encrypted try during pairing: a companion without it (older) must not hold up the plain one for long. */
+private const val TLS_TRY_MS = 5_000L

@@ -24,6 +24,7 @@ fun ConnectionError.message(context: Context): String = when (this) {
     ConnectionError.VlcNotRunning -> context.getString(R.string.err_vlc_not_running)
     is ConnectionError.ProtocolMismatch -> context.getString(R.string.err_protocol_mismatch, remote?.toString() ?: "?")
     ConnectionError.BluetoothFailed -> context.getString(R.string.err_bluetooth_failed)
+    ConnectionError.CertificateChanged -> context.getString(R.string.err_certificate_changed)
     is ConnectionError.Other -> context.getString(R.string.err_other, message ?: "")
 }
 
@@ -37,6 +38,7 @@ fun ConnectionError.hint(context: Context): String? = when (this) {
     ConnectionError.PairingRequired -> context.getString(R.string.hint_pairing_required)
     ConnectionError.InvalidPairCode -> context.getString(R.string.hint_invalid_pair_code)
     ConnectionError.BluetoothFailed -> context.getString(R.string.hint_bluetooth_failed)
+    ConnectionError.CertificateChanged -> context.getString(R.string.hint_certificate_changed)
     else -> null
 }
 

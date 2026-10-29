@@ -123,6 +123,9 @@ public sealed class CompanionHost : ISessionHost
 
     /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
+
+    /// <summary>Set once the encrypted listener runs (<see cref="Net.WebServer"/>).</summary>
+    public TlsInfo? Tls { get; set; }
     public VlcInfo VlcInfo => _vlc.Info.Clone();
 
     /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
@@ -153,6 +156,7 @@ public sealed class CompanionHost : ISessionHost
         NeedsPairing = !Pairing.HasPairedDevices,
         PcId = InstallationId,
         Bt = BluetoothAddress,
+        Tls = Tls,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -162,6 +166,7 @@ public sealed class CompanionHost : ISessionHost
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
         Bt = BluetoothAddress,
+        Tls = Tls,
     };
 
     private SystemInfo BuildSystemInfo()

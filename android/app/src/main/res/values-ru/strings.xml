@@ -278,6 +278,8 @@
 
     <!-- Bluetooth (M3) -->
     <string name="err_bluetooth_failed">Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен</string>
+    <string name="err_certificate_changed">ПК предъявил другой сертификат безопасности, чем при сопряжении с телефоном</string>
+    <string name="hint_certificate_changed">Если компаньон переустанавливали, выполните сопряжение заново с кодом с экрана ПК. Иначе в сети может быть кто-то, кто выдаёт себя за ваш ПК.</string>
     <string name="hint_bluetooth_failed">Сопрягите телефон с ПК в настройках Bluetooth Android или Windows. ПК должен быть рядом (около 10 м) с включённым Bluetooth.</string>
     <string name="transport_wifi">Wi‑Fi</string>
     <string name="transport_bluetooth">Bluetooth</string>

@@ -4,23 +4,26 @@ import android.util.Log
 import app.sofabird.data.discovery.UdpBeaconDiscovery
 import app.sofabird.protocol.companion.BtAddress
 import app.sofabird.protocol.companion.CompanionCodec
+import app.sofabird.protocol.companion.LanRoute
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
 import kotlin.coroutines.cancellation.CancellationException
 
 /** [CompanionTransports] over Ktor (WebSocket, `/info`), the UDP beacon and Android Bluetooth. */
 class AndroidCompanionTransports(
     private val ktor: HttpClient,
+    private val okHttp: OkHttpClient,
     private val bluetooth: BluetoothSupport,
     private val beacon: UdpBeaconDiscovery,
 ) : CompanionTransports {
 
-    override suspend fun openWebSocket(host: String, port: Int): CompanionTransport =
-        WebSocketTransport.open(ktor, host, port)
+    override suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport =
+        if (route.tls) WebSocketTransport.openTls(okHttp, host, route.port, route.pin) else WebSocketTransport.open(ktor, host, route.port)
 
     override fun bluetoothStatus(address: String?): BluetoothStatus = bluetooth.status(address)
 

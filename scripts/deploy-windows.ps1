@@ -21,7 +21,7 @@
   .\deploy-windows.ps1 -CheckOnly            # only compare versions
   .\deploy-windows.ps1 -SkipVlc              # do not install VLC when it is missing
   .\deploy-windows.ps1 -Firewall -Autostart  # + firewall rules (one UAC prompt) and autostart
-  .\deploy-windows.ps1 -Uninstall [-Purge]   # uninstall (with -Purge - also settings, pairings, logs)
+  .\deploy-windows.ps1 -Uninstall [-Purge]   # uninstall (with -Purge - also settings, pairings, logs, the certificate)
 #>
 [CmdletBinding()]
 param(
@@ -257,6 +257,11 @@ if ($Uninstall) {
     Remove-LegacyInstall
     Remove-ItemProperty -Path $RunKey -Name $RunValue -ErrorAction SilentlyContinue
     if ($Purge -and (Test-Path $DataRoot)) { Remove-Item $DataRoot -Recurse -Force; Write-Ok 'Settings and logs removed' }
+    if ($Purge) {
+        # The certificate of the encrypted connection to phones (the companion makes it at its first start).
+        Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.FriendlyName -eq 'Sofabird (encrypted connection to phones)' } |
+            Remove-Item -ErrorAction SilentlyContinue
+    }
     Write-Ok 'Done'
     return
 }

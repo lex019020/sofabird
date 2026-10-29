@@ -16,6 +16,8 @@ public interface ISessionHost
     VlcInfo VlcInfo { get; }
     /// <summary>Bluetooth adapter address for <c>welcome.bt</c>; <c>null</c> — no adapter, radio off or Bluetooth disabled.</summary>
     string? BluetoothAddress { get; }
+    /// <summary>The encrypted WebSocket for <c>welcome.tls</c>; <c>null</c> — none.</summary>
+    TlsInfo? Tls { get; }
     PairingService Pairing { get; }
 
     /// <summary>

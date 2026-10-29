@@ -37,12 +37,17 @@ class CompanionPairingLink(
     override suspend fun hello(target: PairingTarget, token: String?, pairCode: String?): TestResult {
         val bt = target.btAddress
         if (target.viaBluetooth) return helloBluetooth(bt!!, token, pairCode)
+        // With the stored token only the pinned certificate will do; a new pairing code is the user trusting the PC
+        // (again — e.g. after the companion was reinstalled with a new certificate).
+        val known = saved(target)
         val lan = tester.testCompanion(
             host = target.host,
             wsPort = target.wsPort,
             token = token,
             pairCode = pairCode,
             device = identity.deviceInfo(),
+            tlsPort = known?.tlsPort,
+            certPin = known?.certPin.takeIf { pairCode == null },
         )
         // Same rule as the live session: LAN first, then the bonded PC over RFCOMM.
         val lanDown = lan is TestResult.Failed && !lan.error.isTerminalHandshakeError
@@ -96,6 +101,9 @@ internal fun mergePairedServer(
         mode = ServerMode.COMPANION,
         pcId = pcId,
         btAddress = BtAddress.normalize(welcome.bt) ?: BtAddress.normalize(target.btAddress) ?: existing?.btAddress,
+        // Pairing again (a new code) is how a PC with a new certificate is trusted again.
+        tlsPort = welcome.tlsPort ?: existing?.tlsPort,
+        certPin = welcome.certPin ?: existing?.certPin,
         lastUsedAt = now,
     )
 }
