@@ -6,7 +6,6 @@ import app.sofabird.data.companion.CompanionTransports
 import app.sofabird.data.discovery.DiscoveryRepository
 import app.sofabird.data.discovery.LocalNetwork
 import app.sofabird.data.discovery.NsdDiscovery
-import app.sofabird.data.discovery.SubnetScanner
 import app.sofabird.data.discovery.UdpBeaconDiscovery
 import app.sofabird.data.history.WatchPrompts
 import app.sofabird.data.net.ArtAuth
@@ -60,23 +59,22 @@ val appModule = module {
     single { LocalNetwork(androidContext()) }
     single { NsdDiscovery(androidContext()) }
     single { UdpBeaconDiscovery(get()) }
-    single { SubnetScanner(get(), get()) }
-    single { DiscoveryRepository(get(), get(), get(), get(), get(named("appScope"))) }
+    single { DiscoveryRepository(get(), get(), get(), get(named("appScope"))) }
 
     single { DeviceIdentity(androidContext(), get()) }
     single { BluetoothSupport(androidContext()) }
     single<CompanionTransports> { AndroidCompanionTransports(get(), get(), get(), get()) }
     single { CompanionServerSync(get(), get(), get(named("appScope"))) }
 
-    single { ConnectionTester(get(), get()) }
-    single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
+    single { ConnectionTester(get()) }
+    single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
     single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
     single { WatchPrompts(get(), get(named("appScope"))) }
     single { AppUpdates(androidContext(), get(), get(named("appScope"))) }
     single { PcWaker(get(), get(), get(named("appScope"))) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
-    viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { RemoteViewModel(get(), get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { PlaylistViewModel(get(), get()) }

@@ -55,7 +55,7 @@ sealed class PlayerCommand {
     data class Loop(val on: Boolean) : PlayerCommand()
     data class Repeat(val on: Boolean) : PlayerCommand()
 
-    /** Companion only: start VLC (optionally with a file and on a display). */
+    /** Start VLC (optionally with a file and on a display). */
     data class Launch(val uri: String? = null, val display: Int? = null) : PlayerCommand()
     data object Quit : PlayerCommand()
 
@@ -66,7 +66,7 @@ sealed class PlayerCommand {
     data object DismissNext : PlayerCommand()
 }
 
-/** System-level commands; each needs the corresponding capability (companion only). */
+/** System-level commands; each needs the corresponding capability. */
 sealed class SystemCommand {
     /**
      * Move the VLC window to a monitor and remember it as the preferred one (when VLC is closed the

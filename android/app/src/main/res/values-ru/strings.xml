@@ -22,8 +22,6 @@
     <string name="state_reconnecting">Переподключение (попытка %1$d)…</string>
     <string name="state_asleep">ПК спит</string>
     <string name="state_degraded">ПК не отвечает, пробую снова…</string>
-    <string name="level_http">VLC по HTTP</string>
-    <string name="level_lua">VLC + Lua‑страницы</string>
     <string name="level_companion">Компаньон</string>
     <string name="latency_ms">%1$d мс</string>
     <string name="reconnecting_detail">Нет связи: %1$s. Переподключаюсь…</string>
@@ -31,12 +29,8 @@
     <string name="volume_percent">Громкость %1$d %%</string>
 
     <!-- Errors (precise, by class) -->
-    <string name="err_no_password_set">В VLC не задан пароль веб‑интерфейса (ответ 403)</string>
-    <string name="err_wrong_password">Неверный пароль веб‑интерфейса (ответ 401)</string>
-    <string name="err_refused">Соединение отклонено: веб‑интерфейс VLC выключен или порт другой</string>
+    <string name="err_refused">Соединение отклонено: Sofabird не запущен на ПК или порт другой</string>
     <string name="err_timeout">ПК не отвечает: брандмауэр, другая сеть или ПК спит</string>
-    <string name="err_empty_body">Пустой ответ: VLC ещё запускается, повторите через пару секунд</string>
-    <string name="err_lua">Ошибка Lua‑страницы в VLC %1$s</string>
     <string name="err_unknown_host">Не удалось определить адрес ПК</string>
     <string name="err_pairing_required">Телефон не сопряжён с этим компьютером</string>
     <string name="err_vlc_not_running">VLC не запущен на ПК</string>
@@ -44,14 +38,10 @@
     <string name="err_other">Ошибка: %1$s</string>
     <string name="err_command_failed">Команда не выполнена: %1$s</string>
     <string name="err_unsupported">Эта команда не поддерживается компаньоном</string>
-    <string name="err_needs_companion">Для этого нужен компаньон на ПК</string>
     <string name="err_not_connected">Нет подключения к ПК</string>
 
-    <string name="hint_no_password_set">Инструменты → Настройки → Все → Интерфейс → Основные интерфейсы → Lua: задайте пароль Lua HTTP и перезапустите VLC.</string>
-    <string name="hint_wrong_password">Пароль — это «Lua HTTP → Пароль» в настройках VLC. Логин оставляется пустым.</string>
-    <string name="hint_refused">Проверьте, что в VLC включён «Веб» в основных интерфейсах и что порт совпадает (по умолчанию 8080).</string>
-    <string name="hint_timeout">Телефон и ПК должны быть в одной Wi‑Fi‑сети. Брандмауэр Windows должен разрешать vlc.exe в частной сети.</string>
-    <string name="hint_empty_body">Подождите, пока VLC полностью запустится, и нажмите «Проверить» ещё раз.</string>
+    <string name="hint_refused">Проверьте, что Sofabird запущен на ПК (значок в трее) и порт совпадает (по умолчанию 47555).</string>
+    <string name="hint_timeout">Телефон и ПК должны быть в одной Wi‑Fi‑сети. Брандмауэр Windows должен пускать телефон: значок в трее → Настройка и разрешения → Доступ по сети.</string>
     <string name="hint_pairing_required">Нажмите на компьютер в списке — на его экране появится код. Если окна нет: значок Sofabird в трее → «Сопряжение телефона…».</string>
 
     <!-- Remote -->
@@ -88,7 +78,6 @@
     <string name="sheet_audio_title">Аудиодорожка</string>
     <string name="sheet_subtitles_title">Субтитры</string>
     <string name="sheet_video_title">Видеодорожка</string>
-    <string name="tracks_current_unknown_hint">VLC не сообщает текущую дорожку без Lua‑страниц или компаньона — выбранная здесь запоминается на телефоне.</string>
     <string name="tracks_none">Дорожек нет: ничего не воспроизводится</string>
     <string name="track_disable">Выключить</string>
     <string name="delay_audio">Задержка звука</string>
@@ -110,7 +99,6 @@
     <string name="keep_awake">Не давать ПК уснуть</string>
     <string name="action_display_off">Выключить экран</string>
     <string name="action_sleep_pc">Усыпить ПК</string>
-    <string name="needs_companion_hint">Запуск VLC, перенос окна на ТВ, аудиоустройство и сон ПК доступны только с компаньоном на Windows.</string>
 
     <!-- Library -->
     <string name="up">Вверх</string>
@@ -129,38 +117,25 @@
     <!-- Connection -->
     <string name="connection_title">Подключение</string>
     <string name="saved_pcs">Сохранённые ПК</string>
-    <string name="found_pcs">VLC в сети без компаньона</string>
     <string name="searching">Ищу компьютер с компаньоном…</string>
-    <string name="sweep_subnet">Найти VLC сканированием сети</string>
-    <string name="sweeping">Сканирую сеть…</string>
-    <string name="sweep_hint">Проверяет порт 8080 на всех адресах вашей подсети (около 10 секунд).</string>
     <string name="manual_entry">Вручную</string>
-    <string name="mode_direct">Напрямую к VLC</string>
-    <string name="mode_companion">Компаньон</string>
     <string name="field_host">Адрес или имя ПК</string>
     <string name="field_port">Порт</string>
     <string name="field_name_optional">Название (необязательно)</string>
-    <string name="field_password">Пароль веб‑интерфейса VLC</string>
     <string name="already_paired">Телефон уже сопряжён с этим ПК</string>
-    <string name="testing">Проверяю…</string>
-    <string name="test_ok_direct">Работает: %1$s, %2$s</string>
-    <string name="action_test">Проверить</string>
     <string name="action_save_connect">Сохранить и подключить</string>
-    <string name="badge_pc_found">ПК найден</string>
     <string name="badge_vlc_running">VLC запущен</string>
     <string name="badge_vlc_not_running">VLC не запущен</string>
 
-    <string name="instructions_show">Как включить веб‑интерфейс VLC</string>
+    <string name="instructions_show">Как настроить ПК</string>
     <string name="instructions_hide">Скрыть инструкцию</string>
-    <string name="instructions_title">Без компаньона: включите веб‑интерфейс в VLC на ПК</string>
-    <string name="instructions_step1">В VLC откройте Инструменты → Настройки (Ctrl+P) и внизу слева выберите «Показывать настройки: Все».</string>
-    <string name="instructions_step2">Интерфейс → Основные интерфейсы: поставьте галочку «Веб» (web/http).</string>
-    <string name="instructions_step3">Интерфейс → Основные интерфейсы → Lua: в поле «Пароль» (Lua HTTP) задайте пароль. Без пароля VLC отвечает 403.</string>
-    <string name="instructions_step4">Сохраните и полностью перезапустите VLC. При первом запуске разрешите vlc.exe в брандмауэре Windows для частных сетей.</string>
-    <string name="instructions_step5">Узнайте адрес ПК: в Windows выполните ipconfig (IPv4‑адрес) или используйте имя ПК.</string>
-    <string name="instructions_step6">Введите адрес, порт 8080 и пароль выше и нажмите «Проверить» — на ТВ ничего не изменится, мы только читаем статус.</string>
-    <string name="instructions_lua" formatted="false">Чтобы видеть текущую дорожку и названия глав без компаньона, скопируйте страницы из companion/lua в %APPDATA%\\vlc\\lua\\http (скрипт install.ps1) и перезапустите VLC.</string>
-    <string name="instructions_companion">С компаньоном на Windows всё это делается автоматически: ПК находится сам, VLC запускается на ТВ, появляются звук, сон и Bluetooth.</string>
+    <string name="instructions_title">Установите Sofabird для Windows на ПК у телевизора</string>
+    <string name="instructions_step1">На ПК скачайте Sofabird‑Setup.exe с sofabird.app и запустите. Он устанавливается для текущего пользователя и обновляется сам.</string>
+    <string name="instructions_step2">В открывшемся окне настройки разрешите доступ по сети (брандмауэр Windows): иначе Windows не пустит телефон.</string>
+    <string name="instructions_step3">На ПК должен быть установлен VLC media player 3.0 (videolan.org).</string>
+    <string name="instructions_step4">Подключите телефон к той же Wi‑Fi‑сети, что и ПК: компьютер появится в «Компьютеры рядом». Нажмите на него и введите код с экрана телевизора.</string>
+    <string name="instructions_step5">Его нет в списке? Введите адрес ПК выше: его показывает окно с кодом на ПК. Порт остаётся 47555.</string>
+    <string name="instructions_step6">Нет Wi‑Fi? Соедините телефон с ПК в настройках Bluetooth и выберите «Подключиться по Bluetooth».</string>
 
     <!-- Settings -->
     <string name="settings_control">Управление</string>
@@ -184,7 +159,7 @@
     <string name="settings_about">О программе</string>
     <string name="about_license">Sofabird — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
     <string name="about_source">Исходный код</string>
-    <string name="about_text">Sofabird — пульт для VLC 3.0.x на Windows. Пароль VLC и токен компаньона хранятся в зашифрованном хранилище телефона. Уровни: VLC по HTTP → VLC + Lua‑страницы (текущая дорожка, главы) → компаньон (обнаружение, запуск VLC, системные функции).</string>
+    <string name="about_text">Sofabird — пульт для VLC media player на ПК с Windows у телевизора; работает через Sofabird для Windows на этом ПК. Токен сопряжения хранится в зашифрованном хранилище телефона.</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Управление VLC</string>
@@ -281,7 +256,7 @@
     <string name="badge_vlc_not_installed">VLC не установлен</string>
     <string name="forget_pc">Забыть этот компьютер</string>
     <string name="other_ways">Другие способы подключения</string>
-    <string name="other_ways_hint">Bluetooth, VLC без компаньона, ввод адреса вручную, поиск по сети</string>
+    <string name="other_ways_hint">Bluetooth, адрес ПК, как настроить ПК</string>
     <string name="manual_companion_hint">После нажатия «Подключить» на экране компьютера появится код — введите его на телефоне.</string>
     <string name="pairing_connecting">Подключаюсь к %1$s…</string>
     <string name="pairing_auto_found">Найден компьютер %1$s — подключаюсь…</string>

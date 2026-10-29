@@ -6,15 +6,11 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
 
-/** Own IPv4 address and subnet helpers (active network first, interface enumeration as fallback). */
+/** Own IPv4 address and its subnet's broadcast (active network first, interface enumeration as fallback). */
 class LocalNetwork(private val context: Context) {
 
     private companion object {
         const val IPV4_BITS = 32
-        const val LAST_OCTET = 3
-
-        /** .0 is the network, .255 the broadcast. */
-        const val LAST_HOST = 254
     }
 
     data class Address(val address: Inet4Address, val prefixLength: Int)
@@ -49,17 +45,5 @@ class LocalNetwork(private val context: Context) {
                 (broadcast and 0xff).toByte(),
             ),
         )
-    }
-
-    /** All hosts of the /24 containing the own address, nearest to the own address first. */
-    fun subnet24Candidates(): List<String> {
-        val own = ownAddress() ?: return emptyList()
-        val bytes = own.address.address
-        val ownLast = bytes[LAST_OCTET].toInt() and 0xff
-        val prefix = "${bytes[0].toInt() and 0xff}.${bytes[1].toInt() and 0xff}.${bytes[2].toInt() and 0xff}."
-        return (1..LAST_HOST)
-            .filter { it != ownLast }
-            .sortedBy { kotlin.math.abs(it - ownLast) }
-            .map { prefix + it }
     }
 }

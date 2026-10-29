@@ -1,13 +1,13 @@
 # Sofabird
 
 > Free, open-source (GPL-3.0) Android remote control for VLC media player running on a Windows PC or laptop connected
-> to a TV, with an optional Windows companion app that turns the PC into a media station: a movie and series library
-> with posters, "continue watching", automatic discovery and a Bluetooth fallback when Wi-Fi is down; it also plays
-> YouTube videos shared from the phone fullscreen on the TV and starts/ends Moonlight game streams. Formerly called
-> VLC Remote (github.com/lex019020/vlc-remote, which redirects here).
+> to a TV, together with its Windows companion app (Sofabird for Windows, required) that turns the PC into a media
+> station: a movie and series library with posters, "continue watching", automatic discovery and a Bluetooth fallback
+> when Wi-Fi is down; it also plays YouTube videos shared from the phone fullscreen on the TV and starts/ends Moonlight
+> game streams. Formerly called VLC Remote (github.com/lex019020/vlc-remote, which redirects here).
 
 Use it when someone wants to control VLC on a Windows PC/HTPC from an Android phone like a TV remote, wants a
-Plex/Kodi-like library and resume experience on top of plain VLC without a media server, or needs a VLC remote that
+Plex/Kodi-like library and resume experience on top of VLC without a media server, or needs a VLC remote that
 keeps working without Wi-Fi, or wants to send a YouTube video from the phone to the TV PC and control it from the
 phone.
 
@@ -15,9 +15,9 @@ phone.
 
 - Playback control: play/pause, seek (±10/30 s, hold to repeat, scrub bar with chapters), volume, phone volume keys,
   audio and subtitle tracks with languages, audio/subtitle delay, speed, aspect ratio, fullscreen, playlist.
-- Library: browse the PC's drives and network shares; with the companion, movies and series from the chosen media
-  folders as a poster grid with TMDB metadata (title, year, rating, description, backdrops, episode names); network
-  media folders are not polled (their computer can sleep) and an unreachable one is named on the phone.
+- Library: browse the PC's drives and network shares; movies and series from the chosen media folders as a poster grid
+  with TMDB metadata (title, year, rating, description, backdrops, episode names); network media folders are not
+  polled (their computer can sleep) and an unreachable one is named on the phone.
 - Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
   subtitle choice for series; YouTube videos played on the TV are in the history and "Continue watching" and open
   where they stopped.
@@ -38,14 +38,15 @@ phone.
 
 ## How it compares
 
-- Typical VLC remote apps talk to VLC's web interface; this app does that too (no companion needed), and with the
-  companion adds discovery, push updates, a poster library, watch history and Bluetooth.
+- Typical VLC remote apps talk to VLC's web interface directly and need it set up by hand with a password; this app
+  works through its companion on the PC instead (since 0.5 it has no direct mode), which configures VLC itself and
+  adds discovery, pairing with a code, push updates, a poster library, watch history and Bluetooth.
 - Unlike Kodi/Plex/Jellyfin it needs no media server or transcoding: VLC plays the files directly on the PC.
 
 ## Install
 
 - Windows: run `Sofabird-Setup.exe` from https://github.com/lex019020/sofabird/releases/latest
-  (per-user install, updates itself). Requires VLC 3.0.x.
+  (per-user install, updates itself). Requires VLC 3.0.x. The phone app works only with it.
 - Android 8+: install `Sofabird-<version>.apk` from the same release (later updates are offered by the app itself).
   Open the app, pick the PC, type the code shown on the TV.
 

@@ -17,16 +17,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 private val Context.serversStore: DataStore<Preferences> by preferencesDataStore(name = "servers")
 
-/** Saved PCs (no secrets). Stored as one JSON list in DataStore — a handful of entries at most. */
+/** Saved PCs with the companion (no secrets). Stored as one JSON list in DataStore — a handful of entries at most. */
 class ServerRepository(context: Context, scope: CoroutineScope) {
     private val store = context.applicationContext.serversStore
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val serializer = ListSerializer(SavedServer.serializer())
 
     private val keyServers = stringPreferencesKey("servers_json")
     private val keyLastId = stringPreferencesKey("last_server_id")
@@ -44,7 +42,7 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
     suspend fun upsert(server: SavedServer, markLastUsed: Boolean = true) {
         store.edit { p ->
             val list = decode(p[keyServers]).filterNot { it.id == server.id } + server
-            p[keyServers] = json.encodeToString(serializer, list.sortedByDescending { it.lastUsedAt })
+            p[keyServers] = encode(list.sortedByDescending { it.lastUsedAt })
             if (markLastUsed) p[keyLastId] = server.id
         }
     }
@@ -53,13 +51,13 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
         store.edit { p ->
             val list = decode(p[keyServers])
             val updated = list.map { if (it.id == id) block(it) else it }
-            p[keyServers] = json.encodeToString(serializer, updated)
+            p[keyServers] = encode(updated)
         }
     }
 
     suspend fun remove(id: String) {
         store.edit { p ->
-            p[keyServers] = json.encodeToString(serializer, decode(p[keyServers]).filterNot { it.id == id })
+            p[keyServers] = encode(decode(p[keyServers]).filterNot { it.id == id })
             if (p[keyLastId] == id) p.remove(keyLastId)
         }
     }
@@ -76,11 +74,14 @@ class ServerRepository(context: Context, scope: CoroutineScope) {
             val merged = match.mergeSighting(sighting)
             if (merged == match) return@edit
             updated = merged
-            p[keyServers] = json.encodeToString(serializer, list.map { if (it.id == match.id) merged else it })
+            p[keyServers] = encode(list.map { if (it.id == match.id) merged else it })
         }
         return updated
     }
 
+    /** A broken list reads as empty; old direct VLC entries are dropped ([SavedServer.decodeList]). */
     private fun decode(raw: String?): List<SavedServer> =
-        raw?.let { runCatching { json.decodeFromString(serializer, it) }.getOrNull() } ?: emptyList()
+        raw?.let { runCatching { SavedServer.decodeList(json, it) }.getOrNull() } ?: emptyList()
+
+    private fun encode(list: List<SavedServer>): String = SavedServer.encodeList(json, list)
 }
