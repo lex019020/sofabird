@@ -244,7 +244,7 @@ public sealed class StreamLineTransportTests
     }
 
     [Theory]
-    [InlineData(0x0468749A2BFCUL, "04:68:74:9A:2B:FC")]
+    [InlineData(0x021A2B3C4D60UL, "02:1A:2B:3C:4D:60")]
     [InlineData(0UL, "00:00:00:00:00:00")]
     [InlineData(0xFFFFFFFFFFFFUL, "FF:FF:FF:FF:FF:FF")]
     [InlineData(0xABCD_0011_2233_4455UL, "00:11:22:33:44:55")] // bits above 48 are ignored
@@ -258,9 +258,9 @@ public sealed class StreamLineTransportTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("04:68:74:9A:2B")]
-    [InlineData("04:68:74:9A:2B:GG")]
-    [InlineData("0468749A2BFC")]
+    [InlineData("02:1A:2B:3C:4D")]
+    [InlineData("02:1A:2B:3C:4D:GG")]
+    [InlineData("021A2B3C4D60")]
     public void Bluetooth_address_parse_rejects_garbage(string? text) => Assert.False(BluetoothFormat.TryParseAddress(text, out _));
 
     [Fact]

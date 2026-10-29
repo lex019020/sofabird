@@ -166,7 +166,8 @@ internal static class Program
         _ = youtubeMedia.StartAsync();
         using var youtube = new YouTubeService(tvBrowser, youtubeMedia, tvPage, tvAddons, new FirefoxInstaller(lf.CreateLogger<FirefoxInstaller>()),
             settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
-        var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
+        using var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
+        wake.Start();
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
             library, moonlight, youtube, wake, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);

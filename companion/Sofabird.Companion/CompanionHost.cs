@@ -129,7 +129,7 @@ public sealed class CompanionHost : ISessionHost
     /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
 
-    public IReadOnlyList<string> WakeMacs => _wake.Macs();
+    public IReadOnlyList<string>? WakeMacs => _wake.Macs();
     public VlcInfo VlcInfo => _vlc.Info.Clone();
 
     /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
@@ -160,7 +160,7 @@ public sealed class CompanionHost : ISessionHost
         NeedsPairing = !Pairing.HasPairedDevices,
         PcId = InstallationId,
         Bt = BluetoothAddress,
-        Macs = WakeMacs is { Count: > 0 } macs ? macs : null,
+        Macs = WakeMacs,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -170,7 +170,7 @@ public sealed class CompanionHost : ISessionHost
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
         Bt = BluetoothAddress,
-        Macs = WakeMacs is { Count: > 0 } macs ? macs : null,
+        Macs = WakeMacs,
     };
 
     private SystemInfo BuildSystemInfo()

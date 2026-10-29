@@ -505,16 +505,21 @@ network adapter do that.
 
 - **Reading** (`WakeOnLanService`, no admin rights, ~1 s, off the UI thread): PowerShell
   (`WakeOnLan.InspectScript`: `Get-NetAdapter -Physical` + `Get-NetAdapterAdvancedProperty *WakeOnMagicPacket`) lists
-  the adapters that have the setting, `powercfg /devicequery wake_armed` the devices that may wake the PC. An adapter
-  is ready when both are true (`WakeOnLan.State`, tested); wired adapters first.
+  the adapters that have the setting and whether they are connected, `powercfg /devicequery wake_armed` the devices
+  that may wake the PC, `wake_from_any` the devices that can (their driver and the firmware let them wake it from
+  sleep). An adapter is ready when all three are true; the item is ready when a connected adapter is
+  (`WakeOnLan.State`, tested); wired adapters first. A connected adapter that cannot (the TV laptop's Realtek card
+  with Windows' own driver: armed, magic packet on, yet the firmware lets only the Wi-Fi card wake it) is shown as
+  such, with a hint (the card maker's driver, the BIOS's Wake on LAN); there is nothing to apply then.
+  The look runs at the start, 5 s after the network changes, and when the setup window opens or applies.
 - **Applying**: the elevated helper (see "Firewall") gets `--wake-adapter "<name>"` for each adapter that is not
   ready (and `--skip-firewall` when only this has something to do) and runs `WakeOnLan.FixScript`:
   `Set-NetAdapterAdvancedProperty *WakeOnMagicPacket 1` (the adapter restarts: the network drops for a few seconds)
   and `powercfg /deviceenablewake "<device>"`; exit code `5` when that failed. The window then reads the state again.
 - From sleep this works over a cable. From shutdown it also needs the BIOS ("Wake on LAN", often also Windows' fast
   startup off), over Wi-Fi only some PCs can; the window's text says so, the companion does not change those.
-- `macs` (`WakeOnLanService.Macs`, cached for a minute): physical Ethernet and Wi-Fi adapters from .NET's
-  `NetworkInterface`, without virtual, VPN and Bluetooth ones.
+- `macs` (`WakeOnLanService.Macs`, from the last look): the connected, ready adapters (`WakeOnLan.WakeMacs`); `[]`
+  when there is none, so phones stop offering to wake a PC that cannot be woken; left out before the first look.
 - **Going to sleep**: `PowerService.Suspending` (before `SetSuspendState` for `sys sleep`, which now runs 300 ms after
   its reply, and on `SystemEvents.PowerModeChanged` → `Suspend` for the Start menu, the lid and the idle timer; once
   per sleep) sends `event sleeping` to every phone and waits up to 1 s for it to go out. The phones then show the PC
@@ -576,7 +581,7 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
   `getHistory continue/all`, `browse` with `progress`/`finished`, `historyUpdate finished`, `historyUpdate` of a
   non-file URI → `bad_request` in Russian. Next episode and VLC-side track changes — unit tests only.
 - Bluetooth (MediaTek adapter, no devices paired or connected, the radio state was not changed): the RFCOMM service
-  is published from a regular process without administrator rights (`… advertising on adapter 04:68:74:9A:2B:FC`), the
+  is published from a regular process without administrator rights (`… advertising on adapter 02:1A:2B:3C:4D:60`), the
   `bt` field is present in `/info`, the beacon and `welcome`, `caps` contains `bluetooth`; with `bluetooth: false` the
   field is absent; `--shutdown` removes the service. RFCOMM framing (`StreamLineTransport`) — unit tests.
 

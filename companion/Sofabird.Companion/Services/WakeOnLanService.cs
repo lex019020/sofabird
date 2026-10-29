@@ -6,55 +6,77 @@ using Sofabird.Core.Power;
 namespace Sofabird.Companion.Services;
 
 /// <summary>
-/// Wake-on-LAN of this PC: the adapters' MAC addresses for the phones (<c>macs</c> in <c>welcome</c>, the beacon and
-/// <c>/info</c>; a phone sends the magic packet itself) and the adapters' wake settings for the setup window (read
-/// without administrator rights; turned on by the elevated helper, <see cref="WakeOnLan.FixScript"/>).
+/// Wake-on-LAN of this PC: which adapters will wake it (read without administrator rights — PowerShell and powercfg,
+/// ~1 s — at the start and when the network changes; turned on by the elevated helper, <see cref="WakeOnLan.FixScript"/>),
+/// their MAC addresses for the phones (<c>macs</c> in <c>welcome</c>, the beacon and <c>/info</c>; a phone sends the
+/// magic packet itself) and the setup window's item.
 /// </summary>
-public sealed class WakeOnLanService
+public sealed class WakeOnLanService : IDisposable
 {
     private static readonly TimeSpan ScriptTimeout = TimeSpan.FromSeconds(20);
+    /// <summary>A cable plugged in or Wi-Fi joining changes the addresses several times: look once it settles.</summary>
+    private static readonly TimeSpan NetworkSettle = TimeSpan.FromSeconds(5);
     private readonly ILogger _log;
-    private IReadOnlyList<string>? _macs;
-    private DateTime _macsAt;
+    private readonly System.Threading.Timer _settle;
+    private IReadOnlyList<WakeAdapter>? _adapters;
+    private int _inspecting;
 
-    public WakeOnLanService(ILogger<WakeOnLanService> log) => _log = log;
-
-    /// <summary>
-    /// The physical Ethernet and Wi-Fi adapters' MACs, wired and connected ones first (cached for a minute: every
-    /// beacon asks).
-    /// </summary>
-    public IReadOnlyList<string> Macs()
+    public WakeOnLanService(ILogger<WakeOnLanService> log)
     {
-        if (_macs is not null && DateTime.UtcNow - _macsAt < TimeSpan.FromMinutes(1)) return _macs;
-        var found = new List<(string Mac, int Score)>();
-        try
-        {
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (nic.NetworkInterfaceType is not (NetworkInterfaceType.Ethernet or NetworkInterfaceType.Wireless80211)) continue;
-                if (IsVirtual(nic.Description)) continue;
-                if (WakeOnLan.NormalizeMac(nic.GetPhysicalAddress().ToString()) is not { } mac) continue;
-                var score = (nic.OperationalStatus == OperationalStatus.Up ? 2 : 0) + (nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? 1 : 0);
-                found.Add((mac, score));
-            }
-        }
-        catch (NetworkInformationException ex)
-        {
-            _log.LogDebug(ex, "Listing the network adapters failed");
-        }
-        _macs = found.OrderByDescending(f => f.Score).Select(f => f.Mac).Distinct().ToList();
-        _macsAt = DateTime.UtcNow;
-        return _macs;
+        _log = log;
+        _settle = new System.Threading.Timer(_ => Refresh());
     }
 
-    /// <summary>The adapters that can wake this PC and how they are set (PowerShell and powercfg, ~1 s): off the UI thread.</summary>
+    /// <summary>Looks at the adapters now (in the background) and again whenever the network changes.</summary>
+    public void Start()
+    {
+        NetworkChange.NetworkAddressChanged += OnNetworkChanged;
+        Refresh();
+    }
+
+    /// <summary>
+    /// <c>macs</c> for the phones: the connected adapters that will wake this PC (<see cref="WakeOnLan.WakeMacs"/>);
+    /// empty — it cannot be woken (the phone then offers no waking); <c>null</c> — not looked at yet.
+    /// </summary>
+    public IReadOnlyList<string>? Macs() => Volatile.Read(ref _adapters) is { } adapters ? WakeOnLan.WakeMacs(adapters) : null;
+
+    /// <summary>The adapters that can wake this PC and how they are set (~1 s): off the UI thread. Also updates <see cref="Macs"/>.</summary>
     public IReadOnlyList<WakeAdapter> Inspect()
     {
         var json = Run("powershell.exe", PowerShellArgs(WakeOnLan.InspectScript));
         var armed = Run("powercfg.exe", "/devicequery wake_armed");
-        var adapters = WakeOnLan.Parse(json, armed);
-        _log.LogDebug("Wake-on-LAN: {Adapters}", string.Join("; ", adapters.Select(a => $"{a.Name} magic packet {a.MagicPacket}, armed {a.Armed}")));
+        var capable = Run("powercfg.exe", "/devicequery wake_from_any");
+        var adapters = WakeOnLan.Parse(json, armed, capable);
+        var previous = Interlocked.Exchange(ref _adapters, adapters);
+        var summary = string.Join("; ", adapters.Select(a =>
+            $"{a.Name} ({a.Description}) connected {a.Connected}, can wake {a.CanWake}, magic packet {a.MagicPacket}, armed {a.Armed}"));
+        if (previous is null || !previous.SequenceEqual(adapters))
+            _log.LogInformation("Wake-on-LAN: {State}; {Adapters}", WakeOnLan.State(adapters), summary);
         return adapters;
+    }
+
+    private void Refresh()
+    {
+        if (Interlocked.Exchange(ref _inspecting, 1) == 1) return;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Inspect();
+            }
+            finally
+            {
+                Volatile.Write(ref _inspecting, 0);
+            }
+        });
+    }
+
+    private void OnNetworkChanged(object? sender, EventArgs e) => _settle.Change(NetworkSettle, Timeout.InfiniteTimeSpan);
+
+    public void Dispose()
+    {
+        NetworkChange.NetworkAddressChanged -= OnNetworkChanged;
+        _settle.Dispose();
     }
 
     /// <summary>A script for <c>powershell.exe</c>, encoded so that no quoting is needed.</summary>
@@ -88,12 +110,4 @@ public sealed class WakeOnLanService
             return null;
         }
     }
-
-    private static bool IsVirtual(string description) =>
-        description.Contains("Virtual", StringComparison.OrdinalIgnoreCase)
-        || description.Contains("Hyper-V", StringComparison.OrdinalIgnoreCase)
-        || description.Contains("VMware", StringComparison.OrdinalIgnoreCase)
-        || description.Contains("VPN", StringComparison.OrdinalIgnoreCase)
-        || description.Contains("TAP-", StringComparison.OrdinalIgnoreCase)
-        || description.Contains("Bluetooth", StringComparison.OrdinalIgnoreCase);
 }

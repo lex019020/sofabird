@@ -18,8 +18,8 @@ public class SessionTests
         public IReadOnlyList<string> Caps { get; } = [Core.Protocol.Caps.CurrentTrack, Core.Protocol.Caps.PushEvents];
         public VlcInfo VlcInfo { get; } = new() { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 };
         public PairingService Pairing { get; }
-        public string? BluetoothAddress { get; set; } = "04:68:74:9A:2B:FC";
-        public IReadOnlyList<string> WakeMacs { get; set; } = ["BC:FC:E7:08:6A:02"];
+        public string? BluetoothAddress { get; set; } = "02:1A:2B:3C:4D:60";
+        public IReadOnlyList<string>? WakeMacs { get; set; } = ["02:1A:2B:3C:4D:5E"];
         public List<(string Name, CommandArgs Args)> Commands { get; } = new();
         public bool VlcDown { get; set; }
         public List<DeviceInfo?> PairingRequests { get; } = new();
@@ -155,8 +155,8 @@ public class SessionTests
         var token = welcome.GetProperty("token").GetString()!;
         Assert.True(pairing.ValidateToken(token));
         Assert.True(welcome.GetProperty("vlc").GetProperty("running").GetBoolean());
-        Assert.Equal("04:68:74:9A:2B:FC", welcome.GetProperty("bt").GetString());
-        Assert.Equal("BC:FC:E7:08:6A:02", welcome.GetProperty("macs")[0].GetString());
+        Assert.Equal("02:1A:2B:3C:4D:60", welcome.GetProperty("bt").GetString());
+        Assert.Equal("02:1A:2B:3C:4D:5E", welcome.GetProperty("macs")[0].GetString());
         Assert.True(session.IsAuthenticated);
         Assert.Equal("Pixel 8", session.Device!.Name);
 
@@ -165,7 +165,7 @@ public class SessionTests
 
         // A second session with the issued token.
         var store2 = pairing;
-        var host2 = new FakeHost(store2) { BluetoothAddress = null, WakeMacs = [] }; // Bluetooth off — no "bt" field, no "macs"
+        var host2 = new FakeHost(store2) { BluetoothAddress = null, WakeMacs = null }; // Bluetooth off — no "bt"; not known yet — no "macs"
         var t2 = new InMemoryLineTransport();
         var s2 = new Core.Session.Session(t2, host2);
         var run2 = s2.RunAsync(CancellationToken.None);

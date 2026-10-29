@@ -128,6 +128,7 @@
   <data name="SetupWakeReady" xml:space="preserve"><value>✓ Телефон сможет разбудить этот ПК: {0}</value></data>
   <data name="SetupWakeOff" xml:space="preserve"><value>Выключено для: {0}</value></data>
   <data name="SetupWakeUnsupported" xml:space="preserve"><value>Сетевые карты этого ПК не умеют его будить</value></data>
+  <data name="SetupWakeBlocked" xml:space="preserve"><value>✗ {0} не может будить этот ПК из сна: не позволяет драйвер или BIOS. Может помочь драйвер от производителя сетевой карты (вместо стандартного драйвера Windows) или настройка Wake on LAN в BIOS.</value></data>
   <data name="SetupWakeCancelled" xml:space="preserve"><value>⚠ Права администратора не выданы. Нажмите «Применить», чтобы попробовать снова.</value></data>
   <data name="SetupWakeFailed" xml:space="preserve"><value>✗ Не удалось включить пробуждение ({0}). Подробности в журнале.</value></data>
   <data name="PowerPluggedIn" xml:space="preserve"><value>от сети</value></data>

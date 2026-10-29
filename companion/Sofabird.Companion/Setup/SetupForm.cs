@@ -463,9 +463,11 @@ public sealed class SetupForm : Form
         else if (_result?.Wake is { Outcome: StepOutcome.Failed } failed)
             SetStatus(_wake, UiText.SetupWakeFailed(failed.Detail ?? ""), Tone.Error);
         else if (s.Wake == WakeState.Ready)
-            SetStatus(_wake, UiText.SetupWakeReady(string.Join(", ", adapters.Select(a => a.Name))), Tone.Ok);
+            SetStatus(_wake, UiText.SetupWakeReady(string.Join(", ", adapters.Where(a => a.Connected && a.Ready).Select(a => a.Name))), Tone.Ok);
         else if (s.Wake == WakeState.NeedsSetup)
             SetStatus(_wake, UiText.SetupWakeOff(string.Join(", ", WakeOnLan.ToFix(adapters).Select(a => a.Name))), Tone.Neutral);
+        else if (WakeOnLan.Blocked(adapters) is { Count: > 0 } blocked)
+            SetStatus(_wake, UiText.SetupWakeBlocked(string.Join(", ", blocked.Select(a => a.Description))), Tone.Warning);
         else
             SetStatus(_wake, UiText.SetupWakeUnsupported, Tone.Neutral);
     }

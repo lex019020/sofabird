@@ -87,12 +87,13 @@ fun List<SavedServer>.matchSighting(sighting: CompanionSighting): SavedServer? {
 /**
  * Merges what was seen about this companion into the saved entry: a LAN address for a PC paired
  * over Bluetooth (or one that moved), the Bluetooth address for a PC paired over Wi-Fi, the GUID.
- * Never clears anything: a beacon without `bt` (radio off on the PC) keeps the known address.
+ * Never clears anything (a beacon without `bt`, radio off on the PC, keeps the known address) but `macs: []`.
  */
 fun SavedServer.mergeSighting(sighting: CompanionSighting): SavedServer = copy(
     host = sighting.host?.takeIf { it.isNotBlank() } ?: host,
     wsPort = sighting.wsPort?.takeIf { sighting.host?.isNotBlank() == true } ?: wsPort,
     btAddress = BtAddress.normalize(sighting.btAddress) ?: btAddress,
     pcId = pcId ?: sighting.pcId,
-    wakeMacs = sighting.macs?.takeIf { it.isNotEmpty() } ?: wakeMacs,
+    // The one exception: a companion saying `macs: []` means the PC cannot be woken (no "Wake up the PC" then).
+    wakeMacs = sighting.macs ?: wakeMacs,
 )

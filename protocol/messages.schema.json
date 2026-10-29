@@ -205,7 +205,7 @@
             "type": "string",
             "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
           },
-          "description": "MAC addresses of the PC's network adapters, wired and connected first (Wake-on-LAN)"
+          "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
         }
       }
     },
@@ -1235,7 +1235,7 @@
             "type": "string",
             "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
           },
-          "description": "MAC addresses of the PC's network adapters, wired and connected first (Wake-on-LAN)"
+          "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
         }
       }
     },

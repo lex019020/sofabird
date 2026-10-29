@@ -244,6 +244,8 @@ internal static class UiText
     public static string SetupWakeOff(object a0) => F("SetupWakeOff", a0);
     /// <summary>The network adapters of this PC cannot wake it up</summary>
     public static string SetupWakeUnsupported => S("SetupWakeUnsupported");
+    /// <summary>✗ {0} cannot wake this PC from sleep: its driver or the BIOS does not let it. The network card maker's driver (instead of Windows' own) or the BIOS's Wake on LAN setting may help.</summary>
+    public static string SetupWakeBlocked(object a0) => F("SetupWakeBlocked", a0);
     /// <summary>⚠ Administrator permission was not given. Press Apply to try again.</summary>
     public static string SetupWakeCancelled => S("SetupWakeCancelled");
     /// <summary>✗ Could not turn on waking ({0}). Details are in the log.</summary>

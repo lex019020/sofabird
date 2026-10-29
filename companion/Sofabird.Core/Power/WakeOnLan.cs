@@ -3,21 +3,25 @@ using System.Text.Json;
 namespace Sofabird.Core.Power;
 
 /// <summary>
-/// A network adapter that can wake the PC with a magic packet: whether its "Wake on Magic Packet" is on and whether
-/// Windows lets it wake the computer (<c>powercfg /devicequery wake_armed</c>).
+/// A network adapter that can wake the PC with a magic packet: whether its "Wake on Magic Packet" is on, whether
+/// Windows lets it wake the computer (<c>powercfg /devicequery wake_armed</c>) and whether it can at all — its driver
+/// and the firmware let it wake the PC from sleep (<c>wake_from_any</c>; a laptop's Realtek card with Windows' own
+/// driver could only "wake" a running PC, and the setup window said "ready").
 /// </summary>
 /// <param name="Name">The adapter's name in Windows ("Ethernet").</param>
 /// <param name="Description">Its device name ("Realtek Gaming 2.5GbE Family Controller"), as powercfg knows it.</param>
 /// <param name="Mac"><c>AA:BB:CC:DD:EE:FF</c>.</param>
-public sealed record WakeAdapter(string Name, string Description, string Mac, bool Wired, bool MagicPacket, bool Armed)
+/// <param name="Connected">It is up now: only an adapter on the network hears the packet.</param>
+public sealed record WakeAdapter(string Name, string Description, string Mac, bool Wired, bool MagicPacket, bool Armed,
+    bool Connected = true, bool CanWake = true)
 {
-    public bool Ready => MagicPacket && Armed;
+    public bool Ready => CanWake && MagicPacket && Armed;
 }
 
 /// <summary>The setup window's "Wake this PC from the phone" item.</summary>
 public enum WakeState
 {
-    /// <summary>No network adapter of this PC can wake it with a magic packet.</summary>
+    /// <summary>No connected network adapter of this PC can wake it with a magic packet.</summary>
     Unsupported,
     /// <summary>An adapter can, but its "Wake on Magic Packet" is off or it may not wake the PC.</summary>
     NeedsSetup,
@@ -36,24 +40,41 @@ public static class WakeOnLan
         "$a=Get-NetAdapter -Physical|ForEach-Object{" +
         "$p=Get-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*WakeOnMagicPacket';" +
         "if($p){[pscustomobject]@{name=$_.Name;description=$_.InterfaceDescription;mac=$_.MacAddress;" +
-        "wired=($_.PhysicalMediaType -eq '802.3');magicPacket=([string]($p.RegistryValue|Select-Object -First 1) -eq '1')}}};" +
+        "wired=($_.PhysicalMediaType -eq '802.3');connected=($_.Status -eq 'Up');" +
+        "magicPacket=([string]($p.RegistryValue|Select-Object -First 1) -eq '1')}}};" +
         "ConvertTo-Json -Compress -InputObject @($a)";
 
-    /// <summary>Ready when every adapter that can wake the PC may do it; unsupported when none can.</summary>
-    public static WakeState State(IReadOnlyList<WakeAdapter> adapters) =>
-        adapters.Count == 0 ? WakeState.Unsupported
-        : adapters.All(a => a.Ready) ? WakeState.Ready
-        : WakeState.NeedsSetup;
+    /// <summary>
+    /// Ready when a connected adapter that can wake the PC is set to; unsupported when no connected adapter can (none
+    /// at all, or its driver or firmware does not let it: <see cref="Blocked"/>).
+    /// </summary>
+    public static WakeState State(IReadOnlyList<WakeAdapter> adapters)
+    {
+        var usable = adapters.Where(a => a.Connected && a.CanWake).ToList();
+        return usable.Count == 0 ? WakeState.Unsupported
+            : usable.Any(a => a.Ready) ? WakeState.Ready
+            : WakeState.NeedsSetup;
+    }
+
+    /// <summary>Connected adapters whose driver or firmware does not let them wake the PC from sleep (what to tell the user).</summary>
+    public static IReadOnlyList<WakeAdapter> Blocked(IReadOnlyList<WakeAdapter> adapters) =>
+        adapters.Where(a => a.Connected && !a.CanWake).ToList();
 
     /// <summary>The adapters to turn on (administrator rights): "Wake on Magic Packet" and arming in powercfg.</summary>
-    public static IReadOnlyList<WakeAdapter> ToFix(IReadOnlyList<WakeAdapter> adapters) => adapters.Where(a => !a.Ready).ToList();
+    public static IReadOnlyList<WakeAdapter> ToFix(IReadOnlyList<WakeAdapter> adapters) => adapters.Where(a => a.CanWake && !a.Ready).ToList();
 
-    /// <summary>The output of <see cref="InspectScript"/> and of <c>powercfg /devicequery wake_armed</c> (one device per line).</summary>
-    public static IReadOnlyList<WakeAdapter> Parse(string? adaptersJson, string? armedDevices)
+    /// <summary>What phones get as <c>macs</c>: the connected adapters that will wake the PC, wired first.</summary>
+    public static IReadOnlyList<string> WakeMacs(IReadOnlyList<WakeAdapter> adapters) =>
+        adapters.Where(a => a.Connected && a.Ready).Select(a => a.Mac).Distinct().ToList();
+
+    /// <summary>
+    /// The output of <see cref="InspectScript"/>, of <c>powercfg /devicequery wake_armed</c> and of <c>wake_from_any</c>
+    /// (one device per line; <c>null</c> — not known: every adapter is taken as able to wake).
+    /// </summary>
+    public static IReadOnlyList<WakeAdapter> Parse(string? adaptersJson, string? armedDevices, string? wakeCapableDevices = null)
     {
-        var armed = new HashSet<string>(
-            (armedDevices ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-            StringComparer.OrdinalIgnoreCase);
+        var armed = Devices(armedDevices);
+        var capable = wakeCapableDevices is null ? null : Devices(wakeCapableDevices);
         var result = new List<WakeAdapter>();
         // PowerShell may print something before the JSON (a module loading notice).
         var start = adaptersJson?.IndexOfAny(['[', '{']) ?? -1;
@@ -70,7 +91,9 @@ public static class WakeOnLan
                 var mac = NormalizeMac(Str(e, "mac"));
                 if (name is null || mac is null) continue;
                 var description = Str(e, "description") ?? name;
-                result.Add(new WakeAdapter(name, description, mac, Bool(e, "wired"), Bool(e, "magicPacket"), armed.Contains(description)));
+                var connected = !e.TryGetProperty("connected", out var up) || up.ValueKind != JsonValueKind.False;
+                result.Add(new WakeAdapter(name, description, mac, Bool(e, "wired"), Bool(e, "magicPacket"), armed.Contains(description),
+                    connected, capable?.Contains(description) ?? true));
             }
         }
         catch (JsonException)
@@ -105,6 +128,10 @@ public static class WakeOnLan
         if (hex.All(c => c == '0') || hex.All(c => c == 'F')) return null;
         return string.Join(":", Enumerable.Range(0, 6).Select(i => hex.Substring(i * 2, 2)));
     }
+
+    private static HashSet<string> Devices(string? lines) => new(
+        (lines ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+        StringComparer.OrdinalIgnoreCase);
 
     private static string? Str(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;

@@ -74,7 +74,10 @@ public sealed class WelcomeMessage : Message
     public VlcInfo Vlc { get; set; } = new();
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
-    /// <summary>MAC addresses of the PC's network adapters (<c>AA:BB:CC:DD:EE:FF</c>, wired and connected first): a phone wakes the PC with them (Wake-on-LAN).</summary>
+    /// <summary>
+    /// MAC addresses (<c>AA:BB:CC:DD:EE:FF</c>, wired first) of the connected adapters that will wake the PC from sleep:
+    /// a phone wakes it with them (Wake-on-LAN). Empty — it cannot be woken; absent — not known yet.
+    /// </summary>
     public IReadOnlyList<string>? Macs { get; set; }
 }
 
@@ -376,7 +379,10 @@ public sealed class BeaconMessage : Message
     public bool NeedsPairing { get; set; }
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
-    /// <summary>MAC addresses of the PC's network adapters (<c>AA:BB:CC:DD:EE:FF</c>, wired and connected first): a phone wakes the PC with them (Wake-on-LAN).</summary>
+    /// <summary>
+    /// MAC addresses (<c>AA:BB:CC:DD:EE:FF</c>, wired first) of the connected adapters that will wake the PC from sleep:
+    /// a phone wakes it with them (Wake-on-LAN). Empty — it cannot be woken; absent — not known yet.
+    /// </summary>
     public IReadOnlyList<string>? Macs { get; set; }
 }
 

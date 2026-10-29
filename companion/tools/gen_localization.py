@@ -195,6 +195,10 @@ UI = [
     ("SetupWakeReady", "✓ The phone can wake this PC: {0}", "✓ Телефон сможет разбудить этот ПК: {0}"),
     ("SetupWakeOff", "Off for: {0}", "Выключено для: {0}"),
     ("SetupWakeUnsupported", "The network adapters of this PC cannot wake it up", "Сетевые карты этого ПК не умеют его будить"),
+    ("SetupWakeBlocked", "✗ {0} cannot wake this PC from sleep: its driver or the BIOS does not let it. The network card maker's "
+                         "driver (instead of Windows' own) or the BIOS's Wake on LAN setting may help.",
+     "✗ {0} не может будить этот ПК из сна: не позволяет драйвер или BIOS. Может помочь драйвер от производителя "
+     "сетевой карты (вместо стандартного драйвера Windows) или настройка Wake on LAN в BIOS."),
     ("SetupWakeCancelled", "⚠ Administrator permission was not given. Press Apply to try again.",
      "⚠ Права администратора не выданы. Нажмите «Применить», чтобы попробовать снова."),
     ("SetupWakeFailed", "✗ Could not turn on waking ({0}). Details are in the log.",
