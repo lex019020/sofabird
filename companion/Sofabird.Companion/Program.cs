@@ -120,7 +120,6 @@ internal static class Program
     private static int Run(AppPaths paths, ILoggerFactory lf, Microsoft.Extensions.Logging.ILogger log, string quitEventName)
     {
         using var quitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, quitEventName);
-        LegacyCompanion.Migrate(paths, Hash, log); // before the settings are read: the first start inherits the old ones
         var settingsStore = new SettingsStore(paths.SettingsFile);
         var settings = settingsStore.Load();
 

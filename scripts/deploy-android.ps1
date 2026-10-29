@@ -43,15 +43,7 @@ param(
 . (Join-Path $PSScriptRoot 'deploy-lib.ps1')
 
 $PackageId = 'app.sofabird'
-$LegacyPackageId = 'dev.vlcremote.app'   # the app under its earlier name, VLC Remote
 $ApkKeepDir = Join-Path $SofabirdDataRoot 'apk'
-
-# The device list lived in %USERPROFILE%\.vlc-remote before the rename: carried over once.
-$legacyDevices = Join-Path $env:USERPROFILE '.vlc-remote\devices.json'
-if (-not $PSBoundParameters.ContainsKey('DevicesFile') -and -not (Test-Path $DevicesFile) -and (Test-Path $legacyDevices)) {
-    New-Item -ItemType Directory -Force (Split-Path $DevicesFile) | Out-Null
-    Copy-Item $legacyDevices $DevicesFile
-}
 
 function Get-AllowedDevices {
     if (-not (Test-Path $DevicesFile)) { return @() }
@@ -236,10 +228,6 @@ function Install-ApkTo([object]$Device, [string]$ApkPath) {
     $out = & $adb -s $Device.Id install -r $ApkPath 2>&1 | Out-String
     if ($out -match 'Success') {
         Write-Ok "Installed: $($Device.Model) ($($Device.Serial))"
-        $legacyApp = & $adb -s $Device.Id shell pm list packages $LegacyPackageId 2>$null | Where-Object { $_.Trim() -eq "package:$LegacyPackageId" }
-        if ($legacyApp) {
-            Write-Note "$($Device.Model): the old VLC Remote app is still installed; remove it once Sofabird works (adb -s $($Device.Id) uninstall $LegacyPackageId)."
-        }
         return
     }
     if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') {
