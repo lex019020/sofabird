@@ -317,6 +317,11 @@ The companion is the source of truth: the phone keeps no history of its own.
   toolbar then sticks to the top. With nothing to continue the row is replaced by a "History" link; the row header
   has a "History" button too. Files of the folder that are in the history show a thin progress bar (started) or a
   check mark (finished), from the optional `progress` / `finished` of `entries`.
+- **YouTube videos** (`kind: "youtube"`, `HistoryItem.isYouTube`): in "Continue watching" with a video icon before the
+  time, in History with the thumbnail (`VideoThumbnail`, loaded from YouTube by the phone) and the channel, and in
+  "More → YouTube on the TV" → "Recently on the TV" (`getHistory youtube`, up to 20, loaded when the sheet opens;
+  `RecentVideosRow`). A tap sends `cmd open {uri}` like for a file: the companion opens the video on the TV where it
+  stopped.
 - **History screen** (route `history`): `getHistory all`, pages of 50 loaded as the end comes into view; grouped
   into Today / Yesterday / This week (calendar week, first day from the locale) / Earlier (`groupHistoryByDate`,
   clock injectable); each row: title, folder, progress bar + times or "Watched" with a check mark. Swipe left to

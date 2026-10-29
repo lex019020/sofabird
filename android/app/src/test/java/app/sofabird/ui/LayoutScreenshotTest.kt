@@ -125,6 +125,14 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
                         isNext = false,
                     ),
                     ContinueCard(HistoryItem("file:///D:/Series/Show.S01E02.1080p.WEB-DL.mkv", name = "Show.S01E02.1080p.WEB-DL.mkv"), fraction = 0f, isNext = true),
+                    ContinueCard(
+                        HistoryItem(
+                            "https://www.youtube.com/watch?v=aqz-KE-bpKQ", title = "Big Buck Bunny", position = 125, length = 634,
+                            kind = HistoryItem.KIND_YOUTUBE, channel = "Blender",
+                        ),
+                        fraction = 0.2f,
+                        isNext = false,
+                    ),
                 ),
                 onOpen = {},
                 onMenu = {},
@@ -152,7 +160,22 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
     @Test
     fun youtubeLink() = snapshot("youtube_link") {
         Column(Modifier.padding(16.dp)) {
-            YouTubeLinkSection(enabled = true, initial = "https://youtu.be/aqz-KE-bpKQ", adBlock = true, sponsorBlock = false) {}
+            YouTubeLinkSection(
+                enabled = true,
+                initial = "https://youtu.be/aqz-KE-bpKQ",
+                adBlock = true,
+                sponsorBlock = false,
+                recent = listOf(
+                    HistoryItem(
+                        "https://www.youtube.com/watch?v=aqz-KE-bpKQ", title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+                        position = 125, length = 634, kind = HistoryItem.KIND_YOUTUBE, channel = "Blender",
+                    ),
+                    HistoryItem(
+                        "https://www.youtube.com/watch?v=eRsGyueVLvQ", title = "Sintel", finished = true,
+                        kind = HistoryItem.KIND_YOUTUBE, channel = "Blender",
+                    ),
+                ),
+            ) {}
         }
     }
 

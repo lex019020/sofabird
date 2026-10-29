@@ -19,7 +19,8 @@ phone.
   folders as a poster grid with TMDB metadata (title, year, rating, description, backdrops, episode names); network
   media folders are not polled (their computer can sleep) and an unreachable one is named on the phone.
 - Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
-  subtitle choice for series.
+  subtitle choice for series; YouTube videos played on the TV are in the history and "Continue watching" and open
+  where they stopped.
 - Companion (Windows tray app): pairing with a 6-digit code shown on the TV, starts VLC fullscreen on the TV monitor,
   audio output device switching, system volume, screen off, sleep, keep-awake during playback, "media station" power
   plan (lid closed, no sleep, survives the TV being turned off), firewall setup with one UAC prompt, quiet automatic

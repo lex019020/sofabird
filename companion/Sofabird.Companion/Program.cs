@@ -15,6 +15,7 @@ using Sofabird.Core.Pairing;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Setup;
 using Sofabird.Core.Updates;
+using Sofabird.Core.YouTube;
 using Sofabird.Companion.Localization;
 
 namespace Sofabird.Companion;
@@ -161,10 +162,12 @@ internal static class Program
         using var youtubeMedia = new YouTubeMediaSession(settings.YouTubeSessionId,
             id => settingsStore.Update(s => s.YouTubeSessionId = id), lf.CreateLogger<YouTubeMediaSession>());
         _ = youtubeMedia.StartAsync();
+        using var youtubeHistory = new YouTubeHistory(Path.Combine(paths.DataDir, "youtube-history.json"),
+            logger: lf.CreateLogger<YouTubeHistory>());
         using var youtube = new YouTubeService(tvBrowser, youtubeMedia, tvPage, tvAddons, new FirefoxInstaller(lf.CreateLogger<FirefoxInstaller>()),
-            settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
+            youtubeHistory, settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, youtube, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, youtubeHistory, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;

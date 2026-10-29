@@ -20,6 +20,8 @@ public sealed class YouTubeService : IDisposable
     private static readonly TimeSpan PlayingWait = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan LearnEvery = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan CloseWait = TimeSpan.FromSeconds(15);
+    /// <summary>While a video plays the page reports only changes: its position goes to the history this often.</summary>
+    private static readonly TimeSpan HistoryEvery = TimeSpan.FromSeconds(10);
     private const string SignInUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F";
 
     private readonly TvBrowser _browser;
@@ -27,6 +29,8 @@ public sealed class YouTubeService : IDisposable
     private readonly TvExtensionBridge _page;
     private readonly TvAddons _addons;
     private readonly FirefoxInstaller _installer;
+    private readonly YouTubeHistory _history;
+    private readonly System.Threading.Timer _historyTimer;
     private readonly Settings _settings;
     private readonly SettingsStore _store;
     private readonly string _dataDir;
@@ -36,19 +40,31 @@ public sealed class YouTubeService : IDisposable
     private DateTime _learntAt;
 
     public YouTubeService(TvBrowser browser, YouTubeMediaSession media, TvExtensionBridge page, TvAddons addons,
-        FirefoxInstaller installer, Settings settings, SettingsStore store, string dataDir, ILogger<YouTubeService> log)
+        FirefoxInstaller installer, YouTubeHistory history, Settings settings, SettingsStore store, string dataDir,
+        ILogger<YouTubeService> log)
     {
         _browser = browser;
         _media = media;
         _page = page;
         _addons = addons;
         _installer = installer;
+        _history = history;
         _settings = settings;
         _store = store;
         _dataDir = dataDir;
         _log = log;
         _media.Changed += () => Changed?.Invoke();
-        _page.Changed += () => Changed?.Invoke();
+        _page.Changed += () =>
+        {
+            _history.Record(_page.State);
+            Changed?.Invoke();
+        };
+        _historyTimer = new System.Threading.Timer(_ => RecordPlaying(), null, HistoryEvery, HistoryEvery);
+    }
+
+    private void RecordPlaying()
+    {
+        if (_page.State is { Playing: true } page) _history.Record(page);
     }
 
     /// <summary>Something changed on the TV (phones get the new state).</summary>
@@ -136,6 +152,8 @@ public sealed class YouTubeService : IDisposable
     {
         if (!Available) throw ProtocolException.Unsupported(ProtocolText.YouTubeNoBrowser);
         var video = YouTubeLink.Parse(text) ?? throw ProtocolException.BadRequest(ProtocolText.YouTubeBadLink);
+        // A video watched before continues where it stopped, unless the link says where to start.
+        if (video.StartSeconds is null && _history.ResumeAt(video.VideoId) is int at) video = video with { StartSeconds = at };
         _videoId = video.VideoId;
         // The extension loads it into the TV tab; otherwise (or when the browser is closed) the browser is started.
         if (!(_browser.IsRunning() && _page.Send("open", url: video.WatchUrl))) _browser.Open(video.WatchUrl);
@@ -325,6 +343,7 @@ public sealed class YouTubeService : IDisposable
 
     public void Dispose()
     {
+        _historyTimer.Dispose();
         _fullscreen?.Cancel();
         _fullscreen?.Dispose();
     }
