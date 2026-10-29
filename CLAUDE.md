@@ -142,9 +142,8 @@ messages in English:
 The companion is installed by its Velopack installer (`Sofabird-Setup.exe`, which a user can also just
 run) into `%LOCALAPPDATA%\Sofabird` (`current\Sofabird.exe` — a stable path for the firewall
 rules and autostart) for the current user; the .NET 10 runtime, when missing, is installed by it with one administrator
-prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly, starts the
-companion and replaces the companion under its earlier name, VLC Remote Companion (`%LOCALAPPDATA%\VlcRemoteCompanion`;
-Sofabird takes its settings and history over at the first start). Settings, pairings, history and logs stay in
+prompt. The script shuts the running instance down gracefully (`--shutdown`), runs the installer quietly and starts the
+companion. Settings, pairings, history and logs stay in
 `%APPDATA%\Sofabird`. If VLC media player is not installed, the script installs it via winget
 (`VideoLAN.VLC`, one administrator prompt; not possible over SSH — then it only warns); `-SkipVlc` disables this.
 Packing (`dotnet vpk`, pinned in `dotnet-tools.json`) is `New-CompanionPackage` in `deploy-lib.ps1`, shared by the

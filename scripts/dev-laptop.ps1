@@ -42,11 +42,6 @@ $HostAlias = 'sofabird-laptop'
 $SshDir    = Join-Path $env:USERPROFILE '.ssh'
 $KeyFile   = Join-Path $SshDir 'id_ed25519_sofabird'
 $SshConfig = Join-Path $SshDir 'config'
-# Set up before the rename (VLC Remote): the existing key and host entry keep working.
-$legacyKey = Join-Path $SshDir 'id_ed25519_vlcremote'
-if (-not (Test-Path $KeyFile) -and (Test-Path $legacyKey)) { $KeyFile = $legacyKey }
-if ((Test-Path $SshConfig) -and -not (Select-String -Path $SshConfig -Pattern "^Host $HostAlias\b" -Quiet) -and
-    (Select-String -Path $SshConfig -Pattern '^Host vlcremote-laptop\b' -Quiet)) { $HostAlias = 'vlcremote-laptop' }
 
 function Invoke-Remote([string]$Script, [switch]$Interactive) {
     # -EncodedCommand: no quoting issues, works with any default sshd shell.

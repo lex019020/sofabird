@@ -80,9 +80,6 @@ publishes a test build; releases are published from time to time.
    own updates (Settings → "Updates": test builds or releases only); Android asks you to confirm each one.
 3. Open the app: it finds the PC, the PC shows a code on the TV, enter it on the phone. Done.
 
-**Coming from VLC Remote?** Install both parts as above. On the PC, Sofabird replaces VLC Remote Companion and keeps
-its settings, history and media folders; on the phone it is a new app — pair it once and remove the old one.
-
 <details>
 <summary>Installing with scripts (also installs VLC and puts the APK on a phone via adb)</summary>
 
