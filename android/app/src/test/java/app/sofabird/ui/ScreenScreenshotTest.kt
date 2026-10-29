@@ -107,9 +107,19 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
     }
 
     @Test
-    fun remoteVlcNotRunning() = snapshot("remote_vlc_not_running") {
-        val state = playing.copy(state = PlayerState(vlc = VlcInfo(running = false, level = 2, status = VlcProcessStatus.NOT_RUNNING)))
-        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    fun remoteHome() = snapshot("remote_home") {
+        RemoteContent(home, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteHomeNextEpisode() = snapshot("remote_home_next_episode") {
+        RemoteContent(home, next = NextEpisode("file:///D:/Series/Severance/Severance.S01E03.mkv", "Severance.S01E03.1080p.WEB-DL.mkv"),
+            actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteHomeEmpty() = snapshot("remote_home_empty") {
+        RemoteContent(home.copy(continueItems = emptyList()), next = null, actions = object : RemoteActions {})
     }
 
     @Test
@@ -262,6 +272,29 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
             hostName = "LIVING-ROOM-PC",
             companionMode = true,
+        )
+
+        /** VLC closed, a history with a file, a YouTube video and a next episode; YouTube and Moonlight on the PC. */
+        private val home = playing.copy(
+            state = PlayerState(
+                vlc = VlcInfo(running = false, level = 2, status = VlcProcessStatus.NOT_RUNNING),
+                system = SystemState(moonlightHost = "GAMING-PC"),
+            ),
+            capabilities = Capabilities(
+                playing.capabilities.flags + Capability.HISTORY + Capability.YOUTUBE + Capability.MOONLIGHT + Capability.WINDOW_CONTROL,
+            ),
+            continueItems = listOf(
+                HistoryItem(
+                    "file:///D:/Movies/lotr.mkv", title = "The Lord of the Rings: The Fellowship of the Ring",
+                    position = 2246, length = 10705, progress = 0.21,
+                ),
+                HistoryItem(
+                    "https://www.youtube.com/watch?v=aqz-KE-bpKQ", title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+                    position = 200, length = 634, progress = 0.32, kind = HistoryItem.KIND_YOUTUBE, channel = "Blender",
+                ),
+                HistoryItem("file:///D:/Series/Severance/Severance.S01E03.mkv", name = "Severance.S01E03.1080p.WEB-DL.mkv", next = true),
+                HistoryItem("file:///D:/Movies/matrix.mkv", title = "The Matrix", position = 600, length = 8160, progress = 0.07),
+            ),
         )
 
         private val playlist = PlaylistUiState(

@@ -368,6 +368,13 @@
     <string name="next_episode_play">Смотреть</string>
     <string name="next_episode_dismiss">Скрыть</string>
     <string name="continue_watching">Продолжить просмотр</string>
+    <string name="home_title">Что посмотрим?</string>
+    <string name="home_empty_hint">Выберите фильм в Библиотеке или поделитесь видео YouTube в Sofabird.</string>
+    <string name="home_library_hint">Фильмы, папки</string>
+    <string name="home_youtube">YouTube</string>
+    <string name="home_youtube_hint">На ТВ</string>
+    <string name="home_stream">Другой ПК</string>
+    <string name="action_open_youtube_app">Открыть YouTube</string>
     <string name="history_title">История</string>
     <string name="history_position_of">%1$s из %2$s</string>
     <string name="history_next_badge">Следующая серия</string>

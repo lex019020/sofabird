@@ -35,6 +35,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - Browse the PC's drives and network shares, favourite folders, play or enqueue; playlist with swipe to remove.
 - "Continue watching" and a watch history: resume where you stopped, mark as watched, the next episode of a series;
   YouTube videos played on the TV are there too.
+- When nothing is on the TV, the remote opens on "What shall we watch?": continue watching (with TMDB stills and
+  YouTube thumbnails), the Library, YouTube and another PC's screen.
 - A media notification with lock-screen controls while a movie plays.
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RemoveDone
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -339,8 +340,9 @@ private fun HistoryRow(item: HistoryItem, onClick: () -> Unit, onMenu: () -> Uni
             }
         },
         leadingContent = {
-            if (item.isYouTube) {
-                VideoThumbnail(item.artUrl, Modifier.width(64.dp))
+            if (item.isYouTube || item.artUrl != null) {
+                val placeholder = if (item.isYouTube) Icons.Default.SmartDisplay else Icons.Default.Movie
+                VideoThumbnail(item.artUrl, Modifier.width(64.dp), placeholder = placeholder)
             } else {
                 Icon(Icons.Default.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }

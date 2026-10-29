@@ -321,7 +321,8 @@ The companion is the source of truth for what was watched (protocol: "Watch hist
   "subtitles off" stays off) as soon as its tracks are known, also while the resume question is open. An `open` with
   explicit `audioTrack`/`subtitleTrack`/`subtitle` wins over the folder's choices.
 - **Requests.** `getHistory` (`continue` | `all`, default `all`; `limit` default 50, max 500; `offset`; `total` before
-  paging), `historyUpdate` (`finished` true/false — marking an unplayed file as watched adds it; `remove`),
+  paging; files of the media library get a TMDB picture as `artUrl`, `LibraryCatalog.ArtOf`: the episode's still, else
+  the backdrop, else the poster, from the metadata cache — nothing is looked up for it), `historyUpdate` (`finished` true/false — marking an unplayed file as watched adds it; `remove`),
   `historyClear` (entries and track choices). `browse` items get `progress` (1 when finished) and `finished` for files
   in the history (also matched by name + size). `state.history.revision` changes on every visible change (not on the
   periodic 10 s saves). `artUrl` is not sent for history items.

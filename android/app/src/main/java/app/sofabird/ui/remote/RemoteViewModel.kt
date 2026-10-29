@@ -14,6 +14,7 @@ import app.sofabird.protocol.companion.Display
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
+import app.sofabird.protocol.model.HistoryChange
 import app.sofabird.protocol.model.HistoryFilter
 import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.protocol.model.PlayerState
@@ -28,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -65,6 +67,8 @@ data class RemoteUiState(
     val recentVideos: List<HistoryItem> = emptyList(),
     /** "Wake up the PC": `null` — not possible (direct VLC mode, or the companion never named its adapters). */
     val wake: PcWaker.State? = null,
+    /** `getHistory continue` for the home screen ([home]); loaded while it shows. */
+    val continueItems: List<HistoryItem> = emptyList(),
 ) {
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
 
@@ -99,6 +103,18 @@ data class RemoteUiState(
 
     /** VLC state that replaces the remote with an explanation card; `null` = show the remote. */
     val vlcBlock: VlcProcessStatus? get() = vlcBlockingStatus(isCompanion, connection, state.vlc)
+
+    /**
+     * Nothing is on the TV — VLC closed or open with nothing in it, no YouTube, no stream — and a companion can offer
+     * what to watch: the remote shows [RemoteHome] instead of an empty cover and idle controls. VLC starting, open
+     * without control or not installed keeps its card.
+     */
+    val home: Boolean
+        get() = isCompanion && connection.isOnline && streamingHost == null && youtube == null && when (vlcBlock) {
+            VlcProcessStatus.NOT_RUNNING, VlcProcessStatus.UNKNOWN -> true
+            null -> state.isStopped && state.item.title == null && state.item.uri == null
+            else -> false
+        }
 
     /** "Display: …" chip and the "Display for VLC" sheet. */
     val showDisplayChoice: Boolean get() = isCompanion && capabilities.windowControl
@@ -139,6 +155,7 @@ class RemoteViewModel(
         /** "Not now" on the Bluetooth card: hidden while this screen lives. */
         val bluetoothDismissed: Boolean = false,
         val recentVideos: List<HistoryItem> = emptyList(),
+        val continueItems: List<HistoryItem> = emptyList(),
     )
 
     private data class DisplayPanel(
@@ -180,6 +197,7 @@ class RemoteViewModel(
             bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
             recentVideos = l.recentVideos,
             wake = wake.takeIf { server?.isCompanion == true && server.wakeMacs.isNotEmpty() },
+            continueItems = l.continueItems,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 
@@ -194,6 +212,25 @@ class RemoteViewModel(
                     if (ready) loadDisplays()
                     else if (!controller.capabilities.value.windowControl) updateDisplays { DisplayPanel() }
                 }
+        }
+        // "Continue watching" on the home screen: when it shows, and again (debounced) when the history changes on the PC.
+        viewModelScope.launch {
+            var shown = false
+            combine(
+                uiState.map { it.home && it.capabilities.history }.distinctUntilChanged(),
+                controller.state.map { it.history?.revision }.distinctUntilChanged(),
+                ::Pair,
+            ).collectLatest { (home, _) ->
+                if (!home) {
+                    shown = false
+                    return@collectLatest
+                }
+                if (shown) delay(HISTORY_REFRESH_MS)
+                shown = true
+                controller.history(HistoryFilter.CONTINUE, HOME_CONTINUE, 0).onSuccess { page ->
+                    local.update { it.copy(continueItems = page.items) } // a failure keeps the last list
+                }
+            }
         }
         // VLC showed up on a monitor the list does not know (plugged in since): re-read the list.
         viewModelScope.launch {
@@ -286,8 +323,7 @@ class RemoteViewModel(
 
     // ---------------------------------------------------------------- companion system controls
 
-    /** Refresh audio devices / displays (only the lists the capabilities allow). */
-    /** The "More" sheet opened: audio devices, monitors and the YouTube videos played on the TV. */
+    /** "More" or the YouTube sheet opened: audio devices, monitors and the YouTube videos played on the TV. */
     fun loadPcInfo() {
         val caps = controller.capabilities.value
         if (caps.youtube && caps.history) {
@@ -370,14 +406,28 @@ class RemoteViewModel(
         }
     }
 
-    fun setKeepAwake(on: Boolean) = sendSystem(SystemCommand.KeepAwake(on))
-    fun displayPower(on: Boolean) = sendSystem(SystemCommand.DisplayPower(on))
-    fun sleepPc() = sendSystem(SystemCommand.Sleep)
+    /**
+     * The home screen's "Mark as watched" / "Remove from history": the entry leaves "Continue watching" at once (back
+     * when the PC refuses); the PC confirms with a new revision.
+     */
+    fun changeHistory(item: HistoryItem, change: HistoryChange) {
+        val before = local.value.continueItems
+        local.update { l -> l.copy(continueItems = l.continueItems.filter { it.uri != item.uri }) }
+        viewModelScope.launch {
+            if (controller.updateHistory(item.uri, change).isFailure) local.update { it.copy(continueItems = before) }
+        }
+    }
     fun setSystemVolume(value: Int) = sendSystem(SystemCommand.SystemVolume(value = value.coerceIn(0, 100)))
     fun toggleSystemMute() = sendSystem(SystemCommand.SystemVolume(mute = controller.state.value.system?.muted != true))
 
     private companion object {
         const val RECENT_VIDEOS = 20
+
+        /** More than a phone shows: the home screen leaves out what does not fit. */
+        const val HOME_CONTINUE = 6
+
+        /** Playback saves the position every 10 s: refresh the list at most this soon after a change. */
+        const val HISTORY_REFRESH_MS = 1_500L
         const val LAUNCH_WAIT_MS = 20_000L
 
         /** A finished scrub keeps its target this long, until VLC reports the new position. */

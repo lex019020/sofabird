@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +77,7 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tick = rememberTick(ui.settings.haptics)
     val online = ui.connection.isOnline
+    val context = LocalContext.current
     var showChapters by remember { mutableStateOf(false) }
     LaunchedEffect(ui.capabilities) { viewModel.loadPcInfo() }
 
@@ -204,6 +206,7 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                     recent = ui.recentVideos,
                     // The companion opens a video of the history on the TV where it stopped.
                     onRecent = { tick(); viewModel.send(PlayerCommand.Open(it.uri)); onDismiss() },
+                    onOpenApp = { openYouTubeApp(context) },
                 ) {
                     tick()
                     viewModel.sendSystem(SystemCommand.YouTubeOpen(it))
@@ -381,6 +384,7 @@ internal fun YouTubeLinkSection(
     onSponsorBlock: (Boolean) -> Unit = {},
     recent: List<HistoryItem> = emptyList(),
     onRecent: (HistoryItem) -> Unit = {},
+    onOpenApp: (() -> Unit)? = null,
     onOpen: (String) -> Unit,
 ) {
     var link by remember { mutableStateOf(initial) }
@@ -401,6 +405,9 @@ internal fun YouTubeLinkSection(
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
         OutlinedButton(onClick = { onOpen(link.trim()) }, enabled = enabled && link.isNotBlank()) {
             LabelText(stringResource(R.string.action_youtube_show))
+        }
+        onOpenApp?.let { open ->
+            OutlinedButton(onClick = open) { LabelText(stringResource(R.string.action_open_youtube_app)) }
         }
     }
     Text(
@@ -452,10 +459,10 @@ private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismis
         title = stringResource(R.string.keep_awake),
         checked = keepAwake,
         enabled = online,
-        onToggle = { tick(); viewModel.setKeepAwake(!keepAwake) },
+        onToggle = { tick(); viewModel.sendSystem(SystemCommand.KeepAwake(!keepAwake)) },
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-        OutlinedButton(onClick = { tick(); viewModel.displayPower(false) }, enabled = online) {
+        OutlinedButton(onClick = { tick(); viewModel.sendSystem(SystemCommand.DisplayPower(false)) }, enabled = online) {
             LabelText(stringResource(R.string.action_display_off))
         }
         OutlinedButton(onClick = { tick(); confirmSleep = true }, enabled = online) {
@@ -468,7 +475,7 @@ private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismis
             title = { Text(stringResource(R.string.action_sleep_pc)) },
             text = { Text(stringResource(R.string.sleep_pc_confirm, ui.hostName ?: "")) },
             confirmButton = {
-                TextButton(onClick = { confirmSleep = false; viewModel.sleepPc(); onDismiss() }) {
+                TextButton(onClick = { confirmSleep = false; viewModel.sendSystem(SystemCommand.Sleep); onDismiss() }) {
                     Text(stringResource(R.string.action_sleep_pc))
                 }
             },

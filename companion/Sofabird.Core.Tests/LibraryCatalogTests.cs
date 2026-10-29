@@ -52,6 +52,28 @@ public sealed class LibraryCatalogTests : IDisposable
         Assert.Equal(1, again.Calls);
     }
 
+    [Fact]
+    public async Task ArtOf_GivesHistoryEntriesTheirPicture()
+    {
+        var catalog = new LibraryCatalog(new MetadataCache(CachePath), "ru-RU", _time) { Scan = Sample() };
+        await catalog.EnrichAsync(new FakeSource(), () => { }, CancellationToken.None);
+
+        var art = catalog.ArtOf(
+        [
+            "file:///D:/Movies/The.Matrix.1999.mkv",
+            "file:///d:/series/severance/Severance.S01E01.mkv", // as the history writes it
+            "file:///D:/Series/Severance/Severance.S01E02.mkv",
+            "file:///D:/Movies/Unknown.Film.2020.mkv",
+            "file:///E:/Elsewhere/clip.mkv",
+        ]);
+
+        Assert.Equal("https://image.tmdb.org/t/p/w300/m-back.jpg", art[LibraryCatalog.UriKey("file:///D:/Movies/The.Matrix.1999.mkv")]);
+        Assert.Equal("https://image.tmdb.org/t/p/w300/e1.jpg", art[LibraryCatalog.UriKey("file:///D:/Series/Severance/Severance.S01E01.mkv")]);
+        // No still for the second episode and no backdrop for the series: its poster.
+        Assert.Equal("https://image.tmdb.org/t/p/w342/sev.jpg", art[LibraryCatalog.UriKey("file:///D:/Series/Severance/Severance.S01E02.mkv")]);
+        Assert.Equal(3, art.Count); // the unknown movie and the file outside the library have none
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_dir)) Directory.Delete(_dir, true);

@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,9 +32,12 @@ import app.sofabird.protocol.model.HistoryItem
 import app.sofabird.ui.common.withNameBreaks
 import coil3.compose.AsyncImage
 
-/** A YouTube video's thumbnail, 16:9 (the phone loads it from YouTube itself); a video icon until it is there. */
+/**
+ * A video's picture, 16:9: a YouTube thumbnail or a TMDB still (the phone loads it from there itself); [placeholder]
+ * until it is there or without one.
+ */
 @Composable
-fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
+fun VideoThumbnail(url: String?, modifier: Modifier = Modifier, placeholder: ImageVector = Icons.Default.SmartDisplay) {
     Box(
         modifier
             .aspectRatio(16f / 9f)
@@ -41,7 +45,7 @@ fun VideoThumbnail(url: String?, modifier: Modifier = Modifier) {
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Default.SmartDisplay, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(placeholder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         if (url != null) {
             AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
         }
