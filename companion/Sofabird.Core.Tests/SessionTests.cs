@@ -19,6 +19,7 @@ public class SessionTests
         public VlcInfo VlcInfo { get; } = new() { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 };
         public PairingService Pairing { get; }
         public string? BluetoothAddress { get; set; } = "04:68:74:9A:2B:FC";
+        public IReadOnlyList<string> WakeMacs { get; set; } = ["BC:FC:E7:08:6A:02"];
         public List<(string Name, CommandArgs Args)> Commands { get; } = new();
         public bool VlcDown { get; set; }
         public List<DeviceInfo?> PairingRequests { get; } = new();
@@ -155,6 +156,7 @@ public class SessionTests
         Assert.True(pairing.ValidateToken(token));
         Assert.True(welcome.GetProperty("vlc").GetProperty("running").GetBoolean());
         Assert.Equal("04:68:74:9A:2B:FC", welcome.GetProperty("bt").GetString());
+        Assert.Equal("BC:FC:E7:08:6A:02", welcome.GetProperty("macs")[0].GetString());
         Assert.True(session.IsAuthenticated);
         Assert.Equal("Pixel 8", session.Device!.Name);
 
@@ -163,7 +165,7 @@ public class SessionTests
 
         // A second session with the issued token.
         var store2 = pairing;
-        var host2 = new FakeHost(store2) { BluetoothAddress = null }; // Bluetooth off — no "bt" field
+        var host2 = new FakeHost(store2) { BluetoothAddress = null, WakeMacs = [] }; // Bluetooth off — no "bt" field, no "macs"
         var t2 = new InMemoryLineTransport();
         var s2 = new Core.Session.Session(t2, host2);
         var run2 = s2.RunAsync(CancellationToken.None);
@@ -172,6 +174,7 @@ public class SessionTests
         Assert.Equal("welcome", w2.GetProperty("t").GetString());
         Assert.False(w2.TryGetProperty("token", out _)); // the token is issued only with pairCode
         Assert.False(w2.TryGetProperty("bt", out _));
+        Assert.False(w2.TryGetProperty("macs", out _));
         t2.PhoneDisconnect();
         await run2.WaitAsync(TimeSpan.FromSeconds(5));
     }

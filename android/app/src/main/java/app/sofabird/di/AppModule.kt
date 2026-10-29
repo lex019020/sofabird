@@ -16,6 +16,7 @@ import app.sofabird.data.player.CompanionLink
 import app.sofabird.data.player.CompanionPairingLink
 import app.sofabird.data.player.ConnectionTester
 import app.sofabird.data.player.DeviceIdentity
+import app.sofabird.data.player.PcWaker
 import app.sofabird.data.player.PlayerController
 import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.CompanionServerSync
@@ -68,10 +69,11 @@ val appModule = module {
     single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
     single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
     single { WatchPrompts(get(), get(named("appScope"))) }
+    single { PcWaker(get(), get(), get(named("appScope"))) }
     single { ServiceCoordinator(androidContext(), get(), get(), get(), get(named("appScope"))) }
 
     viewModel { ConnectionViewModel(get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { RemoteViewModel(get(), get()) }
+    viewModel { RemoteViewModel(get(), get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get()) }
     viewModel { PlaylistViewModel(get(), get()) }
     viewModel { HistoryViewModel(get(), get()) }

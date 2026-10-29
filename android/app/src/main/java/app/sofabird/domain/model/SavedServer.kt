@@ -25,6 +25,8 @@ data class SavedServer(
     val pcId: String? = null,
     /** Companion PC's Bluetooth address (`welcome`/beacon/`/info` `bt`): RFCOMM fallback when the LAN is unavailable. */
     val btAddress: String? = null,
+    /** Companion PC's network adapters (`welcome.macs`): "Wake up the PC" when it does not answer. */
+    val wakeMacs: List<String> = emptyList(),
 ) {
     val displayName: String get() = name.ifBlank { host.ifBlank { btAddress.orEmpty() } }
 
@@ -67,6 +69,8 @@ data class CompanionSighting(
     val host: String? = null,
     val wsPort: Int? = null,
     val btAddress: String? = null,
+    /** `welcome.macs`; `null` — not said. */
+    val macs: List<String>? = null,
 )
 
 /**
@@ -90,4 +94,5 @@ fun SavedServer.mergeSighting(sighting: CompanionSighting): SavedServer = copy(
     wsPort = sighting.wsPort?.takeIf { sighting.host?.isNotBlank() == true } ?: wsPort,
     btAddress = BtAddress.normalize(sighting.btAddress) ?: btAddress,
     pcId = pcId ?: sighting.pcId,
+    wakeMacs = sighting.macs?.takeIf { it.isNotEmpty() } ?: wakeMacs,
 )

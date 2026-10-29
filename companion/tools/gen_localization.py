@@ -184,6 +184,21 @@ UI = [
     ("SetupMediaStationUnknown", "Could not read the Windows power plan", "Не удалось прочитать схему электропитания Windows"),
     ("SetupMediaStationFailed", "✗ Could not change the power plan ({0}). Details are in the log.",
      "✗ Не удалось изменить схему электропитания ({0}). Подробности в журнале."),
+    ("SetupWakeTitle", "Wake this PC from the phone", "Будить этот ПК с телефона"),
+    ("SetupWakeText", "When the PC sleeps, the phone offers to wake it up over the network (Wake-on-LAN). The companion turns on "
+                      "\"Wake on Magic Packet\" for the network adapter and lets it wake the computer (one administrator prompt; "
+                      "the network drops for a few seconds). Waking from sleep works over a cable; from shutdown and over Wi‑Fi "
+                      "it depends on the PC and its BIOS settings.",
+     "Когда ПК спит, телефон предложит разбудить его по сети (Wake-on-LAN). Компаньон включает у сетевой карты "
+     "«Wake on Magic Packet» и разрешает ей будить компьютер (один запрос администратора; сеть пропадёт на несколько секунд). "
+     "Из сна это работает по кабелю; из выключенного состояния и по Wi‑Fi — зависит от ПК и настроек BIOS."),
+    ("SetupWakeReady", "✓ The phone can wake this PC: {0}", "✓ Телефон сможет разбудить этот ПК: {0}"),
+    ("SetupWakeOff", "Off for: {0}", "Выключено для: {0}"),
+    ("SetupWakeUnsupported", "The network adapters of this PC cannot wake it up", "Сетевые карты этого ПК не умеют его будить"),
+    ("SetupWakeCancelled", "⚠ Administrator permission was not given. Press Apply to try again.",
+     "⚠ Права администратора не выданы. Нажмите «Применить», чтобы попробовать снова."),
+    ("SetupWakeFailed", "✗ Could not turn on waking ({0}). Details are in the log.",
+     "✗ Не удалось включить пробуждение ({0}). Подробности в журнале."),
     ("PowerPluggedIn", "plugged in", "от сети"),
     ("PowerOnBattery", "on battery", "от батареи"),
     ("PowerLidStops", "closing the lid stops it ({0})", "закрытие крышки его останавливает ({0})"),

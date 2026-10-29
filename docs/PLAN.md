@@ -362,7 +362,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       later captions and quality.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
-- [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
+- [x] **Wake-on-LAN** (user request): "Wake up the PC" on the phone's "No connection" card (the magic packet for the
+      MACs the companion names in `welcome`, then reconnecting for up to 90 s); the setup window turns on "Wake on
+      Magic Packet" and arms the adapter (the same elevated helper as the firewall).
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
       checks that the network adapter may wake the PC and warns about settings that prevent it (Fast Startup,
@@ -441,7 +443,7 @@ sofabird/
 ## 10. Next steps
 
 1. **YouTube, third part**: recently sent videos on the phone (M4).
-2. **Wake-on-LAN**: wake the PC from the phone (M4).
+2. ~~Wake-on-LAN~~ (done).
 3. **Sleep timer** (M4).
 4. **Fake-VLC scenario tests** (M4).
 5. **Later**: Quick Settings tile, widget, Wear OS, subtitle download, VLC 4.x, TLS pinning, iOS.

@@ -54,10 +54,10 @@ internal static class Program
             .CreateLogger();
 
         // Elevated firewall helper (started by the setup window with one UAC prompt): runs next to the main instance.
-        if (args.Contains(FirewallElevation.HelperArg, StringComparer.OrdinalIgnoreCase))
+        if (args.Contains(SetupElevation.HelperArg, StringComparer.OrdinalIgnoreCase))
         {
             using var helperLf = new SerilogLoggerFactory(Log.Logger, dispose: false);
-            try { return FirewallElevation.RunHelper(args, helperLf.CreateLogger("FirewallHelper")); }
+            try { return SetupElevation.RunHelper(args, helperLf.CreateLogger("FirewallHelper")); }
             finally { Log.CloseAndFlush(); }
         }
 
@@ -163,8 +163,9 @@ internal static class Program
         _ = youtubeMedia.StartAsync();
         using var youtube = new YouTubeService(tvBrowser, youtubeMedia, tvPage, tvAddons, new FirefoxInstaller(lf.CreateLogger<FirefoxInstaller>()),
             settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
+        var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, youtube, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, wake, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
@@ -175,7 +176,7 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, lf.CreateLogger<SetupBackend>());
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, wake, lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
         SetupForm? earlySetup = null;

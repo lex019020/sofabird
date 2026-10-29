@@ -21,9 +21,10 @@ public static class SetupPolicy
     /// Version of the item set. 1: network access (firewall), start with Windows, VLC configuration, keep awake,
     /// Bluetooth (info). 2: + media station (power plan: lid closed, no sleep). 3: + media folders (the library).
     /// 4: the rename from VLC Remote Companion to Sofabird (new program path and firewall rules). 5: + YouTube on the TV
-    /// (installing Firefox, signing in) and blocking its ads (uBlock Origin, opt-in).
+    /// (installing Firefox, signing in) and blocking its ads (uBlock Origin, opt-in). 6: + waking this PC from the phone
+    /// (Wake-on-LAN: the network adapter's wake settings).
     /// </summary>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     /// <summary>Show the window at startup: never completed, or completed for an older item set.</summary>
     public static bool ShouldShowOnStart(bool completed, int completedVersion) =>

@@ -27,13 +27,14 @@ public sealed class CompanionHost : ISessionHost
     private readonly LibraryService _library;
     private readonly MoonlightService _moonlight;
     private readonly YouTubeService _youtube;
+    private readonly WakeOnLanService _wake;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
 
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
-        LibraryService library, MoonlightService moonlight, YouTubeService youtube, ILogger<CompanionHost> log)
+        LibraryService library, MoonlightService moonlight, YouTubeService youtube, WakeOnLanService wake, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -47,6 +48,7 @@ public sealed class CompanionHost : ISessionHost
         _library = library;
         _moonlight = moonlight;
         _youtube = youtube;
+        _wake = wake;
         _log = log;
         _baseCaps =
         [
@@ -123,6 +125,8 @@ public sealed class CompanionHost : ISessionHost
 
     /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
+
+    public IReadOnlyList<string> WakeMacs => _wake.Macs();
     public VlcInfo VlcInfo => _vlc.Info.Clone();
 
     /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
@@ -153,6 +157,7 @@ public sealed class CompanionHost : ISessionHost
         NeedsPairing = !Pairing.HasPairedDevices,
         PcId = InstallationId,
         Bt = BluetoothAddress,
+        Macs = WakeMacs is { Count: > 0 } macs ? macs : null,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -162,6 +167,7 @@ public sealed class CompanionHost : ISessionHost
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
         Bt = BluetoothAddress,
+        Macs = WakeMacs is { Count: > 0 } macs ? macs : null,
     };
 
     private SystemInfo BuildSystemInfo()

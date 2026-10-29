@@ -22,6 +22,7 @@ public sealed class SetupForm : Form
     private readonly Item _vlc;
     private readonly Item _keepAwake;
     private readonly Item _mediaStation;
+    private readonly Item _wake;
     private readonly Item _media;
     private readonly ListBox _mediaList;
     private readonly Button _mediaRemove;
@@ -113,6 +114,7 @@ public sealed class SetupForm : Form
         _media.Content.Controls.Add(TextLabel(UiText.SetupMediaTmdb, new Font(Font.FontFamily, 8.25F), SecondaryText, new Padding(0, 6, 0, 0)));
         _keepAwake = AddItem(UiText.SetupKeepAwakeTitle, UiText.SetupKeepAwakeText, toggle: true);
         _mediaStation = AddItem(UiText.SetupMediaStationTitle, UiText.SetupMediaStationText, toggle: true);
+        _wake = AddItem(UiText.SetupWakeTitle, UiText.SetupWakeText, toggle: true);
         _youtube = AddItem(UiText.SetupYouTubeTitle, UiText.SetupYouTubeText, toggle: false);
         _youtubeInstall = DialogButton(UiText.SetupYouTubeInstall);
         _youtubeInstall.Margin = new Padding(0, 6, 0, 0);
@@ -178,7 +180,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems) item.Status.Text = UiText.SetupChecking;
     }
 
-    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _youtube, _adBlock, _sponsorBlock, _bluetooth];
+    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _wake, _youtube, _adBlock, _sponsorBlock, _bluetooth];
 
     private static bool HighContrast => SystemInformation.HighContrast;
     private static Color SecondaryText => HighContrast ? SystemColors.WindowText : Color.FromArgb(0x5A, 0x5A, 0x5A);
@@ -364,6 +366,7 @@ public sealed class SetupForm : Form
         _vlc.Toggle!.Checked = s.Vlc != VlcSetupState.NotInstalled && (!s.EverCompleted || s.ConfigureVlc);
         _keepAwake.Toggle!.Checked = s.KeepAwake;
         _mediaStation.Toggle!.Checked = s.MediaStation ?? true;
+        _wake.Toggle!.Checked = s.Wake != WakeState.Unsupported; // nothing is stored: the adapters say how it is
         _adBlock.Toggle!.Checked = s.BlockAds; // opt-in: never ticked by default
         _sponsorBlock.Toggle!.Checked = s.SkipSponsors;
         _mediaList.Items.Clear();
@@ -423,6 +426,7 @@ public sealed class SetupForm : Form
         RenderMedia();
         SetStatus(_keepAwake, s.KeepAwake ? UiText.SetupOn : UiText.SetupOff, s.KeepAwake ? Tone.Ok : Tone.Neutral);
         RenderMediaStation(s);
+        RenderWake(s);
         RenderYouTube(s);
 
         switch (s.Bluetooth)
@@ -449,6 +453,21 @@ public sealed class SetupForm : Form
             SetStatus(_mediaStation, UiText.SetupMediaStationOff, Tone.Neutral);
         else
             SetStatus(_mediaStation, UiText.SetupMediaStationNow(Describe(s.PowerDeviations)), Tone.Neutral);
+    }
+
+    private void RenderWake(SetupSnapshot s)
+    {
+        var adapters = s.WakeAdapters ?? [];
+        if (_result?.Wake is { Outcome: StepOutcome.Cancelled })
+            SetStatus(_wake, UiText.SetupWakeCancelled, Tone.Warning);
+        else if (_result?.Wake is { Outcome: StepOutcome.Failed } failed)
+            SetStatus(_wake, UiText.SetupWakeFailed(failed.Detail ?? ""), Tone.Error);
+        else if (s.Wake == WakeState.Ready)
+            SetStatus(_wake, UiText.SetupWakeReady(string.Join(", ", adapters.Select(a => a.Name))), Tone.Ok);
+        else if (s.Wake == WakeState.NeedsSetup)
+            SetStatus(_wake, UiText.SetupWakeOff(string.Join(", ", WakeOnLan.ToFix(adapters).Select(a => a.Name))), Tone.Neutral);
+        else
+            SetStatus(_wake, UiText.SetupWakeUnsupported, Tone.Neutral);
     }
 
     private void RenderYouTube(SetupSnapshot s)
@@ -554,7 +573,8 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems)
             if (item.Toggle is not null)
                 item.Toggle.Enabled = enabled && (item != _vlc || _snapshot?.Vlc != VlcSetupState.NotInstalled)
-                    && ((item != _adBlock && item != _sponsorBlock) || _snapshot?.Browser is not null);
+                    && ((item != _adBlock && item != _sponsorBlock) || _snapshot?.Browser is not null)
+                    && (item != _wake || _snapshot?.Wake == WakeState.NeedsSetup); // ready: nothing to change
         _youtubeInstall.Enabled = enabled;
         _mediaList.Enabled = enabled;
         foreach (Control c in _mediaRemove.Parent!.Controls) c.Enabled = enabled && (c != _mediaRemove || _mediaList.SelectedIndex >= 0);
@@ -569,9 +589,11 @@ public sealed class SetupForm : Form
         SetEnabled(false);
         _result = null;
         var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked,
-            _mediaStation.Toggle!.Checked, MediaFolders, _adBlock.Toggle!.Checked, _sponsorBlock.Toggle!.Checked);
+            _mediaStation.Toggle!.Checked, MediaFolders, _adBlock.Toggle!.Checked, _sponsorBlock.Toggle!.Checked, _wake.Toggle!.Checked);
         if (choices.Firewall && _snapshot.Firewall is not { Ok: true })
             SetStatus(_firewall, UiText.SetupFirewallWaiting, Tone.Neutral);
+        if (choices.Wake && _snapshot.Wake == WakeState.NeedsSetup)
+            SetStatus(_wake, UiText.SetupFirewallWaiting, Tone.Neutral);
         try
         {
             _result = await _backend.ApplyAsync(choices, CancellationToken.None);

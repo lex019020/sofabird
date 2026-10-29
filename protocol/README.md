@@ -27,6 +27,16 @@ Two levels:
 - UDP beacon: the app broadcasts the text `SOFABIRD_DISCOVER 1` to `255.255.255.255:47556`;
   the companion replies with unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
 
+### Wake-on-LAN
+
+- The companion lists its network adapters' MAC addresses in `macs` (`["AA:BB:CC:DD:EE:FF", …]`, physical Ethernet
+  and Wi-Fi adapters, wired and connected ones first; absent when none) in `/info`, `beacon` and `welcome`.
+- A phone keeps them with the PC. When the PC does not answer, the phone offers "Wake up the PC": it sends the magic
+  packet (6 × `0xFF` + the MAC 16 times) for every MAC as a UDP broadcast (`255.255.255.255` and the subnet-directed
+  broadcast, ports 9 and 7) and reconnects for up to 90 s. Nothing in the protocol is needed while the PC sleeps.
+- The PC's side (the adapter's "Wake on Magic Packet", "Allow this device to wake the computer") is an item of the
+  companion's setup window.
+
 ### Bluetooth
 
 - The companion reports its Bluetooth adapter address in the `bt` field (`"AA:BB:CC:DD:EE:FF"`, upper case, `:`-separated)

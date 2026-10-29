@@ -16,6 +16,8 @@ public interface ISessionHost
     VlcInfo VlcInfo { get; }
     /// <summary>Bluetooth adapter address for <c>welcome.bt</c>; <c>null</c> — no adapter, radio off or Bluetooth disabled.</summary>
     string? BluetoothAddress { get; }
+    /// <summary>The network adapters' MACs for <c>welcome.macs</c> (Wake-on-LAN); empty — none known.</summary>
+    IReadOnlyList<string> WakeMacs { get; }
     PairingService Pairing { get; }
 
     /// <summary>

@@ -218,7 +218,7 @@ class PlayerController(
                 },
                 scope = backendScope,
                 onWelcome = { welcome ->
-                    val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt)
+                    val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt, macs = welcome.macs)
                     if (current().mergeSighting(sighting) != current()) {
                         scope.launch { servers.update(server.id) { it.mergeSighting(sighting) } }
                     }

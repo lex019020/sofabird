@@ -38,11 +38,15 @@ public sealed record SetupSnapshot(
     string? Browser = null,
     bool BlockAds = false,
     bool SkipSponsors = false,
-    IReadOnlyList<string>? MissingMediaFolders = null);
+    IReadOnlyList<string>? MissingMediaFolders = null,
+    IReadOnlyList<WakeAdapter>? WakeAdapters = null)
+{
+    public WakeState Wake => WakeOnLan.State(WakeAdapters ?? []);
+}
 
 /// <summary>What the user ticked.</summary>
 public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
-    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false, bool SkipSponsors = false);
+    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false, bool SkipSponsors = false, bool Wake = false);
 
 public enum StepOutcome
 {
@@ -63,7 +67,7 @@ public sealed record StepResult(StepOutcome Outcome, string? Detail = null)
 }
 
 public sealed record SetupResult(StepResult Firewall, StepResult Autostart, StepResult Vlc, StepResult KeepAwake, StepResult? MediaStation = null,
-    StepResult? BlockAds = null, StepResult? SkipSponsors = null);
+    StepResult? BlockAds = null, StepResult? SkipSponsors = null, StepResult? Wake = null);
 
 /// <summary>
 /// Everything the "Setup and permissions" window reads and changes. The window talks only to this interface, so it
@@ -102,12 +106,14 @@ public sealed class SetupBackend : ISetupBackend
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly PowerPlanService _powerPlan;
     private readonly YouTubeService _youtube;
+    private readonly WakeOnLanService _wake;
     private readonly ILogger _log;
 
     public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host, LibraryService library,
-        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, ILogger<SetupBackend> log)
+        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, WakeOnLanService wake, ILogger<SetupBackend> log)
     {
         _youtube = youtube;
+        _wake = wake;
         _powerPlan = powerPlan;
         _paths = paths;
         _settings = settings;
@@ -144,7 +150,7 @@ public sealed class SetupBackend : ISetupBackend
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
             _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList(),
             _youtube.BrowserPath, _youtube.BlockAds, _youtube.SkipSponsors,
-            _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList());
+            _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList(), _wake.Inspect());
     }
 
     private VlcSetupState InspectVlc()
@@ -185,10 +191,10 @@ public sealed class SetupBackend : ISetupBackend
 
         var blockAds = await ApplyAddonAsync(TvAddon.UBlock, choices.BlockAds, ct);
         var skipSponsors = await ApplyAddonAsync(TvAddon.SponsorBlock, choices.SkipSponsors, ct);
-        var firewall = choices.Firewall ? await ApplyFirewallAsync(ct) : StepResult.Skipped;
-        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}, ad blocking {BlockAds}",
-            firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome, blockAds.Outcome);
-        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation, blockAds, skipSponsors);
+        var (firewall, wake) = await ApplyElevatedAsync(choices.Firewall, choices.Wake, ct);
+        _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}, ad blocking {BlockAds}, wake {Wake}",
+            firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome, blockAds.Outcome, wake.Outcome);
+        return new SetupResult(firewall, autostart, vlc, StepResult.Done, mediaStation, blockAds, skipSponsors, wake);
     }
 
     private async Task<StepResult> ApplyAddonAsync(TvAddon addon, bool on, CancellationToken ct)
@@ -249,17 +255,34 @@ public sealed class SetupBackend : ISetupBackend
             : StepResult.Done;
     }
 
-    private async Task<StepResult> ApplyFirewallAsync(CancellationToken ct)
+    /// <summary>
+    /// The firewall rules and Wake-on-LAN, the two steps that need administrator rights: one elevated helper (one UAC
+    /// prompt) for whichever of them has something to change; each is checked again afterwards.
+    /// </summary>
+    private async Task<(StepResult Firewall, StepResult Wake)> ApplyElevatedAsync(bool firewall, bool wake, CancellationToken ct)
     {
         var programs = FirewallPrograms;
-        var before = await Task.Run(() => ComFirewallRuleSource.TryInspect(programs), ct);
-        if (before.Status is { Ok: true }) return StepResult.Done;
+        var firewallOk = !firewall || (await Task.Run(() => ComFirewallRuleSource.TryInspect(programs), ct)).Status is { Ok: true };
+        var toWake = wake ? WakeOnLan.ToFix(await Task.Run(_wake.Inspect, ct)) : [];
+        if (firewallOk && toWake.Count == 0)
+            return (firewall ? StepResult.Done : StepResult.Skipped, wake ? StepResult.Done : StepResult.Skipped);
 
-        var (outcome, error) = await FirewallElevation.RunElevatedAsync(CompanionExe, _vlc.Installation?.ExePath, _paths.DataDir, _log, ct);
-        if (outcome == FirewallApplyOutcome.Cancelled) return new StepResult(StepOutcome.Cancelled);
-        var after = await Task.Run(() => ComFirewallRuleSource.TryInspect(programs), ct);
-        if (after.Status is { Ok: true }) return StepResult.Done;
-        return new StepResult(StepOutcome.Failed, error ?? after.Error ?? $"code {FirewallElevation.ExitStillNotOk}"); // technical detail, shown in parentheses
+        var (outcome, error) = await SetupElevation.RunElevatedAsync(CompanionExe, _vlc.Installation?.ExePath, _paths.DataDir,
+            !firewallOk, toWake.Select(a => a.Name).ToList(), _log, ct);
+        if (outcome == FirewallApplyOutcome.Cancelled)
+            return (firewallOk ? StepResult.Done : new StepResult(StepOutcome.Cancelled), toWake.Count == 0 ? StepResult.Done : new StepResult(StepOutcome.Cancelled));
+
+        var firewallResult = firewall ? StepResult.Done : StepResult.Skipped;
+        if (!firewallOk)
+        {
+            var after = await Task.Run(() => ComFirewallRuleSource.TryInspect(programs), ct);
+            if (after.Status is not { Ok: true })
+                firewallResult = new StepResult(StepOutcome.Failed, error ?? after.Error ?? $"code {SetupElevation.ExitStillNotOk}"); // technical detail, shown in parentheses
+        }
+        var wakeResult = wake ? StepResult.Done : StepResult.Skipped;
+        if (toWake.Count > 0 && WakeOnLan.State(await Task.Run(_wake.Inspect, ct)) != WakeState.Ready)
+            wakeResult = new StepResult(StepOutcome.Failed, error ?? $"code {SetupElevation.ExitWakeFailed}");
+        return (firewallResult, wakeResult);
     }
 
     public void OpenBluetoothSettings() => OpenUri("ms-settings:bluetooth");

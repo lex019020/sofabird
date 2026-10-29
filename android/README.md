@@ -261,6 +261,15 @@ Behaviour:
 **Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
 connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
+## Wake-on-LAN
+
+The companion names its network adapters in `welcome.macs`; they are kept with the saved PC (`SavedServer.wakeMacs`,
+merged like the Bluetooth address, never cleared). When the PC does not answer, the remote's "No connection" card
+offers **Wake up the PC** (`PcWaker`): the magic packet (`MagicPacket`, `:core:protocol`, tested) for every MAC as a
+UDP broadcast (`255.255.255.255` and the subnet's, ports 9 and 7), then reconnecting every 4 s and sending again every
+15 s, for up to 90 s; the card says "Waking up …" meanwhile and "The PC did not wake up" when it did not. The PC's
+side is an item of the companion's setup window.
+
 ## Watch history
 
 Companion mode with the `history` capability only (protocol: "Watch history and resume" in

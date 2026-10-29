@@ -3,6 +3,7 @@ package app.sofabird.ui.remote
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.sofabird.data.companion.BluetoothStatus
+import app.sofabird.data.player.PcWaker
 import app.sofabird.data.player.PlayerController
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.AppSettings
@@ -57,6 +58,8 @@ data class RemoteUiState(
     val launching: Boolean = false,
     /** LAN is down; Bluetooth could take over after the user grants the permission / turns it on. */
     val bluetoothNeed: BluetoothStatus? = null,
+    /** "Wake up the PC": `null` — not possible (direct VLC mode, or the companion never named its adapters). */
+    val wake: PcWaker.State? = null,
 ) {
     val isCompanion: Boolean get() = companionMode || state.vlc.level >= 2
 
@@ -104,6 +107,7 @@ fun vlcBlockingStatus(companion: Boolean, connection: ConnectionState, vlc: VlcI
 class RemoteViewModel(
     private val controller: PlayerController,
     settings: SettingsRepository,
+    waker: PcWaker,
 ) : ViewModel() {
 
     /** What this screen adds to the player state; one flow, changed with [update]. */
@@ -135,9 +139,9 @@ class RemoteViewModel(
         combine(controller.state, controller.connection, controller.capabilities, ::Triple),
         settings.flow,
         controller.activeServer,
-        controller.bluetoothNeed,
+        combine(controller.bluetoothNeed, waker.state, ::Pair),
         local,
-    ) { (state, connection, caps), prefs, server, bluetoothNeed, l ->
+    ) { (state, connection, caps), prefs, server, (bluetoothNeed, wake), l ->
         RemoteUiState(
             state = state,
             connection = connection,
@@ -154,6 +158,7 @@ class RemoteViewModel(
             companionMode = server?.isCompanion == true,
             launching = l.launching,
             bluetoothNeed = bluetoothNeed.takeUnless { l.bluetoothDismissed },
+            wake = wake.takeIf { server?.isCompanion == true && server.wakeMacs.isNotEmpty() },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 

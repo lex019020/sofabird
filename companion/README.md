@@ -481,6 +481,7 @@ user presses **Apply**; **Later** closes the window (it opens again at the next 
 | Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes | on |
 | Keep the PC awake during a movie | `keepAwake` | on |
 | This PC is a media station | `mediaStation`: the active power plan gets lid close action "do nothing", sleep and hibernate "never", **plugged in and on battery** (powrprof, no admin rights); unticking does not restore the old values | on |
+| Wake this PC from the phone | Wake-on-LAN (see below): "Wake on Magic Packet" on and "Allow this device to wake the computer" for the adapters that can (the same elevated helper as the firewall, one UAC prompt for both); unticking changes nothing back | on (when an adapter can) |
 | Bluetooth (info only) | nothing: Windows needs no permission; a link opens `ms-settings:bluetooth` to pair the phone | — |
 
 Each item shows its current state (✓ / not set up / ⚠ / ✗ with the reason) and, after Apply, the result. If a
@@ -497,6 +498,24 @@ update, the user) changed it back, a notification offers to fix it (once per set
 > must be added as an item of this window, with a short "what and why" text in `tools/gen_localization.py`, and
 > `SetupPolicy.CurrentVersion` must be bumped so users who completed the window see it once more.
 
+### Wake-on-LAN
+
+A phone wakes a sleeping PC with a magic packet (`macs` in `welcome`, see the protocol README); the PC has to let its
+network adapter do that.
+
+- **Reading** (`WakeOnLanService`, no admin rights, ~1 s, off the UI thread): PowerShell
+  (`WakeOnLan.InspectScript`: `Get-NetAdapter -Physical` + `Get-NetAdapterAdvancedProperty *WakeOnMagicPacket`) lists
+  the adapters that have the setting, `powercfg /devicequery wake_armed` the devices that may wake the PC. An adapter
+  is ready when both are true (`WakeOnLan.State`, tested); wired adapters first.
+- **Applying**: the elevated helper (see "Firewall") gets `--wake-adapter "<name>"` for each adapter that is not
+  ready (and `--skip-firewall` when only this has something to do) and runs `WakeOnLan.FixScript`:
+  `Set-NetAdapterAdvancedProperty *WakeOnMagicPacket 1` (the adapter restarts: the network drops for a few seconds)
+  and `powercfg /deviceenablewake "<device>"`; exit code `5` when that failed. The window then reads the state again.
+- From sleep this works over a cable. From shutdown it also needs the BIOS ("Wake on LAN", often also Windows' fast
+  startup off), over Wi-Fi only some PCs can; the window's text says so, the companion does not change those.
+- `macs` (`WakeOnLanService.Macs`, cached for a minute): physical Ethernet and Wi-Fi adapters from .NET's
+  `NetworkInterface`, without virtual, VPN and Bluetooth ones.
+
 ### Firewall
 
 Windows shows its "allow access" prompt the first time a program listens on the network. **Cancel** there silently
@@ -511,7 +530,8 @@ manages the rules itself:
   `SetupPolicy`) with unit tests.
 - **Applying** needs admin rights, the companion runs without them. It starts **one elevated copy of itself**
   (`Verb=runas`, one UAC prompt):
-  `Sofabird.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>"`.
+  `Sofabird.exe --apply-firewall --companion-exe "<path>" [--vlc-exe "<path>"] --data-dir "<dir>" [--skip-firewall]
+  [--wake-adapter "<name>"]…` (`SetupElevation`; the Wake-on-LAN part is described above).
   The helper removes the blocking rules, replaces our own rules for these paths with fresh ones — inbound allow,
   **private profile**, any protocol, names `Sofabird` and `VLC (Sofabird)` (the same as
   `deploy-windows.ps1 -Firewall`), group `Sofabird` — reads the rules again and exits: `0` OK, `2` bad arguments,

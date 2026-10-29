@@ -59,6 +59,9 @@
     <string name="nothing_playing">Ничего не играет</string>
     <string name="no_link_with">Нет связи с %1$s</string>
     <string name="no_server_configured">ПК ещё не настроен</string>
+    <string name="action_wake_pc">Разбудить ПК</string>
+    <string name="waking_pc">Будим %1$s…</string>
+    <string name="wake_pc_failed">ПК не проснулся</string>
     <string name="action_connect">Подключить</string>
     <string name="action_disconnect">Отключиться</string>
     <string name="action_play">Воспроизвести</string>

@@ -44,6 +44,7 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - Starts VLC with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
   (speakers / TV / headphones) from the phone.
 - Bluetooth fallback: the remote keeps working with Wi‑Fi off and switches back when it returns.
+- Wake-on-LAN: when the PC sleeps, "Wake up the PC" on the phone wakes it over the network (the setup window turns it on).
 - YouTube on the TV: share a video to Sofabird from the YouTube app (or paste a link) and it plays fullscreen on the
   TV in Firefox, with a TV profile of its own you sign in to once. A small Sofabird extension in that browser gives
   exact control: precise seeking, fullscreen after the ads, "Skip" for an ad as soon as YouTube allows it. The remote,

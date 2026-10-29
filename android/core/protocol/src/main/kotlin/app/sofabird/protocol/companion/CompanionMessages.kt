@@ -145,6 +145,8 @@ sealed class CompanionMessage {
         val vlc: VlcInfo = VlcInfo(),
         /** PC Bluetooth adapter address (`AA:BB:CC:DD:EE:FF`); absent without an adapter or with BT off. */
         val bt: String? = null,
+        /** MACs of the PC's network adapters (wired and connected first): the phone wakes the PC with them ([MagicPacket]). */
+        val macs: List<String> = emptyList(),
     ) : CompanionMessage() {
         /** `welcome` uses `id` for the PC GUID, not for request correlation. */
         override val id: String? get() = null
@@ -311,6 +313,8 @@ sealed class CompanionMessage {
         val needsPairing: Boolean = false,
         /** PC Bluetooth adapter address, see [Welcome.bt]. */
         val bt: String? = null,
+        /** See [Welcome.macs]. */
+        val macs: List<String> = emptyList(),
     ) : CompanionMessage() {
         override val id: String? get() = null
     }
@@ -383,6 +387,8 @@ data class CompanionInfo(
     val needsPairing: Boolean = false,
     /** PC Bluetooth adapter address, see [CompanionMessage.Welcome.bt]. */
     val bt: String? = null,
+    /** See [CompanionMessage.Welcome.macs]. */
+    val macs: List<String> = emptyList(),
 )
 
 enum class ErrorCode(val wire: String) {

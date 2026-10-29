@@ -6,7 +6,7 @@ namespace Sofabird.Companion.Setup;
 /// <summary>
 /// Windows Firewall through COM <c>HNetCfg.FwPolicy2</c> (<c>INetFwPolicy2</c>), late-bound. Reading works without
 /// administrator rights; <see cref="Remove"/> and <see cref="Add"/> need an elevated process
-/// (<see cref="FirewallElevation"/>).
+/// (<see cref="SetupElevation"/>).
 /// </summary>
 public sealed class ComFirewallRuleSource : IFirewallRuleSource
 {

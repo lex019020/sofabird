@@ -55,6 +55,9 @@
     <string name="nothing_playing">Nothing is playing</string>
     <string name="no_link_with">No connection to %1$s</string>
     <string name="no_server_configured">No PC configured yet</string>
+    <string name="action_wake_pc">Wake up the PC</string>
+    <string name="waking_pc">Waking up %1$s…</string>
+    <string name="wake_pc_failed">The PC did not wake up</string>
     <string name="action_connect">Connect</string>
     <string name="action_disconnect">Disconnect</string>
     <string name="action_play">Play</string>
