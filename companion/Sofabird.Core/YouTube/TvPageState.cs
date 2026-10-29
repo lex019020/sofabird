@@ -22,6 +22,10 @@ public sealed record TvPageState
     public bool CanNext { get; init; }
     public bool CanPrevious { get; init; }
     public bool Fullscreen { get; init; }
+    /// <summary>The video's subtitles and the ones shown; <c>null</c> — none (or an ad plays).</summary>
+    public TvCaptions? Captions { get; init; }
+    /// <summary>The qualities YouTube offers and the one playing; <c>null</c> — unknown.</summary>
+    public TvQuality? Quality { get; init; }
     public DateTime ReceivedAt { get; init; }
 
     /// <summary>A line from the extension; <c>null</c> for anything that is not a state message.</summary>
@@ -47,6 +51,8 @@ public sealed record TvPageState
                 CanNext = Bool(root, "canNext"),
                 CanPrevious = Bool(root, "canPrevious"),
                 Fullscreen = Bool(root, "fullscreen"),
+                Captions = TvCaptions.Parse(root),
+                Quality = TvQuality.Parse(root),
                 ReceivedAt = receivedAt,
             };
         }
@@ -75,12 +81,55 @@ public sealed record TvPageState
         return Math.Abs(Time - previous.TimeAt(ReceivedAt)) > tolerance;
     }
 
-    private static string? Str(JsonElement e, string name) =>
+    internal static string? Str(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    private static bool Bool(JsonElement e, string name) =>
+    internal static bool Bool(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
     private static double Num(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) && double.IsFinite(d) ? d : 0;
+}
+
+/// <summary>One subtitle track of a YouTube video: its language code, name, and whether YouTube made it itself.</summary>
+public sealed record TvCaption(string Code, string Name, bool Auto);
+
+/// <summary>A video's subtitles (compared by content, so an unchanged report does not count as a change).</summary>
+public sealed record TvCaptions(IReadOnlyList<TvCaption> Tracks, string? Current)
+{
+    public bool Equals(TvCaptions? other) =>
+        other is not null && Current == other.Current && Tracks.SequenceEqual(other.Tracks);
+
+    public override int GetHashCode() => HashCode.Combine(Current, Tracks.Count);
+
+    internal static TvCaptions? Parse(JsonElement root)
+    {
+        if (!root.TryGetProperty("captions", out var c) || c.ValueKind != JsonValueKind.Object) return null;
+        if (!c.TryGetProperty("tracks", out var list) || list.ValueKind != JsonValueKind.Array) return null;
+        var tracks = new List<TvCaption>();
+        foreach (var t in list.EnumerateArray())
+        {
+            if (t.ValueKind != JsonValueKind.Object || TvPageState.Str(t, "code") is not { Length: > 0 } code) continue;
+            tracks.Add(new TvCaption(code, TvPageState.Str(t, "name") ?? code, TvPageState.Bool(t, "auto")));
+        }
+        return tracks.Count == 0 ? null : new TvCaptions(tracks, TvPageState.Str(c, "current"));
+    }
+}
+
+/// <summary>The qualities YouTube offers for a video (<c>hd1080</c>, <c>hd720</c>, …, <c>auto</c>) and the one playing.</summary>
+public sealed record TvQuality(IReadOnlyList<string> Levels, string? Current)
+{
+    public bool Equals(TvQuality? other) =>
+        other is not null && Current == other.Current && Levels.SequenceEqual(other.Levels);
+
+    public override int GetHashCode() => HashCode.Combine(Current, Levels.Count);
+
+    internal static TvQuality? Parse(JsonElement root)
+    {
+        if (!root.TryGetProperty("quality", out var q) || q.ValueKind != JsonValueKind.Object) return null;
+        if (!q.TryGetProperty("levels", out var list) || list.ValueKind != JsonValueKind.Array) return null;
+        var levels = list.EnumerateArray().Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!)
+            .Where(l => l.Length > 0).ToList();
+        return levels.Count == 0 ? null : new TvQuality(levels, TvPageState.Str(q, "current"));
+    }
 }
