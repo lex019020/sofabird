@@ -9,14 +9,15 @@ Formerly called *VLC Remote*.
 [![Release](https://github.com/lex019020/sofabird/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/sofabird/releases)
 
 <p align="center">
-  <img src="docs/images/remote.png" width="250" alt="Remote: cover, playback controls, tracks and chapters">
-  <img src="docs/images/library.png" width="250" alt="Library with movie posters">
-  <img src="docs/images/movie.png" width="250" alt="Movie card with backdrop, rating, description and Play">
+  <img src="docs/images/home.png" width="200" alt="Home: what to watch when nothing plays — continue watching, Library, YouTube, another PC">
+  <img src="docs/images/remote.png" width="200" alt="Remote: cover, playback controls, tracks and chapters">
+  <img src="docs/images/library.png" width="200" alt="Library with movie posters">
+  <img src="docs/images/movie.png" width="200" alt="Movie card with backdrop, rating, description and Play">
 </p>
 <p align="center">
-  <img src="docs/images/series.png" width="250" alt="Series page with seasons, episode names and stills">
-  <img src="docs/images/connection.png" width="250" alt="Connection: the PC found on the network, paired; Bluetooth and other ways">
-  <img src="docs/images/settings.png" width="250" alt="Settings: volume keys, seek steps, vibration, theme">
+  <img src="docs/images/series.png" width="200" alt="Series page with seasons, episode names and stills">
+  <img src="docs/images/connection.png" width="200" alt="Connection: the PC found on the network, paired; Bluetooth and other ways">
+  <img src="docs/images/settings.png" width="200" alt="Settings: volume keys, seek steps, vibration, theme">
 </p>
 
 **Website:** [sofabird.app](https://sofabird.app/) ·
