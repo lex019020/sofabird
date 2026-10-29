@@ -206,6 +206,23 @@
             "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
           },
           "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "port",
+            "sha256"
+          ],
+          "properties": {
+            "port": {
+              "type": "integer"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9A-F]{64}$"
+            }
+          },
+          "description": "The encrypted WebSocket (wss://host:port/ws) and the SHA-256 of its self-signed certificate, which a phone pins"
         }
       }
     },
@@ -1236,6 +1253,23 @@
             "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
           },
           "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "port",
+            "sha256"
+          ],
+          "properties": {
+            "port": {
+              "type": "integer"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9A-F]{64}$"
+            }
+          },
+          "description": "The encrypted WebSocket (wss://host:port/ws) and the SHA-256 of its self-signed certificate, which a phone pins"
         }
       }
     },

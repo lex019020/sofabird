@@ -15,6 +15,10 @@ public sealed class Settings
     public string ListenAddress { get; set; } = "0.0.0.0";
     public int WsPort { get; set; } = ProtocolConstants.DefaultWsPort;
     public int BeaconPort { get; set; } = ProtocolConstants.DefaultBeaconPort;
+    /// <summary>The encrypted WebSocket (<c>wss</c>); the plain one on <see cref="WsPort"/> stays for older apps in 0.4.</summary>
+    public int TlsPort { get; set; } = ProtocolConstants.DefaultTlsPort;
+    /// <summary>The certificate of <see cref="TlsPort"/> in the user's certificate store (made at the first start).</summary>
+    public string? TlsThumbprint { get; set; }
     public bool AdvertiseDnsSd { get; set; } = true;
     /// <summary>Bluetooth RFCOMM server (phone without Wi-Fi). <c>false</c> — do not advertise the service.</summary>
     public bool Bluetooth { get; set; } = true;
@@ -123,6 +127,7 @@ public sealed class Settings
             VlcHttpPassword = GeneratePassword();
         if (WsPort <= 0 || WsPort > 65535) WsPort = ProtocolConstants.DefaultWsPort;
         if (BeaconPort <= 0 || BeaconPort > 65535) BeaconPort = ProtocolConstants.DefaultBeaconPort;
+        if (TlsPort <= 0 || TlsPort > 65535) TlsPort = ProtocolConstants.DefaultTlsPort;
         if (VlcHttpPort <= 0 || VlcHttpPort > 65535) VlcHttpPort = 8080;
         if (VlcRcPort <= 0 || VlcRcPort > 65535) VlcRcPort = 4212;
         if (string.IsNullOrWhiteSpace(ListenAddress)) ListenAddress = "0.0.0.0";

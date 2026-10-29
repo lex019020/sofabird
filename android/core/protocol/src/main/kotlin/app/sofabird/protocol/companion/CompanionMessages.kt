@@ -34,6 +34,19 @@ import kotlinx.serialization.json.JsonObject
 const val PROTOCOL_VERSION = 1
 const val COMPANION_WS_PORT = 47555
 const val COMPANION_BEACON_PORT = 47556
+
+/** The encrypted WebSocket (`wss`) of a companion that has a certificate ([TlsInfo]). */
+const val COMPANION_TLS_PORT = 47557
+
+/**
+ * `tls` of `welcome`, `beacon` and `/info`: `wss://host:[port]/ws` with a self-signed certificate whose SHA-256 (DER,
+ * hex) is [sha256]. The phone pins it at the first encrypted connection and accepts no other afterwards.
+ */
+@Serializable
+data class TlsInfo(
+    val port: Int = COMPANION_TLS_PORT,
+    val sha256: String = "",
+)
 const val COMPANION_SERVICE_TYPE = "_sofabird._tcp"
 const val BEACON_REQUEST = "SOFABIRD_DISCOVER 1"
 
@@ -150,6 +163,8 @@ sealed class CompanionMessage {
          * ([MagicPacket]). Empty — it cannot be woken; `null` — not said (an older companion, or not known yet).
          */
         val macs: List<String>? = null,
+        /** The encrypted WebSocket; `null` — an older companion (plain `ws` only). */
+        val tls: TlsInfo? = null,
     ) : CompanionMessage() {
         /** `welcome` uses `id` for the PC GUID, not for request correlation. */
         override val id: String? get() = null
@@ -318,6 +333,8 @@ sealed class CompanionMessage {
         val bt: String? = null,
         /** See [Welcome.macs]. */
         val macs: List<String>? = null,
+        /** See [Welcome.tls]. */
+        val tls: TlsInfo? = null,
     ) : CompanionMessage() {
         override val id: String? get() = null
     }
@@ -392,6 +409,8 @@ data class CompanionInfo(
     val bt: String? = null,
     /** See [CompanionMessage.Welcome.macs]. */
     val macs: List<String>? = null,
+    /** See [CompanionMessage.Welcome.tls]. */
+    val tls: TlsInfo? = null,
 )
 
 enum class ErrorCode(val wire: String) {

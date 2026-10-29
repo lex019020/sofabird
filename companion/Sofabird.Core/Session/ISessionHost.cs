@@ -21,6 +21,8 @@ public interface ISessionHost
     /// not known yet (left out).
     /// </summary>
     IReadOnlyList<string>? WakeMacs { get; }
+    /// <summary>The encrypted WebSocket for <c>welcome.tls</c>; <c>null</c> — none.</summary>
+    TlsInfo? Tls { get; }
     PairingService Pairing { get; }
 
     /// <summary>

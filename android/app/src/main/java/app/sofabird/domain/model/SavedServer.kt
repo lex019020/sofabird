@@ -27,6 +27,10 @@ data class SavedServer(
     val btAddress: String? = null,
     /** Companion PC's network adapters (`welcome.macs`): "Wake up the PC" when it does not answer. */
     val wakeMacs: List<String> = emptyList(),
+    /** The companion's encrypted WebSocket port (`tls.port`), once used. */
+    val tlsPort: Int? = null,
+    /** SHA-256 of the companion's certificate, pinned at the first encrypted connection: from then on only that. */
+    val certPin: String? = null,
 ) {
     val displayName: String get() = name.ifBlank { host.ifBlank { btAddress.orEmpty() } }
 

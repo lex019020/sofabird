@@ -144,6 +144,7 @@ public sealed class Session : IAsyncDisposable
             Vlc = _host.VlcInfo,
             Bt = _host.BluetoothAddress,
             Macs = _host.WakeMacs,
+            Tls = _host.Tls,
         }, ct).ConfigureAwait(false);
         _log.LogInformation("Session {Desc} authenticated as {Device}", Description, hello.Device?.Name ?? "?");
         try { Authenticated?.Invoke(this); }

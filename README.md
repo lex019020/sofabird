@@ -39,7 +39,8 @@ Wi‑Fi is gone and remembers where you stopped watching. The apps follow the sy
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
 **With the companion on the PC**
-- Automatic discovery and one-time pairing with a 6-digit code shown on the TV.
+- Automatic discovery and one-time pairing with a 6-digit code shown on the TV; the connection is encrypted (TLS,
+  the PC's certificate is pinned when the phone pairs).
 - A media library: pick the media folders once, and the phone shows movies and series as posters with
   descriptions, ratings, seasons and episodes (metadata from TMDB). Network shares work too: the companion does not
   wake the computer they are on every half hour, and a folder that cannot be reached is named on the phone.

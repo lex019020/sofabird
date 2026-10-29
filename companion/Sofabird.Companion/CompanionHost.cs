@@ -136,6 +136,8 @@ public sealed class CompanionHost : ISessionHost
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
 
     public IReadOnlyList<string>? WakeMacs => _wake.Macs();
+    /// <summary>Set once the encrypted listener runs (<see cref="Net.WebServer"/>).</summary>
+    public TlsInfo? Tls { get; set; }
     public VlcInfo VlcInfo => _vlc.Info.Clone();
 
     /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
@@ -167,6 +169,7 @@ public sealed class CompanionHost : ISessionHost
         PcId = InstallationId,
         Bt = BluetoothAddress,
         Macs = WakeMacs,
+        Tls = Tls,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -177,6 +180,7 @@ public sealed class CompanionHost : ISessionHost
         NeedsPairing = !Pairing.HasPairedDevices,
         Bt = BluetoothAddress,
         Macs = WakeMacs,
+        Tls = Tls,
     };
 
     private SystemInfo BuildSystemInfo()

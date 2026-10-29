@@ -67,6 +67,8 @@ public sealed class InfoResponse
     public string? Bt { get; set; }
     /// <summary>MAC addresses of the PC's network adapters (<c>AA:BB:CC:DD:EE:FF</c>, wired and connected first): a phone wakes the PC with them (Wake-on-LAN).</summary>
     public IReadOnlyList<string>? Macs { get; set; }
+    /// <summary>The encrypted WebSocket (<c>wss</c>): its port and the certificate's SHA-256 a phone pins; absent without one.</summary>
+    public TlsInfo? Tls { get; set; }
 }
 
 public static class ProtocolJson

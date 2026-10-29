@@ -42,6 +42,12 @@ sealed class ConnectionError {
     data object BluetoothFailed : ConnectionError()
 
     /**
+     * Companion: the PC presented another certificate than the one pinned when this phone paired (the companion was
+     * reinstalled with its data removed — or something pretends to be the PC). Not retried.
+     */
+    data object CertificateChanged : ConnectionError()
+
+    /**
      * Companion: the PC said it was going to sleep (`event sleeping`) and has not answered since. Retried with a
      * backoff (it may wake by itself); the remote offers to wake it.
      */

@@ -4,6 +4,7 @@ import app.sofabird.protocol.companion.CompanionCodec
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
 import app.sofabird.protocol.companion.DeviceInfo
+import app.sofabird.protocol.companion.LanRoute
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.protocol.model.Playback
@@ -110,7 +111,7 @@ class TransportSelectionTest {
         var probes = 0
         var wsAttempts = 0
 
-        override suspend fun openWebSocket(host: String, port: Int): CompanionTransport {
+        override suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport {
             wsAttempts++
             if (lanHangs) awaitCancellation()
             if (!lanUp) throw ConnectException("Connection refused")
@@ -148,7 +149,7 @@ class TransportSelectionTest {
             credentials = CompanionCredentials(token = token),
             onToken = {},
             scope = backgroundScope,
-            onWelcome = { welcomes += it },
+            onWelcome = { welcome, _ -> welcomes += welcome },
             bluetoothAllowed = { bluetoothAllowed },
         )
         val history = mutableListOf<ConnectionState>()

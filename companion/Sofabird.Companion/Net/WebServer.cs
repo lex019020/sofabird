@@ -14,7 +14,8 @@ namespace Sofabird.Companion.Net;
 
 /// <summary>
 /// Kestrel: <c>/ws</c> (WebSocket → NDJSON session), <c>/info</c> (anonymous JSON),
-/// <c>/art</c> (Bearer token → proxy of VLC artwork).
+/// <c>/art</c> (Bearer token → proxy of VLC artwork) — on <see cref="Settings.WsPort"/> in plain HTTP (older apps) and,
+/// with a certificate (<see cref="TlsCertificate"/>), the same over TLS on <see cref="Settings.TlsPort"/>.
 /// </summary>
 public sealed class WebServer : IAsyncDisposable
 {
@@ -23,10 +24,13 @@ public sealed class WebServer : IAsyncDisposable
     private readonly SessionManager _sessions;
     private readonly VlcManager _vlc;
     private readonly Microsoft.Extensions.Logging.ILogger _log;
+    private readonly System.Security.Cryptography.X509Certificates.X509Certificate2? _certificate;
     private WebApplication? _app;
 
-    public WebServer(Settings settings, CompanionHost host, SessionManager sessions, VlcManager vlc, Microsoft.Extensions.Logging.ILogger<WebServer> log)
+    public WebServer(Settings settings, CompanionHost host, SessionManager sessions, VlcManager vlc,
+        System.Security.Cryptography.X509Certificates.X509Certificate2? certificate, Microsoft.Extensions.Logging.ILogger<WebServer> log)
     {
+        _certificate = certificate;
         _settings = settings;
         _host = host;
         _sessions = sessions;
@@ -48,6 +52,8 @@ public sealed class WebServer : IAsyncDisposable
         builder.WebHost.ConfigureKestrel(k =>
         {
             k.Listen(IPAddress.Parse(_settings.ListenAddress), _settings.WsPort);
+            if (_certificate is not null)
+                k.Listen(IPAddress.Parse(_settings.ListenAddress), _settings.TlsPort, o => o.UseHttps(_certificate));
             k.AddServerHeader = false;
         });
 
@@ -97,7 +103,7 @@ public sealed class WebServer : IAsyncDisposable
                 return;
             }
             using var ws = await ctx.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-            var desc = $"ws {ctx.Connection.RemoteIpAddress}:{ctx.Connection.RemotePort}";
+            var desc = $"{(ctx.Request.IsHttps ? "wss" : "ws")} {ctx.Connection.RemoteIpAddress}:{ctx.Connection.RemotePort}";
             _log.LogInformation("WebSocket connected: {Desc}", desc);
             var lifetime = ctx.RequestServices.GetRequiredService<IHostApplicationLifetime>();
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted, lifetime.ApplicationStopping);
@@ -109,7 +115,9 @@ public sealed class WebServer : IAsyncDisposable
 
         await app.StartAsync(ct).ConfigureAwait(false);
         _app = app;
-        _log.LogInformation("Kestrel listening on {Addr}:{Port}", _settings.ListenAddress, _settings.WsPort);
+        _log.LogInformation("Kestrel listening on {Addr}:{Port}{Tls}", _settings.ListenAddress, _settings.WsPort,
+            _certificate is null ? " (no TLS)" : $" and TLS on {_settings.TlsPort}");
+        if (_certificate is not null) _host.Tls = new TlsInfo { Port = _settings.TlsPort, Sha256 = TlsCertificate.Fingerprint(_certificate) };
     }
 
     private bool IsAuthorized(HttpContext ctx)

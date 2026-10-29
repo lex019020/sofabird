@@ -477,6 +477,17 @@ VLC Remote Companion (`%LocalAppData%\VlcRemote\`), stops and uninstalls it and 
 
 The VLC HTTP interface password is never written to the log.
 
+## Encryption
+
+`TlsCertificate` makes a self-signed certificate at the first start (ECDSA P-256, `CN=Sofabird <PC name>`, 20 years)
+and keeps it in the current user's certificate store ("Personal", friendly name "Sofabird (encrypted connection to
+phones)"; Windows protects the private key) — `tlsThumbprint` in `settings.json` finds it. Kestrel (`WebServer`)
+listens with it on `tlsPort` (47557, `wss`, the same `/ws`, `/info`, `/art`) next to the plain `wsPort` (47555, for
+older apps in 0.4); `/info`, the beacon and `welcome` name the port and the certificate's SHA-256 (`tls`), which
+phones pin (see the protocol README, "Encryption"). Without a certificate (the store cannot be used) there is no
+`wss` and no `tls`, and the log says so. The firewall rules are per program, so the new port needs no new rule.
+`deploy-windows.ps1 -Uninstall -Purge` removes the certificate too; a new one means the phones pair again.
+
 ## Setup and permissions
 
 Every permission the companion needs and every change it makes to the system is listed in one window,

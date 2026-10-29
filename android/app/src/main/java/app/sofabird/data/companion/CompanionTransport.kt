@@ -3,6 +3,7 @@ package app.sofabird.data.companion
 import app.sofabird.protocol.companion.CompanionCodec
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
+import app.sofabird.protocol.companion.LanRoute
 import app.sofabird.protocol.companion.PROTOCOL_VERSION
 import app.sofabird.protocol.companion.toHandshakeError
 import app.sofabird.protocol.model.ConnectionError
@@ -16,6 +17,9 @@ import kotlinx.coroutines.withTimeout
  */
 interface CompanionTransport {
     val kind: TransportKind
+
+    /** The SHA-256 of the companion's certificate on an encrypted WebSocket; `null` on a plain one and RFCOMM. */
+    val certificate: String? get() = null
 
     /** Sends one message (a JSON object; framing is the transport's business). */
     suspend fun send(text: String)
@@ -37,7 +41,8 @@ class CompanionHandshakeException(val error: ConnectionError, message: String? =
 val ConnectionError.isTerminalHandshakeError: Boolean
     get() = this is ConnectionError.PairingRequired ||
         this is ConnectionError.InvalidPairCode ||
-        this is ConnectionError.ProtocolMismatch
+        this is ConnectionError.ProtocolMismatch ||
+        this is ConnectionError.CertificateChanged
 
 const val HANDSHAKE_TIMEOUT_MS = 10_000L
 
@@ -87,8 +92,11 @@ suspend fun CompanionTransport.handshake(
 
 /** Opens links to a companion. Real implementation: [AndroidCompanionTransports]; fakes in tests. */
 interface CompanionTransports {
-    /** WebSocket `ws://host:port/ws`. Throws when the PC is unreachable. */
-    suspend fun openWebSocket(host: String, port: Int): CompanionTransport
+    /**
+     * WebSocket `ws://host:port/ws`, or `wss://` trusting only the pinned certificate ([LanRoute]). Throws when the PC
+     * is unreachable; a certificate other than the pinned one is [app.sofabird.data.net.CertificateChangedException].
+     */
+    suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport
 
     /** Whether RFCOMM to [address] can be tried right now. Cheap, no I/O. */
     fun bluetoothStatus(address: String?): BluetoothStatus
@@ -111,7 +119,16 @@ data class LanEndpoint(val host: String, val port: Int, val btAddress: String? =
 class BluetoothConnectException(message: String, cause: Throwable? = null) : java.io.IOException(message, cause)
 
 /** User-facing class of a companion connection failure. */
-fun classifyCompanionError(t: Throwable): ConnectionError = when (t) {
+fun classifyCompanionError(t: Throwable): ConnectionError = when {
+    t.isCertificateChanged -> ConnectionError.CertificateChanged
+    else -> classifyOther(t)
+}
+
+/** Somewhere in the chain (OkHttp wraps it in an SSL exception). */
+val Throwable.isCertificateChanged: Boolean
+    get() = generateSequence(this) { it.cause }.take(8).any { it is app.sofabird.data.net.CertificateChangedException }
+
+private fun classifyOther(t: Throwable): ConnectionError = when (t) {
     is CompanionHandshakeException -> t.error
     is BluetoothConnectException -> ConnectionError.BluetoothFailed
     is app.sofabird.protocol.companion.CompanionErrorException -> ConnectionError.Other(t.message)

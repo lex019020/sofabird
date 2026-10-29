@@ -11,6 +11,7 @@ import app.sofabird.data.discovery.UdpBeaconDiscovery
 import app.sofabird.data.history.WatchPrompts
 import app.sofabird.data.net.ArtAuth
 import app.sofabird.data.net.HttpClients
+import app.sofabird.data.net.PinnedServers
 import app.sofabird.data.player.AppVisibility
 import app.sofabird.data.player.CompanionLink
 import app.sofabird.data.player.CompanionPairingLink
@@ -52,7 +53,8 @@ val appModule = module {
     single { ServerRepository(androidContext(), get(named("appScope"))) }
     single { SecretStore(androidContext()) }
     single { ArtAuth() }
-    single<OkHttpClient> { HttpClients.okHttp(get<ArtAuth>().interceptor) }
+    single { PinnedServers() }
+    single<OkHttpClient> { HttpClients.okHttp(get<ArtAuth>().interceptor, get()) }
     single<HttpClient> { HttpClients.ktor(get()) }
 
     single { LocalNetwork(androidContext()) }
@@ -63,11 +65,11 @@ val appModule = module {
 
     single { DeviceIdentity(androidContext(), get()) }
     single { BluetoothSupport(androidContext()) }
-    single<CompanionTransports> { AndroidCompanionTransports(get(), get(), get()) }
+    single<CompanionTransports> { AndroidCompanionTransports(get(), get(), get(), get()) }
     single { CompanionServerSync(get(), get(), get(named("appScope"))) }
 
     single { ConnectionTester(get(), get()) }
-    single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
+    single { PlayerController(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(named("appScope"))) }
     single<CompanionLink> { CompanionPairingLink(get(), get(), get(), get(), get(), get(), get()) }
     single { WatchPrompts(get(), get(named("appScope"))) }
     single { AppUpdates(androidContext(), get(), get(named("appScope"))) }

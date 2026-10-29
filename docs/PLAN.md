@@ -38,7 +38,7 @@ does for the user; and Bluetooth as a fallback when Wi-Fi lets you down.
 - iOS, Wear OS, Android TV, widgets (left for later; the protocol and model live in pure Kotlin modules).
 - Downloading subtitles from the internet, transcoding, streaming video to the phone.
 - VLC 4.x support (we prepare for it: branching on `apiversion`, not crashing on new fields).
-- Access from outside the home network, TLS (a field is reserved in the protocol for future pinning).
+- Access from outside the home network.
 - Controlling the TV itself (postponed, see § 6 "Postponed").
 
 ## 2. Scenarios ("from the couch")
@@ -163,8 +163,9 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 
 Pairing: the phone asks to pair, a window with a 6-digit code pops up on the PC (and on the TV), the user enters
 the code on the phone (QR `sofabird://pair?host=&port=&code=&bt=&fp=` is an alternative);
-the phone receives a long-lived token, the PC stores its hash. No TLS in v1 (home network, token);
-the `fp` field is reserved for pinning a self-signed certificate.
+the phone receives a long-lived token, the PC stores its hash. Since 0.4 the WebSocket is encrypted (`wss`, a
+self-signed certificate pinned by the phone at the first encrypted connection, trust on first use; plain `ws` stays
+for older apps in 0.4 only).
 
 ### 4.5. State model
 
@@ -383,7 +384,7 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [ ] Fake-VLC scenario tests.
 
 ### M5 — Later
-Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x, TLS pinning,
+Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x,
 iOS via Compose Multiplatform.
 
 ### Later ideas (user requests)
@@ -450,13 +451,10 @@ sofabird/
 
 ## 10. Next steps
 
-Before the stable 0.4.0 (owner's list): the YouTube history and Wake-on-LAN are done (§ 9); left:
-
-1. **Encryption**: the WebSocket over TLS with the companion's certificate pinned at pairing; 0.4.0 still accepts
-   the old unencrypted connection (old apps), the next version drops it.
-2. **Release v0.4.0.**
+Before the stable 0.4.0 (owner's list): the YouTube history, Wake-on-LAN and the encrypted connection are done
+(§ 9); left: **release v0.4.0**.
 
 Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
-download, VLC 4.x, iOS.
+download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.
