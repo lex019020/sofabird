@@ -69,17 +69,24 @@ public sealed class YouTubeService : IDisposable
     /// <summary>Ads on YouTube are blocked with uBlock Origin.</summary>
     public bool BlockAds => _settings.BlockAds;
 
+    /// <summary>Sponsor segments are skipped with SponsorBlock.</summary>
+    public bool SkipSponsors => _settings.SkipSponsors;
+
     /// <summary>
-    /// Turns uBlock Origin on or off (the setup window, the phone). Turning it on downloads it first; an open TV browser
-    /// is restarted so that it applies now, and continues the video where it was.
+    /// Turns an optional add-on (uBlock Origin, SponsorBlock) on or off: the setup window, the phone. Turning it on
+    /// downloads it first; an open TV browser is restarted so that it applies now, and continues the video where it was.
     /// </summary>
-    public async Task SetBlockAdsAsync(bool on, CancellationToken ct)
+    public async Task SetAddonAsync(TvAddon addon, bool on, CancellationToken ct)
     {
-        if (on && !await _addons.EnsureUBlockAsync(ct).ConfigureAwait(false))
-            throw ProtocolException.BadRequest(ProtocolText.YouTubeAdBlockFailed);
-        if (_settings.BlockAds == on) return;
-        _store.Update(s => s.BlockAds = on);
-        _log.LogInformation("YouTube on the TV: ads {Blocked}", on ? "blocked (uBlock Origin)" : "not blocked");
+        if (on && !await _addons.EnsureAsync(addon, ct).ConfigureAwait(false))
+            throw ProtocolException.BadRequest(ProtocolText.YouTubeAddonFailed(addon.Name));
+        if (_settings.IsOn(addon) == on) return;
+        _store.Update(s =>
+        {
+            if (addon == TvAddon.UBlock) s.BlockAds = on;
+            else if (addon == TvAddon.SponsorBlock) s.SkipSponsors = on;
+        });
+        _log.LogInformation("YouTube on the TV: {Addon} {State}", addon.Name, on ? "on" : "off");
         Changed?.Invoke();
         if (Available && _browser.IsRunning()) await RestartAsync(ct).ConfigureAwait(false);
     }
@@ -266,6 +273,7 @@ public sealed class YouTubeService : IDisposable
         if (!Available) return null;
         var info = Read();
         info.AdBlock = _settings.BlockAds;
+        info.SponsorBlock = _settings.SkipSponsors;
         return info;
     }
 

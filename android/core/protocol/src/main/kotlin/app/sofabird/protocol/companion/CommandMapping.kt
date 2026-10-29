@@ -86,6 +86,7 @@ object CommandMapping {
             SystemCommand.MoonlightStop -> "moonlightStop" to EMPTY
             is SystemCommand.YouTubeOpen -> "youtubeOpen" to args { put("url", command.url) }
             is SystemCommand.YouTubeAdBlock -> "youtubeAdBlock" to args { put("on", command.on) }
+            is SystemCommand.YouTubeSponsorBlock -> "youtubeSponsorBlock" to args { put("on", command.on) }
             is SystemCommand.YouTube -> "youtube" to args {
                 put("action", command.action.wire)
                 command.time?.let { put("time", it.coerceAtLeast(0.0)) }

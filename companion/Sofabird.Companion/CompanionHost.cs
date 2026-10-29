@@ -321,7 +321,12 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "youtubeAdBlock":
-                await _youtube.SetBlockAdsAsync(args.RequireBool("on"), ct).ConfigureAwait(false);
+                await _youtube.SetAddonAsync(YouTube.TvAddon.UBlock, args.RequireBool("on"), ct).ConfigureAwait(false);
+                _vlc.Poke();
+                return null;
+
+            case "youtubeSponsorBlock":
+                await _youtube.SetAddonAsync(YouTube.TvAddon.SponsorBlock, args.RequireBool("on"), ct).ConfigureAwait(false);
                 _vlc.Poke();
                 return null;
 

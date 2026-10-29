@@ -23,7 +23,7 @@
   <data name="YouTubeNoBrowser" xml:space="preserve"><value>There is no browser for YouTube on the PC. Install Firefox from the companion's setup window.</value></data>
   <data name="YouTubeBadLink" xml:space="preserve"><value>This is not a link to a YouTube video</value></data>
   <data name="YouTubeNotOpen" xml:space="preserve"><value>YouTube is not open on the TV</value></data>
-  <data name="YouTubeAdBlockFailed" xml:space="preserve"><value>uBlock Origin could not be downloaded from addons.mozilla.org. Check the PC's internet connection.</value></data>
+  <data name="YouTubeAddonFailed" xml:space="preserve"><value>{0} could not be downloaded from addons.mozilla.org. Check the PC's internet connection.</value></data>
   <data name="FolderNotFound" xml:space="preserve"><value>Folder not found: {0}</value></data>
   <data name="FolderUnavailable" xml:space="preserve"><value>Folder is not available: {0}</value></data>
   <data name="HistoryNotAFile" xml:space="preserve"><value>Only files on this PC are kept in the watch history: {0}</value></data>

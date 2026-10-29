@@ -53,6 +53,11 @@ public sealed class Settings
     public string? YouTubeSessionId { get; set; }
     /// <summary>Block ads on YouTube with uBlock Origin in the TV browser (opt-in: the setup window or the phone).</summary>
     public bool BlockAds { get; set; }
+    /// <summary>Skip sponsor segments on YouTube with SponsorBlock in the TV browser (opt-in, like <see cref="BlockAds"/>).</summary>
+    public bool SkipSponsors { get; set; }
+
+    /// <summary>Whether an optional add-on of the TV browser is on.</summary>
+    public bool IsOn(YouTube.TvAddon addon) => addon == YouTube.TvAddon.UBlock ? BlockAds : addon == YouTube.TvAddon.SponsorBlock && SkipSponsors;
 
     /// <summary>
     /// Stable id of the preferred monitor (the TV): every new VLC window is moved there once.

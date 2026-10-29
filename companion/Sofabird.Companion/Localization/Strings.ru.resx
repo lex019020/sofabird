@@ -150,4 +150,8 @@
   <data name="SetupAdBlockOn" xml:space="preserve"><value>✓ Реклама блокируется (uBlock Origin)</value></data>
   <data name="SetupAdBlockNoBrowser" xml:space="preserve"><value>Сначала установите Firefox</value></data>
   <data name="SetupAdBlockFailed" xml:space="preserve"><value>Не удалось скачать uBlock Origin — проверьте подключение к интернету</value></data>
+  <data name="SetupSponsorBlockTitle" xml:space="preserve"><value>Пропускать спонсорские вставки на YouTube (необязательно)</value></data>
+  <data name="SetupSponsorBlockText" xml:space="preserve"><value>Добавляет в браузер для ТВ SponsorBlock — бесплатное дополнение с открытым кодом: оно пропускает спонсорские вставки и саморекламу, отмеченные его сообществом. Для каждого просмотренного видео оно запрашивает отрезки у sponsor.ajay.app. Переключается и с телефона.</value></data>
+  <data name="SetupSponsorBlockOn" xml:space="preserve"><value>✓ Спонсорские вставки пропускаются (SponsorBlock)</value></data>
+  <data name="SetupSponsorBlockFailed" xml:space="preserve"><value>Не удалось скачать SponsorBlock — проверьте подключение к интернету</value></data>
 </root>
