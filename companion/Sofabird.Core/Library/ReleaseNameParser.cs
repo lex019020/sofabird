@@ -16,8 +16,9 @@ public sealed record ParsedName(string Title, int? Year, int? Season, int? Episo
 /// <summary>
 /// Parses release-style file names ("The.Matrix.1999.2160p.UHD.BluRay.x265-GROUP.mkv",
 /// "Show.Name.S01E02.1080p.WEB-DL.mkv") the way the PTN / guessit tools do: find the anchors (SxxEyy, the year, the
-/// first quality tag), the title is what comes before the first one. Pure; the folder names fill in what the file name
-/// lacks ("Show/Season 1/E02.mkv").
+/// first quality tag), the title is what comes before the first one. Russian releases number episodes in words
+/// ("Show (1973) 04 серия", "Show 2 сезон 5 серия"). Pure; the folder names fill in what the file name lacks
+/// ("Show/Season 1/E02.mkv").
 /// </summary>
 public static partial class ReleaseNameParser
 {
@@ -41,6 +42,15 @@ public static partial class ReleaseNameParser
             season = Int(x.Groups["s"].Value);
             episode = Int(x.Groups["e"].Value);
             anchor = x.Index;
+        }
+        else if (RussianEpisode().Match(name) is { Success: true } r)
+        {
+            // "серия" is an episode wherever it stands; the season is in the name ("2 сезон"), the folder, or it is 1.
+            episode = Int(r.Groups["e"].Value);
+            var inName = SeasonToken().Match(name[..r.Index]);
+            season = inName.Success ? Int(inName.Groups["n"].Value)
+                : folders.Count > 0 ? SeasonOfFolder(folders[0]) ?? 1 : 1;
+            anchor = inName.Success ? inName.Index : r.Index;
         }
         else if (EpisodeOnly().Match(name) is { Success: true } e
                  && (e.Index == 0 || (folders.Count > 0 && SeasonOfFolder(folders[0]) is not null)))
@@ -126,8 +136,15 @@ public static partial class ReleaseNameParser
     [GeneratedRegex(@"(?i)(?<![\dx])(?<s>\d{1,2})x(?<e>\d{2,3})(?![\dp])")]
     private static partial Regex CrossEpisode();
 
-    [GeneratedRegex(@"(?i)(?:^|[\s\-\[(])(?:E|Ep|Episode|Серия)\s?(?<e>\d{1,3})(?!\d)")]
+    [GeneratedRegex(@"(?i)(?:^|[\s\-\[(])(?:E|Ep|Episode)\s?(?<e>\d{1,3})(?!\d)")]
     private static partial Regex EpisodeOnly();
+
+    /// <summary>
+    /// "04 серия", "4-я серия", "Серия 4", "серія 4" (Ukrainian). A number right after "сезон" is the season
+    /// ("Сезон 3 Серия 2"), unless the season had its number before ("2 сезон 05 серия").
+    /// </summary>
+    [GeneratedRegex(@"(?i)(?<![^\s\-\[(])(?:(?<!(?<!\d\s?)(?:season|сезон)\s?)(?<e>\d{1,3})(?:-?я)?\s?(?:серия|серія)(?!\p{L})|(?:серия|серія)\s?№?\s?(?<e>\d{1,3})(?!\d))")]
+    private static partial Regex RussianEpisode();
 
     [GeneratedRegex(@"(?<![\d])(?:19\d{2}|20\d{2})(?![\dp])")]
     private static partial Regex Year();
@@ -138,7 +155,7 @@ public static partial class ReleaseNameParser
     [GeneratedRegex(@"(?i)^(?:(?:season|сезон|s)\s?(?<n>\d{1,2})|(?<n>\d{1,2})\s?(?:season|сезон))$")]
     private static partial Regex SeasonFolder();
 
-    [GeneratedRegex(@"(?i)\b(?:S(?<n>\d{1,2})|(?:season|сезон)\s?(?<n>\d{1,2}))\b")]
+    [GeneratedRegex(@"(?i)\b(?:S(?<n>\d{1,2})|(?:season|сезон)\s?(?<n>\d{1,2})|(?<n>\d{1,2})\s?(?:season|сезон))\b")]
     private static partial Regex SeasonToken();
 
     [GeneratedRegex(@"\[[^\]]*\]|\{[^}]*\}")]

@@ -291,9 +291,10 @@ sends `event {"name":"nextEpisode", ...}`. The phone shows a card «Next: <title
 ## Library (capability `library`)
 
 The movies and series of the **media folders** chosen in the companion's setup window (local disks or network
-shares). The companion walks them (at the start, every 30 minutes and when the folders change), recognizes titles
-from the file names (release-style names: `The.Matrix.1999.2160p….mkv`, `Show.S01E02….mkv`, `Show/Season 2/E05.mkv`)
-and groups them: a series is every episode with the same title, wherever its files are; two files of the same movie
+shares). The companion walks them (at the start, when the folders change and every 30 minutes; a network folder is
+not read by the timer, only when a phone asks for the library and its last scan is older than 30 minutes),
+recognizes titles from the file names (release-style names: `The.Matrix.1999.2160p….mkv`, `Show.S01E02….mkv`,
+`Show/Season 2/E05.mkv`, `Show (1973) 04 серия.mkv`) and groups them: a series is every episode with the same title, wherever its files are; two files of the same movie
 are its versions. Metadata comes from **TMDB** in the PC's Windows language (title, year, overview, poster, backdrop,
 rating; episode names and stills), kept by the companion for at most 6 months (TMDB terms), so the phones only show
 it. Images are full `https://image.tmdb.org/…` URLs: the phone loads them itself (they are not sent over Bluetooth).
