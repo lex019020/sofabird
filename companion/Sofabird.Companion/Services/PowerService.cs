@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using Sofabird.Companion.Interop;
 
 namespace Sofabird.Companion.Services;
@@ -8,15 +9,23 @@ namespace Sofabird.Companion.Services;
 /// <summary>
 /// Power: keep-awake via <c>SetThreadExecutionState</c> (the state is bound to the thread, so
 /// it is always called on the UI thread), display off via <c>SC_MONITORPOWER</c>, sleep via
-/// <c>SetSuspendState</c>, shutdown via <c>shutdown.exe</c>.
+/// <c>SetSuspendState</c>, shutdown via <c>shutdown.exe</c>; <see cref="Suspending"/> before Windows sleeps.
 /// </summary>
-public sealed class PowerService
+public sealed class PowerService : IDisposable
 {
     private readonly ILogger _log;
     private readonly Action<Action> _uiInvoke;
     private volatile bool _keepAwakeEnabled;
     private volatile bool _playing;
     private bool _keepAwakeActive; // UI thread only
+    private long _suspendAnnouncedAt; // Environment.TickCount64
+
+    /// <summary>
+    /// Windows is about to sleep (the phone, the Start menu, the lid, the idle timer). Raised synchronously, before
+    /// <c>SetSuspendState</c> or on the <see cref="SystemEvents"/> thread, which Windows waits for about two seconds:
+    /// long enough to tell the phones. Once per sleep.
+    /// </summary>
+    public event Action? Suspending;
 
     public PowerService(ILogger<PowerService> log, Action<Action> uiInvoke)
     {
@@ -79,9 +88,38 @@ public sealed class PowerService
         _log.LogInformation("Display power {State}", on ? "on" : "off");
     }
 
+    /// <summary>Starts watching for Windows going to sleep (<see cref="Suspending"/>).</summary>
+    public void Start() => SystemEvents.PowerModeChanged += OnPowerModeChanged;
+
+    public void Dispose() => SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Suspend) AnnounceSuspend();
+    }
+
+    private void AnnounceSuspend()
+    {
+        var now = Environment.TickCount64;
+        var last = Interlocked.Exchange(ref _suspendAnnouncedAt, now);
+        if (last != 0 && now - last < SuspendAnnounceGapMs) return; // Sleep() announced it, now Windows does
+        _log.LogInformation("Windows is going to sleep");
+        try
+        {
+            Suspending?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Telling the phones about sleep failed");
+        }
+    }
+
+    private const long SuspendAnnounceGapMs = 10_000;
+
     public void Sleep()
     {
         _log.LogInformation("Sleep requested");
+        AnnounceSuspend(); // Windows' own notice comes when the network may already be going down
         if (!NativeMethods.SetSuspendState(false, false, false))
             _log.LogWarning("SetSuspendState failed: {Error}", Marshal.GetLastWin32Error());
     }

@@ -515,6 +515,10 @@ network adapter do that.
   startup off), over Wi-Fi only some PCs can; the window's text says so, the companion does not change those.
 - `macs` (`WakeOnLanService.Macs`, cached for a minute): physical Ethernet and Wi-Fi adapters from .NET's
   `NetworkInterface`, without virtual, VPN and Bluetooth ones.
+- **Going to sleep**: `PowerService.Suspending` (before `SetSuspendState` for `sys sleep`, which now runs 300 ms after
+  its reply, and on `SystemEvents.PowerModeChanged` → `Suspend` for the Start menu, the lid and the idle timer; once
+  per sleep) sends `event sleeping` to every phone and waits up to 1 s for it to go out. The phones then show the PC
+  as asleep with "Wake up the PC" at once instead of noticing a missed `pong` up to 40 s later.
 
 ### Firewall
 

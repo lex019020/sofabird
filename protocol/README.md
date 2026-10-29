@@ -325,7 +325,12 @@ Without a TMDB token or a match the item keeps the title parsed from its file na
 
 ## Events: `event`
 
-`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode", ...}`.
+`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode"|"sleeping", ...}`.
+
+`sleeping`: Windows suspends in a moment (`sys sleep` — sent after its reply —, the Start menu, the lid, the idle
+timer). The phone ends the link at once instead of noticing a missed `pong` up to 40 s later, shows that the PC is
+asleep with "Wake up the PC" (`macs`), and retries with its backoff (the first time after ~8 s, so that it does not
+catch the PC in its last second) in case the PC wakes by itself.
 
 ## Keep-alive
 

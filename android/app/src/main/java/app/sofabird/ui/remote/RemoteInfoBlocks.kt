@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import app.sofabird.R
 import app.sofabird.data.companion.BluetoothStatus
 import app.sofabird.data.player.PcWaker
-import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.ui.common.BluetoothPermissionDeniedDialog
 import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.rememberBluetoothRequests
@@ -165,18 +164,22 @@ internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit) {
 }
 
 /**
- * No connection: "Connect" (the connection screen), and "Wake up the PC" when the companion said how ([PcWaker]):
- * while it wakes the card says so, and when the PC did not answer it says what to check.
+ * The PC does not answer ([RemoteUiState.offline], already while reconnecting): "Wake up the PC" when the companion
+ * said how ([PcWaker]) — while it wakes the card says so, and when the PC did not answer it says what to check — and
+ * "Connect" (the connection screen).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit, onWake: () -> Unit = {}) {
-    val offline = ui.connection is ConnectionState.Failed || ui.connection is ConnectionState.Disconnected
-    if (!offline && ui.wake != PcWaker.State.WAKING) return
+    if (!ui.offline && ui.wake != PcWaker.State.WAKING) return
     Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                ui.hostName?.let { stringResource(R.string.no_link_with, it) } ?: stringResource(R.string.no_server_configured),
+                when {
+                    ui.hostName == null -> stringResource(R.string.no_server_configured)
+                    ui.asleep -> stringResource(R.string.pc_asleep, ui.hostName)
+                    else -> stringResource(R.string.no_link_with, ui.hostName)
+                },
                 style = MaterialTheme.typography.titleMedium,
             )
             when (ui.wake) {
@@ -194,14 +197,18 @@ internal fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit, onWake
                 else -> Unit
             }
             Spacer(Modifier.height(8.dp))
+            // Waking is what a sleeping PC needs, so it comes first; the connection screen is for anything else.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenConnection) { LabelText(stringResource(R.string.action_connect)) }
-                if (ui.wake != null && ui.wake != PcWaker.State.WAKING) {
-                    OutlinedButton(onClick = onWake) {
+                val canWake = ui.wake != null && ui.wake != PcWaker.State.WAKING
+                if (canWake) {
+                    Button(onClick = onWake) {
                         Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         LabelText(stringResource(R.string.action_wake_pc))
                     }
+                    OutlinedButton(onClick = onOpenConnection) { LabelText(stringResource(R.string.action_connect)) }
+                } else {
+                    Button(onClick = onOpenConnection) { LabelText(stringResource(R.string.action_connect)) }
                 }
             }
         }

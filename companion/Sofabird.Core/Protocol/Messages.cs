@@ -439,4 +439,6 @@ public static class EventNames
     public const string Paired = "paired";
     public const string ResumePrompt = "resumePrompt";
     public const string NextEpisode = "nextEpisode";
+    /// <summary>Windows suspends in a moment: phones drop the link at once and offer to wake the PC.</summary>
+    public const string Sleeping = "sleeping";
 }

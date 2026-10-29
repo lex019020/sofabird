@@ -19,6 +19,7 @@
     <string name="state_connecting">Connecting…</string>
     <string name="state_reconnecting">Reconnecting (attempt %1$d)…</string>
     <string name="state_degraded">PC is not responding, retrying…</string>
+    <string name="state_asleep">The PC is asleep</string>
     <string name="level_http">VLC over HTTP</string>
     <string name="level_lua">VLC + Lua pages</string>
     <string name="level_companion">Companion</string>
@@ -54,6 +55,7 @@
     <string name="vlc_not_running_title">VLC is not running</string>
     <string name="nothing_playing">Nothing is playing</string>
     <string name="no_link_with">No connection to %1$s</string>
+    <string name="pc_asleep">%1$s is asleep</string>
     <string name="no_server_configured">No PC configured yet</string>
     <string name="action_wake_pc">Wake up the PC</string>
     <string name="waking_pc">Waking up %1$s…</string>
@@ -267,6 +269,7 @@
     <string name="unit_ms">ms</string>
 
     <!-- Bluetooth (M3) -->
+    <string name="err_pc_asleep">The PC is asleep</string>
     <string name="err_bluetooth_failed">The companion is not answering over Bluetooth: check that the PC is paired with the phone and the companion is running</string>
     <string name="hint_bluetooth_failed">Pair the phone with the PC in the Bluetooth settings of Android or Windows. The PC must be nearby (about 10 m) with Bluetooth on.</string>
     <string name="transport_wifi">Wi‑Fi</string>

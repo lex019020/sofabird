@@ -382,6 +382,7 @@ public class SessionTests
             Name = EventNames.ResumePrompt, Uri = "file:///d:/x.mkv", Title = "X", Position = 1234, Length = 5000, Pending = true,
         });
         Assert.Equal("""{"t":"event","name":"resumePrompt","uri":"file:///d:/x.mkv","title":"X","position":1234,"length":5000,"pending":true}""", json);
+        Assert.Equal("""{"t":"event","name":"sleeping"}""", ProtocolJson.Serialize(new EventMessage { Name = EventNames.Sleeping }));
         var next = ProtocolJson.Serialize(new EventMessage { Name = EventNames.NextEpisode, Uri = "file:///d:/e2.mkv", Title = "E2" });
         Assert.Equal("""{"t":"event","name":"nextEpisode","uri":"file:///d:/e2.mkv","title":"E2"}""", next);
     }

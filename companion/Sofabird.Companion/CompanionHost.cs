@@ -17,6 +17,9 @@ namespace Sofabird.Companion;
 /// <summary>Implementation of <see cref="ISessionHost"/>: connects sessions with VLC, displays, power and sound.</summary>
 public sealed class CompanionHost : ISessionHost
 {
+    /// <summary><c>sys sleep</c>: time for the reply to reach the phone before Windows suspends.</summary>
+    private static readonly TimeSpan SleepAfterReply = TimeSpan.FromMilliseconds(300);
+
     private readonly Settings _settings;
     private readonly SettingsStore _settingsStore;
     private readonly VlcManager _vlc;
@@ -283,7 +286,12 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "sleep":
-                _power.Sleep();
+                // After the reply: the phone hears "done", then "sleeping", then Windows suspends.
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(SleepAfterReply, CancellationToken.None).ConfigureAwait(false);
+                    _power.Sleep();
+                }, CancellationToken.None); // not the request's token: the session ends with the sleep
                 return null;
 
             case "shutdown":

@@ -264,8 +264,11 @@ connection, sends `volume&val=` to the PC and shows the result in a snackbar; ot
 ## Wake-on-LAN
 
 The companion names its network adapters in `welcome.macs`; they are kept with the saved PC (`SavedServer.wakeMacs`,
-merged like the Bluetooth address, never cleared). When the PC does not answer, the remote's "No connection" card
-offers **Wake up the PC** (`PcWaker`): the magic packet (`MagicPacket`, `:core:protocol`, tested) for every MAC as a
+merged like the Bluetooth address, never cleared). When the PC does not answer (`RemoteUiState.offline`: a final
+error, or a reconnect that failed at least once), the remote's "No connection" card offers **Wake up the PC**
+(`PcWaker`) as its first button. A companion going to sleep says so (`event sleeping`): `CompanionBackend` ends the
+link at once, keeps `ConnectionError.PcAsleep` as the reason until the PC answers again ("<PC> is asleep"), and
+retries after ~8 s, then with its backoff (at most 15 s), in case the PC wakes by itself. Waking sends the magic packet (`MagicPacket`, `:core:protocol`, tested) for every MAC as a
 UDP broadcast (`255.255.255.255` and the subnet's, ports 9 and 7), then reconnecting every 4 s and sending again every
 15 s, for up to 90 s; the card says "Waking up …" meanwhile and "The PC did not wake up" when it did not. The PC's
 side is an item of the companion's setup window.

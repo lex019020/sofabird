@@ -21,6 +21,9 @@ namespace Sofabird.Companion;
 
 internal static class Program
 {
+    /// <summary>How long Windows' sleep waits for "sleeping" to reach the phones (it allows about two seconds).</summary>
+    private static readonly TimeSpan SleepNoticeTimeout = TimeSpan.FromSeconds(1);
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -137,7 +140,7 @@ internal static class Program
         var vlc = new VlcManager(settings, installation, lua, lf, history);
         var pairing = new PairingService(new JsonFileTokenStore(paths.PairedDevicesFile));
         var display = new DisplayService(lf.CreateLogger<DisplayService>());
-        var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
+        using var power = new PowerService(lf.CreateLogger<PowerService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); });
         var audio = new AudioService(lf.CreateLogger<AudioService>());
         var audioWatcher = new AudioDeviceWatcher(lf.CreateLogger<AudioDeviceWatcher>());
         var powerPlan = new PowerPlanService(lf.CreateLogger<PowerPlanService>());
@@ -170,6 +173,9 @@ internal static class Program
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;
         pairing.Paired += d => sessions.PublishEvent(new EventMessage { Name = EventNames.Paired, Device = d.DeviceName });
+        // The phones drop the link at once and offer to wake the PC, instead of noticing a missed pong much later.
+        power.Suspending += () => sessions.PublishEventAsync(new EventMessage { Name = EventNames.Sleeping }).Wait(SleepNoticeTimeout);
+        power.Start();
 
         var web = new WebServer(settings, host, sessions, vlc, lf.CreateLogger<WebServer>());
         var beacon = new UdpBeaconResponder(IPAddress.Parse(settings.ListenAddress), settings.BeaconPort, host.BuildBeacon, lf.CreateLogger<UdpBeaconResponder>());

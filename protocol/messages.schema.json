@@ -1165,7 +1165,8 @@
             "endReached",
             "paired",
             "resumePrompt",
-            "nextEpisode"
+            "nextEpisode",
+            "sleeping"
           ]
         }
       }
