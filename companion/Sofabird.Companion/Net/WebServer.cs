@@ -13,9 +13,10 @@ using Sofabird.Core.Vlc;
 namespace Sofabird.Companion.Net;
 
 /// <summary>
-/// Kestrel: <c>/ws</c> (WebSocket → NDJSON session), <c>/info</c> (anonymous JSON),
-/// <c>/art</c> (Bearer token → proxy of VLC artwork) — on <see cref="Settings.WsPort"/> in plain HTTP (older apps) and,
-/// with a certificate (<see cref="TlsCertificate"/>), the same over TLS on <see cref="Settings.TlsPort"/>.
+/// Kestrel: <c>/ws</c> (WebSocket → NDJSON session), <c>/info</c> (anonymous JSON), <c>/art</c> (Bearer token → proxy
+/// of VLC artwork) over TLS on <see cref="Settings.TlsPort"/> with the certificate (<see cref="TlsCertificate"/>). The
+/// plain HTTP port <see cref="Settings.WsPort"/> answers only <c>/info</c> (what the beacon says anyway: discovery and
+/// the scripts); since 0.5 nothing else goes unencrypted.
 /// </summary>
 public sealed class WebServer : IAsyncDisposable
 {
@@ -68,6 +69,7 @@ public sealed class WebServer : IAsyncDisposable
 
         app.MapGet("/art", async (HttpContext ctx) =>
         {
+            if (!ctx.Request.IsHttps) return EncryptedOnly(ctx);
             if (!IsAuthorized(ctx))
             {
                 ctx.Response.Headers.WWWAuthenticate = "Bearer";
@@ -96,6 +98,11 @@ public sealed class WebServer : IAsyncDisposable
 
         app.Map("/ws", async (HttpContext ctx) =>
         {
+            if (!ctx.Request.IsHttps)
+            {
+                await EncryptedOnly(ctx).ExecuteAsync(ctx).ConfigureAwait(false);
+                return;
+            }
             if (!ctx.WebSockets.IsWebSocketRequest)
             {
                 ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -111,13 +118,24 @@ public sealed class WebServer : IAsyncDisposable
             _log.LogInformation("WebSocket closed: {Desc}", desc);
         });
 
-        app.MapGet("/", () => Results.Text("Sofabird. Endpoints: /info, /ws, /art", "text/plain; charset=utf-8"));
+        app.MapGet("/", () => Results.Text("Sofabird. Endpoints: /info, /ws, /art (the last two over TLS only)", "text/plain; charset=utf-8"));
 
         await app.StartAsync(ct).ConfigureAwait(false);
         _app = app;
-        _log.LogInformation("Kestrel listening on {Addr}:{Port}{Tls}", _settings.ListenAddress, _settings.WsPort,
-            _certificate is null ? " (no TLS)" : $" and TLS on {_settings.TlsPort}");
+        if (_certificate is null)
+            _log.LogError("No certificate: phones cannot connect (only /info answers on {Port})", _settings.WsPort);
+        else
+            _log.LogInformation("Kestrel listening on {Addr}:{TlsPort} (TLS) and {Port} (/info only)", _settings.ListenAddress,
+                _settings.TlsPort, _settings.WsPort);
         if (_certificate is not null) _host.Tls = new TlsInfo { Port = _settings.TlsPort, Sha256 = TlsCertificate.Fingerprint(_certificate) };
+    }
+
+    /// <summary>A plain HTTP request for <c>/ws</c> or <c>/art</c> (an app older than 0.5): 426 with where to go.</summary>
+    private IResult EncryptedOnly(HttpContext ctx)
+    {
+        _log.LogDebug("Plain {Path} from {Remote} refused: TLS only", ctx.Request.Path, ctx.Connection.RemoteIpAddress);
+        ctx.Response.Headers.Upgrade = "TLS/1.3";
+        return Results.Text($"Use https/wss on port {_settings.TlsPort}", "text/plain; charset=utf-8", statusCode: StatusCodes.Status426UpgradeRequired);
     }
 
     private bool IsAuthorized(HttpContext ctx)

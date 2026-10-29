@@ -15,7 +15,7 @@ public sealed class Settings
     public string ListenAddress { get; set; } = "0.0.0.0";
     public int WsPort { get; set; } = ProtocolConstants.DefaultWsPort;
     public int BeaconPort { get; set; } = ProtocolConstants.DefaultBeaconPort;
-    /// <summary>The encrypted WebSocket (<c>wss</c>); the plain one on <see cref="WsPort"/> stays for older apps in 0.4.</summary>
+    /// <summary>The encrypted WebSocket (<c>wss</c>), <c>/art</c> and <c>/info</c>: everything the phones use.</summary>
     public int TlsPort { get; set; } = ProtocolConstants.DefaultTlsPort;
     /// <summary>The certificate of <see cref="TlsPort"/> in the user's certificate store (made at the first start).</summary>
     public string? TlsThumbprint { get; set; }
@@ -70,11 +70,6 @@ public sealed class Settings
     public string? PreferredDisplayId { get; set; }
     /// <summary>Last known name of the preferred monitor (shown in the tray while it is disconnected).</summary>
     public string? PreferredDisplayName { get; set; }
-    /// <summary>
-    /// Legacy (≤ 0.x): index of the preferred monitor in <c>listDisplays</c>. Read only for the one-time migration
-    /// to <see cref="PreferredDisplayId"/> (<see cref="MigratePreferredDisplay"/>), then removed from the file.
-    /// </summary>
-    public int? PreferredDisplay { get; set; }
     /// <summary>Keep the PC/display awake during playback.</summary>
     public bool KeepAwake { get; set; } = true;
     /// <summary>
@@ -132,20 +127,6 @@ public sealed class Settings
         if (VlcRcPort <= 0 || VlcRcPort > 65535) VlcRcPort = 4212;
         if (string.IsNullOrWhiteSpace(ListenAddress)) ListenAddress = "0.0.0.0";
         if (string.IsNullOrWhiteSpace(VlcHttpHost)) VlcHttpHost = "0.0.0.0";
-    }
-
-    /// <summary>
-    /// One-time migration of the legacy index: map it to the id of the monitor at that index now (dropped if out of
-    /// range). Returns <c>true</c> if the settings changed and should be saved.
-    /// </summary>
-    public bool MigratePreferredDisplay(IReadOnlyList<Sofabird.Core.Displays.MonitorInfo> monitors)
-    {
-        var r = Sofabird.Core.Displays.MonitorTopology.MigrateLegacyPreference(PreferredDisplay, PreferredDisplayId, PreferredDisplayName, monitors);
-        if (!r.Changed) return false;
-        PreferredDisplayId = r.Id;
-        PreferredDisplayName = r.Name;
-        PreferredDisplay = null;
-        return true;
     }
 
     private static string GeneratePassword()

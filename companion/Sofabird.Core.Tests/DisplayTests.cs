@@ -143,18 +143,6 @@ public class MonitorTopologyTests
     [InlineData("WinDisc", null)]
     public void DisplayNumber(string gdi, int? expected) => Assert.Equal(expected, MonitorTopology.DisplayNumber(gdi));
 
-    [Fact]
-    public void LegacyIndexMigration()
-    {
-        var list = LaptopAndTv();
-        Assert.Equal((TvPath, "SAMSUNG", true), MonitorTopology.MigrateLegacyPreference(1, null, null, list));
-        // Out of range: dropped, but the legacy key still has to go.
-        Assert.Equal((null, null, true), MonitorTopology.MigrateLegacyPreference(7, null, null, list));
-        // An id that is already there wins.
-        Assert.Equal(("x", "X", true), MonitorTopology.MigrateLegacyPreference(0, "x", "X", list));
-        // Nothing to migrate.
-        Assert.Equal((TvPath, "SAMSUNG", false), MonitorTopology.MigrateLegacyPreference(null, TvPath, "SAMSUNG", list));
-    }
 }
 
 public class AutoPlacementTests
@@ -372,7 +360,7 @@ public class DisplayControllerTests
         vlc.Minimized.Add(42);
         var c = TopologyController(new FakeMonitors(), new FakePrefs { PreferredId = TvPath }, vlc);
 
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Equal(["restore 42"], vlc.Log);
     }
 
@@ -512,28 +500,16 @@ public class DisplayControllerTests
     }
 
     [Fact]
-    public async Task MoveToDisplay_LegacyIndex()
-    {
-        var (c, _, prefs, _) = Create();
-        await c.ExecuteAsync("moveToDisplay", Args("""{"display":1}"""), CancellationToken.None);
-        Assert.Equal(TvPath, prefs.PreferredId);
-        var ex = await Assert.ThrowsAsync<ProtocolException>(() => c.ExecuteAsync("moveToDisplay", Args("""{"display":5}"""), CancellationToken.None));
-        Assert.Equal(ErrorCodes.BadRequest, ex.Code);
-        ex = await Assert.ThrowsAsync<ProtocolException>(() => c.ExecuteAsync("moveToDisplay", Args("{}"), CancellationToken.None));
-        Assert.Equal(ErrorCodes.BadRequest, ex.Code);
-    }
-
-    [Fact]
     public async Task MoveToDisplay_TvOff_RemembersWhenVlcIsClosed_ErrorWhenItRuns()
     {
         var (c, monitors, prefs, vlc) = Create();
         monitors.List = [monitors.List[0]];
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Equal(TvPath, prefs.PreferredId);
 
         prefs.PreferredId = null;
         vlc.ProcessId = 10;
-        var ex = await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, CancellationToken.None));
         Assert.Equal(ErrorCodes.BadRequest, ex.Code);
         Assert.Equal("Этот экран не подключён", ex.MessageFor(CultureInfo.GetCultureInfo("ru")));
         Assert.Equal(TvPath, prefs.PreferredId);
@@ -549,13 +525,13 @@ public class DisplayControllerTests
         vlc.WindowMonitor[42] = @"\\.\DISPLAY1";
         vlc.IsControllable = true;
         vlc.Fullscreen = true;
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Equal(["unfullscreen", @"move 42 -> \\.\DISPLAY2", "fullscreen"], vlc.Log);
         Assert.Equal(TvPath, prefs.PreferredId);
 
         // Already there: nothing to do.
         vlc.Log.Clear();
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Empty(vlc.Log);
     }
 
@@ -565,22 +541,22 @@ public class DisplayControllerTests
         var (c, monitors, _, vlc) = Create();
         var chosen = new List<string>();
         c.TvScreenChosen += m => chosen.Add(m.GdiDeviceName);
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None); // VLC closed: only remembered
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None); // VLC closed: only remembered
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         await c.ExecuteAsync("preferredDisplay", Args($$"""{"displayId":{{JsonSerializer.Serialize(TvPath)}}}"""), CancellationToken.None);
         Assert.Equal([@"\\.\DISPLAY2", @"\\.\DISPLAY2", @"\\.\DISPLAY2"], chosen);
 
         // "Do not manage" and a display that is not connected: nothing to follow.
         await c.ExecuteAsync("preferredDisplay", Args("""{"displayId":null}"""), CancellationToken.None);
         monitors.List = [monitors.List[0]];
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Equal(3, chosen.Count);
 
         // A running VLC whose window cannot be found still lets the rest follow.
         monitors.List = MonitorTopologyTests.LaptopAndTv();
         vlc.ProcessId = 10;
         await c.PlaceNewWindowAsync(10, startedBeforeCompanion: true, null, CancellationToken.None);
-        await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, null, CancellationToken.None));
+        await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, CancellationToken.None));
         Assert.Equal(4, chosen.Count);
     }
 
@@ -592,7 +568,7 @@ public class DisplayControllerTests
         vlc.Windows[10] = 42;
         vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
         vlc.Fullscreen = true; // not controllable: the host moves the (borderless) window as is
-        await c.MoveToDisplayAsync(PanelPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(PanelPath, CancellationToken.None);
         Assert.Equal([@"move 42 -> \\.\DISPLAY1"], vlc.Log);
     }
 
@@ -602,7 +578,7 @@ public class DisplayControllerTests
         var (c, _, _, vlc) = Create();
         vlc.ProcessId = 10;
         await c.PlaceNewWindowAsync(10, startedBeforeCompanion: true, null, CancellationToken.None);
-        var ex = await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<ProtocolException>(() => c.MoveToDisplayAsync(TvPath, CancellationToken.None));
         Assert.Equal(ErrorCodes.VlcError, ex.Code);
     }
 
@@ -611,7 +587,7 @@ public class DisplayControllerTests
     {
         var (c, _, prefs, vlc) = Create();
         vlc.ProcessId = 10; // not announced yet: the one-time placement will use the new preference
-        await c.MoveToDisplayAsync(TvPath, null, CancellationToken.None);
+        await c.MoveToDisplayAsync(TvPath, CancellationToken.None);
         Assert.Equal(TvPath, prefs.PreferredId);
     }
 
@@ -742,7 +718,7 @@ public class DisplayControllerTests
         vlc.ProcessId = 10;
         vlc.Windows[10] = 42;
         vlc.WindowMonitor[42] = @"\\.\DISPLAY2";
-        await c.MoveToDisplayAsync(PanelPath, null, CancellationToken.None); // phone moved it before the poll saw the process
+        await c.MoveToDisplayAsync(PanelPath, CancellationToken.None); // phone moved it before the poll saw the process
         prefs.PreferredId = TvPath;
         Assert.Equal(PlacementDecision.AlreadyHandled, await c.PlaceNewWindowAsync(10, false, null, CancellationToken.None));
         Assert.Equal([@"move 42 -> \\.\DISPLAY1"], vlc.Log);
@@ -754,7 +730,7 @@ public class DisplayControllerTests
         var monitors = MonitorTopology.Build([MonitorTopologyTests.Screen(1, 0, primary: true), MonitorTopologyTests.Screen(2, 1920)], []);
         var msg = new DisplaysMessage
         {
-            Items = monitors.Select(m => new DisplayEntry { Index = m.Index, Id = m.Id, Name = m.Name, NameText = m.NameText }).ToList(),
+            Items = monitors.Select(m => new DisplayEntry { Id = m.Id, Name = m.Name, NameText = m.NameText }).ToList(),
         };
         msg.Localize(CultureInfo.GetCultureInfo("ru-RU"));
         Assert.Equal(["Экран 1", "Экран 2"], msg.Items.Select(i => i.Name));

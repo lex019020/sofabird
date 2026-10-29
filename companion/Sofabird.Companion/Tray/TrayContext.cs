@@ -81,7 +81,7 @@ public sealed class TrayContext : ApplicationContext
         _phonesItem = new ToolStripMenuItem(UiText.TrayPhonesConnected(0)) { Enabled = false };
         _bluetoothItem = new ToolStripMenuItem(BluetoothText()) { Enabled = false };
         _pairItem = new ToolStripMenuItem(UiText.TrayPair, null, (_, _) => BeginPairing());
-        _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, null, ct)));
+        _launchItem = new ToolStripMenuItem(UiText.TrayStartVlc, null, (_, _) => RunAsync(ct => _vlc.LaunchAsync(null, ct)));
         _restartItem = new ToolStripMenuItem(UiText.TrayRestartVlc, null, (_, _) => RestartVlc());
         _quitVlcItem = new ToolStripMenuItem(UiText.TrayQuitVlc, null, (_, _) => RunAsync(_vlc.QuitAsync));
         _displaysItem = new ToolStripMenuItem(UiText.TrayMoveToDisplay);
@@ -233,7 +233,7 @@ public sealed class TrayContext : ApplicationContext
             preferredConnected |= isPreferred;
             var item = new ToolStripMenuItem(name) { Checked = isPreferred };
             var id = m.Id;
-            item.Click += (_, _) => RunAsync(ct => _host.Displays.MoveToDisplayAsync(id, null, ct));
+            item.Click += (_, _) => RunAsync(ct => _host.Displays.MoveToDisplayAsync(id, ct));
             _displaysItem.DropDownItems.Add(item);
         }
         if (preferred is not null && !preferredConnected)
@@ -406,7 +406,7 @@ public sealed class TrayContext : ApplicationContext
         _log.LogInformation("Setup window shown ({Reason})", firstRun ? "first run" : "tray");
     }
 
-    private void RestartVlc() => RunAsync(ct => _vlc.RestartAsync(null, null, ct));
+    private void RestartVlc() => RunAsync(ct => _vlc.RestartAsync(null, ct));
 
     private void ShowBalloon(int timeoutMs, string text, ToolTipIcon icon, Action? onClick = null)
     {

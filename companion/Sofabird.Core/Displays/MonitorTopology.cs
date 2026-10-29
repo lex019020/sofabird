@@ -114,23 +114,6 @@ public static class MonitorTopology
         string.IsNullOrEmpty(gdiDeviceName) ? null
             : monitors.FirstOrDefault(m => string.Equals(m.GdiDeviceName, gdiDeviceName, StringComparison.OrdinalIgnoreCase));
 
-    public static MonitorInfo? FindByIndex(IReadOnlyList<MonitorInfo> monitors, int? index) =>
-        index is int i && i >= 0 && i < monitors.Count ? monitors[i] : null;
-
-    /// <summary>
-    /// Settings migration of the old <c>preferredDisplay</c> index: if there is no id yet, the index is mapped to the
-    /// id (and name) of the monitor at that index now; out of range — the preference is dropped. An existing id wins.
-    /// <c>Changed</c> — the legacy value was present (and must be removed from the settings).
-    /// </summary>
-    public static (string? Id, string? Name, bool Changed) MigrateLegacyPreference(int? legacyIndex, string? id, string? name,
-        IReadOnlyList<MonitorInfo> monitors)
-    {
-        if (legacyIndex is null) return (id, name, false);
-        if (!string.IsNullOrEmpty(id)) return (id, name, true);
-        var m = FindByIndex(monitors, legacyIndex);
-        return (m?.Id, m?.Name, true);
-    }
-
     /// <summary>One-line signature of the topology (to log it only when it changes).</summary>
     public static string Signature(IReadOnlyList<MonitorInfo> monitors) => string.Join("|", monitors.Select(m => m.ToString()));
 }

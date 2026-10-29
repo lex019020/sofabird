@@ -125,10 +125,10 @@ public sealed partial class VlcManager : IAsyncDisposable
     public event Action<VlcProcessAppeared>? ProcessAppeared;
 
     /// <summary>
-    /// Monitor id a companion-launched VLC window will be moved to (argument: the legacy one-off <c>display</c> index
-    /// of <c>launch</c>/<c>open</c>, or <c>null</c> for the preferred monitor); <c>null</c> — the window is not managed.
+    /// Monitor id a companion-launched VLC window will be moved to (the preferred monitor); <c>null</c> — the window is
+    /// not managed.
     /// </summary>
-    public Func<int?, string?>? LaunchTargetResolver { get; set; }
+    public Func<string?>? LaunchTargetResolver { get; set; }
     /// <summary>Places the window of a companion-launched process (pid, target monitor id); completes when it is done.</summary>
     public Func<int, string, CancellationToken, Task>? PlaceLaunchedWindowAsync { get; set; }
 

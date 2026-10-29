@@ -19,8 +19,8 @@ public sealed partial class VlcManager
     /// <paramref name="uri"/> over HTTP. If VLC is open without control (<see cref="VlcRunState.RunningNoApi"/>),
     /// restart it with the same file (the position is lost). If it is starting, wait for it.
     /// </summary>
-    public Task LaunchAsync(string? uri, int? displayIndex, CancellationToken ct) =>
-        ExclusiveAsync(() => LaunchCoreAsync(uri, displayIndex, ct), ct);
+    public Task LaunchAsync(string? uri, CancellationToken ct) =>
+        ExclusiveAsync(() => LaunchCoreAsync(uri, ct), ct);
 
     /// <summary>Runs a launch/restart/quit after the one in progress (see <see cref="_lifecycleGate"/>).</summary>
     private async Task ExclusiveAsync(Func<Task> action, CancellationToken ct)
@@ -30,7 +30,7 @@ public sealed partial class VlcManager
         finally { _lifecycleGate.Release(); }
     }
 
-    private async Task LaunchCoreAsync(string? uri, int? displayIndex, CancellationToken ct)
+    private async Task LaunchCoreAsync(string? uri, CancellationToken ct)
     {
         Installation ??= VlcLocator.Find(_settings.VlcPath);
         if (Installation is null)
@@ -53,17 +53,17 @@ public sealed partial class VlcManager
                     await OpenAsync(uri, enqueue: false, subtitle: null, audioTrack: null, subtitleTrack: null, ct).ConfigureAwait(false);
                 return;
             case VlcRunState.RunningNoApi:
-                await RestartCoreAsync(uri, displayIndex, ct).ConfigureAwait(false);
+                await RestartCoreAsync(uri, ct).ConfigureAwait(false);
                 return;
             case VlcRunState.Starting:
                 _log.LogWarning("launch: VLC is still starting after 20 s");
                 return;
         }
 
-        await StartProcessAsync(uri, displayIndex, ct).ConfigureAwait(false);
+        await StartProcessAsync(uri, ct).ConfigureAwait(false);
     }
 
-    private async Task StartProcessAsync(string? uri, int? displayIndex, CancellationToken ct)
+    private async Task StartProcessAsync(string? uri, CancellationToken ct)
     {
         var installation = Installation ?? throw ProtocolException.VlcNotRunning(ProtocolText.VlcNotFoundInstall);
         if (_settings.AutoInstallLuaPages) TryInstallLuaPages();
@@ -72,7 +72,7 @@ public sealed partial class VlcManager
         // Window placement: the media is opened only after the window is on the target monitor, so the video
         // (fullscreen with LaunchFullscreen) starts there instead of flashing on another screen first.
         string? target = null;
-        try { target = LaunchTargetResolver?.Invoke(displayIndex); }
+        try { target = LaunchTargetResolver?.Invoke(); }
         catch (Exception ex) { _log.LogWarning(ex, "Resolving the launch display failed"); }
         var deferredUri = target is not null && PlaceLaunchedWindowAsync is not null && !string.IsNullOrEmpty(uri) ? uri : null;
 
@@ -142,10 +142,10 @@ public sealed partial class VlcManager
     /// Without <paramref name="uri"/> VLC opens with the same file: the current item (if VLC is under control)
     /// or the file from the process command line. The playback position is lost.
     /// </summary>
-    public Task RestartAsync(string? uri, int? displayIndex, CancellationToken ct) =>
-        ExclusiveAsync(() => RestartCoreAsync(uri, displayIndex, ct), ct);
+    public Task RestartAsync(string? uri, CancellationToken ct) =>
+        ExclusiveAsync(() => RestartCoreAsync(uri, ct), ct);
 
-    private async Task RestartCoreAsync(string? uri, int? displayIndex, CancellationToken ct)
+    private async Task RestartCoreAsync(string? uri, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(uri))
         {
@@ -187,7 +187,7 @@ public sealed partial class VlcManager
         await PollOnceAsync(ct).ConfigureAwait(false);
         TryConfigureVlcrc();
         Installation ??= VlcLocator.Find(_settings.VlcPath);
-        await StartProcessAsync(uri, displayIndex, ct).ConfigureAwait(false);
+        await StartProcessAsync(uri, ct).ConfigureAwait(false);
     }
 
     /// <summary>The file/URI from the command line of the running vlc.exe (for example, opened by double-clicking a file).</summary>
