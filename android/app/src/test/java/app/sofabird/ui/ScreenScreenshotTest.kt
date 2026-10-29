@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import app.sofabird.data.discovery.DiscoveredHost
+import app.sofabird.data.player.PcWaker
 import app.sofabird.domain.model.AppSettings
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.domain.model.ServerMode
@@ -157,7 +158,19 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
 
     @Test
     fun remoteOffline() = snapshot("remote_offline") {
-        val state = RemoteUiState(connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true)
+        val state = RemoteUiState(
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            wake = PcWaker.State.IDLE,
+        )
+        RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    fun remoteWakeFailed() = snapshot("remote_wake_failed") {
+        val state = RemoteUiState(
+            connection = ConnectionState.Failed(ConnectionError.Timeout), hostName = "LIVING-ROOM-PC", companionMode = true,
+            wake = PcWaker.State.FAILED,
+        )
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 

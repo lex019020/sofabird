@@ -18,7 +18,8 @@ public class SessionTests
         public IReadOnlyList<string> Caps { get; } = [Core.Protocol.Caps.CurrentTrack, Core.Protocol.Caps.PushEvents];
         public VlcInfo VlcInfo { get; } = new() { Running = true, Version = "3.0.23", ApiVersion = 3, Level = 2 };
         public PairingService Pairing { get; }
-        public string? BluetoothAddress { get; set; } = "04:68:74:9A:2B:FC";
+        public string? BluetoothAddress { get; set; } = "02:1A:2B:3C:4D:60";
+        public IReadOnlyList<string>? WakeMacs { get; set; } = ["02:1A:2B:3C:4D:5E"];
         public List<(string Name, CommandArgs Args)> Commands { get; } = new();
         public bool VlcDown { get; set; }
         public List<DeviceInfo?> PairingRequests { get; } = new();
@@ -154,7 +155,8 @@ public class SessionTests
         var token = welcome.GetProperty("token").GetString()!;
         Assert.True(pairing.ValidateToken(token));
         Assert.True(welcome.GetProperty("vlc").GetProperty("running").GetBoolean());
-        Assert.Equal("04:68:74:9A:2B:FC", welcome.GetProperty("bt").GetString());
+        Assert.Equal("02:1A:2B:3C:4D:60", welcome.GetProperty("bt").GetString());
+        Assert.Equal("02:1A:2B:3C:4D:5E", welcome.GetProperty("macs")[0].GetString());
         Assert.True(session.IsAuthenticated);
         Assert.Equal("Pixel 8", session.Device!.Name);
 
@@ -163,7 +165,7 @@ public class SessionTests
 
         // A second session with the issued token.
         var store2 = pairing;
-        var host2 = new FakeHost(store2) { BluetoothAddress = null }; // Bluetooth off — no "bt" field
+        var host2 = new FakeHost(store2) { BluetoothAddress = null, WakeMacs = null }; // Bluetooth off — no "bt"; not known yet — no "macs"
         var t2 = new InMemoryLineTransport();
         var s2 = new Core.Session.Session(t2, host2);
         var run2 = s2.RunAsync(CancellationToken.None);
@@ -172,6 +174,7 @@ public class SessionTests
         Assert.Equal("welcome", w2.GetProperty("t").GetString());
         Assert.False(w2.TryGetProperty("token", out _)); // the token is issued only with pairCode
         Assert.False(w2.TryGetProperty("bt", out _));
+        Assert.False(w2.TryGetProperty("macs", out _));
         t2.PhoneDisconnect();
         await run2.WaitAsync(TimeSpan.FromSeconds(5));
     }
@@ -379,6 +382,7 @@ public class SessionTests
             Name = EventNames.ResumePrompt, Uri = "file:///d:/x.mkv", Title = "X", Position = 1234, Length = 5000, Pending = true,
         });
         Assert.Equal("""{"t":"event","name":"resumePrompt","uri":"file:///d:/x.mkv","title":"X","position":1234,"length":5000,"pending":true}""", json);
+        Assert.Equal("""{"t":"event","name":"sleeping"}""", ProtocolJson.Serialize(new EventMessage { Name = EventNames.Sleeping }));
         var next = ProtocolJson.Serialize(new EventMessage { Name = EventNames.NextEpisode, Uri = "file:///d:/e2.mkv", Title = "E2" });
         Assert.Equal("""{"t":"event","name":"nextEpisode","uri":"file:///d:/e2.mkv","title":"E2"}""", next);
     }

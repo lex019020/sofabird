@@ -20,6 +20,7 @@
     <string name="state_disconnected">Не подключено</string>
     <string name="state_connecting">Подключение…</string>
     <string name="state_reconnecting">Переподключение (попытка %1$d)…</string>
+    <string name="state_asleep">ПК спит</string>
     <string name="state_degraded">ПК не отвечает, пробую снова…</string>
     <string name="level_http">VLC по HTTP</string>
     <string name="level_lua">VLC + Lua‑страницы</string>
@@ -57,8 +58,12 @@
     <string name="not_connected_title">Нет подключения</string>
     <string name="vlc_not_running_title">VLC не запущен</string>
     <string name="nothing_playing">Ничего не играет</string>
+    <string name="pc_asleep">%1$s спит</string>
     <string name="no_link_with">Нет связи с %1$s</string>
     <string name="no_server_configured">ПК ещё не настроен</string>
+    <string name="action_wake_pc">Разбудить ПК</string>
+    <string name="waking_pc">Будим %1$s…</string>
+    <string name="wake_pc_failed">ПК не проснулся</string>
     <string name="action_connect">Подключить</string>
     <string name="action_disconnect">Отключиться</string>
     <string name="action_play">Воспроизвести</string>
@@ -300,6 +305,7 @@
     <string name="unit_ms">мс</string>
 
     <!-- Bluetooth (M3) -->
+    <string name="err_pc_asleep">ПК спит</string>
     <string name="err_bluetooth_failed">Компаньон не отвечает по Bluetooth: проверьте, что ПК сопряжён с телефоном и компаньон запущен</string>
     <string name="hint_bluetooth_failed">Сопрягите телефон с ПК в настройках Bluetooth Android или Windows. ПК должен быть рядом (около 10 м) с включённым Bluetooth.</string>
     <string name="transport_wifi">Wi‑Fi</string>

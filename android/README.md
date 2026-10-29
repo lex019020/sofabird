@@ -282,6 +282,19 @@ Behaviour:
 **Hardware volume keys**: `MainActivity.dispatchKeyEvent`, with the setting enabled and a live
 connection, sends `volume&val=` to the PC and shows the result in a snackbar; otherwise the default behaviour applies.
 
+## Wake-on-LAN
+
+The companion names the adapters that will wake it in `welcome.macs`; they are kept with the saved PC
+(`SavedServer.wakeMacs`, merged like the Bluetooth address: an absent `macs` keeps them, `[]` — the PC cannot be
+woken — clears them, and the remote offers no waking). When the PC does not answer (`RemoteUiState.offline`: a final
+error, or a reconnect that failed at least once), the remote's "No connection" card offers **Wake up the PC**
+(`PcWaker`) as its first button. A companion going to sleep says so (`event sleeping`): `CompanionBackend` ends the
+link at once, keeps `ConnectionError.PcAsleep` as the reason until the PC answers again ("<PC> is asleep"), and
+retries after ~8 s, then with its backoff (at most 15 s), in case the PC wakes by itself. Waking sends the magic packet (`MagicPacket`, `:core:protocol`, tested) for every MAC as a
+UDP broadcast (`255.255.255.255` and the subnet's, ports 9 and 7), then reconnecting every 4 s and sending again every
+15 s, for up to 90 s; the card says "Waking up …" meanwhile and "The PC did not wake up" when it did not. The PC's
+side is an item of the companion's setup window.
+
 ## Watch history
 
 Companion mode with the `history` capability only (protocol: "Watch history and resume" in
@@ -343,11 +356,13 @@ The companion is the source of truth: the phone keeps no history of its own.
 - Bluetooth pairing (phone ↔ PC) is done in the Android/Windows settings; the app does not initiate it and
   does not search for new devices (no `BLUETOOTH_SCAN`). `CompanionDeviceManager` is not used.
 - Artwork and thumbnails are not transferred over Bluetooth (`/art` is HTTP over the LAN).
+- Waking the PC (Wake-on-LAN) has not been seen working on a device: the TV laptop's wired card cannot wake it from
+  sleep (its firmware lets only the Wi-Fi card), which the companion now tells. It ships as is (owner's decision,
+  2026-10-29); the magic packet itself is tested.
 
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- Wake-on-LAN: a "Wake up the PC" action when the saved PC does not answer (next).
 - Sleep timer (next).
 - A Quick Settings tile, a Glance widget.
 - Landscape and tablet layouts (postponed).

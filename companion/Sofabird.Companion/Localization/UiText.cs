@@ -234,6 +234,22 @@ internal static class UiText
     public static string SetupMediaStationUnknown => S("SetupMediaStationUnknown");
     /// <summary>✗ Could not change the power plan ({0}). Details are in the log.</summary>
     public static string SetupMediaStationFailed(object a0) => F("SetupMediaStationFailed", a0);
+    /// <summary>Wake this PC from the phone</summary>
+    public static string SetupWakeTitle => S("SetupWakeTitle");
+    /// <summary>When the PC sleeps, the phone offers to wake it up over the network (Wake-on-LAN). The companion turns on "Wake on Magic Packet" for the network adapter and lets it wake the computer (one administrator prompt; the network drops for a few seconds). Waking from sleep works over a cable; from shutdown and over Wi‑Fi it depends on the PC and its BIOS settings.</summary>
+    public static string SetupWakeText => S("SetupWakeText");
+    /// <summary>✓ The phone can wake this PC: {0}</summary>
+    public static string SetupWakeReady(object a0) => F("SetupWakeReady", a0);
+    /// <summary>Off for: {0}</summary>
+    public static string SetupWakeOff(object a0) => F("SetupWakeOff", a0);
+    /// <summary>The network adapters of this PC cannot wake it up</summary>
+    public static string SetupWakeUnsupported => S("SetupWakeUnsupported");
+    /// <summary>✗ {0} cannot wake this PC from sleep: its driver or the BIOS does not let it. The network card maker's driver (instead of Windows' own) or the BIOS's Wake on LAN setting may help.</summary>
+    public static string SetupWakeBlocked(object a0) => F("SetupWakeBlocked", a0);
+    /// <summary>⚠ Administrator permission was not given. Press Apply to try again.</summary>
+    public static string SetupWakeCancelled => S("SetupWakeCancelled");
+    /// <summary>✗ Could not turn on waking ({0}). Details are in the log.</summary>
+    public static string SetupWakeFailed(object a0) => F("SetupWakeFailed", a0);
     /// <summary>plugged in</summary>
     public static string PowerPluggedIn => S("PowerPluggedIn");
     /// <summary>on battery</summary>

@@ -198,6 +198,14 @@
           ],
           "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
           "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
+        },
+        "macs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
+          },
+          "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
         }
       }
     },
@@ -1157,7 +1165,8 @@
             "endReached",
             "paired",
             "resumePrompt",
-            "nextEpisode"
+            "nextEpisode",
+            "sleeping"
           ]
         }
       }
@@ -1219,6 +1228,14 @@
           ],
           "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$",
           "description": "Bluetooth adapter address of the PC (RFCOMM service 47fe5bd6-98ad-4d9f-9812-174b3394037d)"
+        },
+        "macs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
+          },
+          "description": "MAC addresses of the connected adapters that will wake the PC from sleep, wired first (Wake-on-LAN); [] - it cannot be woken; absent - not known yet"
         }
       }
     },

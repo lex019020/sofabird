@@ -24,6 +24,7 @@ fun ConnectionError.message(context: Context): String = when (this) {
     ConnectionError.VlcNotRunning -> context.getString(R.string.err_vlc_not_running)
     is ConnectionError.ProtocolMismatch -> context.getString(R.string.err_protocol_mismatch, remote?.toString() ?: "?")
     ConnectionError.BluetoothFailed -> context.getString(R.string.err_bluetooth_failed)
+    ConnectionError.PcAsleep -> context.getString(R.string.err_pc_asleep)
     is ConnectionError.Other -> context.getString(R.string.err_other, message ?: "")
 }
 

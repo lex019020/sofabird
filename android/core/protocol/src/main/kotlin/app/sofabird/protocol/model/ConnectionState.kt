@@ -41,6 +41,12 @@ sealed class ConnectionError {
     /** Companion over Bluetooth: the RFCOMM connection failed (PC not bonded, out of range, companion not running). */
     data object BluetoothFailed : ConnectionError()
 
+    /**
+     * Companion: the PC said it was going to sleep (`event sleeping`) and has not answered since. Retried with a
+     * backoff (it may wake by itself); the remote offers to wake it.
+     */
+    data object PcAsleep : ConnectionError()
+
     data class Other(val message: String?) : ConnectionError()
 }
 

@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,12 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,7 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
 import app.sofabird.data.companion.BluetoothStatus
-import app.sofabird.protocol.model.ConnectionState
+import app.sofabird.data.player.PcWaker
 import app.sofabird.ui.common.BluetoothPermissionDeniedDialog
 import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.common.rememberBluetoothRequests
@@ -158,17 +163,53 @@ internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit) {
     }
 }
 
+/**
+ * The PC does not answer ([RemoteUiState.offline], already while reconnecting): "Wake up the PC" when the companion
+ * said how ([PcWaker]) — while it wakes the card says so, and when the PC did not answer it says what to check — and
+ * "Connect" (the connection screen).
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit) {
-    if (ui.connection is ConnectionState.Failed || ui.connection is ConnectionState.Disconnected) {
-        Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    ui.hostName?.let { stringResource(R.string.no_link_with, it) } ?: stringResource(R.string.no_server_configured),
-                    style = MaterialTheme.typography.titleMedium,
+internal fun OfflineCard(ui: RemoteUiState, onOpenConnection: () -> Unit, onWake: () -> Unit = {}) {
+    if (!ui.offline && ui.wake != PcWaker.State.WAKING) return
+    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                when {
+                    ui.hostName == null -> stringResource(R.string.no_server_configured)
+                    ui.asleep -> stringResource(R.string.pc_asleep, ui.hostName)
+                    else -> stringResource(R.string.no_link_with, ui.hostName)
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            when (ui.wake) {
+                PcWaker.State.WAKING -> Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.waking_pc, ui.hostName.orEmpty()), style = MaterialTheme.typography.bodyMedium)
+                }
+                PcWaker.State.FAILED -> Text(
+                    stringResource(R.string.wake_pc_failed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = onOpenConnection) { Text(stringResource(R.string.action_connect)) }
+                else -> Unit
+            }
+            Spacer(Modifier.height(8.dp))
+            // Waking is what a sleeping PC needs, so it comes first; the connection screen is for anything else.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val canWake = ui.wake != null && ui.wake != PcWaker.State.WAKING
+                if (canWake) {
+                    Button(onClick = onWake) {
+                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        LabelText(stringResource(R.string.action_wake_pc))
+                    }
+                    OutlinedButton(onClick = onOpenConnection) { LabelText(stringResource(R.string.action_connect)) }
+                } else {
+                    Button(onClick = onOpenConnection) { LabelText(stringResource(R.string.action_connect)) }
+                }
             }
         }
     }

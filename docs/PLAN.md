@@ -367,12 +367,17 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       opened where it stopped). Later: captions and quality.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
-- [ ] **Wake-on-LAN** (user request): a "Wake up the PC" action on the phone when the saved PC does not answer.
+- [x] **Wake-on-LAN** (user request): "Wake up the PC" on the phone's "No connection" card (the magic packet for the
+      MACs the companion names in `welcome`, then reconnecting for up to 90 s); the setup window turns on "Wake on
+      Magic Packet" and arms the adapter (the same elevated helper as the firewall).
       The companion tells the phone the MAC addresses of its adapters (no manual entry, unlike Kodi's Kore), the
       phone sends a magic packet (UDP :9 to the broadcast and the subnet broadcast addresses); the setup window
       checks that the network adapter may wake the PC and warns about settings that prevent it (Fast Startup,
       wake on magic packet only). Best effort: Wake-on-Wireless is unreliable on laptops
-      ([transport-and-companion](research/transport-and-companion.md)), so verify on the TV laptop first.
+      ([transport-and-companion](research/transport-and-companion.md)). On the TV laptop the wired card turned out
+      unable to wake it from sleep (only its Wi-Fi card may, `powercfg /devicequery wake_from_any`): the companion
+      now checks that, says so in the setup window and offers no waking then. Not seen working on a device; shipped
+      as a feature anyway (owner's decision, 2026-10-29).
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
 - [ ] Fake-VLC scenario tests.
@@ -445,15 +450,11 @@ sofabird/
 
 ## 10. Next steps
 
-Before the stable 0.4.0 (owner's list, in this order):
+Before the stable 0.4.0 (owner's list): the YouTube history and Wake-on-LAN are done (§ 9); left:
 
-1. **YouTube history**: every video played on the TV, with its position, kept by the companion; a list in
-   "More → YouTube on the TV" that reopens a video where it stopped, and unfinished videos in "Continue watching".
-2. **Wake-on-LAN**: "Wake up the PC" on the phone when the saved PC does not answer; the setup window checks and
-   turns on the network adapter's wake settings.
-3. **Encryption**: the WebSocket over TLS with the companion's certificate pinned at pairing; 0.4.0 still accepts
+1. **Encryption**: the WebSocket over TLS with the companion's certificate pinned at pairing; 0.4.0 still accepts
    the old unencrypted connection (old apps), the next version drops it.
-4. **Release v0.4.0.**
+2. **Release v0.4.0.**
 
 Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS.

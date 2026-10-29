@@ -18,6 +18,9 @@ namespace Sofabird.Companion;
 /// <summary>Implementation of <see cref="ISessionHost"/>: connects sessions with VLC, displays, power and sound.</summary>
 public sealed class CompanionHost : ISessionHost
 {
+    /// <summary><c>sys sleep</c>: time for the reply to reach the phone before Windows suspends.</summary>
+    private static readonly TimeSpan SleepAfterReply = TimeSpan.FromMilliseconds(300);
+
     private readonly Settings _settings;
     private readonly SettingsStore _settingsStore;
     private readonly VlcManager _vlc;
@@ -29,6 +32,7 @@ public sealed class CompanionHost : ISessionHost
     private readonly MoonlightService _moonlight;
     private readonly YouTubeService _youtube;
     private readonly YouTubeHistory _youtubeHistory;
+    private readonly WakeOnLanService _wake;
     private readonly ILogger _log;
     private readonly IReadOnlyList<string> _baseCaps;
     private readonly IReadOnlyList<string> _bluetoothCaps;
@@ -36,7 +40,7 @@ public sealed class CompanionHost : ISessionHost
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
         LibraryService library, MoonlightService moonlight, YouTubeService youtube, YouTubeHistory youtubeHistory,
-        ILogger<CompanionHost> log)
+        WakeOnLanService wake, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -51,6 +55,7 @@ public sealed class CompanionHost : ISessionHost
         _moonlight = moonlight;
         _youtube = youtube;
         _youtubeHistory = youtubeHistory;
+        _wake = wake;
         _log = log;
         _baseCaps =
         [
@@ -129,6 +134,8 @@ public sealed class CompanionHost : ISessionHost
 
     /// <summary>Adapter address for <c>/info</c>, <c>beacon</c>, <c>welcome</c>: only while the radio is on and Bluetooth is enabled.</summary>
     public string? BluetoothAddress => Bluetooth?.AdapterAddress;
+
+    public IReadOnlyList<string>? WakeMacs => _wake.Macs();
     public VlcInfo VlcInfo => _vlc.Info.Clone();
 
     /// <summary>Monitor selection for the VLC window (sys listDisplays/moveToDisplay/preferredDisplay, auto-placement).</summary>
@@ -159,6 +166,7 @@ public sealed class CompanionHost : ISessionHost
         NeedsPairing = !Pairing.HasPairedDevices,
         PcId = InstallationId,
         Bt = BluetoothAddress,
+        Macs = WakeMacs,
     };
 
     public BeaconMessage BuildBeacon() => new()
@@ -168,6 +176,7 @@ public sealed class CompanionHost : ISessionHost
         WsPort = _settings.WsPort,
         NeedsPairing = !Pairing.HasPairedDevices,
         Bt = BluetoothAddress,
+        Macs = WakeMacs,
     };
 
     private SystemInfo BuildSystemInfo()
@@ -289,7 +298,12 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "sleep":
-                _power.Sleep();
+                // After the reply: the phone hears "done", then "sleeping", then Windows suspends.
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(SleepAfterReply, CancellationToken.None).ConfigureAwait(false);
+                    _power.Sleep();
+                }, CancellationToken.None); // not the request's token: the session ends with the sleep
                 return null;
 
             case "shutdown":

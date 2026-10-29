@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.R
 import app.sofabird.data.history.WatchPrompts
+import app.sofabird.data.player.PcWaker
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.backend.YouTubeAction
@@ -66,6 +67,7 @@ interface RemoteActions {
     fun openDisplays() {}
     fun openMore() {}
     fun openConnection() {}
+    fun wakePc() {}
 
     /** PC-side commands: end a Moonlight stream, control YouTube on the TV, the PC's volume. */
     fun system(command: SystemCommand) {}
@@ -84,7 +86,8 @@ fun RemoteScreen(
     var displaySheet by remember { mutableStateOf(false) }
     val openConnection by rememberUpdatedState(onOpenConnection)
 
-    val actions = remember(viewModel, prompts) {
+    val waker: PcWaker = koinInject()
+    val actions = remember(viewModel, prompts, waker) {
         object : RemoteActions {
             override fun send(command: PlayerCommand) = viewModel.send(command)
             override fun togglePause() = viewModel.togglePause()
@@ -108,6 +111,7 @@ fun RemoteScreen(
                 moreSheet = true
             }
             override fun openConnection() = openConnection()
+            override fun wakePc() = waker.wake()
             override fun system(command: SystemCommand) = viewModel.sendSystem(command)
         }
     }
@@ -157,7 +161,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                 ) {
                     Spacer(Modifier.height(8.dp))
                     NowOnTv(ui, streaming, youtube, block, next, actions, gap = 8.dp)
-                    OfflineCard(ui, actions::openConnection)
+                    OfflineCard(ui, actions::openConnection, actions::wakePc)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                 }
                 Spacer(Modifier.width(16.dp))
@@ -202,7 +206,7 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
                 ) {
                     Spacer(Modifier.height(8.dp))
                     NowOnTv(ui, streaming, youtube, block, next, actions, gap = 12.dp)
-                    OfflineCard(ui, actions::openConnection)
+                    OfflineCard(ui, actions::openConnection, actions::wakePc)
                     BluetoothFallbackCard(ui, onReady = actions::bluetoothReady, onDismiss = actions::dismissBluetooth)
                     if (block != null) VlcStateCard(block, ui, onLaunch = actions::launchVlc)
                 }

@@ -27,6 +27,19 @@ Two levels:
 - UDP beacon: the app broadcasts the text `SOFABIRD_DISCOVER 1` to `255.255.255.255:47556`;
   the companion replies with unicast JSON `{"t":"beacon","name":"...","id":"...","wsPort":47555,"protocol":1,"needsPairing":bool}`.
 
+### Wake-on-LAN
+
+- The companion lists in `macs` (`["AA:BB:CC:DD:EE:FF", …]`, wired first) the MAC addresses of the adapters that will
+  wake it from sleep: connected, "Wake on Magic Packet" on, allowed to wake the PC, and able to (driver and firmware,
+  `powercfg /devicequery wake_from_any`) — in `/info`, `beacon` and `welcome`. `[]` — the PC cannot be woken (a phone
+  then forgets the MACs and offers no waking); absent — not known yet (an older companion, or the first look, ~1 s
+  after the start, is not done): a phone keeps what it knew.
+- A phone keeps them with the PC. When the PC does not answer, the phone offers "Wake up the PC": it sends the magic
+  packet (6 × `0xFF` + the MAC 16 times) for every MAC as a UDP broadcast (`255.255.255.255` and the subnet-directed
+  broadcast, ports 9 and 7) and reconnects for up to 90 s. Nothing in the protocol is needed while the PC sleeps.
+- The PC's side (the adapter's "Wake on Magic Packet", "Allow this device to wake the computer") is an item of the
+  companion's setup window.
+
 ### Bluetooth
 
 - The companion reports its Bluetooth adapter address in the `bt` field (`"AA:BB:CC:DD:EE:FF"`, upper case, `:`-separated)
@@ -328,7 +341,12 @@ Without a TMDB token or a match the item keeps the title parsed from its file na
 
 ## Events: `event`
 
-`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode", ...}`.
+`{"t":"event","name":"vlcStarted"|"vlcExited"|"inputChanged"|"endReached"|"paired"|"resumePrompt"|"nextEpisode"|"sleeping", ...}`.
+
+`sleeping`: Windows suspends in a moment (`sys sleep` — sent after its reply —, the Start menu, the lid, the idle
+timer). The phone ends the link at once instead of noticing a missed `pong` up to 40 s later, shows that the PC is
+asleep with "Wake up the PC" (`macs`), and retries with its backoff (the first time after ~8 s, so that it does not
+catch the PC in its last second) in case the PC wakes by itself.
 
 ## Keep-alive
 

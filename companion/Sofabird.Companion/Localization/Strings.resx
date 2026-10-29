@@ -123,6 +123,14 @@ Posters and descriptions: TMDB. This product uses the TMDB API but is not endors
   <data name="SetupMediaStationDrift" xml:space="preserve"><value>⚠ The power settings were changed: {0}. Press Apply to set them again.</value></data>
   <data name="SetupMediaStationUnknown" xml:space="preserve"><value>Could not read the Windows power plan</value></data>
   <data name="SetupMediaStationFailed" xml:space="preserve"><value>✗ Could not change the power plan ({0}). Details are in the log.</value></data>
+  <data name="SetupWakeTitle" xml:space="preserve"><value>Wake this PC from the phone</value></data>
+  <data name="SetupWakeText" xml:space="preserve"><value>When the PC sleeps, the phone offers to wake it up over the network (Wake-on-LAN). The companion turns on "Wake on Magic Packet" for the network adapter and lets it wake the computer (one administrator prompt; the network drops for a few seconds). Waking from sleep works over a cable; from shutdown and over Wi‑Fi it depends on the PC and its BIOS settings.</value></data>
+  <data name="SetupWakeReady" xml:space="preserve"><value>✓ The phone can wake this PC: {0}</value></data>
+  <data name="SetupWakeOff" xml:space="preserve"><value>Off for: {0}</value></data>
+  <data name="SetupWakeUnsupported" xml:space="preserve"><value>The network adapters of this PC cannot wake it up</value></data>
+  <data name="SetupWakeBlocked" xml:space="preserve"><value>✗ {0} cannot wake this PC from sleep: its driver or the BIOS does not let it. The network card maker's driver (instead of Windows' own) or the BIOS's Wake on LAN setting may help.</value></data>
+  <data name="SetupWakeCancelled" xml:space="preserve"><value>⚠ Administrator permission was not given. Press Apply to try again.</value></data>
+  <data name="SetupWakeFailed" xml:space="preserve"><value>✗ Could not turn on waking ({0}). Details are in the log.</value></data>
   <data name="PowerPluggedIn" xml:space="preserve"><value>plugged in</value></data>
   <data name="PowerOnBattery" xml:space="preserve"><value>on battery</value></data>
   <data name="PowerLidStops" xml:space="preserve"><value>closing the lid stops it ({0})</value></data>

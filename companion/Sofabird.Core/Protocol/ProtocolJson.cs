@@ -65,6 +65,8 @@ public sealed class InfoResponse
     public string PcId { get; set; } = "";
     /// <summary>Bluetooth adapter address (<c>AA:BB:CC:DD:EE:FF</c>); absent when there is no adapter or the radio is off.</summary>
     public string? Bt { get; set; }
+    /// <summary>MAC addresses of the PC's network adapters (<c>AA:BB:CC:DD:EE:FF</c>, wired and connected first): a phone wakes the PC with them (Wake-on-LAN).</summary>
+    public IReadOnlyList<string>? Macs { get; set; }
 }
 
 public static class ProtocolJson

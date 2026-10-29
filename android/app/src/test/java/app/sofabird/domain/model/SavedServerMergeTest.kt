@@ -53,6 +53,15 @@ class SavedServerMergeTest {
     }
 
     @Test
+    fun `welcome macs are kept for waking the PC until the PC says it cannot be woken`() {
+        val macs = listOf("02:1A:2B:3C:4D:5E")
+        val withMacs = lanPaired.mergeSighting(CompanionSighting(pcId = "guid-1", macs = macs))
+        assertEquals(macs, withMacs.wakeMacs)
+        assertEquals(macs, withMacs.mergeSighting(CompanionSighting(pcId = "guid-1")).wakeMacs) // not said: kept
+        assertEquals(emptyList<String>(), withMacs.mergeSighting(CompanionSighting(pcId = "guid-1", macs = emptyList())).wakeMacs)
+    }
+
+    @Test
     fun `sightings match only by GUID or bluetooth address`() {
         val list = listOf(lanPaired, btPaired, direct)
         // Same IP, unknown GUID: could be another PC after DHCP — no match.

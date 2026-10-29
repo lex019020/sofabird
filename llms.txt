@@ -22,7 +22,7 @@ phone.
   subtitle choice for series; YouTube videos played on the TV are in the history and "Continue watching" and open
   where they stopped.
 - Companion (Windows tray app): pairing with a 6-digit code shown on the TV, starts VLC fullscreen on the TV monitor,
-  audio output device switching, system volume, screen off, sleep, keep-awake during playback, "media station" power
+  audio output device switching, system volume, screen off, sleep and Wake-on-LAN from the phone, keep-awake during playback, "media station" power
   plan (lid closed, no sleep, survives the TV being turned off), firewall setup with one UAC prompt, quiet automatic
   updates.
 - YouTube on the TV: "Share → Sofabird" from the YouTube app or a pasted link opens the video fullscreen in Firefox

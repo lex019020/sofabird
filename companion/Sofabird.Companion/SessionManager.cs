@@ -74,6 +74,9 @@ public sealed class SessionManager : IDisposable
 
     public void PublishEvent(EventMessage ev) => _ = BroadcastAsync(ev);
 
+    /// <summary>An event that has to be out before something else happens (Windows suspending).</summary>
+    public Task PublishEventAsync(EventMessage ev) => BroadcastAsync(ev);
+
     private Task BroadcastAsync(Message message)
     {
         Session[] targets;

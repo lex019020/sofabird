@@ -59,7 +59,7 @@ locally: yes.** The documentation requires the `bluetooth` capability (that is a
 ```
 User: <PC>\<user>, elevated(admin)=False
 OS: Microsoft Windows NT 10.0.26200.0, packaged=False
-BluetoothAdapter: addr=0468749A2BFC classic=True le=True central=True peripheral=True advOffload=True extAdv=True
+BluetoothAdapter: addr=021A2B3C4D60 classic=True le=True central=True peripheral=True advOffload=True extAdv=True
 RFCOMM: advertising OK, serviceId={C0F1B7A2-5C0E-4B3E-9A0E-1F2D3C4B5A69}
 RFCOMM: stopped
 ```
