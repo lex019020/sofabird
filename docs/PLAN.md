@@ -1,14 +1,14 @@
 # Sofabird — project plan
 
-Date: 2026-10-29. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+Date: 2026-10-30. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
 and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
 with what to watch. In 0.5 the app works only with the companion: the direct VLC mode (levels 0/1) is removed (the
 owner's decision, 2026-10-29). Done in 0.5: the sleep timer, YouTube subtitles and quality, the phone as the PC's
-touchpad and keyboard, the Moonlight computer and app, dropping the unencrypted connection (§ 10). Next: fake-VLC
-scenario tests (M4).
+touchpad and keyboard, the Moonlight computer and app, dropping the unencrypted connection, fake-VLC scenario tests of
+the companion (§ 10).
 
 ## 0. Essence
 
@@ -189,8 +189,8 @@ clock; on `seek` we show the target with a `seeking` flag until it is confirmed.
 
 - Modules: `:app` (Compose UI, services) and `:core:protocol` (pure Kotlin: models, `status.json`
   parser, companion client, NDJSON). Planned: `:core:naming` (file name parsing), `:core:testing`
-  (a Ktor fake VLC reproducing the quirks from live-probe; for now the fixtures in `docs/research/samples/`
-  are used directly in tests).
+  (a Ktor fake VLC reproducing the quirks from live-probe — not needed since 0.5, when the phone stopped talking to
+  VLC; the fake VLC lives in the companion's scenario tests).
 - Stack: Kotlin 2.x, Compose (Material 3), Media3 Session, Ktor client (OkHttp), kotlinx.serialization,
   Koin, DataStore, Coil 3. The exact versions are pinned to the installed SDK (see `CLAUDE.md`); reference points in
   [mobile-stack-and-ux § 1.5](research/mobile-stack-and-ux.md) (a spot check showed that some of the
@@ -273,7 +273,9 @@ Goal: remove technical risks before writing the UI. In practice the spikes were 
 - [x] `NsdManager` finds the service announced by `DnsServiceRegister`; UDP beacon as a fallback.
 - [x] Moving the VLC window to a second monitor + `fullscreen`; `--qt-fullscreen-screennumber`.
 - [ ] Media3 "remote volume" with the screen off on the target phone.
-- [ ] Ktor fake VLC with fixtures from `docs/research/samples/` (the fixtures are used directly in unit tests).
+- [x] Fake VLC with the fixtures from `docs/research/samples/`: built in 0.5 on the companion's side, which is the one
+      that talks to VLC now (an in-memory VLC in `companion/Sofabird.Companion.Tests` — process, `status.json` with its
+      commands, `playlist.json`, `tracks.json`, RC — instead of a Ktor server for the app).
 
 ### M1 — MVP "Lite" (levels 0/1) — done, removed in 0.5
 
@@ -414,7 +416,10 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       YouTube and another PC's screen; it never scrolls.
 - [ ] Landscape / tablet layouts — postponed indefinitely (user decision).
 - [x] Tests: Roborazzi screenshots of every screen (2 languages × 2 font scales), a checklist on real devices.
-- [ ] Fake-VLC scenario tests.
+- [x] Fake-VLC scenario tests: the companion's `VlcManager` against the fake VLC (`companion/Sofabird.Companion.Tests`) —
+      VLC appearing (starting → running), the end of a movie and of an episode, VLC closing (also in the middle of a
+      command or a poll), no control, resume, track choices carried to the next episode, tracks over RC without the
+      Lua page, the phone's commands, launch and quit.
 
 ### M5 — Later
 Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSubtitles/Subdl), VLC 4.x,
@@ -488,7 +493,7 @@ The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates
 Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
 Then (0.5): the sleep timer, YouTube subtitles and quality, the phone as touchpad and keyboard, the Moonlight computer
-and app (all done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+and app, fake-VLC scenario tests (M4) — all done. **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS. The plain `ws` and the compatibility with versions before 0.5 are gone (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

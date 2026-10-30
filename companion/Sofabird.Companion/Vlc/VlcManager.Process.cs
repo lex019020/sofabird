@@ -88,12 +88,12 @@ public sealed partial class VlcManager
 
         _log.LogInformation("Launching VLC: {Exe} {Args}{Target}", psi.FileName, VlcCommandLine.RedactArgs(psi.ArgumentList),
             target is null ? "" : $" (window -> {target}{(deferredUri is null ? "" : ", media after placement")})");
-        Process process;
+        IVlcProcess process;
         Task? placement = null;
         _launchInProgress = true;
         try
         {
-            process = Process.Start(psi) ?? throw ProtocolException.VlcError(ProtocolText.VlcStartFailed);
+            process = _processes.Start(psi) ?? throw ProtocolException.VlcError(ProtocolText.VlcStartFailed);
             _owned = process;
             _ownedStartedAt = DateTimeOffset.UtcNow;
             ProcessId = process.Id;
@@ -166,14 +166,14 @@ public sealed partial class VlcManager
                 _log.LogDebug("RC quit failed: {Error}", ex.Message);
             }
         }
-        foreach (var p in VlcLocator.RunningProcesses())
+        foreach (var p in _processes.Running())
         {
             try { p.CloseMainWindow(); } catch { }
             p.Dispose();
         }
         if (!await WaitForExitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false))
         {
-            foreach (var p in VlcLocator.RunningProcesses())
+            foreach (var p in _processes.Running())
             {
                 _log.LogWarning("VLC {Pid} did not exit gracefully; killing", p.Id);
                 try { p.Kill(); } catch { }
@@ -193,12 +193,12 @@ public sealed partial class VlcManager
     /// <summary>The file/URI from the command line of the running vlc.exe (for example, opened by double-clicking a file).</summary>
     private string? ReadMediaFromRunningProcess()
     {
-        var procs = VlcLocator.RunningProcesses();
+        var procs = _processes.Running();
         try
         {
             foreach (var p in procs)
             {
-                var cmd = ProcessCommandLine.TryGet(p.Id);
+                var cmd = p.CommandLine();
                 if (cmd is null) continue;
                 var media = VlcCommandLine.ExtractMedia(ProcessCommandLine.Split(cmd));
                 _log.LogDebug("VLC {Pid} command line media: {Media}", p.Id, media ?? "(none)");
@@ -242,7 +242,7 @@ public sealed partial class VlcManager
                 _log.LogDebug("vlc://quit failed: {Error}", ex.Message);
             }
         }
-        foreach (var p in VlcLocator.RunningProcesses())
+        foreach (var p in _processes.Running())
         {
             try { p.CloseMainWindow(); } catch { }
             p.Dispose();
@@ -251,12 +251,12 @@ public sealed partial class VlcManager
         Poke();
     }
 
-    private static async Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken ct)
+    private async Task<bool> WaitForExitAsync(TimeSpan timeout, CancellationToken ct)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < deadline)
         {
-            if (!VlcLocator.IsAnyRunning()) return true;
+            if (!_processes.IsAnyRunning()) return true;
             await Task.Delay(200, ct).ConfigureAwait(false);
         }
         return false;

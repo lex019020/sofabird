@@ -30,11 +30,12 @@ public sealed partial class VlcManager : IAsyncDisposable
     private readonly SemaphoreSlim _wake = new(0, 1);
     /// <summary>One launch/restart/quit at a time: two phones (or the tray and a phone) must not start two VLCs.</summary>
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly IVlcProcesses _processes;
 
-    private VlcHttpClient _http;
-    private VlcRcClient _rc;
+    private readonly VlcHttpClient _http;
+    private readonly VlcRcClient _rc;
     private Task? _loop;
-    private Process? _owned;
+    private IVlcProcess? _owned;
     private DateTimeOffset _ownedStartedAt;
     private VlcStatus? _lastStatus;
     private IReadOnlyList<VlcPlaylistItem>? _playlist;
@@ -60,6 +61,13 @@ public sealed partial class VlcManager : IAsyncDisposable
     private readonly HistoryTracker? _history;
 
     public VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf, HistoryTracker? history = null)
+        : this(settings, installation, lua, lf, history, VlcBackend.Default)
+    {
+    }
+
+    /// <summary>With <paramref name="backend"/> in place of the real VLC (the scenario tests drive a fake one).</summary>
+    internal VlcManager(Settings settings, VlcInstallation? installation, LuaPagesInstaller? lua, ILoggerFactory lf, HistoryTracker? history,
+        VlcBackend backend)
     {
         _settings = settings;
         _history = history;
@@ -68,8 +76,11 @@ public sealed partial class VlcManager : IAsyncDisposable
         _lua = lua;
         _lf = lf;
         _log = lf.CreateLogger<VlcManager>();
-        _http = new VlcHttpClient("127.0.0.1", settings.VlcHttpPort, settings.VlcHttpPassword ?? "", logger: lf.CreateLogger<VlcHttpClient>());
-        _rc = new VlcRcClient("127.0.0.1", settings.VlcRcPort, lf.CreateLogger<VlcRcClient>());
+        _processes = backend.Processes;
+        _http = new VlcHttpClient("127.0.0.1", settings.VlcHttpPort, settings.VlcHttpPassword ?? "", backend.HttpHandler, lf.CreateLogger<VlcHttpClient>());
+        _rc = backend.RcConnect is { } connect
+            ? new VlcRcClient(connect, lf.CreateLogger<VlcRcClient>())
+            : new VlcRcClient("127.0.0.1", settings.VlcRcPort, lf.CreateLogger<VlcRcClient>());
         _rc.StatusChanged += OnRcStatusChanged;
         RunState = installation is null ? VlcRunState.NotInstalled : VlcRunState.NotRunning;
         Info = new VlcInfo { Running = false, Status = ToStatus(RunState), Version = installation?.Version, Level = 2 };
@@ -180,7 +191,8 @@ public sealed partial class VlcManager : IAsyncDisposable
         }
     }
 
-    private async Task PollOnceAsync(CancellationToken ct)
+    /// <summary>One poll: the process, <c>status.json</c> (+ playlist, tracks), history actions, the published state.</summary>
+    internal async Task PollOnceAsync(CancellationToken ct)
     {
         await _pollGate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -247,9 +259,11 @@ public sealed partial class VlcManager : IAsyncDisposable
             _lastStatus = status;
             if (status.Fullscreen) LastFullscreenAt = DateTimeOffset.UtcNow;
 
+            // A movie that ends and stops VLC changes both the item (currentplid → -1) and the state: one ItemEnded.
+            var itemEnded = false;
             if (prev is not null && prev.CurrentPlId != status.CurrentPlId)
             {
-                if (prev.Length > 0 && prev.Time >= prev.Length - 3) ItemEnded?.Invoke();
+                itemEnded = prev.Length > 0 && prev.Time >= prev.Length - 3;
                 _playlistDirty = true;
                 _rcTracksDirty = true;
                 _muted = false;
@@ -264,11 +278,16 @@ public sealed partial class VlcManager : IAsyncDisposable
                 if (nearEnd || _endReachedHint)
                 {
                     endReached = true;
+                    itemEnded = true;
                     RaiseEvent(new EventMessage { Name = EventNames.EndReached });
-                    ItemEnded?.Invoke();
                 }
             }
             _endReachedHint = false;
+            if (itemEnded)
+            {
+                try { ItemEnded?.Invoke(); }
+                catch (Exception ex) { _log.LogWarning(ex, "ItemEnded handler failed"); }
+            }
 
             if (_playlistDirty || _playlistPlId != status.CurrentPlId)
             {
@@ -368,7 +387,7 @@ public sealed partial class VlcManager : IAsyncDisposable
     }
 
     /// <summary>Raise <see cref="ProcessAppeared"/> once per new VLC process (not while the companion is launching one).</summary>
-    private void AnnounceProcess(Process process)
+    private void AnnounceProcess(IVlcProcess process)
     {
         if (_announcedPid == process.Id || _launchInProgress) return;
         _announcedPid = process.Id;
@@ -412,7 +431,7 @@ public sealed partial class VlcManager : IAsyncDisposable
         PublishState(BuildState(null));
     }
 
-    private Process? FindVlcProcess()
+    private IVlcProcess? FindVlcProcess()
     {
         if (_owned is not null)
         {
@@ -422,8 +441,8 @@ public sealed partial class VlcManager : IAsyncDisposable
             }
             catch { }
         }
-        var all = VlcLocator.RunningProcesses();
-        Process? result = null;
+        var all = _processes.Running();
+        IVlcProcess? result = null;
         foreach (var p in all)
         {
             if (result is null) result = p;
@@ -469,7 +488,7 @@ public sealed partial class VlcManager : IAsyncDisposable
         catch (Exception ex) { _log.LogWarning(ex, "Event handler failed"); }
     }
 
-    private static bool StartedRecently(Process process, TimeSpan window)
+    private static bool StartedRecently(IVlcProcess process, TimeSpan window)
     {
         try { return DateTime.Now - process.StartTime < window; }
         catch { return false; }

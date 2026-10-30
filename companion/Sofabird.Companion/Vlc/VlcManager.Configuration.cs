@@ -17,7 +17,7 @@ public sealed partial class VlcManager
         if (!_settings.ConfigureVlc || Installation is null) return null;
         try
         {
-            if (VlcLocator.IsAnyRunning()) return null;
+            if (_processes.IsAnyRunning()) return null;
             return _vlcrc.Ensure(new VlcrcSettings(_settings.VlcHttpPort, _settings.VlcHttpPassword ?? "", _settings.VlcRcPort));
         }
         catch (Exception ex)
@@ -54,7 +54,7 @@ public sealed partial class VlcManager
                 _luaInstallPending = false;
                 return false;
             }
-            if (VlcLocator.IsAnyRunning())
+            if (_processes.IsAnyRunning())
             {
                 if (!_luaInstallPending)
                     _log.LogInformation("Lua pages need (re)install but VLC is running; deferring until it exits");
