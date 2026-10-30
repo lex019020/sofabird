@@ -74,6 +74,9 @@
       "$ref": "#/$defs/ping"
     },
     {
+      "$ref": "#/$defs/input"
+    },
+    {
       "$ref": "#/$defs/pong"
     },
     {
@@ -242,7 +245,8 @@
         "library",
         "moonlight",
         "youtube",
-        "sleepTimer"
+        "sleepTimer",
+        "input"
       ]
     },
     "vlcInfo": {
@@ -1211,6 +1215,60 @@
           ]
         }
       }
+    },
+    "input": {
+      "type": "object",
+      "required": [
+        "t",
+        "kind"
+      ],
+      "properties": {
+        "t": {
+          "const": "input"
+        },
+        "kind": {
+          "enum": [
+            "move",
+            "click",
+            "down",
+            "up",
+            "scroll",
+            "text",
+            "key"
+          ]
+        },
+        "dx": {
+          "type": "integer"
+        },
+        "dy": {
+          "type": "integer"
+        },
+        "button": {
+          "enum": [
+            "left",
+            "right",
+            "middle"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "mods": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "ctrl",
+              "alt",
+              "shift",
+              "win"
+            ]
+          }
+        }
+      },
+      "description": "Touchpad and keyboard from a phone (cap input); no reply"
     },
     "ping": {
       "type": "object",
