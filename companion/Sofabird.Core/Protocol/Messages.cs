@@ -453,6 +453,8 @@ public static class Caps
     public const string Moonlight = "moonlight";
     /// <summary>A browser for YouTube on the TV: <c>sys youtubeOpen</c>, <c>sys youtube</c>, <c>state.youtube</c>.</summary>
     public const string YouTube = "youtube";
+    /// <summary>The sleep timer: <c>sys sleepTimer</c>, <c>state.system.sleepTimer</c>.</summary>
+    public const string SleepTimer = "sleepTimer";
 }
 
 public static class EventNames

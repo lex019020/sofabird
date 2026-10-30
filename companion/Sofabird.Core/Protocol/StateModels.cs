@@ -128,6 +128,8 @@ public sealed class SystemInfo
     public string? MoonlightHost { get; set; }
     /// <summary>A Moonlight stream is on the screen; <c>null</c> — Moonlight is not installed.</summary>
     public bool? MoonlightStreaming { get; set; }
+    /// <summary>The sleep timer (<c>sys sleepTimer</c>); <c>null</c> — off.</summary>
+    public Power.SleepTimerInfo? SleepTimer { get; set; }
 }
 
 public sealed class StateMessage : Message

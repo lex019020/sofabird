@@ -85,6 +85,12 @@ sealed class SystemCommand {
     data class KeepAwake(val on: Boolean) : SystemCommand()
     data class DisplayPower(val on: Boolean) : SystemCommand()
     data object Sleep : SystemCommand()
+
+    /**
+     * The sleep timer: in [minutes], or at the end of what plays ([endOfItem]); then pause, and with [sleepPc] put the PC
+     * to sleep. Neither — off.
+     */
+    data class SleepTimer(val minutes: Int? = null, val endOfItem: Boolean = false, val sleepPc: Boolean = false) : SystemCommand()
     data object Shutdown : SystemCommand()
 
     /** `""` = default device. */

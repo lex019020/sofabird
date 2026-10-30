@@ -359,7 +359,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       returns to the TV fullscreen, playback pauses while the TV is gone; the phone-chosen audio device is restored
       when it comes back.
 - [x] Settings, true black.
-- [ ] Sleep timer.
+- [x] **Sleep timer** (owner's list for 0.5): "More" → in 15 min … 2 h or at the end of what plays (VLC's movie or
+      episode, a YouTube video); then pause, and if wanted the PC sleeps. The companion keeps the timer (it runs out
+      with the phone asleep); the remote shows "Pauses in 23 min" under the title.
 - [x] **Rename to Sofabird** (user decision, [ADR-0006](adr/0006-rename-to-sofabird.md)): the VLC trademark and a
       scope beyond VLC; every name and identifier changed, the first start takes the old companion's settings and
       history over and uninstalls it; the phone app is a new app.
@@ -472,7 +474,7 @@ sofabird/
 The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
 Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
-Then: the sleep timer, fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+Then (0.5): the sleep timer (done), fake-VLC scenario tests (M4), YouTube captions and quality. **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

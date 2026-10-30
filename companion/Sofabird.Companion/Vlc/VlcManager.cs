@@ -118,6 +118,12 @@ public sealed partial class VlcManager : IAsyncDisposable
 
     public event Action<StateMessage>? StateChanged;
     public event Action<EventMessage>? Event;
+
+    /// <summary>
+    /// What played reached its end: VLC stopped there, or went on to the next item of the playlist (an episode of a
+    /// series) — the end of what was on the TV, for the sleep timer's "end of this".
+    /// </summary>
+    public event Action? ItemEnded;
     public event Action? RunStateChanged;
     /// <summary>VLC is open without control (does not answer HTTP with our password); once per process, the argument is the PID.</summary>
     public event Action<int>? NoControlDetected;
@@ -243,6 +249,7 @@ public sealed partial class VlcManager : IAsyncDisposable
 
             if (prev is not null && prev.CurrentPlId != status.CurrentPlId)
             {
+                if (prev.Length > 0 && prev.Time >= prev.Length - 3) ItemEnded?.Invoke();
                 _playlistDirty = true;
                 _rcTracksDirty = true;
                 _muted = false;
@@ -258,6 +265,7 @@ public sealed partial class VlcManager : IAsyncDisposable
                 {
                     endReached = true;
                     RaiseEvent(new EventMessage { Name = EventNames.EndReached });
+                    ItemEnded?.Invoke();
                 }
             }
             _endReachedHint = false;

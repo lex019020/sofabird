@@ -241,7 +241,8 @@
         "history",
         "library",
         "moonlight",
-        "youtube"
+        "youtube",
+        "sleepTimer"
       ]
     },
     "vlcInfo": {
@@ -1028,6 +1029,29 @@
                 "null"
               ],
               "description": "A Moonlight stream is on the screen; absent - Moonlight is not installed"
+            },
+            "sleepTimer": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "endsAt": {
+                  "type": "integer",
+                  "description": "Unix time in ms when it runs out"
+                },
+                "endOfItem": {
+                  "type": "boolean",
+                  "description": "It runs out when what plays now ends"
+                },
+                "action": {
+                  "enum": [
+                    "pause",
+                    "sleep"
+                  ]
+                }
+              },
+              "description": "The sleep timer (sys sleepTimer); absent - off"
             }
           }
         },

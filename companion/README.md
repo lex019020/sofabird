@@ -488,6 +488,14 @@ phones pin (see the protocol README, "Encryption"). Without a certificate (the s
 `wss` and no `tls`, and the log says so. The firewall rules are per program, so the new port needs no new rule.
 `deploy-windows.ps1 -Uninstall -Purge` removes the certificate too; a new one means the phones pair again.
 
+## Sleep timer
+
+`SleepTimer` (Core, tested with a fake clock) runs out after N minutes or at the end of what plays now
+(`VlcManager.ItemEnded`: VLC stopped at the end or went on to the next playlist item; `YouTubeService.VideoEnded`).
+Then the host pauses VLC and YouTube and, for `sleep`, puts the PC to sleep 3 s later (`PowerService.Sleep`, so the
+phones get `event sleeping`). `sys sleepTimer` sets or cancels it, `state.system.sleepTimer` shows it; it lives in
+memory only (a restart clears it).
+
 ## Setup and permissions
 
 Every permission the companion needs and every change it makes to the system is listed in one window,

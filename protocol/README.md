@@ -143,6 +143,7 @@ and state changes arrive in a separate `state`.
 | `keepAwake` | `{"on": bool}` | `power` |
 | `displayPower` | `{"on": bool}` | `power` |
 | `sleep` / `shutdown` | — | `power` |
+| `sleepTimer` | `{"minutes": 1..720}` or `{"endOfItem": true}`, with `"action": "pause"\|"sleep"` (default `pause`); neither — off | `sleepTimer` |
 | `audioDevice` | `{"id": string}` (`""` = default) | `audioDevices` |
 | `systemVolume` | `{"value": 0..100}` or `{"delta": int}` or `{"mute": bool}` | `systemVolume` |
 | `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
@@ -151,6 +152,13 @@ and state changes arrive in a separate `state`.
 | `youtubeAdBlock` | `{"on": bool}` — block ads with uBlock Origin in the TV browser | `youtube` |
 | `youtubeSponsorBlock` | `{"on": bool}` — skip sponsor segments with SponsorBlock in the TV browser | `youtube` |
 | `youtube` | `{"action": "play"\|"pause"\|"toggle"\|"seek"\|"next"\|"previous"\|"fullscreen"\|"skipAd"\|"close"\|"captions"\|"quality", "time"?: seconds, "value"?: string}` (`time` for `seek`; `value` — a subtitle code, `""` = off, or a quality) | `youtube` |
+
+Sleep timer (cap `sleepTimer`, owner's request): the companion keeps it, so it runs out with the phone asleep; it is
+not kept over a companion restart. When it runs out the companion pauses what plays (VLC, YouTube) and, with
+`"action": "sleep"`, puts the PC to sleep 3 s later (phones get `event sleeping`). `endOfItem` runs out when the movie,
+episode or video that plays now ends (VLC stops at its end or goes on to the next playlist item; YouTube's video
+ends). `state.system.sleepTimer = {"endsAt": unix ms, "action"}` or `{"endOfItem": true, "action"}`; absent — off.
+A new `sleepTimer` replaces the old one.
 
 Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
 window and runs `Moonlight.exe stream <host> <app> --display-mode borderless --background-gamepad`; an already running stream is kept.
@@ -249,7 +257,7 @@ per second with an updated `time`). Always the full object (not a diff) — simp
   "video": {"fullscreen": true, "aspect": "default"},
   "delays": {"audio": 0.0, "subtitle": 0.0},
   "flags": {"random": false, "loop": false, "repeat": false},
-  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true, "moonlightHost": "GAMING-PC", "moonlightStreaming": false}
+  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true, "moonlightHost": "GAMING-PC", "moonlightStreaming": false, "sleepTimer": {"endsAt": 1793311200000, "action": "pause"}}
 }
 ```
 
