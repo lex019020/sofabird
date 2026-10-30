@@ -14,8 +14,8 @@ import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
 import app.sofabird.protocol.companion.DeviceInfo
 import app.sofabird.protocol.companion.LanRoute
-import app.sofabird.protocol.companion.artOverTls
-import app.sofabird.protocol.companion.lanRoutes
+import app.sofabird.protocol.companion.artViaLink
+import app.sofabird.protocol.companion.lanRoute
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
@@ -55,12 +55,13 @@ import kotlin.coroutines.cancellation.CancellationException
 data class CompanionEndpoint(
     /** LAN address; blank for a PC known only by Bluetooth. */
     val host: String,
+    /** The plain port: `GET /info` only, to see whether the companion answers on the LAN. */
     val port: Int,
     val btAddress: String? = null,
     val pcId: String? = null,
-    /** The encrypted WebSocket's port, when known (`tls.port`). */
+    /** The encrypted WebSocket's port, when known (`tls.port`); otherwise the default one ([lanRoute]). */
     val tlsPort: Int? = null,
-    /** The pinned certificate: then the PC is reached only encrypted ([lanRoutes]). */
+    /** The pinned certificate; `null` — trust the one shown at the next connection (trust on first use). */
     val certPin: String? = null,
 )
 
@@ -148,7 +149,7 @@ class CompanionBackend(
     /** The PC said it was going to sleep (`event sleeping`); until it answers again the link is "asleep". */
     @Volatile private var asleep = false
 
-    /** [artRoute]: an encrypted LAN link's host and port, where the artwork is fetched too; [newPin]: trust on first use. */
+    /** [artRoute]: a LAN link's host and port, where the artwork is fetched too; [newPin]: trust on first use. */
     private class Link(
         val transport: CompanionTransport,
         val welcome: CompanionMessage.Welcome,
@@ -261,8 +262,8 @@ class CompanionBackend(
     }
 
     private suspend fun attemptLan(ep: CompanionEndpoint): LanAttempt = try {
-        tryLan(ep.host, ep.port)?.let { LanAttempt.Connected(it) }
-            ?: LanAttempt.Failed(CompanionHandshakeException(ConnectionError.Timeout, "no answer on ${ep.host}:${ep.port}"))
+        tryLan(ep.host)?.let { LanAttempt.Connected(it) }
+            ?: LanAttempt.Failed(CompanionHandshakeException(ConnectionError.Timeout, "no answer from ${ep.host}"))
     } catch (e: CancellationException) {
         throw e
     } catch (e: CompanionHandshakeException) {
@@ -304,31 +305,25 @@ class CompanionBackend(
     }
 
     /**
-     * WebSocket + handshake; `null` when the PC did not answer within the LAN timeout. The routes come from
-     * [lanRoutes]: encrypted first (only that once pinned), plain for an older companion.
+     * The encrypted WebSocket ([lanRoute]: the pinned certificate, or trust on first use) + handshake; `null` when the
+     * PC did not answer within the LAN timeout.
      */
-    private suspend fun tryLan(host: String, port: Int): Link? {
+    private suspend fun tryLan(host: String): Link? {
         val ep = endpoint()
-        val routes = lanRoutes(port, ep.tlsPort, ep.certPin)
-        var failure: Throwable? = null
-        for (route in routes) {
-            val opened = runCatching { withTimeoutOrNull(timing.lanConnectTimeoutMs) { transports.openWebSocket(host, route) } }
-            opened.exceptionOrNull()?.let { e ->
-                if (e is CancellationException) throw e
-                if (e.isCertificateChanged) throw CompanionHandshakeException(ConnectionError.CertificateChanged, e.message)
-                failure = e
-            }
-            val ws = opened.getOrNull() ?: continue
-            return try {
-                val welcome = handshakeOn(ws)
-                Link(ws, welcome, artRoute = route.takeIf { it.tls }?.let { host to it.port }, newPin = newPin(ws, route, welcome))
-            } catch (e: Throwable) {
-                closeQuietly(ws)
-                throw e
-            }
+        val route = lanRoute(ep.tlsPort, ep.certPin)
+        val opened = runCatching { withTimeoutOrNull(timing.lanConnectTimeoutMs) { transports.openWebSocket(host, route) } }
+        opened.exceptionOrNull()?.let { e ->
+            if (e is CancellationException || !e.isCertificateChanged) throw e
+            throw CompanionHandshakeException(ConnectionError.CertificateChanged, e.message)
         }
-        failure?.let { throw it }
-        return null
+        val ws = opened.getOrNull() ?: return null
+        return try {
+            val welcome = handshakeOn(ws)
+            Link(ws, welcome, artRoute = host to route.port, newPin = newPin(ws, route, welcome))
+        } catch (e: Throwable) {
+            closeQuietly(ws)
+            throw e
+        }
     }
 
     /** Trust on first use: the companion accepted us over this certificate, and its own `welcome` names the same one. */
@@ -417,9 +412,7 @@ class CompanionBackend(
                         s = s.copy(playback = s.playback.copy(updatedAt = System.currentTimeMillis()))
                     }
                     s.youtube?.let { yt -> s = s.copy(youtube = yt.copy(updatedAt = System.currentTimeMillis())) }
-                    artRoute?.let { (host, port) ->
-                        s = s.copy(item = s.item.copy(artUrl = artOverTls(s.item.artUrl, host, endpoint().port, port)))
-                    }
+                    artRoute?.let { (host, port) -> s = s.copy(item = s.item.copy(artUrl = artViaLink(s.item.artUrl, host, port))) }
                     _state.value = s
                     if (_connection.value !is ConnectionState.Connected && transport === t) {
                         _connection.value = ConnectionState.Connected(hostName, transport = t.kind)
@@ -477,7 +470,7 @@ class CompanionBackend(
                 runCatching { onLanFound(found) }
             }
             val link = try {
-                tryLan(found.host, found.port)
+                tryLan(found.host)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {

@@ -159,7 +159,7 @@ public class ProtocolJsonTests
         Assert.Contains("\"currentAudio\":1", tj);
         Assert.Contains("\"id\":\"6\"", tj);
 
-        var displays = new DisplaysMessage { Items = [new DisplayEntry { Index = 1, Name = "TV", Bounds = new DisplayBounds { X = 1920, Width = 3840, Height = 2160 } }] };
+        var displays = new DisplaysMessage { Items = [new DisplayEntry { Id = "tv", Name = "TV", Bounds = new DisplayBounds { X = 1920, Width = 3840, Height = 2160 } }] };
         var dj = ProtocolJson.Serialize(displays);
         Assert.Contains("\"bounds\":{\"x\":1920", dj);
     }

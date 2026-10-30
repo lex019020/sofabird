@@ -341,6 +341,7 @@ private fun DiscoveredHost.toTarget(saved: SavedServer? = null) = PairingTarget(
     host = host,
     wsPort = wsPort,
     name = displayName,
+    tlsPort = tlsPort ?: saved?.tlsPort,
     pcId = pcId ?: saved?.pcId,
     serverId = saved?.id,
 )
@@ -349,6 +350,7 @@ private fun SavedServer.toTarget() = PairingTarget(
     host = host,
     wsPort = wsPort,
     name = displayName,
+    tlsPort = tlsPort,
     pcId = pcId,
     serverId = id,
     btAddress = btAddress,

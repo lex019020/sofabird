@@ -760,14 +760,10 @@
           "items": {
             "type": "object",
             "required": [
-              "index",
               "id",
               "name"
             ],
             "properties": {
-              "index": {
-                "type": "integer"
-              },
               "name": {
                 "type": "string"
               },
@@ -999,12 +995,6 @@
                 "null"
               ]
             },
-            "display": {
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
             "keepAwake": {
               "type": "boolean"
             },
@@ -1187,6 +1177,43 @@
             "sponsorBlock": {
               "type": "boolean",
               "description": "sponsor segments are skipped with SponsorBlock (sys youtubeSponsorBlock)"
+            },
+            "captions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "name"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "auto": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "description": "the video's subtitles (the TV extension tells); absent - none, or an ad plays"
+            },
+            "caption": {
+              "type": "string",
+              "description": "the code of the subtitles shown; absent - off (sys youtube captions)"
+            },
+            "qualities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "the qualities YouTube offers: hd2160 ... tiny, auto"
+            },
+            "quality": {
+              "type": "string",
+              "description": "the quality playing (sys youtube quality)"
             }
           }
         }

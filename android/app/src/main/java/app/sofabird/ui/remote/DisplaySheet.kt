@@ -82,14 +82,7 @@ fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () ->
                 }
             }
             Text(
-                stringResource(
-                    when {
-                        choice.supportsIds && choice.vlcOpen -> R.string.display_hint_open
-                        choice.supportsIds -> R.string.display_hint_closed
-                        choice.vlcOpen -> R.string.display_hint_legacy
-                        else -> R.string.display_hint_legacy_closed
-                    },
-                ),
+                stringResource(if (choice.vlcOpen) R.string.display_hint_open else R.string.display_hint_closed),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -99,15 +92,16 @@ fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () ->
                 Text(stringResource(R.string.displays_none), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             choice.items.forEach { display ->
-                val key = display.key
+                val id = display.id
                 // Already where it should be: nothing to do (a tap on it would only re-send the same move).
-                val noOp = key == choice.selectedKey && (!choice.vlcOpen || key == choice.currentKey)
+                val noOp = id == choice.selectedId && (!choice.vlcOpen || id == choice.currentId)
                 DisplayRow(
                     display = display,
-                    selected = key == choice.selectedKey,
-                    vlcHere = key == choice.currentKey,
-                    opensHere = choice.supportsIds && !choice.vlcOpen && key == choice.preferredKey,
-                    pending = ui.displayPending == key,
+                    label = displayLabel(display, choice),
+                    selected = id == choice.selectedId,
+                    vlcHere = id == choice.currentId,
+                    opensHere = !choice.vlcOpen && id == choice.preferredId,
+                    pending = ui.displayPending == id,
                     enabled = enabled,
                     onClick = {
                         if (!noOp) {
@@ -125,7 +119,7 @@ fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () ->
                     modifier = Modifier.padding(vertical = 6.dp),
                 )
             }
-            if (choice.canUnmanage) {
+            if (choice.canChoose) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 OptionRow(
                     icon = Icons.Default.VisibilityOff,
@@ -160,12 +154,12 @@ fun DisplaySheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () ->
     }
 }
 
-/** Monitor name: EDID friendly name, else "Display N". */
+/** Monitor name: EDID friendly name (or what the companion calls it), else "Display N" by its place in [choice]. */
 @Composable
-fun displayLabel(display: Display): String =
-    display.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.display_n, display.index + 1)
+fun displayLabel(display: Display, choice: DisplayChoice): String =
+    display.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.display_n, choice.numberOf(display))
 
-/** TV / external monitor vs the laptop panel; unknown kind (old companions) — a generic monitor. */
+/** TV / external monitor vs the laptop panel; unknown kind — a generic monitor. */
 fun displayIcon(display: Display?): ImageVector = when {
     display == null -> Icons.Default.Tv
     display.isExternal -> Icons.Default.Tv
@@ -177,6 +171,7 @@ fun displayIcon(display: Display?): ImageVector = when {
 @Composable
 private fun DisplayRow(
     display: Display,
+    label: String,
     selected: Boolean,
     vlcHere: Boolean,
     opensHere: Boolean,
@@ -193,7 +188,7 @@ private fun DisplayRow(
         icon = displayIcon(display),
         iconDescription = kindDescription,
         iconTint = if (vlcHere) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        title = displayLabel(display),
+        title = label,
         selected = selected,
         pending = pending,
         enabled = enabled,

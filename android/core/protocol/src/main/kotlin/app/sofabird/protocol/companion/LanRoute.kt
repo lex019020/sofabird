@@ -1,34 +1,26 @@
 package app.sofabird.protocol.companion
 
 /**
- * One way to open the LAN link to a companion: the encrypted WebSocket on [port] trusting only [pin] (or, without a
- * pin yet, the certificate it shows, which is then pinned), or the plain one ([tls] = false).
+ * How to open the LAN link to a companion: the encrypted WebSocket (`wss`) on [port], trusting only [pin] — or, without
+ * a pin yet (trust on first use), the certificate it shows, which is pinned once the companion accepted the phone.
+ * There is no plain WebSocket (since 0.5 the companion answers a plain `/ws` with `426`).
  */
-data class LanRoute(val port: Int, val tls: Boolean, val pin: String? = null)
+data class LanRoute(val port: Int, val pin: String? = null)
+
+/** The route to a companion: its known `tls.port` (from `welcome`, the beacon or `/info`), else [COMPANION_TLS_PORT]. */
+fun lanRoute(tlsPort: Int?, pin: String?): LanRoute = LanRoute(tlsPort ?: COMPANION_TLS_PORT, pin)
 
 /**
- * The routes to try, in order. A pinned PC is reached only encrypted, never in plain text again. A PC known to have
- * the encrypted WebSocket ([tlsPort], from its `welcome` / `/info`) is tried encrypted first (trust on first use),
- * then plain; one not known to have it (an older companion, or not seen yet) plainly — its `welcome` then tells.
+ * The companion's artwork (`https://<its LAN address>:<tls port>/art?…` in `state.item.artUrl`) at [host], the address
+ * the link was opened to: the pinned certificate and the token for it are kept by that host and [tlsPort], and the
+ * companion may name another address of the PC. Other URLs (TMDB, YouTube thumbnails) are left unchanged.
  */
-fun lanRoutes(wsPort: Int, tlsPort: Int?, pin: String?): List<LanRoute> = when {
-    pin != null -> listOf(LanRoute(tlsPort ?: COMPANION_TLS_PORT, tls = true, pin = pin))
-    tlsPort != null -> listOf(LanRoute(tlsPort, tls = true), LanRoute(wsPort, tls = false))
-    else -> listOf(LanRoute(wsPort, tls = false))
+fun artViaLink(url: String?, host: String, tlsPort: Int): String? {
+    val match = url?.let { COMPANION_ART.matchEntire(it) } ?: return url
+    if (match.groupValues[1].toIntOrNull() != tlsPort) return url
+    val authority = if (':' in host && !host.startsWith("[")) "[$host]" else host
+    return "https://$authority:$tlsPort${match.groupValues[2]}"
 }
 
-/**
- * The companion's artwork (`http://<pc>:<ws port>/art?…` in `state`) through the encrypted listener of the link in
- * use, so that the token in its `Authorization` never goes out in plain text; other URLs unchanged.
- */
-fun artOverTls(url: String?, host: String, wsPort: Int, tlsPort: Int): String? {
-    if (url == null) return null
-    val prefix = "http://"
-    if (!url.startsWith(prefix)) return url
-    val rest = url.substring(prefix.length)
-    val slash = rest.indexOf('/')
-    if (slash < 0 || !rest.substring(slash).startsWith("/art")) return url
-    val authority = rest.substring(0, slash)
-    if (authority.substringAfterLast(':', "").toIntOrNull() != wsPort) return url
-    return "https://$host:$tlsPort${rest.substring(slash)}"
-}
+/** `https://<host>:<port>/art[?…]`: groups — the port, the path with the query. */
+private val COMPANION_ART = Regex("""https://[^/]*:(\d+)(/art(?:\?.*)?)""", RegexOption.IGNORE_CASE)

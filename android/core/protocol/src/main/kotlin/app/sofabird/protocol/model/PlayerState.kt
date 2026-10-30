@@ -34,25 +34,25 @@ enum class PlaybackStatus {
 
 @Serializable
 data class VlcInfo(
-    /** "Can be controlled right now" — kept for old companions; see [status] for the details. */
+    /** "Can be controlled right now": the same as [status] [VlcProcessStatus.RUNNING]. */
     val running: Boolean = false,
     val version: String? = null,
     val apiVersion: Int? = null,
     /** The companion always says 2 (levels 0/1 were the app's direct VLC mode, removed in 0.5). */
     val level: Int = 0,
-    /** Companion only, optional: old companions don't send it. Use [effectiveStatus]. */
-    val status: VlcProcessStatus? = null,
+    /** The state of VLC on the PC; the companion always sends it. Use [effectiveStatus]. */
+    val status: VlcProcessStatus = VlcProcessStatus.NOT_RUNNING,
 ) {
     /**
-     * [status] when the companion reported a known value, otherwise derived from [running]
-     * (`running` → [VlcProcessStatus.RUNNING], else [VlcProcessStatus.NOT_RUNNING]).
+     * [status]; a value this app does not know ([VlcProcessStatus.UNKNOWN], from a newer companion — it updates itself
+     * and may be ahead of the app) is taken from [running]: [VlcProcessStatus.RUNNING] or [VlcProcessStatus.NOT_RUNNING].
      */
     val effectiveStatus: VlcProcessStatus
-        get() = status?.takeIf { it != VlcProcessStatus.UNKNOWN }
+        get() = status.takeIf { it != VlcProcessStatus.UNKNOWN }
             ?: if (running) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING
 
     /** Same info after VLC exited: not controllable, process gone. */
-    fun exited(): VlcInfo = copy(running = false, status = status?.let { VlcProcessStatus.NOT_RUNNING })
+    fun exited(): VlcInfo = copy(running = false, status = VlcProcessStatus.NOT_RUNNING)
 }
 
 /**
@@ -241,8 +241,19 @@ data class YouTubeState(
     val adBlock: Boolean = false,
     /** Sponsor segments are skipped with SponsorBlock ([app.sofabird.protocol.backend.SystemCommand.YouTubeSponsorBlock]). */
     val sponsorBlock: Boolean = false,
+    /** The video's subtitles (the TV extension tells); empty — none, or an ad plays. */
+    val captions: List<YouTubeCaption> = emptyList(),
+    /** The code of the subtitles shown; `null` — off. */
+    val caption: String? = null,
+    /** The qualities YouTube offers (`hd2160` … `tiny`, `auto`), best first; empty — unknown. */
+    val qualities: List<String> = emptyList(),
+    /** The quality playing. */
+    val quality: String? = null,
     @kotlinx.serialization.Transient val updatedAt: Long = 0,
 ) {
+    /** The subtitles shown, as YouTube names them. */
+    val captionName: String? get() = caption?.let { code -> captions.firstOrNull { it.code == code }?.name ?: code }
+
     val thumbnailUrl: String? get() = videoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }
 
     /** The position now: [time] moved on since [updatedAt] while playing, never past [length]. */
@@ -259,20 +270,40 @@ data class SystemState(
     val volume: Int? = null,
     val muted: Boolean? = null,
     val audioDevice: String? = null,
-    /** Index of the monitor with the VLC window (old and new companions). */
-    val display: Int? = null,
-    /** Stable id of the monitor with the VLC window; `null` = no window (or an old companion). */
+    /** Stable id of the monitor with the VLC window; `null` = no window. */
     val displayId: String? = null,
-    /** Monitor VLC opens on; `null` = not managed (or an old companion). */
+    /** Monitor VLC opens on; `null` = not managed. */
     val preferredDisplayId: String? = null,
     val keepAwake: Boolean? = null,
     /** The computer Moonlight streams from; `null` = none paired (or Moonlight is not installed). */
     val moonlightHost: String? = null,
-    /** A Moonlight stream is on the TV; `null` = Moonlight is not installed (or an old companion). */
+    /** A Moonlight stream is on the TV; `null` = Moonlight is not installed. */
     val moonlightStreaming: Boolean? = null,
     /** The sleep timer (`sys sleepTimer`); `null` = off. */
     val sleepTimer: SleepTimerState? = null,
 )
+
+/** A subtitle track of a YouTube video: language code, name, made by YouTube itself ([auto]). */
+@Serializable
+data class YouTubeCaption(val code: String, val name: String = code, val auto: Boolean = false)
+
+/**
+ * A YouTube quality level for people: `hd1080` → `1080p`, `large` → `480p`; `null` for `auto` and unknown ones (the
+ * caller shows "Auto" or the raw value).
+ */
+fun youTubeQualityLabel(level: String): String? = when (level) {
+    "highres" -> "4320p"
+    "hd2880" -> "2880p"
+    "hd2160" -> "2160p"
+    "hd1440" -> "1440p"
+    "hd1080" -> "1080p"
+    "hd720" -> "720p"
+    "large" -> "480p"
+    "medium" -> "360p"
+    "small" -> "240p"
+    "tiny" -> "144p"
+    else -> null
+}
 
 /** `state.system.sleepTimer`: when it runs out (or at the end of what plays) and what it does then. */
 @Serializable

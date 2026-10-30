@@ -117,8 +117,6 @@ public sealed class SystemInfo
     public bool? Muted { get; set; }
     /// <summary>VLC output device ID (<c>{0.0.0.00000000}.{guid}</c>), "" = default.</summary>
     public string? AudioDevice { get; set; }
-    /// <summary>Index (in <c>listDisplays</c>) of the monitor with the VLC window; <c>null</c> — no window.</summary>
-    public int? Display { get; set; }
     /// <summary>Stable id of the monitor with the VLC window; <c>null</c> — no window.</summary>
     public string? DisplayId { get; set; }
     /// <summary>Stable id of the preferred monitor; <c>null</c> — the companion does not manage the VLC window.</summary>
@@ -230,6 +228,22 @@ public sealed class YouTubeInfo
     public bool AdBlock { get; set; }
     /// <summary>Sponsor segments are skipped with SponsorBlock in the TV browser (<c>sys youtubeSponsorBlock</c>).</summary>
     public bool SponsorBlock { get; set; }
+    /// <summary>The video's subtitles (the TV extension tells); absent — none, or an ad plays.</summary>
+    public IReadOnlyList<YouTubeCaption>? Captions { get; set; }
+    /// <summary>The subtitles shown: a <see cref="YouTubeCaption.Code"/>; absent — off (<c>sys youtube captions</c>).</summary>
+    public string? Caption { get; set; }
+    /// <summary>The qualities YouTube offers (<c>hd2160</c> … <c>tiny</c>, <c>auto</c>); absent — unknown.</summary>
+    public IReadOnlyList<string>? Qualities { get; set; }
+    /// <summary>The quality playing (<c>sys youtube quality</c>).</summary>
+    public string? Quality { get; set; }
+}
+
+/// <summary>A subtitle track of the YouTube video: language code, name, made by YouTube itself.</summary>
+public sealed class YouTubeCaption
+{
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool? Auto { get; set; }
 }
 
 public sealed class LibraryInfo

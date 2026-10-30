@@ -65,9 +65,9 @@ class CompanionMessagesTest {
         val text = """
         {
           "t": "state",
-          "vlc": {"running": true, "version": "3.0.23", "apiVersion": 3, "level": 2},
+          "vlc": {"running": true, "status": "running", "version": "3.0.23", "apiVersion": 3, "level": 2},
           "playback": {"state": "playing", "time": 904, "length": 10705, "position": 0.084, "rate": 1.0, "updatedAt": 1760280000123},
-          "item": {"plId": 3, "uri": "file:///D:/shared/x.mkv", "title": "The Lord of the Rings", "artUrl": "http://pc:47555/art?plId=3"},
+          "item": {"plId": 3, "uri": "file:///D:/shared/x.mkv", "title": "The Lord of the Rings", "artUrl": "https://pc:47557/art?plId=3"},
           "tracks": {
             "audio":    [{"id": 1, "name": "Dub Мосфильм / AC3 5.1", "lang": "Russian", "codec": "a52"}],
             "subtitle": [{"id": 7, "name": "Мосфильм / SRT", "lang": "Russian", "codec": "subt"}],
@@ -80,7 +80,7 @@ class CompanionMessagesTest {
           "video": {"fullscreen": true, "aspect": "default"},
           "delays": {"audio": 0.0, "subtitle": 0.0},
           "flags": {"random": false, "loop": false, "repeat": false},
-          "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "keepAwake": true}
+          "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "displayId": "tv-id", "keepAwake": true}
         }
         """.trimIndent()
         val state = (known(text) as CompanionMessage.State).toPlayerState()
@@ -95,7 +95,7 @@ class CompanionMessagesTest {
         assertEquals("Prologue", state.chapters.names!![0])
         assertTrue(state.video.fullscreen)
         assertEquals(60, state.system!!.volume)
-        assertEquals(1, state.system!!.display)
+        assertEquals("tv-id", state.system!!.displayId)
         assertEquals(2, state.vlc.level)
 
         // Partial state (no tracks.current*, no system) is fine.
@@ -123,7 +123,7 @@ class CompanionMessagesTest {
         val tracks = known("""{"t":"tracks","id":"6","audio":[{"id":1,"name":"a"}],"subtitle":[],"video":[],"currentAudio":1}""") as CompanionMessage.TracksMsg
         assertEquals(1, tracks.toTracks().currentAudio)
 
-        val displays = known("""{"t":"displays","id":"9","items":[{"index":0,"name":"TV","primary":false,"bounds":{"x":1920,"y":0,"width":3840,"height":2160}}]}""") as CompanionMessage.Displays
+        val displays = known("""{"t":"displays","id":"9","items":[{"id":"tv-id","name":"TV","primary":false,"bounds":{"x":1920,"y":0,"width":3840,"height":2160}}]}""") as CompanionMessage.Displays
         assertEquals(3840, displays.items[0].bounds!!.width)
 
         val devices = known("""{"t":"audioDevices","id":"8","items":[{"id":"","name":"Default","current":true}]}""") as CompanionMessage.AudioDevices
@@ -179,7 +179,8 @@ class CompanionMessagesTest {
         assertEquals("true", open.args.str("enqueue"))
         assertEquals("file:///D:/x.srt", open.args.str("subtitle"))
         assertEquals("quit", cmd(PlayerCommand.Quit).name)
-        assertEquals("1", cmd(PlayerCommand.Launch(display = 1)).args.str("display"))
+        assertEquals("file:///D:/x.mkv", cmd(PlayerCommand.Launch("file:///D:/x.mkv")).args.str("uri"))
+        assertTrue(cmd(PlayerCommand.Launch()).args.isEmpty())
         assertEquals("playlistRemove", cmd(PlayerCommand.PlaylistRemove(2)).name)
         assertEquals("togglePause", cmd(PlayerCommand.TogglePause).name)
 
@@ -193,7 +194,7 @@ class CompanionMessagesTest {
         val sys = CommandMapping.toSys("2", SystemCommand.SystemVolume(delta = 5))
         assertEquals("systemVolume", sys.name)
         assertEquals("5", sys.args.str("delta"))
-        assertEquals("moveToDisplay", CommandMapping.toSys("3", SystemCommand.MoveToDisplay(displayId = null, legacyIndex = 1)).name)
+        assertEquals("moveToDisplay", CommandMapping.toSys("3", SystemCommand.MoveToDisplay("tv-id")).name)
         assertEquals("", CommandMapping.toSys("4", SystemCommand.AudioDevice("")).args.str("id"))
         assertEquals("sleep", CommandMapping.toSys("5", SystemCommand.Sleep).name)
         assertEquals(JsonPrimitive(true), CommandMapping.toSys("6", SystemCommand.KeepAwake(true)).args["on"])
@@ -219,9 +220,9 @@ class CompanionMessagesTest {
         assertEquals("sys", listDisplays.str("t"))
         assertEquals("listDisplays", listDisplays.str("name"))
         assertTrue((listDisplays["args"] as JsonObject).isEmpty())
-        val displays = known("""{"t":"displays","id":"9","items":[{"index":0,"name":"Laptop","primary":true,"bounds":{"x":0,"y":0,"width":1920,"height":1080}},{"index":1,"name":"TV","primary":false,"bounds":{"x":1920,"y":0,"width":3840,"height":2160}}]}""") as CompanionMessage.Displays
+        val displays = known("""{"t":"displays","id":"9","items":[{"id":"laptop-id","name":"Laptop","primary":true,"bounds":{"x":0,"y":0,"width":1920,"height":1080}},{"id":"tv-id","name":"TV","primary":false,"bounds":{"x":1920,"y":0,"width":3840,"height":2160}}]}""") as CompanionMessage.Displays
         assertEquals("9", displays.id)
-        assertEquals(listOf(0, 1), displays.items.map { it.index })
+        assertEquals(listOf("laptop-id", "tv-id"), displays.items.map { it.id })
         assertTrue(displays.items[0].primary)
         assertEquals(3840, displays.items[1].bounds!!.width)
         assertEquals(displays, known(CompanionCodec.encode(displays)) as CompanionMessage.Displays)
@@ -230,9 +231,9 @@ class CompanionMessagesTest {
         val audio = obj(CommandMapping.toSys("10", SystemCommand.AudioDevice("{guid}")))
         assertEquals("audioDevice", audio.str("name"))
         assertEquals("{guid}", (audio["args"] as JsonObject).str("id"))
-        val move = obj(CommandMapping.toSys("11", SystemCommand.MoveToDisplay(displayId = null, legacyIndex = 1)))
+        val move = obj(CommandMapping.toSys("11", SystemCommand.MoveToDisplay("tv-id")))
         assertEquals("moveToDisplay", move.str("name"))
-        assertEquals("1", (move["args"] as JsonObject).str("display"))
+        assertEquals("tv-id", (move["args"] as JsonObject).str("displayId"))
         val awake = obj(CommandMapping.toSys("12", SystemCommand.KeepAwake(false)))
         assertEquals("false", (awake["args"] as JsonObject).str("on"))
         val power = obj(CommandMapping.toSys("13", SystemCommand.DisplayPower(false)))

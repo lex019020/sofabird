@@ -38,6 +38,42 @@ function call(name, ...args) {
   }
 }
 
+/** The video's subtitles (YouTube's own and auto-generated) and the ones shown; `null` — the video has none. */
+function captions() {
+  const list = call("getOption", "captions", "tracklist", cloneInto({ includeAsr: true }, window));
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const tracks = [];
+  for (const t of list) {
+    if (!t || !t.languageCode) continue;
+    tracks.push({
+      code: String(t.languageCode),
+      name: String(t.displayName || t.languageName || t.languageCode),
+      auto: t.kind === "asr",
+    });
+  }
+  if (tracks.length === 0) return null;
+  const current = call("getOption", "captions", "track");
+  return { tracks, current: current && current.languageCode ? String(current.languageCode) : null };
+}
+
+/** The qualities YouTube offers for the video (`hd1080`, `hd720`, …, `auto`) and the one playing. */
+function quality() {
+  const levels = call("getAvailableQualityLevels");
+  if (!Array.isArray(levels) || levels.length === 0) return null;
+  const current = call("getPlaybackQuality");
+  return { levels: Array.from(levels, String), current: current ? String(current) : null };
+}
+
+/** Subtitles in this language (a code of `captions()`), or off (`""`). */
+function setCaptions(code) {
+  if (code) {
+    call("loadModule", "captions");
+    call("setOption", "captions", "track", cloneInto({ languageCode: code }, window));
+  } else {
+    call("setOption", "captions", "track", cloneInto({}, window));
+  }
+}
+
 function snapshot() {
   const p = player();
   const v = video();
@@ -61,6 +97,8 @@ function snapshot() {
     canNext: shown(next) && next.getAttribute("aria-disabled") !== "true",
     canPrevious: typeof index === "number" && index > 0,
     fullscreen: isFullscreen(),
+    captions: ad ? null : captions(),
+    quality: ad ? null : quality(),
   };
 }
 
@@ -151,6 +189,12 @@ port.onMessage.addListener((message) => {
       break;
     case "skipAd":
       skipAd();
+      break;
+    case "captions":
+      setCaptions(typeof message.value === "string" ? message.value : "");
+      break;
+    case "quality":
+      if (typeof message.value === "string" && message.value) call("setPlaybackQualityRange", message.value, message.value);
       break;
   }
   setTimeout(() => report(true), 300);

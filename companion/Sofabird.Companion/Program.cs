@@ -258,7 +258,7 @@ internal static class Program
         audioWatcher.Start();
         library.Start();
         if (settings.AutoLaunchVlc && installation is not null)
-            background.Run("Auto-launch of VLC", ct => vlc.LaunchAsync(null, null, ct));
+            background.Run("Auto-launch of VLC", ct => vlc.LaunchAsync(null, ct));
 
         async Task ShutdownAsync()
         {

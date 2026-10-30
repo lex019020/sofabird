@@ -22,7 +22,7 @@ public class StateBuilderTests
             Status = status,
             TracksPage = page,
             Playlist = playlist,
-            ArtBaseUrl = "http://192.168.1.20:47555",
+            ArtBaseUrl = "https://192.168.1.20:47557",
             NowUnixMs = 1_760_280_000_123,
             System = new SystemInfo { Volume = 60, Muted = false, KeepAwake = true },
         });
@@ -36,7 +36,7 @@ public class StateBuilderTests
         Assert.Equal(3, item.PlId);
         Assert.StartsWith("file:///D:/shared/", item.Uri);
         Assert.Contains("Fellowship", item.Title);
-        Assert.Equal("http://192.168.1.20:47555/art?plId=3", item.ArtUrl);
+        Assert.Equal("https://192.168.1.20:47557/art?plId=3", item.ArtUrl);
 
         var tracks = Assert.IsType<TracksInfo>(state.Tracks);
         Assert.Equal(6, tracks.Audio.Count);

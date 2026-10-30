@@ -55,8 +55,8 @@ sealed class PlayerCommand {
     data class Loop(val on: Boolean) : PlayerCommand()
     data class Repeat(val on: Boolean) : PlayerCommand()
 
-    /** Start VLC (optionally with a file and on a display). */
-    data class Launch(val uri: String? = null, val display: Int? = null) : PlayerCommand()
+    /** Start VLC (optionally with a file) on the preferred monitor. */
+    data class Launch(val uri: String? = null) : PlayerCommand()
     data object Quit : PlayerCommand()
 
     /** Companion `history`: answer the resume prompt (`state.resume`). */
@@ -70,14 +70,9 @@ sealed class PlayerCommand {
 sealed class SystemCommand {
     /**
      * Move the VLC window to a monitor and remember it as the preferred one (when VLC is closed the
-     * companion only remembers it). [displayId] is the stable `id` from `listDisplays`; companions that
-     * report no ids only understand [legacyIndex] (`{"display": int}`).
+     * companion only remembers it). [displayId] is the stable `id` from `listDisplays`.
      */
-    data class MoveToDisplay(val displayId: String?, val legacyIndex: Int? = null) : SystemCommand() {
-        init {
-            require(displayId != null || legacyIndex != null) { "displayId or legacyIndex is required" }
-        }
-    }
+    data class MoveToDisplay(val displayId: String) : SystemCommand()
 
     /** Only remember the monitor VLC opens on; `null` = the companion does not manage the VLC window. */
     data class PreferredDisplay(val displayId: String?) : SystemCommand()
@@ -123,7 +118,8 @@ sealed class SystemCommand {
     data class YouTubeSponsorBlock(val on: Boolean) : SystemCommand()
 
     /** Control YouTube on the TV; [time] (seconds) only for [YouTubeAction.SEEK]. */
-    data class YouTube(val action: YouTubeAction, val time: Double? = null) : SystemCommand()
+    /** [value]: the subtitle code for [YouTubeAction.CAPTIONS] (`""` — off), the level for [YouTubeAction.QUALITY]. */
+    data class YouTube(val action: YouTubeAction, val time: Double? = null, val value: String? = null) : SystemCommand()
 }
 
 enum class YouTubeAction(val wire: String) {
@@ -140,4 +136,10 @@ enum class YouTubeAction(val wire: String) {
     /** The ad's "Skip" button (only while [app.sofabird.protocol.model.YouTubeState.adSkippable]). */
     SKIP_AD("skipAd"),
     CLOSE("close"),
+
+    /** Show the subtitles with this code, or none (`""`): needs the TV extension 1.1. */
+    CAPTIONS("captions"),
+
+    /** Play in this quality (one of [app.sofabird.protocol.model.YouTubeState.qualities]). */
+    QUALITY("quality"),
 }

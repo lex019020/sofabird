@@ -101,8 +101,9 @@ sets `<SelfContained>false</SelfContained>` just in case). .NET 10 is an LTS rel
    *before* the network listeners start, so Windows never shows its own "allow access" prompt. Otherwise it opens
    next to the running companion. On every later start the companion checks the firewall and offers a fix in a tray
    notification (see below).
-1. Starts Kestrel on `0.0.0.0:47555`: `ws://…/ws` (NDJSON session), `GET /info` (no
-   authorization), `GET /art?plId=N` (header `Authorization: Bearer <token>`, proxies VLC's `/art`).
+1. Starts Kestrel with TLS on `0.0.0.0:47557`: `wss://…/ws` (NDJSON session), `GET /info` (no authorization),
+   `GET /art?plId=N` (header `Authorization: Bearer <token>`, proxies VLC's `/art`); the plain `0.0.0.0:47555` answers
+   only `GET /info` (`/ws` and `/art` there: `426 Upgrade Required`).
 2. Answers the UDP beacon `SOFABIRD_DISCOVER 1` on port 47556 with unicast JSON `{"t":"beacon",…}`.
 3. Advertises `_sofabird._tcp` through the built-in Windows DNS-SD responder (`DnsServiceRegister`);
    on error it writes to the log and keeps working (the beacon and manual address entry remain).
@@ -282,9 +283,8 @@ fullscreen VLC.
 
   A Samsung TV switched off with its remote keeps the HDMI link (measured 2026-10-13: neither the monitor nor its
   HDMI audio device disappeared), so this matters for lid changes, mains power and cables.
-- **Old format.** `preferredDisplay` (an index) from earlier versions is replaced at the first start with the id of the
-  monitor with that index; `moveToDisplay {"display": int}` and `display` in `launch`/`open` are still understood
-  (`display` in `launch` is a one-time choice, not remembered).
+- Monitors are named by `id` only: the list index, `moveToDisplay {"display": int}`, `display` in `launch`/`open` and
+  the old `preferredDisplay` setting went in 0.5.
 
 ## Watch history
 
@@ -429,6 +429,10 @@ YouTube's player on watch pages (`#movie_player` through `wrappedJSObject`: the 
 duration, playing, an ad — `ad-showing` — and its "Skip" button, next/previous) and carries out commands with the
 player's own API (`playVideo`, `pauseVideo`, `seekTo`, `nextVideo`, `previousVideo`, the fullscreen and "Skip"
 buttons); it also answers YouTube's "Video paused. Continue watching?" so that a video on the TV does not stop by itself.
+Since 1.1 it also reports the video's subtitles (`getOption("captions", "tracklist")`, with the auto-generated ones)
+and the one shown, and the qualities (`getAvailableQualityLevels`, `getPlaybackQuality`); `captions` sets
+`setOption("captions", "track", {languageCode})` (empty — off), `quality` calls `setPlaybackQualityRange` (objects go
+to the page through `cloneInto`). These are YouTube's own, undocumented player calls: a YouTube change can break them.
 It reports on every change and the position at most once a second.
 
 - **Signing.** Release Firefox loads only extensions signed by Mozilla: `python scripts/sign_extension.py sign` packs
@@ -469,7 +473,7 @@ under its earlier name, VLC Remote Companion, is no longer taken over (0.5, no u
 
 | File | What |
 |---|---|
-| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor; the old `preferredDisplay` is migrated automatically), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
+| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
 | `youtube-history.json` | the YouTube videos played on the TV and where they stopped (see "Watch history") |
@@ -482,10 +486,10 @@ The VLC HTTP interface password is never written to the log.
 `TlsCertificate` makes a self-signed certificate at the first start (ECDSA P-256, `CN=Sofabird <PC name>`, 20 years)
 and keeps it in the current user's certificate store ("Personal", friendly name "Sofabird (encrypted connection to
 phones)"; Windows protects the private key) — `tlsThumbprint` in `settings.json` finds it. Kestrel (`WebServer`)
-listens with it on `tlsPort` (47557, `wss`, the same `/ws`, `/info`, `/art`) next to the plain `wsPort` (47555, for
-older apps in 0.4); `/info`, the beacon and `welcome` name the port and the certificate's SHA-256 (`tls`), which
-phones pin (see the protocol README, "Encryption"). Without a certificate (the store cannot be used) there is no
-`wss` and no `tls`, and the log says so. The firewall rules are per program, so the new port needs no new rule.
+listens with it on `tlsPort` (47557: `wss` `/ws`, `/info`, `/art`, whose `artUrl` points there); the plain `wsPort`
+(47555) answers only `/info` since 0.5. `/info`, the beacon and `welcome` name the port and the certificate's SHA-256
+(`tls`), which phones pin (see the protocol README, "Encryption"). Without a certificate (the store cannot be used)
+no phone can connect, and the log says so as an error. The firewall rules are per program, so the new port needs no new rule.
 `deploy-windows.ps1 -Uninstall -Purge` removes the certificate too; a new one means the phones pair again.
 
 ## Sleep timer
@@ -594,9 +598,8 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
 - `pause/play/seek/track/volume/mute/chapter/rate/random/playlistRemove/open/launch/quit`,
   `getState/getPlaylist/getTracks/getAudioDevices/browse`, `sys listDisplays/keepAwake/moveToDisplay`;
 - monitors: the CCD API sees "L27q-35" (`external`, id `\\?\DISPLAY#LEN66D5#…`); `listDisplays` with `current`/
-  `preferred`/`preferredId`, `moveToDisplay` by id and by the old index without VLC (only remembered, no error),
-  an unconnected id, `preferredDisplay null`, `state.system.preferredDisplayId`, migration of the old `preferredDisplay`
-  in settings.json; a headless VLC opened "by hand" — auto-move waits 10 s for a window and moves nothing;
+  `preferred`/`preferredId`, `moveToDisplay` by id without VLC (only remembered, no error),
+  an unconnected id, `preferredDisplay null`, `state.system.preferredDisplayId`; a headless VLC opened "by hand" — auto-move waits 10 s for a window and moves nothing;
 - current tracks via RC `atrack/strack` (without Lua pages in VLC) and track selection after `open`;
 - events `vlcStarted`, `inputChanged`, `vlcExited`; push `state` ~2–3 times per second during playback;
 - `LuaPagesInstaller` — only against a temp folder (unit tests), not installed into `%APPDATA%`.

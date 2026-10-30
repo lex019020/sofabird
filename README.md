@@ -59,7 +59,8 @@ the system language: English and Russian.
   says when the PC's cannot).
 - YouTube on the TV: share a video to Sofabird from the YouTube app (or paste a link) and it plays fullscreen on the
   TV in Firefox, with a TV profile of its own you sign in to once. A small Sofabird extension in that browser gives
-  exact control: precise seeking, fullscreen after the ads, "Skip" for an ad as soon as YouTube allows it. The remote,
+  exact control: precise seeking, fullscreen after the ads, "Skip" for an ad as soon as YouTube allows it, the
+  video's subtitles and quality from the phone. The remote,
   the phone's notification, lock screen and volume keys control it, and a movie started from the phone closes it.
   Ads can be blocked with uBlock Origin and sponsor segments skipped with SponsorBlock (a switch each, on the phone
   or in the setup window); the setup window installs Firefox and opens the YouTube sign-in.

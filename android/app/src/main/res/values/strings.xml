@@ -170,8 +170,6 @@
     <string name="sheet_display_title">TV screen</string>
     <string name="display_hint_open">Tap a display: what is on the TV moves there now, and VLC, YouTube and Moonlight open on it from now on.</string>
     <string name="display_hint_closed">Choose the display VLC, YouTube and Moonlight open on. An open YouTube or Moonlight moves there now.</string>
-    <string name="display_hint_legacy">Tap a display to move the VLC window there.</string>
-    <string name="display_hint_legacy_closed">Start VLC to move its window. To choose the display in advance, update the companion on the PC.</string>
     <string name="display_opens_here">VLC, YouTube and Moonlight open here</string>
     <string name="display_resolution">%1$d × %2$d</string>
     <string name="display_kind_external">External display</string>
@@ -200,6 +198,12 @@
     <string name="youtube_link_hint">Link to a YouTube video</string>
     <string name="action_paste">Paste</string>
     <string name="action_youtube_show">Show on the TV</string>
+    <string name="youtube_video_tile">Video</string>
+    <string name="youtube_video_title">Video on the TV</string>
+    <string name="youtube_captions_title">Subtitles</string>
+    <string name="youtube_captions_off">Off</string>
+    <string name="youtube_quality_title">Quality</string>
+    <string name="youtube_quality_auto">Auto</string>
     <string name="youtube_recent">Recently on the TV</string>
     <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Or share a video to Sofabird from the YouTube app.</string>

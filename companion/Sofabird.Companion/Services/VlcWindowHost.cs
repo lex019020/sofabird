@@ -56,7 +56,6 @@ public sealed class SettingsDisplayPreference(Settings settings, SettingsStore s
         {
             s.PreferredDisplayId = id;
             s.PreferredDisplayName = name;
-            s.PreferredDisplay = null;
         });
     }
 }

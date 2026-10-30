@@ -221,16 +221,18 @@ public sealed class YouTubeService : IDisposable
         }
     }
 
-    public async Task ControlAsync(string action, double? time)
+    public async Task ControlAsync(string action, double? time, string? value = null)
     {
         if (!_browser.IsRunning()) throw ProtocolException.BadRequest(ProtocolText.YouTubeNotOpen);
         if (action == "seek" && time is null) throw ProtocolException.BadRequest("seek requires 'time'");
+        if (action == "quality" && string.IsNullOrEmpty(value)) throw ProtocolException.BadRequest("quality requires 'value'");
         var ok = action switch
         {
             "fullscreen" => MakeFullscreen(),
             "close" => Close(),
             "play" or "pause" or "toggle" or "seek" or "next" or "previous" or "skipAd" when _page.Connected => _page.Send(action, time),
-            "skipAd" => false, // only the extension sees the ad's button
+            "captions" or "quality" when _page.Connected => _page.Send(action, value: value ?? ""),
+            "skipAd" or "captions" or "quality" => false, // only the extension reaches the page's player
             "play" => await _media.PlayAsync().ConfigureAwait(false),
             "pause" => await _media.PauseAsync().ConfigureAwait(false),
             "toggle" => await _media.TogglePlayPauseAsync().ConfigureAwait(false),
@@ -346,6 +348,10 @@ public sealed class YouTubeService : IDisposable
             CanPrevious = page.CanPrevious,
             Ad = page.Ad,
             AdSkippable = page.AdSkippable,
+            Captions = page.Captions?.Tracks.Select(t => new YouTubeCaption { Code = t.Code, Name = t.Name, Auto = t.Auto ? true : null }).ToList(),
+            Caption = page.Captions?.Current,
+            Qualities = page.Quality?.Levels,
+            Quality = page.Quality?.Current,
         };
     }
 

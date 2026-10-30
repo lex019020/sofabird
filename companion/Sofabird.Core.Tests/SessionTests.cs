@@ -45,7 +45,7 @@ public class SessionTests
         public Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
         {
             if (name == "listDisplays")
-                return Task.FromResult<Message?>(new DisplaysMessage { Items = [new DisplayEntry { Index = 0, Name = "Main", Primary = true }] });
+                return Task.FromResult<Message?>(new DisplaysMessage { Items = [new DisplayEntry { Id = "main", Name = "Main", Primary = true }] });
             Commands.Add(("sys:" + name, args));
             return Task.FromResult<Message?>(null);
         }

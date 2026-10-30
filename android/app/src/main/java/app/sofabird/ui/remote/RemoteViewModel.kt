@@ -54,7 +54,7 @@ data class RemoteUiState(
     /** Monitor for the VLC window (`windowControl`): chip on the remote + "Display for VLC" sheet. */
     val displayChoice: DisplayChoice = DisplayChoice(),
     val displaysLoading: Boolean = false,
-    /** [Display.key] (or [UNMANAGED_KEY]) of the action in flight. */
+    /** [Display.id] (or [UNMANAGED_KEY]) of the action in flight. */
     val displayPending: String? = null,
     /** Last `listDisplays` / display action failure, shown inside the sheet. */
     val displayError: Throwable? = null,
@@ -118,7 +118,7 @@ data class RemoteUiState(
     val showDisplayChoice: Boolean get() = capabilities.windowControl
 
     companion object {
-        /** [displayPending] value for "Do not manage" (never a monitor key). */
+        /** [displayPending] value for "Do not manage" (never a monitor id). */
         const val UNMANAGED_KEY = "unmanaged:"
     }
 }
@@ -367,13 +367,13 @@ class RemoteViewModel(
     /** Tap on a monitor: move the VLC window there (if open) and remember it as the preferred one. */
     fun moveVlcTo(display: Display) {
         val choice = currentDisplayChoice()
-        runDisplayAction(display.key, choice.commandFor(display)) { system -> choice.markAfterMove(display, system) }
+        runDisplayAction(display.id, choice.commandFor(display)) { system -> choice.markAfterMove(display, system) }
     }
 
     /** "Do not manage": the companion leaves the VLC window alone. */
     fun unmanageDisplay() {
         val choice = currentDisplayChoice()
-        if (!choice.canUnmanage) return
+        if (!choice.canChoose) return
         runDisplayAction(RemoteUiState.UNMANAGED_KEY, SystemCommand.PreferredDisplay(null)) { system -> choice.markAfterUnmanage(system) }
     }
 

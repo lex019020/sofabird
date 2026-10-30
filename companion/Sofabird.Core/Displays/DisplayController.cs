@@ -84,14 +84,8 @@ public sealed class DisplayController : IDisposable
             case "listDisplays":
                 return List();
             case "moveToDisplay":
-            {
-                var id = args.GetString("displayId");
-                int? index = string.IsNullOrEmpty(id) ? args.GetInt("display") : null;
-                if (string.IsNullOrEmpty(id) && index is null)
-                    throw ProtocolException.BadRequest("moveToDisplay requires 'displayId' (or the legacy 'display' index)");
-                await MoveToDisplayAsync(id, index, ct).ConfigureAwait(false);
+                await MoveToDisplayAsync(args.RequireString("displayId"), ct).ConfigureAwait(false);
                 return null;
-            }
             case "preferredDisplay":
             {
                 var id = args.GetString("displayId");
@@ -116,7 +110,6 @@ public sealed class DisplayController : IDisposable
         {
             Items = monitors.Select(m => new DisplayEntry
             {
-                Index = m.Index,
                 Id = m.Id,
                 Name = m.Name,
                 NameText = m.NameText,
@@ -266,28 +259,17 @@ public sealed class DisplayController : IDisposable
     }
 
     /// <summary>
-    /// Move the VLC window to a monitor (by id, or by the legacy index) and remember it as preferred.
+    /// Move the VLC window to a monitor and remember it as preferred.
     /// VLC not running — only remember. A not connected id is remembered, but a running VLC cannot be moved there.
     /// </summary>
-    public async Task MoveToDisplayAsync(string? id, int? legacyIndex, CancellationToken ct)
+    public async Task MoveToDisplayAsync(string id, CancellationToken ct)
     {
-        var monitors = _monitors.GetMonitors();
-        MonitorInfo target;
-        if (!string.IsNullOrEmpty(id))
+        var target = MonitorTopology.FindById(_monitors.GetMonitors(), id);
+        if (target is null)
         {
-            var found = MonitorTopology.FindById(monitors, id);
-            if (found is null)
-            {
-                SetPreferred(id);
-                if (_vlc.ProcessId is not null) throw ProtocolException.BadRequest(ProtocolText.DisplayNotConnected);
-                return;
-            }
-            target = found;
-        }
-        else
-        {
-            target = MonitorTopology.FindByIndex(monitors, legacyIndex)
-                ?? throw ProtocolException.BadRequest($"no display with index {legacyIndex}");
+            SetPreferred(id);
+            if (_vlc.ProcessId is not null) throw ProtocolException.BadRequest(ProtocolText.DisplayNotConnected);
+            return;
         }
 
         SetPreferred(target.Id);

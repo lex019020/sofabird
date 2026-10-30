@@ -178,10 +178,10 @@ sealed class CompanionMessage {
         val bt: String? = null,
         /**
          * MACs of the connected adapters that will wake the PC from sleep (wired first): the phone wakes it with them
-         * ([MagicPacket]). Empty — it cannot be woken; `null` — not said (an older companion, or not known yet).
+         * ([MagicPacket]). Empty — it cannot be woken; `null` — not known yet.
          */
         val macs: List<String>? = null,
-        /** The encrypted WebSocket; `null` — an older companion (plain `ws` only). */
+        /** The encrypted WebSocket (the only LAN link); `null` — the companion has no certificate. */
         val tls: TlsInfo? = null,
     ) : CompanionMessage() {
         /** `welcome` uses `id` for the PC GUID, not for request correlation. */
@@ -294,7 +294,7 @@ sealed class CompanionMessage {
     data class Displays(
         override val id: String? = null,
         val items: List<Display> = emptyList(),
-        /** Monitor VLC opens on; `null` = not managed (or an old companion). */
+        /** Monitor VLC opens on; `null` = not managed. */
         val preferredId: String? = null,
     ) : CompanionMessage() {
         fun toList() = DisplayList(items, preferredId)
@@ -369,17 +369,12 @@ data class DeviceInfo(
 @Serializable
 data class AudioDevice(val id: String, val name: String, val current: Boolean = false)
 
-/**
- * One monitor from `sys listDisplays`. Everything except [index] is optional: old companions send only
- * `index`/`name`/`primary`/`bounds`.
- */
+/** One monitor from `sys listDisplays`; commands name it by [id]. */
 @Serializable
 data class Display(
-    /** Windows enumeration order; changes when a monitor is switched off. */
-    val index: Int,
     /** Stable monitor id (survives the TV being switched off and on). */
-    val id: String? = null,
-    /** Friendly name from EDID ("LG TV SSCR2"). */
+    val id: String,
+    /** Friendly name from EDID ("LG TV SSCR2"), else the model or "Screen N". */
     val name: String? = null,
     /** [KIND_INTERNAL] (laptop panel) or [KIND_EXTERNAL] (HDMI/DP/…); unknown values are kept as-is. */
     val kind: String? = null,
@@ -403,13 +398,7 @@ data class Display(
 data class DisplayList(
     val items: List<Display> = emptyList(),
     val preferredId: String? = null,
-) {
-    /**
-     * The companion identifies monitors by stable ids: it remembers a preferred monitor and accepts
-     * `moveToDisplay {displayId}` / `preferredDisplay`. Old companions: index-only moves.
-     */
-    val supportsIds: Boolean get() = items.isNotEmpty() && items.all { !it.id.isNullOrEmpty() }
-}
+)
 
 @Serializable
 data class Bounds(val x: Int = 0, val y: Int = 0, val width: Int = 0, val height: Int = 0)
@@ -435,7 +424,7 @@ enum class ErrorCode(val wire: String) {
     /** Handshake: the phone is not paired and sent no code; the companion shows a code on the PC. */
     PAIRING_REQUIRED("pairing_required"),
 
-    /** Handshake: wrong/expired code or too many attempts (old companions: also "not paired"). */
+    /** Handshake: wrong/expired code or too many attempts; also no (valid) `hello` in time. */
     UNAUTHORIZED("unauthorized"),
     BAD_REQUEST("bad_request"),
     VLC_NOT_RUNNING("vlc_not_running"),
@@ -451,12 +440,12 @@ enum class ErrorCode(val wire: String) {
 
 /**
  * Maps an `err` answer to `hello` to a connection error. [sentPairCode] tells whether the `hello`
- * carried a pairing code: then `unauthorized` means "wrong or expired code"; without a code it is
- * an old companion's way of saying "pairing required" (protocol/README.md, compatibility note).
+ * carried a pairing code: then `unauthorized` means "wrong or expired code"; without a code it is not about
+ * pairing (the companion got no valid `hello` in time) and is retried like any other failure.
  */
-fun CompanionMessage.Err.toHandshakeError(sentPairCode: Boolean): ConnectionError = when (errorCode) {
-    ErrorCode.PAIRING_REQUIRED -> ConnectionError.PairingRequired
-    ErrorCode.UNAUTHORIZED -> if (sentPairCode) ConnectionError.InvalidPairCode else ConnectionError.PairingRequired
+fun CompanionMessage.Err.toHandshakeError(sentPairCode: Boolean): ConnectionError = when {
+    errorCode == ErrorCode.PAIRING_REQUIRED -> ConnectionError.PairingRequired
+    errorCode == ErrorCode.UNAUTHORIZED && sentPairCode -> ConnectionError.InvalidPairCode
     else -> ConnectionError.Other(msg ?: code)
 }
 
