@@ -191,6 +191,12 @@
     <string name="youtube_link_hint">Link to a YouTube video</string>
     <string name="action_paste">Paste</string>
     <string name="action_youtube_show">Show on the TV</string>
+    <string name="youtube_video_tile">Video</string>
+    <string name="youtube_video_title">Video on the TV</string>
+    <string name="youtube_captions_title">Subtitles</string>
+    <string name="youtube_captions_off">Off</string>
+    <string name="youtube_quality_title">Quality</string>
+    <string name="youtube_quality_auto">Auto</string>
     <string name="youtube_recent">Recently on the TV</string>
     <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Or share a video to Sofabird from the YouTube app.</string>

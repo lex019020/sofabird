@@ -471,7 +471,7 @@ private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismis
 }
 
 @Composable
-private fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+internal fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

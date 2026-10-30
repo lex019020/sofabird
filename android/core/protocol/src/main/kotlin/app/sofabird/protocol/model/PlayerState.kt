@@ -241,8 +241,19 @@ data class YouTubeState(
     val adBlock: Boolean = false,
     /** Sponsor segments are skipped with SponsorBlock ([app.sofabird.protocol.backend.SystemCommand.YouTubeSponsorBlock]). */
     val sponsorBlock: Boolean = false,
+    /** The video's subtitles (the TV extension tells); empty — none, or an ad plays. */
+    val captions: List<YouTubeCaption> = emptyList(),
+    /** The code of the subtitles shown; `null` — off. */
+    val caption: String? = null,
+    /** The qualities YouTube offers (`hd2160` … `tiny`, `auto`), best first; empty — unknown. */
+    val qualities: List<String> = emptyList(),
+    /** The quality playing. */
+    val quality: String? = null,
     @kotlinx.serialization.Transient val updatedAt: Long = 0,
 ) {
+    /** The subtitles shown, as YouTube names them. */
+    val captionName: String? get() = caption?.let { code -> captions.firstOrNull { it.code == code }?.name ?: code }
+
     val thumbnailUrl: String? get() = videoId?.let { "https://i.ytimg.com/vi/$it/hqdefault.jpg" }
 
     /** The position now: [time] moved on since [updatedAt] while playing, never past [length]. */
@@ -271,6 +282,28 @@ data class SystemState(
     /** A Moonlight stream is on the TV; `null` = Moonlight is not installed (or an old companion). */
     val moonlightStreaming: Boolean? = null,
 )
+
+/** A subtitle track of a YouTube video: language code, name, made by YouTube itself ([auto]). */
+@Serializable
+data class YouTubeCaption(val code: String, val name: String = code, val auto: Boolean = false)
+
+/**
+ * A YouTube quality level for people: `hd1080` → `1080p`, `large` → `480p`; `null` for `auto` and unknown ones (the
+ * caller shows "Auto" or the raw value).
+ */
+fun youTubeQualityLabel(level: String): String? = when (level) {
+    "highres" -> "4320p"
+    "hd2880" -> "2880p"
+    "hd2160" -> "2160p"
+    "hd1440" -> "1440p"
+    "hd1080" -> "1080p"
+    "hd720" -> "720p"
+    "large" -> "480p"
+    "medium" -> "360p"
+    "small" -> "240p"
+    "tiny" -> "144p"
+    else -> null
+}
 
 /** Player model. Mirrors the `state` message of the companion protocol. */
 @Serializable

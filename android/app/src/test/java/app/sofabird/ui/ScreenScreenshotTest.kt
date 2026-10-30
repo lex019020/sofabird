@@ -33,6 +33,7 @@ import app.sofabird.protocol.model.Track
 import app.sofabird.protocol.model.Tracks
 import app.sofabird.protocol.model.VlcInfo
 import app.sofabird.protocol.model.VlcProcessStatus
+import app.sofabird.protocol.model.YouTubeCaption
 import app.sofabird.protocol.model.YouTubeState
 import app.sofabird.ui.connection.ConnectionActions
 import app.sofabird.ui.connection.ConnectionContent
@@ -142,6 +143,8 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 youtube = YouTubeState(
                     open = true, playing = true, videoId = null, title = "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
                     channel = "Blender", time = 60.0, length = 634.6,
+                    captions = listOf(YouTubeCaption("en", "English"), YouTubeCaption("ru", "Russian (auto-generated)", auto = true)),
+                    caption = "en", qualities = listOf("hd1080", "hd720", "large", "auto"), quality = "hd1080",
                 ),
             ),
             capabilities = Capabilities(playing.capabilities.flags + Capability.YOUTUBE + Capability.SYSTEM_VOLUME),

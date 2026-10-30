@@ -117,7 +117,8 @@ sealed class SystemCommand {
     data class YouTubeSponsorBlock(val on: Boolean) : SystemCommand()
 
     /** Control YouTube on the TV; [time] (seconds) only for [YouTubeAction.SEEK]. */
-    data class YouTube(val action: YouTubeAction, val time: Double? = null) : SystemCommand()
+    /** [value]: the subtitle code for [YouTubeAction.CAPTIONS] (`""` — off), the level for [YouTubeAction.QUALITY]. */
+    data class YouTube(val action: YouTubeAction, val time: Double? = null, val value: String? = null) : SystemCommand()
 }
 
 enum class YouTubeAction(val wire: String) {
@@ -134,4 +135,10 @@ enum class YouTubeAction(val wire: String) {
     /** The ad's "Skip" button (only while [app.sofabird.protocol.model.YouTubeState.adSkippable]). */
     SKIP_AD("skipAd"),
     CLOSE("close"),
+
+    /** Show the subtitles with this code, or none (`""`): needs the TV extension 1.1. */
+    CAPTIONS("captions"),
+
+    /** Play in this quality (one of [app.sofabird.protocol.model.YouTubeState.qualities]). */
+    QUALITY("quality"),
 }
