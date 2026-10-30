@@ -16,7 +16,8 @@ Formerly called *VLC Remote*.
 </p>
 <p align="center">
   <img src="docs/images/series.png" width="200" alt="Series page with seasons, episode names and stills">
-  <img src="docs/images/connection.png" width="200" alt="Connection: the PC found on the network, paired; Bluetooth and other ways">
+  <img src="docs/images/touchpad.png" width="200" alt="Touchpad and keyboard: the phone moves the PC's pointer, clicks, scrolls and types">
+  <img src="docs/images/connection.png" width="200" alt="Connection: the PC found on the network, paired; Bluetooth and a manual address">
   <img src="docs/images/settings.png" width="200" alt="Settings: volume keys, seek steps, vibration, theme">
 </p>
 
