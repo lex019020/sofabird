@@ -65,6 +65,8 @@ import app.sofabird.ui.remote.RemoteContent
 import app.sofabird.ui.remote.RemoteUiState
 import app.sofabird.ui.settings.SettingsContent
 import app.sofabird.ui.theme.SofabirdTheme
+import app.sofabird.ui.touchpad.TouchpadContent
+import app.sofabird.ui.touchpad.TouchpadUiState
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Before
 import org.junit.Rule
@@ -133,16 +135,29 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
         RemoteContent(state, next = null, actions = object : RemoteActions {})
     }
 
+    /** A Moonlight stream on the TV: the remote is the streamed computer's touchpad and keyboard. */
     @Test
     fun remoteStreaming() = snapshot("remote_streaming") {
-        val state = playing.copy(
-            state = playing.state.copy(
-                playback = playing.state.playback.copy(state = PlaybackStatus.PAUSED),
-                system = SystemState(moonlightHost = "GAMING-PC", moonlightStreaming = true),
-            ),
-            capabilities = Capabilities(playing.capabilities.flags + Capability.MOONLIGHT),
-        )
+        RemoteContent(streaming, next = null, actions = object : RemoteActions {})
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-xxhdpi")
+    fun remoteStreamingLandscape() = snapshot("remote_streaming_landscape") {
+        RemoteContent(streaming, next = null, actions = object : RemoteActions {})
+    }
+
+    /** A companion without `input`: the stream's card, as before. */
+    @Test
+    fun remoteStreamingCard() = snapshot("remote_streaming_card") {
+        val state = streaming.copy(capabilities = Capabilities(streaming.capabilities.flags - Capability.INPUT))
         RemoteContent(state, next = null, actions = object : RemoteActions {})
+    }
+
+    /** "Touchpad and keyboard" from "More", with the keyboard open. */
+    @Test
+    fun touchpad() = snapshot("touchpad") {
+        TouchpadContent(TouchpadUiState(online = true, available = true), onInput = {}, onBack = {}, keyboardOpen = true)
     }
 
     @Test
@@ -281,6 +296,15 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             connection = ConnectionState.Connected("LIVING-ROOM-PC"),
             capabilities = Capabilities(setOf(Capability.CURRENT_TRACK, Capability.CHAPTER_NAMES, Capability.LAUNCH_VLC)),
             hostName = "LIVING-ROOM-PC",
+        )
+
+        /** VLC paused behind a Moonlight stream from GAMING-PC; the companion takes touchpad input. */
+        private val streaming = playing.copy(
+            state = playing.state.copy(
+                playback = playing.state.playback.copy(state = PlaybackStatus.PAUSED),
+                system = SystemState(moonlightHost = "GAMING-PC", moonlightStreaming = true),
+            ),
+            capabilities = Capabilities(playing.capabilities.flags + Capability.MOONLIGHT + Capability.INPUT),
         )
 
         /** VLC closed, a history with a file, a YouTube video and a next episode; YouTube and Moonlight on the PC. */

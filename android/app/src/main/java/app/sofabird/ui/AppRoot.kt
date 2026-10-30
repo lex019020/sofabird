@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -80,6 +81,7 @@ import app.sofabird.ui.permissions.isGranted
 import app.sofabird.ui.playlist.PlaylistScreen
 import app.sofabird.ui.remote.RemoteScreen
 import app.sofabird.ui.settings.SettingsScreen
+import app.sofabird.ui.touchpad.TouchpadScreen
 import app.sofabird.ui.update.UpdatePromptHost
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -93,6 +95,7 @@ object Routes {
     const val CONNECTION = "connection"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
+    const val TOUCHPAD = "touchpad"
     const val SHOW = "show/{key}"
     fun show(key: String) = "show/" + android.net.Uri.encode(key)
     val tabs = listOf(REMOTE, LIBRARY, PLAYLIST)
@@ -267,7 +270,8 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
         NavHost(
             navController = navController,
             startDestination = Routes.REMOTE,
-            modifier = Modifier.padding(padding),
+            // Consumed: the touchpad's keyboard (imePadding) then lifts it only as far as the IME covers it.
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         ) {
             composable(Routes.REMOTE) {
                 RemoteScreen(
@@ -281,6 +285,7 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                         }
                     },
                     onOpenHistory = { navController.navigate(Routes.HISTORY) { launchSingleTop = true } },
+                    onOpenTouchpad = { navController.navigate(Routes.TOUCHPAD) { launchSingleTop = true } },
                 )
             }
             composable(Routes.LIBRARY) {
@@ -310,6 +315,7 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                     },
                 )
             }
+            composable(Routes.TOUCHPAD) { TouchpadScreen(onBack = { navController.popBackStack() }) }
             composable(Routes.PLAYLIST) { PlaylistScreen() }
             composable(Routes.CONNECTION) {
                 ConnectionScreen(

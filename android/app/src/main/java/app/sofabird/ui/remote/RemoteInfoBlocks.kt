@@ -138,9 +138,12 @@ internal fun TitleBlock(ui: RemoteUiState) {
     }
 }
 
-/** Moonlight shows another computer's screen on the TV: what is on it now, and the way back to the movie. */
+/**
+ * Moonlight shows another computer's screen on the TV: what is on it now, and the way back to the movie. [narrow]: the
+ * button says only "End" (next to the touchpad, in a third of a landscape screen).
+ */
 @Composable
-internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit) {
+internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit, narrow: Boolean = false) {
     val tick = rememberTick(haptics)
     Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Column(Modifier.padding(16.dp)) {
@@ -158,7 +161,9 @@ internal fun StreamingCard(host: String, haptics: Boolean, onEnd: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(12.dp))
-            Button(onClick = { tick(); onEnd() }) { LabelText(stringResource(R.string.action_moonlight_stop)) }
+            Button(onClick = { tick(); onEnd() }) {
+                LabelText(stringResource(if (narrow) R.string.action_moonlight_end else R.string.action_moonlight_stop))
+            }
         }
     }
 }

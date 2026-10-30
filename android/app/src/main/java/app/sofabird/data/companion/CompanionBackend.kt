@@ -2,6 +2,7 @@ package app.sofabird.data.companion
 
 import android.util.Log
 import app.sofabird.data.net.Backoff
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.backend.PlayerBackend
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
@@ -36,6 +37,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -535,6 +537,19 @@ class CompanionBackend(
     override suspend fun sendSystem(command: SystemCommand): Result<Unit> = resultOf {
         request { id -> CommandMapping.toSys(id, command) }
         Unit
+    }
+
+    /** No reply to wait for and nothing to buffer: a move from a second ago is no use after a reconnect. */
+    override suspend fun sendInput(input: PcInput) {
+        val t = transport ?: return
+        try {
+            t.sendMessage(CommandMapping.toInput(input))
+        } catch (e: Exception) {
+            // A link that is going down (the reader notices) may fail with a cancellation of its own: only the
+            // caller's own cancellation goes on.
+            currentCoroutineContext().ensureActive()
+            Log.d(TAG, "input not sent: ${e.message}")
+        }
     }
 
     /** `listDisplays` returns data, not just `ok`. */

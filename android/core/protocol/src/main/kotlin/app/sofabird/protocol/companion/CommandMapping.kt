@@ -1,5 +1,7 @@
 package app.sofabird.protocol.companion
 
+import app.sofabird.protocol.backend.KeyMod
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.model.SleepTimerState
@@ -102,6 +104,24 @@ object CommandMapping {
         }
         return CompanionMessage.Sys(id = id, name = name, args = args)
     }
+
+    /** An `input` message (no id): moves and scrolls are clamped to what the companion accepts. */
+    fun toInput(input: PcInput): CompanionMessage.Input = when (input) {
+        is PcInput.Move -> CompanionMessage.Input("move", dx = input.dx.clampDelta(), dy = input.dy.clampDelta())
+        is PcInput.Click -> CompanionMessage.Input("click", button = input.button.wire)
+        is PcInput.Press -> CompanionMessage.Input("down", button = input.button.wire)
+        is PcInput.Release -> CompanionMessage.Input("up", button = input.button.wire)
+        is PcInput.Scroll -> CompanionMessage.Input("scroll", dy = input.dy.clampDelta(), dx = input.dx.clampDelta())
+        is PcInput.Text -> CompanionMessage.Input("text", text = input.text)
+        is PcInput.Key -> CompanionMessage.Input(
+            "key",
+            key = input.key.wire,
+            // In a fixed order, so that the same chord is always the same message.
+            mods = KeyMod.entries.filter { it in input.mods }.map { it.wire }.ifEmpty { null },
+        )
+    }
+
+    private fun Int.clampDelta() = coerceIn(-PcInput.MAX_DELTA, PcInput.MAX_DELTA)
 
     private val EMPTY = JsonObject(emptyMap())
 

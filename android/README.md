@@ -304,6 +304,44 @@ with the minutes left. The companion keeps the timer and pauses VLC/YouTube when
 `state.system.sleepTimer` drives "Pauses in 23 min" / "The PC sleeps at the end" under the title of the remote (VLC and
 YouTube), refreshed every 15 s.
 
+## Touchpad and keyboard
+
+With `caps.input` the phone is the PC's touchpad and keyboard (owner's request), for whatever has the focus on the PC —
+a Moonlight stream passes it on to the streamed computer. Where it shows:
+
+- **While a Moonlight stream is on the TV** (`RemoteUiState.streamingHost`), by itself: `StreamingTouchpad` replaces the
+  stream's card. Portrait: a compact header (the computer, "Moonlight on the TV", "End") over the touchpad and the quick
+  row; landscape: the stream's card on the left, the touchpad and the quick row on the right. While the phone's keyboard
+  is up (`WindowInsets.ime`) the header and the quick row step aside and the pad gives way (`imePadding`; `AppRoot`
+  consumes the scaffold's insets so the padding is only the part the keyboard covers): the remote never scrolls. Without
+  `input` (an older companion) the card stays as before.
+- **At any time**: "More" → Computer → "Touchpad and keyboard" opens the route `touchpad` (`TouchpadScreen`, its own
+  `TouchpadViewModel`): a top app bar with Back, the touchpad over the whole screen.
+
+`Touchpad` (`ui/touchpad/Touchpad.kt`): the pad (`pointerInput` + `awaitEachGesture`), Left and Right buttons
+(`click`) and a keyboard toggle. Gestures: one finger moves the pointer (`PointerMotion`: 1.5 PC pixels per dp of a slow
+finger, up to 2.5× that for a fast stroke, whole pixels sent and the fraction carried over); a tap (released before the
+system long-press time within the touch slop) clicks — with two fingers the right button, with three the middle one;
+two fingers scroll (`ScrollMotion`: 4 wheel units per dp, the content follows the fingers as on the phone, the stroke
+keeps the axis it started on); a finger held still for the long-press time presses the left button (`down`, a
+long-press vibration if "Button vibration" is on), moves then drag and lifting it releases (`up`). Taps tick like
+the other buttons. The pad shows how to use it in as many lines as fit.
+
+The keyboard: a text field whose changes are typed on the PC at once (`KeyboardStream`, pure and tested): what the
+field gained is `text`, what it lost Backspaces (a suggestion that replaces a word is erased back to the change and
+typed again), the IME's Enter (the field is multi-line, one line shown) is `key enter` and the field starts over; it also
+starts over after a space past 40 characters. The field begins with an invisible zero-width space, so Backspace in a
+field that looks empty still reaches the app and becomes a Backspace on the PC. Autocorrection is off. Under it a row of
+keys a phone keyboard lacks (`FlowRow`): Esc, Tab, Win, Backspace, Enter and the arrows (`key`); Backspace and Enter
+keep the field in step, any other key makes it start over (the PC's cursor moved away from its text).
+
+Sending: `PlayerController.input` puts every input into one channel; a single coroutine sends them in order, so a
+button's `down` and `up` never swap with the moves between them. What piles up while a move is sent and a frame (16 ms)
+passes is merged by `InputBatch` (`:core:protocol`, tested): consecutive moves and consecutive scrolls become one, so at
+most one `move` per frame (~60/s). `CompanionBackend.sendInput` writes `{"t":"input",…}` (`CommandMapping.toInput`,
+no `id`, no reply) on the current link — WebSocket or RFCOMM — and drops it while there is none: a stale move is no
+use after a reconnect.
+
 ## Home screen
 
 When nothing is on the TV (`RemoteUiState.home`: online, VLC closed or open with nothing in it, no
@@ -486,3 +524,19 @@ after changing that area:
 17. **Companion only** (0.5): a phone that had a direct VLC server saved updates without a crash; that entry is gone
     from "Saved PCs", companions stay paired. "Other ways to connect" shows Bluetooth, the manual address (port 47555)
     and "How to set up the PC"; a wrong address ends in the pairing-failed card with a hint.
+18. **Touchpad and keyboard** (not checked on a device yet; companion with `input`; check in English and Russian, also
+    with the largest font size, portrait and landscape):
+    1. Start a Moonlight stream → the remote turns into the touchpad (header with the computer and "End", the pad, Left /
+       Right, the keyboard toggle, the quick row). The pointer on the TV follows the finger smoothly, slow strokes are
+       precise, a flick crosses the screen; no jumps when a second finger lands or lifts.
+    2. Tap → left click; two-finger tap → context menu; three-finger tap → middle click; two-finger drag scrolls a page
+       up/down and sideways (content follows the fingers); hold ~0.4 s → a vibration, then drag a window; lifting
+       releases it. With "Button vibration" off there is none.
+    3. Keyboard: the toggle opens the phone's keyboard, the field and the key row stay above it, the header and the quick
+       row hide, nothing is cut off and nothing scrolls. Typing in English and Russian appears on the streamed computer
+       (through Moonlight's clipboard shortcut) and on the PC itself (from "More"); Backspace on an empty-looking field
+       still erases on the PC; picking a suggestion replaces the word on the PC; Enter sends Enter and clears the field;
+       Esc / Tab / Win / arrows work.
+    4. "End" ends the stream and the remote shows the movie again. "More" → "Touchpad and keyboard" opens the full
+       screen at any time (also over Bluetooth); Back returns. An older companion: no entry, the stream's card as
+       before.

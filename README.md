@@ -40,6 +40,9 @@ the system language: English and Russian.
   YouTube thumbnails), the Library, YouTube and another PC's screen.
 - A media notification with lock-screen controls while a movie plays.
 - A sleep timer: pause the TV after 15 min … 2 h or at the end of the episode, and put the PC to sleep if you like.
+- The phone as the PC's touchpad and keyboard: by itself while a Moonlight stream is on the TV, and any time from
+  "More" — move the pointer, tap to click, two fingers to scroll or right-click, hold to drag; type in any language
+  (the text goes over as you type), plus Esc, Tab, Win and the arrows.
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
 **On the PC (the companion)**
@@ -63,7 +66,8 @@ the system language: English and Russian.
 - One TV screen: the display chosen on the phone (or in the tray) is where VLC, YouTube and Moonlight open; choosing
   it moves whatever is on the TV.
 - Another PC's screen: start and end a [Moonlight](https://moonlight-stream.org/) stream of a gaming PC's desktop on
-  the TV (Moonlight and Sunshine are installed separately); the remote shows that the TV is streaming.
+  the TV (Moonlight and Sunshine are installed separately); meanwhile the remote is that computer's touchpad and
+  keyboard.
 - PC controls: system volume, turn the screen off, sleep, "keep awake during a movie".
 - Media station mode: the laptop keeps working with the lid closed, survives the TV being switched off and on
   (VLC pauses and comes back fullscreen on the TV).

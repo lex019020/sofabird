@@ -1,5 +1,6 @@
 package app.sofabird.data.companion
 
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.companion.CompanionCodec
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
@@ -408,5 +409,38 @@ class TransportSelectionTest {
         val c = backend.connection.value as ConnectionState.Connecting
         assertEquals(ConnectionError.BluetoothFailed, c.lastError)
         assertFalse(c.attempt == 0)
+    }
+
+    @Test
+    fun `touchpad input goes on the current link, in order and without a reply`() = runTest {
+        val t = FakeTransports().apply { lanUp = false }
+        val h = backend(t)
+        // Before the link is up nothing is buffered: a stale move is no use later.
+        h.backend.sendInput(PcInput.Move(1, 1))
+
+        h.backend.connect()
+        runCurrent()
+        h.backend.sendInput(PcInput.Press())
+        h.backend.sendInput(PcInput.Move(12, -3))
+        h.backend.sendInput(PcInput.Release())
+
+        assertEquals(
+            listOf(
+                CompanionMessage.Input("down", button = "left"),
+                CompanionMessage.Input("move", dx = 12, dy = -3),
+                CompanionMessage.Input("up", button = "left"),
+            ),
+            t.rfcomm.single().sent.filterIsInstance<CompanionMessage.Input>(),
+        )
+    }
+
+    @Test
+    fun `input on a link that broke is dropped quietly`() = runTest {
+        val t = FakeTransports()
+        val h = backend(t)
+        h.backend.connect()
+        runCurrent()
+        t.ws.single().close() // sending on it now throws
+        h.backend.sendInput(PcInput.Click()) // no exception
     }
 }
