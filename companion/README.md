@@ -29,13 +29,17 @@ companion/
 ├── Sofabird.Companion/       WinExe net10.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (RFCOMM service, M3)
-│   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), EmbeddedLuaPages
+│   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), VlcProcesses (vlc.exe processes and
+│   │                          VlcBackend: what VlcManager talks to, a fake VLC in tests), EmbeddedLuaPages
 │   ├── Services/              DisplayService (monitors via the CCD API, the VLC window), VlcWindowHost, PowerService,
 │   │                          AudioService, AutostartService
 │   ├── Setup/                 SetupForm (setup and permissions window), SetupBackend, ComFirewallRuleSource (COM
 │   │                          HNetCfg.FwPolicy2), FirewallElevation (elevated --apply-firewall helper), NetworkCategories
 │   └── Tray/                  TrayContext (menu), PairingForm (code on the TV screen), TrayIconFactory
 ├── Sofabird.Core.Tests/      xunit: parsers on real VLC 3.0.23 responses (docs/research/samples), session, pairing
+├── Sofabird.Companion.Tests/ xunit: scenario tests of VlcManager against a fake VLC (Fake/FakeVlc: the process,
+│                              status/playlist/tracks pages in the shapes of the samples, RC) — VLC appearing and
+│                              closing, end of an item, no control, resume, track memory, the phone's commands
 └── lua/                       level 1 Lua pages and install.ps1 (they work without the companion too)
 ```
 

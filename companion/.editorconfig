@@ -14,7 +14,7 @@ dotnet_diagnostic.CS1591.severity = none
 # Only the parameters that need explaining get a <param> tag.
 dotnet_diagnostic.CS1573.severity = none
 
-[Sofabird.Core.Tests/**.cs]
+[{Sofabird.Core.Tests,Sofabird.Companion.Tests}/**.cs]
 # xUnit test names read as sentences: Method_Condition_Result.
 dotnet_diagnostic.CA1707.severity = none
 # Expected values written inline next to the assertion; each test runs once.
