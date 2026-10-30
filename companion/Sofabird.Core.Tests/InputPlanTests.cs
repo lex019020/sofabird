@@ -57,6 +57,18 @@ public sealed class InputPlanTests
         Assert.Empty(Plan(new InputMessage { Kind = "wiggle" }));
     }
 
+    [Theory]
+    [InlineData("s", 0x53)] // the performance stats
+    [InlineData("m", 0x4D)] // the mouse mode
+    [InlineData("d", 0x44)] // minimise the stream
+    [InlineData("q", 0x51)] // leave the stream
+    public void Moonlight_shortcuts_are_ctrl_alt_shift_with_a_letter(string key, int vk)
+    {
+        var keys = Plan(new InputMessage { Kind = "key", Key = key, Mods = ["ctrl", "alt", "shift"] }).Cast<KeyAction>().ToList();
+        Assert.Equal([0x11, 0x12, 0x10, vk, vk, 0x10, 0x12, 0x11], keys.Select(k => (int)k.VirtualKey));
+        Assert.Equal([true, true, true, true, false, false, false, false], keys.Select(k => k.Down));
+    }
+
     [Fact]
     public void Moonlight_paste_shortcut()
     {

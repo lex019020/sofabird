@@ -105,6 +105,9 @@
     },
     {
       "$ref": "#/$defs/show"
+    },
+    {
+      "$ref": "#/$defs/moonlightHosts"
     }
   ],
   "$defs": {
@@ -355,12 +358,14 @@
             "displayPower",
             "keepAwake",
             "listDisplays",
+            "moonlightHosts",
             "moonlightStart",
             "moonlightStop",
             "moveToDisplay",
             "preferredDisplay",
             "shutdown",
             "sleep",
+            "sleepTimer",
             "systemVolume",
             "youtube",
             "youtubeAdBlock",
@@ -814,6 +819,49 @@
         }
       }
     },
+    "moonlightHosts": {
+      "type": "object",
+      "required": [
+        "t",
+        "id",
+        "items"
+      ],
+      "properties": {
+        "t": {
+          "const": "moonlightHosts"
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "apps"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "apps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Desktop first, then the host's order; empty - Moonlight does not know them yet"
+              },
+              "stale": {
+                "type": "boolean",
+                "description": "A refresh was asked but the computer did not answer: apps is what Moonlight remembers"
+              }
+            }
+          }
+        }
+      },
+      "description": "Reply to sys moonlightHosts {refresh?} (cap moonlight): the computers paired in Moonlight on the PC"
+    },
     "state": {
       "type": "object",
       "required": [
@@ -1015,7 +1063,7 @@
                 "string",
                 "null"
               ],
-              "description": "The computer Moonlight streams from (the first paired one); absent - none paired"
+              "description": "The computer on the TV while a Moonlight stream runs, else the first paired one; absent - none paired"
             },
             "moonlightStreaming": {
               "type": [

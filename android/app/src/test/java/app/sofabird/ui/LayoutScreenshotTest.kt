@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -34,7 +35,9 @@ import app.sofabird.data.update.AvailableUpdate
 import app.sofabird.data.update.UpdateChannel
 import app.sofabird.data.update.UpdateState
 import app.sofabird.domain.model.AppSettings
+import app.sofabird.domain.model.MoonlightChoice
 import app.sofabird.protocol.model.HistoryItem
+import app.sofabird.protocol.model.MoonlightHost
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.ui.common.LabelText
 import app.sofabird.ui.connection.ConnectionActions
@@ -45,7 +48,9 @@ import app.sofabird.ui.connection.ManualForm
 import app.sofabird.ui.history.ContinueCard
 import app.sofabird.ui.history.ContinueWatchingRow
 import app.sofabird.ui.history.NextEpisodeCard
+import app.sofabird.ui.remote.MoonlightContent
 import app.sofabird.ui.remote.MoonlightSection
+import app.sofabird.ui.remote.MoonlightUi
 import app.sofabird.ui.remote.QuickAction
 import app.sofabird.ui.remote.QuickActionsRow
 import app.sofabird.ui.remote.YouTubeLinkSection
@@ -155,12 +160,40 @@ class LayoutScreenshotTest(private val locale: String, private val fontScale: Fl
         }
     }
 
+    /** "More": the entry to the Moonlight sheet (with the last choice, without one), a stream to end, nothing paired. */
     @Test
+    @Config(qualifiers = "w360dp-h1400dp-xxhdpi")
     fun moonlight() = snapshot("moonlight") {
         Column(Modifier.padding(16.dp)) {
-            MoonlightSection(host = "GAMING-PC", streaming = false, enabled = true, onStart = {}, onStop = {})
-            MoonlightSection(host = "GAMING-PC", streaming = true, enabled = true, onStart = {}, onStop = {})
-            MoonlightSection(host = null, streaming = false, enabled = true, onStart = {}, onStop = {})
+            val last = MoonlightChoice("GAMING-PC", "Steam Big Picture")
+            MoonlightSection(host = "GAMING-PC", last = last, streaming = false, enabled = true, onOpen = {}, onStop = {})
+            MoonlightSection(host = "GAMING-PC", last = null, streaming = false, enabled = true, onOpen = {}, onStop = {})
+            MoonlightSection(host = "GAMING-PC", last = last, streaming = true, enabled = true, onOpen = {}, onStop = {})
+            MoonlightSection(host = null, last = null, streaming = false, enabled = true, onOpen = {}, onStop = {})
+        }
+    }
+
+    /**
+     * The Moonlight sheet: two computers, the remembered one's apps (Desktop first) with the remembered game chosen;
+     * below, the other computer picked while a refresh runs: it did not answer and its apps are unknown, and the error.
+     */
+    @Test
+    @Config(qualifiers = "w360dp-h2600dp-xxhdpi")
+    fun moonlightSheet() = snapshot("moonlight_sheet") {
+        val hosts = listOf(
+            MoonlightHost("GAMING-PC", listOf("Desktop", "Steam Big Picture", "Cyberpunk 2077", "Baldur's Gate 3")),
+            MoonlightHost("office-pc", emptyList(), stale = true),
+        )
+        val ui = MoonlightUi(hosts = hosts, loaded = true, last = MoonlightChoice("GAMING-PC", "Cyberpunk 2077"))
+        Column(Modifier.padding(16.dp)) {
+            MoonlightContent(ui, streamingHost = null, online = true, onPick = { _, _ -> }, onRefresh = {}, onStart = { _, _ -> }, onStop = {})
+            HorizontalDivider(Modifier.padding(vertical = 16.dp))
+            MoonlightContent(
+                ui.copy(pickedHost = "office-pc", loading = true, refreshing = true, error = IllegalStateException("not connected")),
+                streamingHost = null, online = true, onPick = { _, _ -> }, onRefresh = {}, onStart = { _, _ -> }, onStop = {},
+            )
+            HorizontalDivider(Modifier.padding(vertical = 16.dp))
+            MoonlightContent(ui, streamingHost = "GAMING-PC", online = true, onPick = { _, _ -> }, onRefresh = {}, onStart = { _, _ -> }, onStop = {})
         }
     }
 

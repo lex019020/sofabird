@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Refresh
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.sofabird.R
+import app.sofabird.domain.model.MoonlightChoice
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.model.HistoryItem
@@ -80,6 +83,7 @@ fun MoreSheet(
     onDismiss: () -> Unit,
     onOpenDisplays: () -> Unit,
     onOpenTouchpad: () -> Unit = {},
+    onOpenMoonlight: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tick = rememberTick(ui.settings.haptics)
@@ -195,9 +199,10 @@ fun MoreSheet(
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 MoonlightSection(
                     host = ui.state.system?.moonlightHost,
+                    last = ui.moonlight.last,
                     streaming = ui.state.system?.moonlightStreaming == true,
                     enabled = online,
-                    onStart = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStart()); onDismiss() },
+                    onOpen = onOpenMoonlight,
                     onStop = { tick(); viewModel.sendSystem(SystemCommand.MoonlightStop); onDismiss() },
                 )
             }
@@ -346,23 +351,31 @@ private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
 /** `input`: the phone as the PC's touchpad and keyboard, on a screen of its own. */
 @Composable
 private fun TouchpadEntry(onOpen: () -> Unit) {
+    EntryRow(Icons.Default.Mouse, stringResource(R.string.touchpad_title), stringResource(R.string.touchpad_entry_hint), onClick = onOpen)
+}
+
+/** A row that opens a screen or a sheet of its own: icon, title over a hint, an arrow. */
+@Composable
+private fun EntryRow(icon: ImageVector, title: String, hint: String, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpen)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.Mouse, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.touchpad_title), style = MaterialTheme.typography.bodyLarge)
+            Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                stringResource(R.string.touchpad_entry_hint),
+                hint,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
@@ -370,26 +383,44 @@ private fun TouchpadEntry(onOpen: () -> Unit) {
 }
 
 /**
- * `moonlight`: show another computer's screen on the TV through Moonlight on the PC (paired with a Sunshine host),
- * and end that stream. Without a paired computer only a hint is shown.
+ * `moonlight`: another computer's screen on the TV through Moonlight on the PC (paired with a Sunshine host). The
+ * computer and the app are chosen in [MoonlightSheet] ([onOpen]; the row names the last choice of this phone); while a
+ * stream runs it is ended here. Without a paired computer only a hint is shown.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun MoonlightSection(host: String?, streaming: Boolean, enabled: Boolean, onStart: () -> Unit, onStop: () -> Unit) {
+internal fun MoonlightSection(
+    host: String?,
+    last: MoonlightChoice?,
+    streaming: Boolean,
+    enabled: Boolean,
+    onOpen: () -> Unit,
+    onStop: () -> Unit,
+) {
     SectionTitle(stringResource(R.string.section_moonlight))
-    Text(
-        if (host == null) stringResource(R.string.moonlight_no_host) else stringResource(R.string.moonlight_from, host),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-        if (streaming) {
-            Button(onClick = onStop, enabled = enabled) { LabelText(stringResource(R.string.action_moonlight_stop)) }
-        } else {
-            OutlinedButton(onClick = onStart, enabled = enabled && host != null) {
-                LabelText(stringResource(R.string.action_moonlight_start))
+    when {
+        host == null -> Text(
+            stringResource(R.string.moonlight_no_host),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        streaming -> {
+            Text(
+                stringResource(R.string.moonlight_from, host),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                Button(onClick = onStop, enabled = enabled) { LabelText(stringResource(R.string.action_moonlight_stop)) }
             }
         }
+        else -> EntryRow(
+            Icons.Default.Computer,
+            stringResource(R.string.moonlight_choose),
+            last?.let { stringResource(R.string.moonlight_host_app, it.host, it.app) } ?: stringResource(R.string.moonlight_from, host),
+            enabled = enabled,
+            onClick = onOpen,
+        )
     }
 }
 

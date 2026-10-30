@@ -42,12 +42,20 @@ public class SessionTests
             return Task.CompletedTask;
         }
 
-        public Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
+        /// <summary><c>moonlightHosts</c> answers once this is set (asking Moonlight's computers takes a while).</summary>
+        public TaskCompletionSource MoonlightListed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
         {
             if (name == "listDisplays")
-                return Task.FromResult<Message?>(new DisplaysMessage { Items = [new DisplayEntry { Id = "main", Name = "Main", Primary = true }] });
+                return new DisplaysMessage { Items = [new DisplayEntry { Id = "main", Name = "Main", Primary = true }] };
+            if (name == "moonlightHosts")
+            {
+                await MoonlightListed.Task.WaitAsync(ct);
+                return new MoonlightHostsMessage { Items = [new MoonlightHostEntry { Name = "GAMING-PC", Apps = ["Desktop"] }] };
+            }
             Commands.Add(("sys:" + name, args));
-            return Task.FromResult<Message?>(null);
+            return null;
         }
 
         public Task<IReadOnlyList<BrowseEntry>> BrowseAsync(string uri, CancellationToken ct) =>
@@ -306,6 +314,29 @@ public class SessionTests
         t.PhoneDisconnect();
         await run.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(t.Closed);
+    }
+
+    [Fact]
+    public async Task A_slow_moonlight_list_does_not_hold_up_pings_and_commands()
+    {
+        var (t, _, host, _, run) = Start("tok");
+        await t.PhoneSendAsync("""{"t":"hello","v":1,"device":{"name":"P","id":"d"},"token":"tok"}""");
+        Assert.Equal("welcome", Recv(t).GetProperty("t").GetString());
+
+        await t.PhoneSendAsync("""{"t":"sys","id":"20","name":"moonlightHosts","args":{"refresh":true}}""");
+        await t.PhoneSendAsync("""{"t":"ping"}""");
+        Assert.Equal("pong", Recv(t).GetProperty("t").GetString());
+        await t.PhoneSendAsync("""{"t":"sys","id":"21","name":"keepAwake","args":{"on":true}}""");
+        var ok = Recv(t);
+        Assert.Equal(("ok", "21"), (ok.GetProperty("t").GetString(), ok.GetProperty("id").GetString()));
+
+        host.MoonlightListed.SetResult();
+        var hosts = Recv(t);
+        Assert.Equal(("moonlightHosts", "20"), (hosts.GetProperty("t").GetString(), hosts.GetProperty("id").GetString()));
+        Assert.Equal("GAMING-PC", hosts.GetProperty("items")[0].GetProperty("name").GetString());
+
+        t.PhoneDisconnect();
+        await run.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]

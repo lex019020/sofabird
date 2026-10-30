@@ -24,6 +24,7 @@ import app.sofabird.protocol.model.HistoryChange
 import app.sofabird.protocol.model.HistoryFilter
 import app.sofabird.protocol.model.HistoryPage
 import app.sofabird.protocol.model.Library
+import app.sofabird.protocol.model.MoonlightHost
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
@@ -74,6 +75,8 @@ data class CompanionTiming(
     val btPingIntervalMs: Long = 15_000,
     val pongTimeoutMs: Long = 10_000,
     val requestTimeoutMs: Long = 10_000,
+    /** `moonlightHosts` with a refresh: the companion gives each Moonlight computer up to 15 s to list its apps. */
+    val moonlightRefreshTimeoutMs: Long = 25_000,
     val commandBufferMs: Long = 5_000,
     /** WebSocket connect timeout before falling back to Bluetooth ("the PC does not answer for ~3 s"). */
     val lanConnectTimeoutMs: Long = 3_000,
@@ -495,7 +498,10 @@ class CompanionBackend(
 
     // ------------------------------------------------------------------ requests
 
-    private suspend fun request(build: (String) -> CompanionMessage): CompanionMessage {
+    private suspend fun request(
+        timeoutMs: Long = timing.requestTimeoutMs,
+        build: (String) -> CompanionMessage,
+    ): CompanionMessage {
         if (!awaitOnline()) throw CompanionHandshakeException(ConnectionError.Timeout, "not connected")
         val t = transport ?: error("no session")
         val id = nextId()
@@ -503,7 +509,7 @@ class CompanionBackend(
         pending[id] = deferred
         try {
             t.sendMessage(build(id))
-            val reply = withTimeout(timing.requestTimeoutMs) { deferred.await() }
+            val reply = withTimeout(timeoutMs) { deferred.await() }
             if (reply is CompanionMessage.Err) {
                 throw CompanionErrorException(reply.errorCode, reply.code, reply.msg)
             }
@@ -549,6 +555,13 @@ class CompanionBackend(
     override suspend fun listDisplays(): Result<app.sofabird.protocol.companion.DisplayList> = resultOf {
         val reply = request { id -> CommandMapping.toSys(id, SystemCommand.ListDisplays) }
         (reply as? CompanionMessage.Displays)?.toList() ?: app.sofabird.protocol.companion.DisplayList()
+    }
+
+    /** A refresh asks every Moonlight computer for its apps on the PC: it is given more time than other requests. */
+    override suspend fun moonlightHosts(refresh: Boolean): Result<List<MoonlightHost>> = resultOf {
+        val timeout = if (refresh) timing.moonlightRefreshTimeoutMs else timing.requestTimeoutMs
+        val reply = request(timeout) { id -> CommandMapping.toSys(id, SystemCommand.MoonlightHosts(refresh)) }
+        (reply as? CompanionMessage.MoonlightHosts)?.items ?: error("unexpected reply ${reply::class.simpleName}")
     }
 
     override suspend fun audioDevices(): Result<List<app.sofabird.protocol.companion.AudioDevice>> = resultOf {

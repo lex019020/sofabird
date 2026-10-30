@@ -88,6 +88,7 @@ object CommandMapping {
                 command.app?.let { put("app", it) }
             }
             SystemCommand.MoonlightStop -> "moonlightStop" to EMPTY
+            is SystemCommand.MoonlightHosts -> "moonlightHosts" to args { if (command.refresh) put("refresh", true) }
             is SystemCommand.YouTubeOpen -> "youtubeOpen" to args { put("url", command.url) }
             is SystemCommand.YouTubeAdBlock -> "youtubeAdBlock" to args { put("on", command.on) }
             is SystemCommand.YouTubeSponsorBlock -> "youtubeSponsorBlock" to args { put("on", command.on) }

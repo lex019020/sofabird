@@ -146,6 +146,7 @@ and state changes arrive in a separate `state`.
 | `sleepTimer` | `{"minutes": 1..720}` or `{"endOfItem": true}`, with `"action": "pause"\|"sleep"` (default `pause`); neither — off | `sleepTimer` |
 | `audioDevice` | `{"id": string}` (`""` = default) | `audioDevices` |
 | `systemVolume` | `{"value": 0..100}` or `{"delta": int}` or `{"mute": bool}` | `systemVolume` |
+| `moonlightHosts` | `{"refresh"?: bool}` → `{"t":"moonlightHosts","id":..,"items":[{"name","apps":[string],"stale"?: true}]}` | `moonlight` |
 | `moonlightStart` | `{"host"?: string, "app"?: string}` (defaults: the first computer paired in Moonlight, `Desktop`) | `moonlight` |
 | `moonlightStop` | — | `moonlight` |
 | `youtubeOpen` | `{"url": string}` — a link or the text the YouTube app shares | `youtube` |
@@ -160,12 +161,26 @@ episode or video that plays now ends (VLC stops at its end or goes on to the nex
 ends). `state.system.sleepTimer = {"endsAt": unix ms, "action"}` or `{"endOfItem": true, "action"}`; absent — off.
 A new `sleepTimer` replaces the old one.
 
-Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightStart` pauses VLC, closes Moonlight's own
+Moonlight (cap `moonlight`: Moonlight-qt is installed on the PC): `moonlightHosts` lists the computers paired in
+Moonlight with their apps, `"Desktop"` first, then the host's order (apps hidden in Moonlight are left out): as
+Moonlight remembers them from the last time it saw each computer, or — with `"refresh": true` — as each computer says
+now: the companion runs `Moonlight.exe list <host> --csv` for all of them at once (no window; up to 15 s each). A
+computer that does not answer (off, asleep) or whose list cannot be read keeps the remembered list and gets
+`"stale": true`; a fresh list is kept by the companion until it restarts (for later requests and `moonlightStart`).
+`apps` empty — Moonlight does not know them yet; `Desktop` can be started all the same. A refresh may take ~15 s: the
+companion answers it beside the session's other messages (pings, input and commands are not held up behind it), so
+the phone waits longer for this reply than for others. `moonlightStart` pauses VLC, closes Moonlight's own
 window and runs `Moonlight.exe stream <host> <app> --display-mode borderless --background-gamepad`; an already running stream is kept.
 `moonlightStop` runs `Moonlight.exe quit <host>` for the streamed host (the app on the host ends, and so does the
 stream) and closes any Moonlight window left. Errors: `unsupported` (not installed), `bad_request` (no paired
-computer, or Moonlight exited at once). `state.system.moonlightHost` is the first paired computer (absent — none),
-`moonlightStreaming` whether a stream is on the screen (also one started by hand in Moonlight).
+computer, or Moonlight exited at once). `state.system.moonlightHost` is the computer on the TV while a stream runs,
+else the first paired one (absent — none), `moonlightStreaming` whether a stream is on the screen (also one started by
+hand in Moonlight).
+
+During a stream the phone's `input` reaches Moonlight's window, so its own shortcuts work as `key` messages with
+`"mods": ["ctrl","alt","shift"]`: `s` — the performance stats overlay, `m` — the mouse mode (remote-desktop cursor or
+captured game mouse), `d` — minimise the stream, `q` — leave the stream with the app still running on the other
+computer (`v` — paste, which `text` uses). The remote offers stats and mouse mode.
 
 YouTube (cap `youtube`: a browser for it — Firefox or LibreWolf — is installed on the PC): the companion keeps a
 browser profile of its own for the TV (`tv-browser` in its data folder; the user signs in to YouTube there once).
@@ -396,8 +411,9 @@ focus on the PC (a Moonlight stream passes it on to its computer):
   it on the other computer.
 - `{"kind":"key","key":"enter","mods":["alt"]}` — a key (sent as a scan code): `enter`, `backspace`, `tab`, `escape`,
   `space`, `left`/`up`/`right`/`down`, `home`, `end`, `pageup`, `pagedown`, `delete`, `win`, `f4`, `f5`, `f11`,
-  `volumeup`/`volumedown`/`volumemute`, `a`, `c`, `d`, `l`, `v`, `z`; `mods` of `ctrl`, `alt`, `shift`, `win` are held
-  around it. Unknown kinds, keys or modifiers do nothing.
+  `volumeup`/`volumedown`/`volumemute`, `a`, `c`, `d`, `l`, `m`, `q`, `s`, `v`, `z`; `mods` of `ctrl`, `alt`, `shift`,
+  `win` are held around it (Ctrl+Alt+Shift with `s`, `m`, `d`, `q` are Moonlight's shortcuts, see above). Unknown kinds,
+  keys or modifiers do nothing.
 
 Windows of programs running as administrator do not take this input (Windows' UIPI).
 

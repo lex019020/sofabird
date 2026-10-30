@@ -48,6 +48,7 @@ namespace Sofabird.Core.Protocol;
 [JsonSerializable(typeof(ShowMessage))]
 [JsonSerializable(typeof(HistoryUpdateMessage))]
 [JsonSerializable(typeof(HistoryClearMessage))]
+[JsonSerializable(typeof(MoonlightHostsMessage))]
 [JsonSerializable(typeof(InfoResponse))]
 public partial class ProtocolJsonContext : JsonSerializerContext
 {

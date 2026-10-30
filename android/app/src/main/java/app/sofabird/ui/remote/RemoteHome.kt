@@ -267,10 +267,11 @@ private fun HomeTiles(ui: RemoteUiState, actions: RemoteActions) {
                 actions.open(RemotePlace.YOUTUBE)
             })
         }
+        // Another computer through Moonlight: the sheet to choose it and its app; the hint names the last app shown.
         val host = ui.state.system?.moonlightHost
         if (ui.capabilities.moonlight && host != null) {
-            add(HomeTile(Icons.Default.Computer, stringResource(R.string.home_stream), host, online) {
-                actions.system(SystemCommand.MoonlightStart())
+            add(HomeTile(Icons.Default.Computer, stringResource(R.string.home_stream), ui.moonlight.last?.app ?: host, online) {
+                actions.open(RemotePlace.MOONLIGHT)
             })
         }
     }

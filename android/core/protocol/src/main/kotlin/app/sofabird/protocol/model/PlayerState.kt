@@ -275,7 +275,10 @@ data class SystemState(
     /** Monitor VLC opens on; `null` = not managed. */
     val preferredDisplayId: String? = null,
     val keepAwake: Boolean? = null,
-    /** The computer Moonlight streams from; `null` = none paired (or Moonlight is not installed). */
+    /**
+     * The computer on the TV while a Moonlight stream runs, else the first one paired in Moonlight; `null` = none paired
+     * (or Moonlight is not installed).
+     */
     val moonlightHost: String? = null,
     /** A Moonlight stream is on the TV; `null` = Moonlight is not installed. */
     val moonlightStreaming: Boolean? = null,

@@ -68,6 +68,8 @@ data class RemoteUiState(
     val wake: PcWaker.State? = null,
     /** `getHistory continue` for the home screen ([home]); loaded while it shows. */
     val continueItems: List<HistoryItem> = emptyList(),
+    /** The Moonlight sheet: computers, apps and the choice; [MoonlightUi.last] also names the home tile's app. */
+    val moonlight: MoonlightUi = MoonlightUi(),
 ) {
     /**
      * A Moonlight stream is on the TV instead of VLC: the computer it shows (`""` when unknown); `null` = no stream.
@@ -164,6 +166,9 @@ class RemoteViewModel(
     )
 
     private val local = MutableStateFlow(Local())
+
+    /** The Moonlight sheet's list and choice. */
+    val moonlight = MoonlightChooser(controller, viewModelScope)
     private var pcInfoJob: Job? = null
     private var displaysJob: Job? = null
     private var displayActionJob: Job? = null
@@ -173,9 +178,9 @@ class RemoteViewModel(
         combine(controller.state, controller.connection, controller.capabilities, ::Triple),
         settings.flow,
         controller.activeServer,
-        combine(controller.bluetoothNeed, waker.state, ::Pair),
+        combine(controller.bluetoothNeed, waker.state, moonlight.state, ::Triple),
         local,
-    ) { (state, connection, caps), prefs, server, (bluetoothNeed, wake), l ->
+    ) { (state, connection, caps), prefs, server, (bluetoothNeed, wake, moonlightUi), l ->
         RemoteUiState(
             state = state,
             connection = connection,
@@ -194,6 +199,7 @@ class RemoteViewModel(
             recentVideos = l.recentVideos,
             wake = wake.takeIf { server?.wakeMacs?.isNotEmpty() == true },
             continueItems = l.continueItems,
+            moonlight = moonlightUi.copy(last = server?.moonlight),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemoteUiState())
 

@@ -36,6 +36,8 @@ data class SavedServer(
     val tlsPort: Int? = null,
     /** SHA-256 of the companion's certificate, pinned at the first encrypted connection: from then on only that. */
     val certPin: String? = null,
+    /** What this phone last showed on this PC's TV through Moonlight: chosen again by default. */
+    val moonlight: MoonlightChoice? = null,
 ) {
     val displayName: String get() = name.ifBlank { host.ifBlank { btAddress.orEmpty() } }
 
@@ -64,6 +66,10 @@ data class SavedServer(
         }
     }
 }
+
+/** A computer paired in Moonlight on the TV PC and one of its apps (`sys moonlightStart {host, app}`). */
+@Serializable
+data class MoonlightChoice(val host: String, val app: String)
 
 /**
  * The saved companion server that a discovered/typed companion corresponds to: by saved id, then by

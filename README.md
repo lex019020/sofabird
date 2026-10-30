@@ -66,9 +66,11 @@ the system language: English and Russian.
   or in the setup window); the setup window installs Firefox and opens the YouTube sign-in.
 - One TV screen: the display chosen on the phone (or in the tray) is where VLC, YouTube and Moonlight open; choosing
   it moves whatever is on the TV.
-- Another PC's screen: start and end a [Moonlight](https://moonlight-stream.org/) stream of a gaming PC's desktop on
-  the TV (Moonlight and Sunshine are installed separately); meanwhile the remote is that computer's touchpad and
-  keyboard.
+- Another PC's screen: start a [Moonlight](https://moonlight-stream.org/) stream of another computer on the TV —
+  choose the computer and what to show (its desktop, Steam Big Picture, a game; the list can be refreshed from the
+  computers themselves, and the last choice is remembered) — and end it the same way (Moonlight and Sunshine are
+  installed separately). Meanwhile the remote is that computer's touchpad and keyboard, with Moonlight's stats overlay
+  and mouse mode a tap away.
 - PC controls: system volume, turn the screen off, sleep, "keep awake during a movie".
 - Media station mode: the laptop keeps working with the lid closed, survives the TV being switched off and on
   (VLC pauses and comes back fullscreen on the TV).

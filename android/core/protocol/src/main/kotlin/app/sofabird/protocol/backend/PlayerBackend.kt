@@ -9,6 +9,7 @@ import app.sofabird.protocol.model.HistoryChange
 import app.sofabird.protocol.model.HistoryFilter
 import app.sofabird.protocol.model.HistoryPage
 import app.sofabird.protocol.model.Library
+import app.sofabird.protocol.model.MoonlightHost
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
@@ -53,6 +54,12 @@ interface PlayerBackend {
 
     /** `sys listDisplays` (needs `windowControl` capability). */
     suspend fun listDisplays(): Result<DisplayList>
+
+    /**
+     * `sys moonlightHosts` (needs `moonlight` capability): the computers paired in Moonlight on the PC with their apps;
+     * with [refresh] each is asked for its apps first, which may take ~15 s.
+     */
+    suspend fun moonlightHosts(refresh: Boolean): Result<List<MoonlightHost>>
 
     /** `getHistory` (needs `history` capability). */
     suspend fun history(filter: HistoryFilter, limit: Int, offset: Int = 0): Result<HistoryPage>

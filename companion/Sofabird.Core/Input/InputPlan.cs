@@ -47,6 +47,9 @@ public static class InputPlan
         ["win"] = 0x5B, ["f4"] = 0x73, ["f5"] = 0x74, ["f11"] = 0x7A,
         ["volumemute"] = 0xAD, ["volumedown"] = 0xAE, ["volumeup"] = 0xAF,
         ["c"] = 0x43, ["v"] = 0x56, ["a"] = 0x41, ["z"] = 0x5A, ["l"] = 0x4C, ["d"] = 0x44,
+        // Moonlight's own shortcuts are Ctrl+Alt+Shift with these: S — the performance stats, M — the mouse mode,
+        // D — minimise the stream, Q — leave the stream (the app keeps running on the other computer).
+        ["s"] = 0x53, ["m"] = 0x4D, ["q"] = 0x51,
     };
 
     private static readonly Dictionary<string, ushort> Modifiers = new(StringComparer.OrdinalIgnoreCase)

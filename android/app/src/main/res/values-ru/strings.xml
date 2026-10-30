@@ -232,6 +232,18 @@
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
     <string name="moonlight_on_tv">Moonlight на ТВ</string>
     <string name="action_moonlight_end">Завершить</string>
+    <string name="moonlight_sheet_hint">Moonlight на компьютере у телевизора покажет экран или игру другого компьютера.</string>
+    <string name="moonlight_choose">Выбрать компьютер и приложение</string>
+    <string name="moonlight_host_app">%1$s · %2$s</string>
+    <string name="moonlight_computer">Компьютер</string>
+    <string name="moonlight_apps">Что показать</string>
+    <string name="moonlight_desktop_hint">Весь экран</string>
+    <string name="moonlight_apps_unknown">Moonlight ещё не знает приложений %1$s: обновите список или покажите рабочий стол.</string>
+    <string name="moonlight_stale">%1$s не ответил, поэтому показаны приложения, которые помнит Moonlight.</string>
+    <string name="moonlight_refreshing">Спрашиваю у компьютеров их приложения…</string>
+    <string name="moonlight_refresh">Обновить список приложений</string>
+    <string name="moonlight_stats">Статистика</string>
+    <string name="moonlight_mouse_mode">Режим мыши</string>
 
     <!-- Touchpad and keyboard (companion `input` capability) -->
     <string name="touchpad_title">Тачпад и клавиатура</string>

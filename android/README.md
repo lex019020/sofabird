@@ -309,6 +309,24 @@ with the minutes left. The companion keeps the timer and pauses VLC/YouTube when
 `state.system.sleepTimer` drives "Pauses in 23 min" / "The PC sleeps at the end" under the title of the remote (VLC and
 YouTube), refreshed every 15 s.
 
+## Moonlight: another PC's screen
+
+With `caps.moonlight` (Moonlight-qt on the TV PC, paired with a Sunshine host) the home screen's **Another PC** tile and
+"More" → "Another PC's screen" → "Choose a computer and an app" open `MoonlightSheet` (`ui/remote/MoonlightSheet.kt`;
+`MoonlightContent` is the stateless part, drawn by the screenshot tests). It asks `sys moonlightHosts` when it opens
+(`MoonlightChooser`, owned by `RemoteViewModel`; its `MoonlightUi` is part of `RemoteUiState`): the computers paired in
+Moonlight as chips when there are several, the chosen one's apps as radio rows (Desktop — "The whole screen" — first,
+then e.g. Steam Big Picture and games), and "Show on the TV" → `sys moonlightStart {host, app}`. The refresh button
+asks for `{"refresh": true}`: the companion asks every computer for its apps, which takes up to ~15 s for one that is
+off, so the phone waits up to 25 s for this reply (`CompanionTiming.moonlightRefreshTimeoutMs`) and shows "Asking the
+computers for their apps…" with a spinner; a computer that did not answer is marked ("… these are the apps Moonlight
+remembers"), a computer whose apps Moonlight does not know yet offers Desktop alone; a failed request is shown in the
+sheet (a companion from before `moonlightHosts` answers `unsupported`: its first computer's Desktop is offered alone,
+`MoonlightUi.loaded`). What was started is remembered per saved PC (`SavedServer.moonlight`,
+`PlayerController.rememberMoonlight`) and preselected next time (`MoonlightUi.host`/`app`: picked in the sheet, else the remembered one, else the first computer
+and Desktop). While a stream runs the sheet shows the computer on the TV and "End streaming" (`moonlightStop`), as does
+"More". Everything is behind `caps.moonlight`.
+
 ## Touchpad and keyboard
 
 With `caps.input` the phone is the PC's touchpad and keyboard (owner's request), for whatever has the focus on the PC —
@@ -316,7 +334,11 @@ a Moonlight stream passes it on to the streamed computer. Where it shows:
 
 - **While a Moonlight stream is on the TV** (`RemoteUiState.streamingHost`), by itself: `StreamingTouchpad` replaces the
   stream's card. Portrait: a compact header (the computer, "Moonlight on the TV", "End") over the touchpad and the quick
-  row; landscape: the stream's card on the left, the touchpad and the quick row on the right. While the phone's keyboard
+  row; landscape: the stream's card on the left, the touchpad and the quick row on the right. The quick row has
+  Moonlight's own shortcuts instead of VLC's tracks: "Stats" (Ctrl+Alt+Shift+S, Moonlight's performance overlay) and
+  "Mouse mode" (Ctrl+Alt+Shift+M) as `key` inputs (`MoonlightShortcut` in `:core:protocol`), then "More" (the TV screen
+  is there). Minimise (+D) and leave the stream (+Q) are known keys but not offered: a minimised stream cannot be
+  brought back from the phone (the shortcut needs the stream window to have the focus). While the phone's keyboard
   is up (`WindowInsets.ime`) the header and the quick row step aside and the pad gives way (`imePadding`; `AppRoot`
   consumes the scaffold's insets so the padding is only the part the keyboard covers): the remote never scrolls. Without
   `input` (an older companion) the card stays as before.
@@ -357,7 +379,8 @@ picture, YouTube videos with their thumbnail; a tap is `cmd open`, which starts 
 the TV browser; a long press offers "Mark as watched" and "Remove from history", `RemoteViewModel.changeHistory`) with a
 link to the History, and tiles: **Library** (the tab), **YouTube** (`YouTubeSheet`: a link,
 the videos played on the TV, "Open YouTube" to pick one and share it to Sofabird, the add-on switches) and **Another
-PC** (Moonlight, when the PC has a paired computer). Below: the TV screen and "More" (where "Launch VLC" stays). It
+PC** (Moonlight, when the PC has a paired computer: opens the Moonlight sheet, its hint names the app last shown). Below:
+the TV screen and "More" (where "Launch VLC" stays). It
 never scrolls: `FittingColumn` shows as many entries as fit and leaves out the rest. VLC starting, open without control
 or not installed keeps its card.
 
@@ -447,7 +470,7 @@ after changing that area:
    on the phone (autofocus, Samsung numeric keyboard, sending on the 6th digit); a wrong code → an error and
    the field cleared; "Cancel"; the token is saved, after an app restart — connecting without a code;
    reconnect after the laptop sleeps; "Forget this computer" → a code again on the next tap.
-9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "TV screen" item opens the "TV screen" sheet (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Show on the TV" / "End streaming" (`sys moonlightStart|moonlightStop`, cap `moonlight`), "YouTube on the TV" with a link field and "Paste" (`sys youtubeOpen`, cap `youtube`) and the "Block ads (uBlock Origin)" and "Skip sponsor segments (SponsorBlock)" switches (`sys youtubeAdBlock|youtubeSponsorBlock`, `state.youtube.adBlock|sponsorBlock`); "Share → Sofabird" from the YouTube app sends the shared text the same way (it waits up to 15 s for the PC); while YouTube is open the remote shows its thumbnail, title, channel, position, the transport buttons and the PC's volume, with "Close YouTube" in the thumbnail's corner, "An ad plays…" over the title during an ad and a "Skip" tile while it can be skipped (`youtube.ad` / `adSkippable`, `skipAd`), "Video" (subtitles and quality,
+9. The "More" sheet with the companion: the list of audio devices (`getAudioDevices` → `sys audioDevice`), the "TV screen" item opens the "TV screen" sheet (item 14), "keep awake"/display/sleep (`sys keepAwake|displayPower|sleep`), the Windows volume slider (`sys systemVolume`), "Another PC's screen" with "Choose a computer and an app" (the Moonlight sheet, item 20) / "End streaming" (`sys moonlightStop`, cap `moonlight`), "YouTube on the TV" with a link field and "Paste" (`sys youtubeOpen`, cap `youtube`) and the "Block ads (uBlock Origin)" and "Skip sponsor segments (SponsorBlock)" switches (`sys youtubeAdBlock|youtubeSponsorBlock`, `state.youtube.adBlock|sponsorBlock`); "Share → Sofabird" from the YouTube app sends the shared text the same way (it waits up to 15 s for the PC); while YouTube is open the remote shows its thumbnail, title, channel, position, the transport buttons and the PC's volume, with "Close YouTube" in the thumbnail's corner, "An ad plays…" over the title during an ad and a "Skip" tile while it can be skipped (`youtube.ad` / `adSkippable`, `skipAd`), "Video" (subtitles and quality,
 `youtube.captions`/`caption`/`qualities`/`quality`, `sys youtube captions|quality` with `value`; `YouTubeVideoSheet`;
 the TV screen then moves to "More") or the TV screen, and "Fullscreen"; the media notification, the lock screen, headset buttons and the volume keys then follow YouTube and the PC's volume (`onTv()` / `routeToYouTube()` in `:core:protocol`) — the sections appear only with the corresponding `caps`.
 10. The phone name in the pairing window on the PC (`Settings.Global.DEVICE_NAME`, e.g. "Galaxy S24").
@@ -550,3 +573,18 @@ the TV screen then moves to "More") or the TV screen, and "Fullscreen"; the medi
     4. "End" ends the stream and the remote shows the movie again. "More" → "Touchpad and keyboard" opens the full
        screen at any time (also over Bluetooth); Back returns. An older companion: no entry, the stream's card as
        before.
+20. **Choosing the computer and the app for Moonlight** (not checked on a device yet; the TV PC's Moonlight paired with
+    two Sunshine hosts, one of them with Steam Big Picture and a game; English and Russian, the largest font size):
+    1. Home screen → "Another PC" opens the sheet (it no longer starts at once): both computers as chips, the apps of
+       the first one with Desktop first and selected. Pick the other computer → its apps; pick an app → "Show on the
+       TV" starts exactly that (VLC pauses), the sheet closes and the remote turns into the touchpad.
+    2. End the stream, open the sheet again → the same computer and app are preselected (also after an app restart);
+       the home tile's hint names that app; "More" → "Another PC's screen" shows "GAMING-PC · Steam Big Picture".
+    3. Refresh with both computers on → the spinner and "Asking the computers…", then the lists as Sunshine has them
+       now (an app added in Sunshine appears; apps hidden in Moonlight do not). With one computer asleep → after ~15 s
+       its list stays with "did not answer"; the remote keeps working meanwhile (no reconnect, the touchpad and volume
+       react) and nothing shows a Moonlight window on the TV.
+    4. During a stream: "Stats" toggles Moonlight's performance overlay on the TV, "Mouse mode" switches the cursor
+       between the remote-desktop pointer and the captured game mouse (also with a Russian keyboard layout active on
+       the TV PC); the sheet (from "More") shows only "End streaming". An older companion (no `moonlightHosts`): the
+       sheet offers the first computer's Desktop alone, as before.

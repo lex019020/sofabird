@@ -375,12 +375,28 @@ shares) are the phone's library of movies and series (`Services/LibraryService.c
 ## Moonlight: another PC's screen on the TV
 
 When Moonlight (Moonlight-qt, installed and paired with a Sunshine host by the user) is found in Program Files or
-`%LOCALAPPDATA%\Programs`, the companion reports the `moonlight` cap. `sys moonlightStart` pauses VLC, closes
-Moonlight's own window and runs `Moonlight.exe stream <host> Desktop --display-mode borderless --background-gamepad --keep-awake`;
-`sys moonlightStop` runs `Moonlight.exe quit <host>` and closes whatever Moonlight window is left. The paired
-computers and their apps are read from Moonlight's settings (`HKCU\Software\Moonlight Game Streaming Project\Moonlight\hosts`);
-`state.system.moonlightHost` is the first one, `moonlightStreaming` is true while any `Moonlight.exe stream …` runs (also one
-started by hand). The stream opens on the display of Moonlight's window: with the lid closed that is the TV.
+`%LOCALAPPDATA%\Programs`, the companion reports the `moonlight` cap. `sys moonlightStart {host, app}` pauses VLC,
+closes Moonlight's own window and runs `Moonlight.exe stream <host> <app> --display-mode borderless --background-gamepad --keep-awake`
+(default: the first paired computer, `Desktop`); `sys moonlightStop` runs `Moonlight.exe quit <host>` and closes
+whatever Moonlight window is left.
+
+The paired computers and their apps are read from Moonlight's settings
+(`HKCU\Software\Moonlight Game Streaming Project\Moonlight\hosts\N\hostname`, `apps\M\name`; apps with `hidden` set in
+Moonlight are left out). `sys moonlightHosts` gives them to the phone, `Desktop` first (`MoonlightCatalog` in Core).
+That list is what Moonlight saw the last time it talked to each computer; with `{"refresh": true}` the companion runs
+`Moonlight.exe list <host> --csv` for every paired computer at once (no window, output redirected, UTF-8) and parses
+the app names from the CSV (`MoonlightCommandLine.ParseAppList`: the header line, then one line per app with the name in
+quotes; log lines are skipped, a mangled name makes the output untrusted). Each run gets 15 s (Moonlight seeks a
+computer that is off for ~10 s, then fails); a computer that does not answer, a non-zero exit code or output that is
+not such a list keep the remembered apps and mark the computer `stale`. Fresh lists are kept in memory until the
+companion restarts and are used by `moonlightStart` too. The request runs beside the session's other messages, so a
+refresh never holds up pings or the touchpad.
+
+`state.system.moonlightHost` is the computer on the TV while a stream runs (from the `stream` command line), else the
+first paired one; `moonlightStreaming` is true while any `Moonlight.exe stream …` runs (also one started by hand). The
+stream opens on the display of Moonlight's window: with the lid closed that is the TV. During a stream the phone's
+`input` reaches Moonlight's window, so Moonlight's own shortcuts (Ctrl+Alt+Shift+S for the stats overlay, +M for the
+mouse mode) come from the phone as ordinary `key` messages.
 
 ## YouTube on the TV
 

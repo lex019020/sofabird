@@ -11,6 +11,7 @@ import app.sofabird.protocol.model.LibraryEpisode
 import app.sofabird.protocol.model.LibraryInfo
 import app.sofabird.protocol.model.LibraryMovie
 import app.sofabird.protocol.model.LibraryShow
+import app.sofabird.protocol.model.MoonlightHost
 import app.sofabird.protocol.model.NextEpisode
 import app.sofabird.protocol.model.Playback
 import app.sofabird.protocol.model.PlayerState
@@ -299,6 +300,14 @@ sealed class CompanionMessage {
     ) : CompanionMessage() {
         fun toList() = DisplayList(items, preferredId)
     }
+
+    /** Answer to `sys moonlightHosts`: the computers paired in Moonlight on the PC. */
+    @Serializable
+    @SerialName("moonlightHosts")
+    data class MoonlightHosts(
+        override val id: String? = null,
+        val items: List<MoonlightHost> = emptyList(),
+    ) : CompanionMessage()
 
     /** Answer to [GetHistory]. */
     @Serializable
