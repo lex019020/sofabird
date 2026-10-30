@@ -32,6 +32,7 @@ public sealed class CompanionHost : ISessionHost
     private readonly DisplayService _display;
     private readonly PowerService _power;
     private readonly SleepTimer _sleepTimer;
+    private readonly InputService _input;
     private readonly AudioService _audio;
     private readonly BackgroundWork _background;
     private readonly LibraryService _library;
@@ -46,7 +47,7 @@ public sealed class CompanionHost : ISessionHost
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
         LibraryService library, MoonlightService moonlight, YouTubeService youtube, YouTubeHistory youtubeHistory,
-        WakeOnLanService wake, SleepTimer sleepTimer, ILogger<CompanionHost> log)
+        WakeOnLanService wake, SleepTimer sleepTimer, InputService input, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -73,6 +74,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.WindowControl,
             Core.Protocol.Caps.Power,
             Core.Protocol.Caps.SleepTimer,
+            Core.Protocol.Caps.Input,
             Core.Protocol.Caps.SystemVolume,
             Core.Protocol.Caps.Metadata,
             Core.Protocol.Caps.Library,
@@ -105,6 +107,7 @@ public sealed class CompanionHost : ISessionHost
         _moonlight.Changed += _vlc.Poke;
         _youtube.Changed += _vlc.Poke;
         _sleepTimer = sleepTimer;
+        _input = input;
         _sleepTimer.Changed += _vlc.Poke;
         _sleepTimer.Fired += OnSleepTimerFired;
         _vlc.ItemEnded += _sleepTimer.OnItemEnded;
@@ -340,6 +343,8 @@ public sealed class CompanionHost : ISessionHost
         "play" => args.GetInt("plId") is not null,
         _ => false,
     };
+
+    public void Input(InputMessage input) => _input.Handle(input);
 
     public async Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct)
     {

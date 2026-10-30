@@ -28,6 +28,7 @@ namespace Sofabird.Core.Protocol;
 [JsonDerivedType(typeof(StateMessage), "state")]
 [JsonDerivedType(typeof(EventMessage), "event")]
 [JsonDerivedType(typeof(PingMessage), "ping")]
+[JsonDerivedType(typeof(InputMessage), "input")]
 [JsonDerivedType(typeof(PongMessage), "pong")]
 [JsonDerivedType(typeof(BeaconMessage), "beacon")]
 [JsonDerivedType(typeof(GetHistoryMessage), "getHistory")]
@@ -384,6 +385,21 @@ public sealed class ShowMessage : Message
 
 public sealed class PingMessage : Message;
 
+/// <summary>
+/// Touchpad and keyboard from a phone (<c>caps.input</c>): injected on the PC, no reply (see
+/// <see cref="Input.InputPlan"/> for the kinds).
+/// </summary>
+public sealed class InputMessage : Message
+{
+    public string Kind { get; set; } = "";
+    public int? Dx { get; set; }
+    public int? Dy { get; set; }
+    public string? Button { get; set; }
+    public string? Text { get; set; }
+    public string? Key { get; set; }
+    public IReadOnlyList<string>? Mods { get; set; }
+}
+
 public sealed class PongMessage : Message;
 
 /// <summary>Response to the UDP beacon. The <c>id</c> field (the base <see cref="Message.Id"/>) is the PC GUID.</summary>
@@ -455,6 +471,8 @@ public static class Caps
     public const string YouTube = "youtube";
     /// <summary>The sleep timer: <c>sys sleepTimer</c>, <c>state.system.sleepTimer</c>.</summary>
     public const string SleepTimer = "sleepTimer";
+    /// <summary>The phone as a touchpad and keyboard: <c>input</c> messages.</summary>
+    public const string Input = "input";
 }
 
 public static class EventNames

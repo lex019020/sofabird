@@ -37,6 +37,7 @@ namespace Sofabird.Core.Protocol;
 [JsonSerializable(typeof(StateMessage))]
 [JsonSerializable(typeof(EventMessage))]
 [JsonSerializable(typeof(PingMessage))]
+[JsonSerializable(typeof(InputMessage))]
 [JsonSerializable(typeof(PongMessage))]
 [JsonSerializable(typeof(BeaconMessage))]
 [JsonSerializable(typeof(GetHistoryMessage))]
