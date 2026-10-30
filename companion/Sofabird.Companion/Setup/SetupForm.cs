@@ -1,5 +1,6 @@
 using Sofabird.Companion.Localization;
 using Sofabird.Companion.Net;
+using Sofabird.Companion.Vlc;
 using Sofabird.Companion.YouTube;
 using Sofabird.Core.Power;
 using Sofabird.Core.Setup;
@@ -20,6 +21,7 @@ public sealed class SetupForm : Form
     private readonly Item _firewall;
     private readonly Item _autostart;
     private readonly Item _vlc;
+    private readonly Button _vlcInstall;
     private readonly Item _keepAwake;
     private readonly Item _mediaStation;
     private readonly Item _wake;
@@ -88,6 +90,12 @@ public sealed class SetupForm : Form
 
         _autostart = AddItem(UiText.SetupAutostartTitle, UiText.SetupAutostartText, toggle: true);
         _vlc = AddItem(UiText.SetupVlcTitle, UiText.SetupVlcText, toggle: true);
+        _vlcInstall = DialogButton(UiText.SetupVlcInstall);
+        _vlcInstall.Margin = new Padding(0, 6, 0, 0);
+        _vlcInstall.Anchor = AnchorStyles.Left;
+        _vlcInstall.Visible = false;
+        _vlcInstall.Click += async (_, _) => await InstallVlcAsync();
+        _vlc.Content.Controls.Add(_vlcInstall);
         _media = AddItem(UiText.SetupMediaTitle, UiText.SetupMediaText, toggle: false);
         _mediaList = new ListBox
         {
@@ -410,6 +418,7 @@ public sealed class SetupForm : Form
             SetStatus(_autostart, s.Autostart ? UiText.SetupOn : UiText.SetupOff, s.Autostart ? Tone.Ok : Tone.Neutral);
 
         _vlc.Toggle!.Enabled = s.Vlc != VlcSetupState.NotInstalled;
+        _vlcInstall.Visible = s.Vlc == VlcSetupState.NotInstalled;
         if (_result?.Vlc is { Outcome: StepOutcome.Failed })
             SetStatus(_vlc, UiText.SetupVlcFailed, Tone.Error);
         else
@@ -514,6 +523,29 @@ public sealed class SetupForm : Form
         if (error is not null) SetStatus(_youtube, UiText.SetupYouTubeInstallFailed(error), Tone.Error);
     }
 
+    private async Task InstallVlcAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        SetEnabled(false);
+        var progress = new Progress<VlcInstallStep>(step => SetStatus(_vlc,
+            step == VlcInstallStep.Downloading ? UiText.SetupVlcDownloading : UiText.SetupVlcInstalling, Tone.Neutral));
+        StepResult result;
+        try
+        {
+            result = await _backend.InstallVlcAsync(progress, CancellationToken.None);
+        }
+        finally
+        {
+            _busy = false;
+        }
+        if (IsDisposed) return;
+        if (result.Outcome == StepOutcome.Done) _vlc.Toggle!.Checked = true; // installed to be used: configured at once
+        await RefreshStateAsync();
+        if (result.Outcome == StepOutcome.Cancelled) SetStatus(_vlc, UiText.SetupVlcInstallCancelled, Tone.Warning);
+        else if (result.Outcome == StepOutcome.Failed) SetStatus(_vlc, UiText.SetupVlcInstallFailed(result.Detail ?? ""), Tone.Error);
+    }
+
     /// <summary>"closing the lid stops it (on battery), sleep after 10 min (on battery)".</summary>
     private static string Describe(IReadOnlyList<PowerDeviation> deviations) =>
         string.Join(", ", deviations.Select(d =>
@@ -578,6 +610,7 @@ public sealed class SetupForm : Form
                     && ((item != _adBlock && item != _sponsorBlock) || _snapshot?.Browser is not null)
                     && (item != _wake || _snapshot?.Wake == WakeState.NeedsSetup); // ready: nothing to change
         _youtubeInstall.Enabled = enabled;
+        _vlcInstall.Enabled = enabled;
         _mediaList.Enabled = enabled;
         foreach (Control c in _mediaRemove.Parent!.Controls) c.Enabled = enabled && (c != _mediaRemove || _mediaList.SelectedIndex >= 0);
         _apply.Enabled = enabled;

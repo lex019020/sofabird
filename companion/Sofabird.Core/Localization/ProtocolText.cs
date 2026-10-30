@@ -12,7 +12,7 @@ public static class ProtocolText
     public static LocalizableText DisplayBuiltIn => new("DisplayBuiltIn");
     /// <summary>This display is not connected</summary>
     public static LocalizableText DisplayNotConnected => new("DisplayNotConnected");
-    /// <summary>VLC was not found on the PC. Install VLC 3.x or set its path in the companion settings.</summary>
+    /// <summary>VLC media player is not installed on the PC: install it from Sofabird's setup window there (tray menu).</summary>
     public static LocalizableText VlcNotFoundInstall => new("VlcNotFoundInstall");
     /// <summary>Could not start VLC</summary>
     public static LocalizableText VlcStartFailed => new("VlcStartFailed");

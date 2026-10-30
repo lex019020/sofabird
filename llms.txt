@@ -55,7 +55,8 @@ VLC that keeps working without Wi-Fi.
 ## Install
 
 - Windows: run `Sofabird-Setup.exe` from https://github.com/lex019020/sofabird/releases/latest
-  (per-user install, updates itself). Requires VLC 3.0.x. The phone app works only with it.
+  (per-user install, updates itself). Movies play in VLC 3.0.x: when it is missing, the setup window installs it from
+  videolan.org. The phone app works only with it.
 - Android 8+: install `Sofabird-<version>.apk` from the same release (later updates are offered by the app itself).
   Open the app, pick the PC, type the code shown on the TV.
 

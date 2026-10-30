@@ -309,7 +309,8 @@ Criterion: a movie from `D:\shared` starts and is fully controlled from the phon
 - [x] Autostart (HKCU\Run), installing the Lua pages from the companion.
 - [x] Localization: system language, English by default, Russian translation; `err.msg` in the phone's language.
 - [x] First-run setup window: firewall rules for the companion and VLC via one UAC prompt, autostart,
-      VLC configuration, keep-awake, media station.
+      VLC configuration, keep-awake, media station. Without VLC it installs it (the newest 3.0.x from videolan.org,
+      SHA-256 and VideoLAN's signature checked, one UAC prompt; the owner's request, 0.5).
 - [x] Velopack installer and quiet auto-update (see the companion README).
 
 Criterion: the phone finds the PC by itself, starts VLC on the TV, switches the audio device.

@@ -10,7 +10,6 @@ using Sofabird.Companion.Tray;
 using Sofabird.Companion.Vlc;
 using Sofabird.Companion.YouTube;
 using Sofabird.Core.History;
-using Sofabird.Core.Lua;
 using Sofabird.Core.Pairing;
 using Sofabird.Core.Power;
 using Sofabird.Core.Protocol;
@@ -132,8 +131,7 @@ internal static class Program
         if (installation is null) log.LogWarning("VLC not found (registry/Program Files)");
         else log.LogInformation("VLC {Version} at {Path}", installation.Version, installation.ExePath);
 
-        var lua = installation is null ? null
-            : new LuaPagesInstaller(installation.LuaHttpDir, LuaPagesInstaller.DefaultTargetDir, EmbeddedLuaPages.Load(), lf.CreateLogger<LuaPagesInstaller>());
+        var lua = installation is null ? null : EmbeddedLuaPages.Installer(installation, lf);
 
         var historyStore = new HistoryStore(paths.HistoryFile, logger: lf.CreateLogger<HistoryStore>());
         historyStore.StartMaintenance();
@@ -190,7 +188,8 @@ internal static class Program
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, wake, lf.CreateLogger<SetupBackend>());
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, wake,
+            new VlcInstaller(lf.CreateLogger<VlcInstaller>()), lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
         SetupForm? earlySetup = null;

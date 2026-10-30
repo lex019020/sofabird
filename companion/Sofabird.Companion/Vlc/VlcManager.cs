@@ -24,7 +24,7 @@ public sealed partial class VlcManager : IAsyncDisposable
     private readonly Settings _settings;
     private readonly ILogger _log;
     private readonly ILoggerFactory _lf;
-    private readonly LuaPagesInstaller? _lua;
+    private LuaPagesInstaller? _lua;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _pollGate = new(1, 1);
     private readonly SemaphoreSlim _wake = new(0, 1);
@@ -103,6 +103,22 @@ public sealed partial class VlcManager : IAsyncDisposable
     };
 
     public VlcInstallation? Installation { get; private set; }
+
+    /// <summary>
+    /// VLC was installed while the companion runs (the setup window installs it): use it — its Lua pages, the phone's
+    /// <c>vlc.status</c> — without a restart. <c>false</c> when VLC is still not found.
+    /// </summary>
+    public bool UseInstalledVlc()
+    {
+        if (Installation is not null) return true;
+        if (VlcLocator.Find(_settings.VlcPath) is not { } found) return false;
+        _lua ??= EmbeddedLuaPages.Installer(found, _lf);
+        Installation = found;
+        Info.Version = found.Version;
+        _log.LogInformation("VLC {Version} is installed now: {Path}", found.Version, found.ExePath);
+        if (RunState == VlcRunState.NotInstalled) SetRunState(VlcRunState.NotRunning);
+        return true;
+    }
     public VlcRunState RunState { get; private set; }
     public VlcInfo Info { get; }
     public StateMessage? LastState { get; private set; }

@@ -9,7 +9,7 @@
   <data name="DisplayFallbackName" xml:space="preserve"><value>Экран {0}</value></data>
   <data name="DisplayBuiltIn" xml:space="preserve"><value>Встроенный экран</value></data>
   <data name="DisplayNotConnected" xml:space="preserve"><value>Этот экран не подключён</value></data>
-  <data name="VlcNotFoundInstall" xml:space="preserve"><value>VLC не найден на компьютере. Установите VLC 3.x или укажите путь в настройках компаньона.</value></data>
+  <data name="VlcNotFoundInstall" xml:space="preserve"><value>На компьютере не установлен VLC media player: установите его из окна настройки Sofabird на этом ПК (меню в трее).</value></data>
   <data name="VlcStartFailed" xml:space="preserve"><value>Не удалось запустить VLC</value></data>
   <data name="VlcExitedImmediately" xml:space="preserve"><value>VLC завершился сразу после запуска (код {0}). Возможно, включён режим одного экземпляра.</value></data>
   <data name="VlcCloseFailed" xml:space="preserve"><value>Не удалось закрыть VLC</value></data>

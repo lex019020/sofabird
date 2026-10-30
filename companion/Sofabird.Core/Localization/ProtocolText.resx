@@ -9,7 +9,7 @@
   <data name="DisplayFallbackName" xml:space="preserve"><value>Display {0}</value></data>
   <data name="DisplayBuiltIn" xml:space="preserve"><value>Built-in display</value></data>
   <data name="DisplayNotConnected" xml:space="preserve"><value>This display is not connected</value></data>
-  <data name="VlcNotFoundInstall" xml:space="preserve"><value>VLC was not found on the PC. Install VLC 3.x or set its path in the companion settings.</value></data>
+  <data name="VlcNotFoundInstall" xml:space="preserve"><value>VLC media player is not installed on the PC: install it from Sofabird's setup window there (tray menu).</value></data>
   <data name="VlcStartFailed" xml:space="preserve"><value>Could not start VLC</value></data>
   <data name="VlcExitedImmediately" xml:space="preserve"><value>VLC exited right after starting (code {0}). One-instance mode may be on.</value></data>
   <data name="VlcCloseFailed" xml:space="preserve"><value>Could not close VLC</value></data>

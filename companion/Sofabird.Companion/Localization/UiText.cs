@@ -190,8 +190,18 @@ internal static class UiText
     public static string SetupVlcNotConfigured => S("SetupVlcNotConfigured");
     /// <summary>VLC is running: its settings will be written after it closes</summary>
     public static string SetupVlcRunning => S("SetupVlcRunning");
-    /// <summary>VLC is not installed. Install VLC 3.x, then open this window again from the tray menu.</summary>
+    /// <summary>VLC media player is not installed: movies play in it. Install it here (free, from videolan.org).</summary>
     public static string SetupVlcNotInstalled => S("SetupVlcNotInstalled");
+    /// <summary>Install VLC</summary>
+    public static string SetupVlcInstall => S("SetupVlcInstall");
+    /// <summary>Downloading VLC from videolan.org…</summary>
+    public static string SetupVlcDownloading => S("SetupVlcDownloading");
+    /// <summary>Installing VLC… Windows will ask for administrator rights.</summary>
+    public static string SetupVlcInstalling => S("SetupVlcInstalling");
+    /// <summary>VLC was not installed ({0})</summary>
+    public static string SetupVlcInstallFailed(object a0) => F("SetupVlcInstallFailed", a0);
+    /// <summary>VLC was not installed: administrator rights were not given</summary>
+    public static string SetupVlcInstallCancelled => S("SetupVlcInstallCancelled");
     /// <summary>Off: VLC's settings stay as they are</summary>
     public static string SetupVlcOff => S("SetupVlcOff");
     /// <summary>✗ Could not configure VLC (details are in the log)</summary>
