@@ -12,8 +12,9 @@ the companion (§ 10).
 
 ## 0. Essence
 
-An Android remote for VLC running on a Windows laptop connected to a TV.
-There is one scenario: sit on the couch, pick a movie from `D:\shared`, start it on the TV, choose the
+It started as an Android remote for VLC running on a Windows laptop connected to a TV, and grew into a media station
+run from the phone (the library, YouTube, Moonlight, the touchpad), with VLC as the player for files. The first
+scenario: sit on the couch, pick a movie from `D:\shared`, start it on the TV, choose the
 Russian audio track and subtitles, adjust the volume and seek, without getting up or touching the laptop.
 
 Three levels, from simple to full (details in [ADR-0001](adr/0001-control-paths.md)):

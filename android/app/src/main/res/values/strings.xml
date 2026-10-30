@@ -149,7 +149,7 @@
     <string name="settings_about">About</string>
     <string name="about_license">Sofabird is free software under the GNU General Public License v3 or later and comes without any warranty.</string>
     <string name="about_source">Source code</string>
-    <string name="about_text">Sofabird — a remote for VLC media player on a Windows PC at the TV, working through Sofabird for Windows on that PC. The pairing token is kept in the phone\'s encrypted storage.</string>
+    <string name="about_text">Sofabird runs the Windows PC at your TV from the phone: the library, YouTube, Moonlight, a touchpad; movies play in VLC media player. It works through Sofabird for Windows on that PC. The pairing token is kept in the phone\'s encrypted storage.</string>
 
     <string name="notif_channel_name">VLC control</string>
     <string name="notif_channel_description">Transport buttons and PC connection status</string>

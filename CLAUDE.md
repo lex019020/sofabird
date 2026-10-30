@@ -1,7 +1,8 @@
 # Sofabird — project rules
 
-Sofabird (formerly VLC Remote): an Android remote for VLC on a Windows PC at the TV + a Windows companion. The audience
-is international.
+Sofabird (formerly VLC Remote): an Android app that runs a Windows PC at the TV as a media station (a poster library
+with movies played by VLC, YouTube, Moonlight, the phone as touchpad) + a Windows companion. VLC is the player, not the
+product: do not lead descriptions with it. The audience is international.
 
 **Name.** The product is *Sofabird* (the PC part: *Sofabird for Windows*); identifiers use `sofabird` / `Sofabird` /
 `app.sofabird`, the site is `sofabird.app`. VLC is VideoLAN's trademark: describe the relation as "for VLC" / "remote

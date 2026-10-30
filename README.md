@@ -1,9 +1,11 @@
 # Sofabird
 
 Sofabird turns a Windows PC or laptop connected to a TV into a media station you run from the couch with your
-Android phone: an Android remote for [VLC media player](https://www.videolan.org/vlc/) plus a small Windows companion,
-which also puts YouTube videos and a [Moonlight](https://moonlight-stream.org/) stream of another computer on the TV.
-Formerly called *VLC Remote*.
+Android phone: your movies and series as a poster library that remembers where you stopped, YouTube on the TV, games
+and the desktop of another computer through [Moonlight](https://moonlight-stream.org/), and the phone as the PC's
+touchpad and keyboard. A small Windows app on the PC (Sofabird for Windows) does the work; movies play in the free
+[VLC media player](https://www.videolan.org/vlc/), as they are — no media server, no transcoding. Formerly called
+*VLC Remote*.
 
 [![CI](https://github.com/lex019020/sofabird/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/sofabird/actions/workflows/ci.yml)
 [![Release](https://github.com/lex019020/sofabird/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/sofabird/releases)
@@ -24,9 +26,8 @@ Formerly called *VLC Remote*.
 **Website:** [sofabird.app](https://sofabird.app/) ·
 **Download:** [latest release](https://github.com/lex019020/sofabird/releases/latest)
 
-The phone controls VLC through the companion on the PC (Sofabird for Windows): it finds the PC by itself, starts VLC
-on the TV, keeps working over Bluetooth when Wi‑Fi is gone and remembers where you stopped watching. The apps follow
-the system language: English and Russian.
+The phone finds the PC by itself, pairs once with a code shown on the TV, keeps working over Bluetooth when Wi‑Fi is
+gone and wakes a sleeping PC. The apps follow the system language: English and Russian.
 
 ## What it can do
 
@@ -52,7 +53,7 @@ the system language: English and Russian.
 - A media library: pick the media folders once, and the phone shows movies and series as posters with
   descriptions, ratings, seasons and episodes (metadata from TMDB). Network shares work too: the companion does not
   wake the computer they are on every half hour, and a folder that cannot be reached is named on the phone.
-- Starts VLC with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
+- Plays movies in VLC: starts it with the right settings and puts its window fullscreen on the TV; choose the TV and the audio device
   (speakers / TV / headphones) from the phone.
 - Bluetooth fallback: the remote keeps working with Wi‑Fi off and switches back when it returns.
 - Wake-on-LAN: when the PC sleeps, "Wake up the PC" on the phone wakes it over the network (the setup window turns it
