@@ -1,7 +1,8 @@
 # Sofabird — Android app
 
-A remote for VLC 3.0.x running on a Windows PC at the TV. It works only through the Windows companion (Sofabird for
-Windows) — over Wi‑Fi (WebSocket) or, if Wi‑Fi is unavailable, over Bluetooth (RFCOMM); the companion controls VLC.
+The phone side of Sofabird: it runs the Windows PC at the TV — the library and movies (played by VLC 3.0.x), YouTube,
+Moonlight streams, the PC's pointer and keyboard. It works only through the Windows companion (Sofabird for Windows) —
+over Wi‑Fi (WebSocket) or, if Wi‑Fi is unavailable, over Bluetooth (RFCOMM); the companion drives VLC and the rest.
 Protocol — [`../protocol/README.md`](../protocol/README.md).
 
 ## Build

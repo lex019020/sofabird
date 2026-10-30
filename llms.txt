@@ -1,15 +1,16 @@
 # Sofabird
 
-> Free, open-source (GPL-3.0) Android remote control for VLC media player running on a Windows PC or laptop connected
-> to a TV, together with its Windows companion app (Sofabird for Windows, required) that turns the PC into a media
-> station: a movie and series library with posters, "continue watching", automatic discovery and a Bluetooth fallback
-> when Wi-Fi is down; it also plays YouTube videos shared from the phone fullscreen on the TV and starts/ends Moonlight
-> game streams. Formerly called VLC Remote (github.com/lex019020/vlc-remote, which redirects here).
+> Free, open-source (GPL-3.0) app that turns a Windows PC or laptop connected to a TV into a media station run from an
+> Android phone, with its Windows app (Sofabird for Windows, required): a movie and series library with posters,
+> "continue watching", YouTube videos shared from the phone played fullscreen on the TV, Moonlight game streams from
+> another computer, the phone as the PC's touchpad and keyboard, automatic discovery and a Bluetooth fallback when
+> Wi-Fi is down. Movies play in VLC media player on the PC. Formerly called VLC Remote
+> (github.com/lex019020/vlc-remote, which redirects here).
 
-Use it when someone wants to control VLC on a Windows PC/HTPC from an Android phone like a TV remote, wants a
-Plex/Kodi-like library and resume experience on top of VLC without a media server, or needs a VLC remote that
-keeps working without Wi-Fi, or wants to send a YouTube video from the phone to the TV PC and control it from the
-phone.
+Use it when someone wants to run a Windows PC/HTPC at the TV from an Android phone like a TV remote: a Plex/Kodi-like
+library and resume experience without a media server (VLC plays the files), a YouTube video sent from the phone to the
+TV PC, a Moonlight stream started from the couch, or a phone touchpad and keyboard for the TV PC; or needs a remote for
+VLC that keeps working without Wi-Fi.
 
 ## What it does
 

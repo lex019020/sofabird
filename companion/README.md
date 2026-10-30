@@ -1,7 +1,8 @@
 # Sofabird (Windows)
 
-The companion for the `sofabird` Android remote: a .NET 10 tray app that owns the lifecycle of
-VLC 3.0.x on the PC at the TV and gives the phone level 2 of the protocol
+The companion for the `sofabird` Android app: a .NET 10 tray app that runs the PC at the TV for the phone — the
+lifecycle of VLC 3.0.x (the player for files), YouTube in Firefox, Moonlight streams, the pointer and keyboard — and
+gives the phone level 2 of the protocol
 ([protocol/README.md](../protocol/README.md)): current tracks, chapter names, audio devices,
 push events, starting VLC, moving the window to the TV, power, system volume.
 

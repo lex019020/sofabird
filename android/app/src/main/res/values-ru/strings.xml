@@ -159,7 +159,7 @@
     <string name="settings_about">О программе</string>
     <string name="about_license">Sofabird — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
     <string name="about_source">Исходный код</string>
-    <string name="about_text">Sofabird — пульт для VLC media player на ПК с Windows у телевизора; работает через Sofabird для Windows на этом ПК. Токен сопряжения хранится в зашифрованном хранилище телефона.</string>
+    <string name="about_text">Sofabird управляет компьютером с Windows у телевизора с телефона: медиатека, YouTube, Moonlight, тачпад; фильмы играет VLC media player. Работает через Sofabird для Windows на этом ПК. Токен сопряжения хранится в зашифрованном хранилище телефона.</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Управление VLC</string>
