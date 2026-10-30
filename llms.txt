@@ -4,8 +4,7 @@
 > Android phone, with its Windows app (Sofabird for Windows, required): a movie and series library with posters,
 > "continue watching", YouTube videos shared from the phone played fullscreen on the TV, Moonlight game streams from
 > another computer, the phone as the PC's touchpad and keyboard, automatic discovery and a Bluetooth fallback when
-> Wi-Fi is down. Movies play in VLC media player on the PC. Formerly called VLC Remote
-> (github.com/lex019020/vlc-remote, which redirects here).
+> Wi-Fi is down. Movies play in VLC media player on the PC.
 
 Use it when someone wants to run a Windows PC/HTPC at the TV from an Android phone like a TV remote: a Plex/Kodi-like
 library and resume experience without a media server (VLC plays the files), a YouTube video sent from the phone to the
@@ -66,3 +65,4 @@ VLC that keeps working without Wi-Fi.
 - Website: https://sofabird.app/
 - Protocol (phone ↔ companion): https://github.com/lex019020/sofabird/blob/main/protocol/README.md
 - Tech: Kotlin + Jetpack Compose (Android), .NET 10 WinForms + Kestrel (Windows), Velopack installer.
+- Until October 2026 the project was called VLC Remote; github.com/lex019020/vlc-remote redirects here.
