@@ -14,6 +14,8 @@ import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.CompanionSighting
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.domain.model.mergeSighting
+import app.sofabird.protocol.backend.InputBatch
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.backend.PlayerBackend
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
@@ -38,6 +40,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -128,7 +132,11 @@ class PlayerController(
     private val connectMutex = Mutex()
     private var autoConnectJob: Job? = null
 
+    /** Touchpad and keyboard, in the order they happened; one coroutine sends them ([pumpInput]). */
+    private val inputs = Channel<PcInput>(Channel.UNLIMITED)
+
     init {
+        scope.launch { pumpInput() }
         combine(appVisibility.visible, _serviceRunning) { visible, service -> visible || service }
             .onEach { active -> _backend.value?.setActive(active) }
             .launchIn(scope)
@@ -267,6 +275,29 @@ class PlayerController(
             _events.tryEmit(PlayerEvent.SystemCommandFailed(command, e))
         }
 
+    /** Touchpad and keyboard (`input` capability): fire-and-forget, in order; moves are merged to one per frame. */
+    fun input(input: PcInput) {
+        inputs.trySend(input)
+    }
+
+    /**
+     * Sends [inputs] one after another (so a button's press and release never swap). What piles up while a frame's
+     * move is sent and the frame passes is merged ([InputBatch]): at most one move and one scroll per frame (~60/s).
+     */
+    private suspend fun pumpInput() {
+        val batch = InputBatch()
+        while (true) {
+            var next: PcInput? = inputs.receive()
+            while (next != null) {
+                batch.add(next)
+                next = inputs.tryReceive().getOrNull()
+            }
+            val sent = batch.drain()
+            sent.forEach { _backend.value?.sendInput(it) }
+            if (sent.any { it is PcInput.Move || it is PcInput.Scroll }) delay(INPUT_FRAME_MS)
+        }
+    }
+
     suspend fun audioDevices(): Result<List<AudioDevice>> = withBackend { it.audioDevices() }
 
     suspend fun listDisplays(): Result<DisplayList> = withBackend { it.listDisplays() }
@@ -328,5 +359,8 @@ class PlayerController(
 
     private companion object {
         const val TAG = "PlayerController"
+
+        /** A display frame at 60 Hz: the touchpad sends at most one move per frame. */
+        const val INPUT_FRAME_MS = 16L
     }
 }

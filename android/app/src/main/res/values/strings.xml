@@ -218,6 +218,27 @@
     <string name="youtube_on_tv">YouTube</string>
     <string name="share_not_connected">Sofabird is not connected to the PC: the video was not sent.</string>
     <string name="moonlight_streaming_host">The screen of %1$s; the movie is paused</string>
+    <string name="moonlight_on_tv">Moonlight on the TV</string>
+    <string name="action_moonlight_end">End</string>
+
+    <!-- Touchpad and keyboard (companion `input` capability) -->
+    <string name="touchpad_title">Touchpad and keyboard</string>
+    <string name="touchpad_entry_hint">The PC\'s pointer and keys, from the phone</string>
+    <string name="touchpad_hint">Slide a finger: move the pointer\nTap: click\nTap with two fingers: right click\nSlide two fingers: scroll\nHold, then slide: drag</string>
+    <string name="touchpad_left">Left</string>
+    <string name="touchpad_right">Right</string>
+    <string name="touchpad_keyboard">Keyboard</string>
+    <string name="touchpad_unavailable">The companion on this PC cannot take the touchpad yet: update it.</string>
+    <string name="keyboard_field_label">Type here: it goes to the PC</string>
+    <string name="key_escape">Esc</string>
+    <string name="key_tab">Tab</string>
+    <string name="key_win">Win</string>
+    <string name="key_backspace">Backspace</string>
+    <string name="key_enter">Enter</string>
+    <string name="key_left">Left arrow</string>
+    <string name="key_up">Up arrow</string>
+    <string name="key_down">Down arrow</string>
+    <string name="key_right">Right arrow</string>
     <string name="sleep_pc_confirm">Put %1$s to sleep? VLC will stop and the remote loses the connection until the PC wakes up.</string>
     <string name="settings_version">Version %1$s (build %2$d)</string>
     <string name="settings_updates">Updates</string>

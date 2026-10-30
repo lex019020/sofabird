@@ -26,6 +26,8 @@ public class SessionTests
         public List<DeviceInfo?> PairingRequests { get; } = new();
 
         public void RequestPairing(DeviceInfo? device) => PairingRequests.Add(device);
+        public List<InputMessage> Inputs { get; } = new();
+        public void Input(InputMessage input) => Inputs.Add(input);
 
         public Task<StateMessage> GetStateAsync(CancellationToken ct) =>
             Task.FromResult(new StateMessage { Vlc = VlcInfo, Playback = new PlaybackInfo { State = "paused", Time = 10 } });
@@ -226,12 +228,16 @@ public class SessionTests
         await t.PhoneSendAsync("""{"t":"ping"}""");
         Assert.Equal("pong", Recv(t).GetProperty("t").GetString());
 
+        // Touchpad input: handed to the host, no reply (the next reply is the seek's).
+        await t.PhoneSendAsync("""{"t":"input","kind":"move","dx":3,"dy":4}""");
+
         await t.PhoneSendAsync("""{"t":"cmd","id":"7","name":"seek","args":{"delta":30}}""");
         var ok = Recv(t);
         Assert.Equal("ok", ok.GetProperty("t").GetString());
         Assert.Equal("7", ok.GetProperty("id").GetString());
         Assert.Equal("seek", host.Commands.Single().Name);
         Assert.Equal(30, host.Commands.Single().Args.GetInt("delta"));
+        Assert.Equal((3, 4), (host.Inputs.Single().Dx, host.Inputs.Single().Dy));
 
         await t.PhoneSendAsync("""{"t":"cmd","id":"8","name":"seek","args":{}}""");
         var bad = Recv(t);

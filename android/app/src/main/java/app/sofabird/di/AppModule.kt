@@ -32,6 +32,7 @@ import app.sofabird.ui.media.ShowViewModel
 import app.sofabird.ui.playlist.PlaylistViewModel
 import app.sofabird.ui.remote.RemoteViewModel
 import app.sofabird.ui.settings.SettingsViewModel
+import app.sofabird.ui.touchpad.TouchpadViewModel
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,4 +83,5 @@ val appModule = module {
     viewModel { MediaViewModel(get(), get()) }
     viewModel { params -> ShowViewModel(params.get(), get(), get()) }
     viewModel { SettingsViewModel(get()) }
+    viewModel { TouchpadViewModel(get(), get()) }
 }

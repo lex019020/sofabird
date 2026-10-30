@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.sofabird.R
 import app.sofabird.data.history.WatchPrompts
 import app.sofabird.data.player.PcWaker
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.backend.YouTubeAction
@@ -76,16 +77,20 @@ interface RemoteActions {
 
     /** PC-side commands: end a Moonlight stream, control YouTube on the TV, the PC's volume. */
     fun system(command: SystemCommand) {}
+
+    /** The touchpad and keyboard of a Moonlight stream (`input` capability). */
+    fun input(input: PcInput) {}
 }
 
 /** Where the remote leads: its sheets (the TV screen, "More", YouTube) and other screens of the app. */
-enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, YOUTUBE_VIDEO, LIBRARY, HISTORY }
+enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, YOUTUBE_VIDEO, LIBRARY, HISTORY, TOUCHPAD }
 
 @Composable
 fun RemoteScreen(
     onOpenConnection: () -> Unit,
     onOpenLibrary: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
+    onOpenTouchpad: () -> Unit = {},
     viewModel: RemoteViewModel = koinViewModel(),
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
@@ -99,6 +104,7 @@ fun RemoteScreen(
     val openConnection by rememberUpdatedState(onOpenConnection)
     val openLibrary by rememberUpdatedState(onOpenLibrary)
     val openHistory by rememberUpdatedState(onOpenHistory)
+    val openTouchpad by rememberUpdatedState(onOpenTouchpad)
 
     val waker: PcWaker = koinInject()
     val actions = remember(viewModel, prompts, waker) {
@@ -127,9 +133,11 @@ fun RemoteScreen(
                 RemotePlace.YOUTUBE_VIDEO -> youtubeVideoSheet = true
                 RemotePlace.LIBRARY -> openLibrary()
                 RemotePlace.HISTORY -> openHistory()
+                RemotePlace.TOUCHPAD -> openTouchpad()
             }
             override fun changeHistory(item: HistoryItem, change: HistoryChange) = viewModel.changeHistory(item, change)
             override fun system(command: SystemCommand) = viewModel.sendSystem(command)
+            override fun input(input: PcInput) = viewModel.input(input)
         }
     }
 
@@ -146,6 +154,10 @@ fun RemoteScreen(
             onOpenDisplays = {
                 moreSheet = false
                 displaySheet = true
+            },
+            onOpenTouchpad = {
+                moreSheet = false
+                actions.open(RemotePlace.TOUCHPAD)
             },
         )
     }
@@ -177,6 +189,8 @@ fun RemoteContent(ui: RemoteUiState, next: NextEpisode?, actions: RemoteActions)
         val landscape = maxWidth > maxHeight
         if (ui.home) {
             RemoteHome(ui, next, actions, landscape)
+        } else if (streaming != null && ui.capabilities.input) {
+            StreamingTouchpad(ui, streaming, actions, landscape)
         } else if (landscape) {
             Row(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 Column(
@@ -307,7 +321,7 @@ private fun SleepTimerUnderTitle(ui: RemoteUiState) {
  * "More" (VLC's tracks do not apply).
  */
 @Composable
-private fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: RemoteActions) {
+internal fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: RemoteActions) {
     if (youtube != null) {
         val online = ui.connection.isOnline
         val list = buildList {

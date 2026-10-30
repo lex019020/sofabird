@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,7 +74,13 @@ private val ASPECT_PRESETS = listOf("default", "16:9", "4:3", "1:1", "16:10", "2
 /** "More": chapters, rate, aspect, fullscreen, VLC and the PC's system actions. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Unit, onOpenDisplays: () -> Unit) {
+fun MoreSheet(
+    ui: RemoteUiState,
+    viewModel: RemoteViewModel,
+    onDismiss: () -> Unit,
+    onOpenDisplays: () -> Unit,
+    onOpenTouchpad: () -> Unit = {},
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val tick = rememberTick(ui.settings.haptics)
     val online = ui.connection.isOnline
@@ -183,6 +190,7 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                     LabelText(stringResource(R.string.action_quit_vlc))
                 }
             }
+            if (caps.input) TouchpadEntry(onOpenTouchpad)
             if (caps.moonlight) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 MoonlightSection(
@@ -329,6 +337,32 @@ private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
+    }
+}
+
+/** `input`: the phone as the PC's touchpad and keyboard, on a screen of its own. */
+@Composable
+private fun TouchpadEntry(onOpen: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onOpen)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.Mouse, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.touchpad_title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.touchpad_entry_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)

@@ -382,6 +382,25 @@ timer). The phone ends the link at once instead of noticing a missed `pong` up t
 asleep with "Wake up the PC" (`macs`), and retries with its backoff (the first time after ~8 s, so that it does not
 catch the PC in its last second) in case the PC wakes by itself.
 
+## Touchpad and keyboard: `input`
+
+Phone → companion, no reply, no `id` (cap `input`); the companion injects it with `SendInput` into whatever has the
+focus on the PC (a Moonlight stream passes it on to its computer):
+
+- `{"t":"input","kind":"move","dx":12,"dy":-3}` — relative mouse move in pixels (at most ±4000 a message; a phone sends
+  one per frame, ~60/s, with the moves of the frame added up).
+- `{"kind":"click","button":"left"|"right"|"middle"}` (default `left`); `down` / `up` hold a button (dragging).
+- `{"kind":"scroll","dy":120,"dx":0}` — the wheel, 120 = one notch; positive `dy` scrolls down, `dx` right.
+- `{"kind":"text","text":"Привет"}` — typed as Unicode characters (any language, no layout needed). Into a Moonlight
+  stream (which does not pass Unicode keys on) it is put on the PC's clipboard and Moonlight's Ctrl+Alt+Shift+V types
+  it on the other computer.
+- `{"kind":"key","key":"enter","mods":["alt"]}` — a key (sent as a scan code): `enter`, `backspace`, `tab`, `escape`,
+  `space`, `left`/`up`/`right`/`down`, `home`, `end`, `pageup`, `pagedown`, `delete`, `win`, `f4`, `f5`, `f11`,
+  `volumeup`/`volumedown`/`volumemute`, `a`, `c`, `d`, `l`, `v`, `z`; `mods` of `ctrl`, `alt`, `shift`, `win` are held
+  around it. Unknown kinds, keys or modifiers do nothing.
+
+Windows of programs running as administrator do not take this input (Windows' UIPI).
+
 ## Keep-alive
 
 `{"t":"ping"}` ↔ `{"t":"pong"}`; the phone sends it every 30 s over WS and every 15 s over RFCOMM. No `pong`

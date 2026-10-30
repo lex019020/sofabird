@@ -35,7 +35,11 @@ phone.
   control it; optional ad
   blocking with uBlock Origin and sponsor skipping with SponsorBlock; the companion's setup window installs Firefox.
 - One TV screen: the display chosen for the TV is used by VLC, YouTube and Moonlight alike.
-- Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone.
+- Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone; during the
+  stream the phone is that computer's touchpad and keyboard.
+- Touchpad and keyboard: the phone moves the PC's pointer (tap to click, two fingers to scroll or right-click, hold to
+  drag) and types on it live in any language, with Esc / Tab / Win / arrow keys — for signing in, searching or a
+  streamed desktop.
 - Works in English and Russian (follows the system language).
 
 ## How it compares

@@ -36,6 +36,9 @@ public interface ISessionHost
     Task ExecuteCommandAsync(string name, CommandArgs args, CancellationToken ct);
     /// <summary>A system command; returns the response message (for example, <c>displays</c>) or <c>null</c> → <c>ok</c>.</summary>
     Task<Message?> ExecuteSysAsync(string name, CommandArgs args, CancellationToken ct);
+
+    /// <summary>Touchpad and keyboard from the phone: inject it now (fast, no reply).</summary>
+    void Input(InputMessage input);
     Task<IReadOnlyList<BrowseEntry>> BrowseAsync(string uri, CancellationToken ct);
     Task<IReadOnlyList<PlaylistEntry>> GetPlaylistAsync(CancellationToken ct);
     Task<TracksInfo> GetTracksAsync(CancellationToken ct);

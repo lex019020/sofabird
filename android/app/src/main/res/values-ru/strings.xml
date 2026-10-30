@@ -230,6 +230,27 @@
     <string name="youtube_on_tv">YouTube</string>
     <string name="share_not_connected">Sofabird не подключён к ПК: видео не отправлено.</string>
     <string name="moonlight_streaming_host">Экран %1$s; фильм на паузе</string>
+    <string name="moonlight_on_tv">Moonlight на ТВ</string>
+    <string name="action_moonlight_end">Завершить</string>
+
+    <!-- Touchpad and keyboard (companion `input` capability) -->
+    <string name="touchpad_title">Тачпад и клавиатура</string>
+    <string name="touchpad_entry_hint">Указатель и клавиши ПК с телефона</string>
+    <string name="touchpad_hint">Ведите пальцем\u00A0— указатель\nКасание\u00A0— щелчок\nКасание двумя пальцами\u00A0— правый щелчок\nВедите двумя пальцами\u00A0— прокрутка\nУдержите и ведите\u00A0— перетаскивание</string>
+    <string name="touchpad_left">Левая</string>
+    <string name="touchpad_right">Правая</string>
+    <string name="touchpad_keyboard">Клавиатура</string>
+    <string name="touchpad_unavailable">Компаньон на этом ПК пока не умеет принимать тачпад: обновите его.</string>
+    <string name="keyboard_field_label">Печатайте здесь — текст идёт на ПК</string>
+    <string name="key_escape">Esc</string>
+    <string name="key_tab">Tab</string>
+    <string name="key_win">Win</string>
+    <string name="key_backspace">Стереть</string>
+    <string name="key_enter">Ввод</string>
+    <string name="key_left">Стрелка влево</string>
+    <string name="key_up">Стрелка вверх</string>
+    <string name="key_down">Стрелка вниз</string>
+    <string name="key_right">Стрелка вправо</string>
     <string name="sleep_pc_confirm">Перевести %1$s в спящий режим? VLC остановится, пульт потеряет связь до пробуждения ПК.</string>
     <string name="settings_version">Версия %1$s (сборка %2$d)</string>
     <string name="settings_updates">Обновления</string>

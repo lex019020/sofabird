@@ -145,6 +145,24 @@ sealed class CompanionMessage {
     @SerialName("ping")
     data class Ping(override val id: String? = null) : CompanionMessage()
 
+    /**
+     * `input` capability: the phone as a touchpad and keyboard ([app.sofabird.protocol.backend.PcInput], built by
+     * [CommandMapping.toInput]). No reply and no `id`; only the fields of its [kind] are sent.
+     */
+    @Serializable
+    @SerialName("input")
+    data class Input(
+        val kind: String,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val dx: Int? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val dy: Int? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val button: String? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val text: String? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val key: String? = null,
+        @EncodeDefault(EncodeDefault.Mode.NEVER) val mods: List<String>? = null,
+    ) : CompanionMessage() {
+        override val id: String? get() = null
+    }
+
     // ------------------------------------------------------------ PC -> phone
 
     @Serializable

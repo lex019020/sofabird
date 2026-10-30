@@ -7,6 +7,7 @@ import app.sofabird.data.player.PcWaker
 import app.sofabird.data.player.PlayerController
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.AppSettings
+import app.sofabird.protocol.backend.PcInput
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.protocol.companion.AudioDevice
@@ -70,7 +71,8 @@ data class RemoteUiState(
 ) {
     /**
      * A Moonlight stream is on the TV instead of VLC: the computer it shows (`""` when unknown); `null` = no stream.
-     * The remote then shows a streaming card instead of the movie and its controls.
+     * The remote then shows the stream instead of the movie and its controls: with `input`, as the streamed computer's
+     * touchpad and keyboard ([StreamingTouchpad]), otherwise as a card.
      */
     val streamingHost: String?
         get() = if (connection.isOnline && capabilities.moonlight && state.system?.moonlightStreaming == true) {
@@ -241,6 +243,9 @@ class RemoteViewModel(
     fun send(command: PlayerCommand) = controller.send(command)
 
     fun sendSystem(command: SystemCommand) = controller.sendSystem(command)
+
+    /** The touchpad and keyboard of a Moonlight stream. */
+    fun input(input: PcInput) = controller.input(input)
 
     fun togglePause() {
         val s = controller.state.value

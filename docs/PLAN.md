@@ -6,7 +6,8 @@ the media station mode, the installer with quiet auto-updates, layout polish and
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
 and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
 with what to watch. In 0.5 the app works only with the companion: the direct VLC mode (levels 0/1) is removed (the
-owner's decision, 2026-10-29). Next, in 0.5: the sleep timer, dropping the unencrypted connection (§ 10).
+owner's decision, 2026-10-29). Next, in 0.5: the sleep timer, the phone as the PC's touchpad and keyboard, dropping the
+unencrypted connection (§ 10).
 
 ## 0. Essence
 
@@ -162,6 +163,7 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 | → PC | `cmd {name, args}` | player commands: `play`, `pause`, `seek`, `volume`, `track`, `chapter`, `rate`, `delay`, `fullscreen`, `open {uri, subtitle?, audio?}`, `enqueue`, `launch`, `quit` |
 | → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume`, `moonlightStart`, `moonlightStop` |
 | → PC | `browse {uri}` / `library {query}` | file lists / library with metadata |
+| → PC | `input {kind, …}` | touchpad and keyboard: `move`, `click`/`down`/`up`, `scroll`, `text`, `key`; no reply |
 | ← PC | `state {…diff}` | push of `PlayerState` changes (at most 4 Hz, seek/volume are coalesced) |
 | ← PC | `event {name, …}` | `vlcStarted`, `vlcExited`, `inputChanged`, `endReached` |
 | ↔ | `ping`/`pong` | every 15 s over RFCOMM, 30 s over WS |
@@ -362,6 +364,11 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [x] **Sleep timer** (owner's list for 0.5): "More" → in 15 min … 2 h or at the end of what plays (VLC's movie or
       episode, a YouTube video); then pause, and if wanted the PC sleeps. The companion keeps the timer (it runs out
       with the phone asleep); the remote shows "Pauses in 23 min" under the title.
+- [x] **The phone as touchpad and keyboard** (owner's request): while a Moonlight stream is on the TV the remote becomes
+      the streamed computer's touchpad (move, tap to click, two fingers to scroll or right-click, hold to drag) and
+      keyboard (typed text goes over live, plus Esc / Tab / Win / arrows); "More" → "Touchpad and keyboard" opens it any
+      time for the PC itself. The companion injects it with `SendInput`; text into a Moonlight stream goes through the
+      clipboard and Moonlight's paste shortcut.
 - [x] **Rename to Sofabird** (user decision, [ADR-0006](adr/0006-rename-to-sofabird.md)): the VLC trademark and a
       scope beyond VLC; every name and identifier changed, the first start takes the old companion's settings and
       history over and uninstalls it; the phone app is a new app.
@@ -408,7 +415,6 @@ Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSu
 iOS via Compose Multiplatform.
 
 ### Later ideas (user requests)
-- **The phone as a keyboard and touchpad** for the PC at the TV (signing in, searching, a Moonlight desktop).
 - **Casting from the YouTube app** to the PC through VacuumTube (YouTube's TV interface with DIAL discovery; sign-in
   with a code on the phone); the companion would keep it running and switch the TV to it when a video starts.
 - **Moonlight, further:** other hosts and apps (Steam Big Picture), the stream on a chosen monitor, a game remote.
@@ -474,7 +480,7 @@ sofabird/
 The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
 Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
-Then (0.5): the sleep timer and YouTube subtitles and quality (done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
-download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
+Then (0.5): the sleep timer, YouTube subtitles and quality, the phone as touchpad and keyboard (done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+download, VLC 4.x, iOS. The plain `ws` and the compatibility with versions before 0.5 are gone (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

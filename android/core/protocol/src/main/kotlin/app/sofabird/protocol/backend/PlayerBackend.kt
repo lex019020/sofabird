@@ -37,6 +37,12 @@ interface PlayerBackend {
 
     suspend fun sendSystem(command: SystemCommand): Result<Unit>
 
+    /**
+     * `input` (needs the `input` capability): written on the current link at once, without a reply; dropped while
+     * there is no link. Called from one coroutine, so the order is kept.
+     */
+    suspend fun sendInput(input: PcInput) {}
+
     /** List [uri] (a `file:///…/` directory; `file:///` = drives). `..` is never included. */
     suspend fun browse(uri: String): Result<List<Entry>>
 

@@ -172,8 +172,10 @@ internal static class Program
         using var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
         wake.Start();
         using var sleepTimer = new SleepTimer();
+        var input = new InputService(lf.CreateLogger<InputService>(), a => { if (!ui.IsDisposed) ui.BeginInvoke(a); },
+            () => MoonlightService.StreamingHost() is not null);
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, youtube, youtubeHistory, wake, sleepTimer, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, youtubeHistory, wake, sleepTimer, input, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;

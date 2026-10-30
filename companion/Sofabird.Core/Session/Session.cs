@@ -178,6 +178,7 @@ public sealed class Session : IAsyncDisposable
             {
                 PingMessage p => new PongMessage { Id = p.Id },
                 PongMessage => null,
+                InputMessage i => Input(i),
                 GetStateMessage g => (await _host.GetStateAsync(ct).ConfigureAwait(false)).WithId(g.Id),
                 CmdMessage c => await RunCommandAsync(c, ct).ConfigureAwait(false),
                 SysMessage s => await RunSysAsync(s, ct).ConfigureAwait(false),
@@ -214,6 +215,20 @@ public sealed class Session : IAsyncDisposable
                 _log.LogDebug("Request {Type} → {Code}: {Msg}", msg.GetType().Name, err.Code, err.Msg);
             await SendAsync(err, ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Touchpad and keyboard: no reply (dozens a second); a failure only goes to the log.</summary>
+    private Message? Input(InputMessage input)
+    {
+        try
+        {
+            _host.Input(input);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogDebug(ex, "Input {Kind} failed", input.Kind);
+        }
+        return null;
     }
 
     private async Task<Message> RunCommandAsync(CmdMessage c, CancellationToken ct)
