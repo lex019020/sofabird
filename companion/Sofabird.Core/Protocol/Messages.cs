@@ -39,6 +39,7 @@ namespace Sofabird.Core.Protocol;
 [JsonDerivedType(typeof(LibraryMessage), "library")]
 [JsonDerivedType(typeof(GetShowMessage), "getShow")]
 [JsonDerivedType(typeof(ShowMessage), "show")]
+[JsonDerivedType(typeof(MoonlightHostsMessage), "moonlightHosts")]
 public abstract class Message
 {
     /// <summary>Request identifier; the response carries the same <c>id</c>.</summary>
@@ -234,6 +235,24 @@ public sealed class DisplaysMessage : Message
         foreach (var item in Items)
             if (item.NameText is { } text) item.Name = text.Render(culture);
     }
+}
+
+/// <summary>A computer paired in Moonlight on the PC and its apps (<c>sys moonlightHosts</c>).</summary>
+public sealed class MoonlightHostEntry
+{
+    public string Name { get; set; } = "";
+    /// <summary>"Desktop" first, then the host's order; empty — Moonlight does not know them yet.</summary>
+    public IReadOnlyList<string> Apps { get; set; } = [];
+    /// <summary>
+    /// A refresh was asked but the computer did not answer (off, asleep): <see cref="Apps"/> is what Moonlight remembers.
+    /// </summary>
+    public bool? Stale { get; set; }
+}
+
+/// <summary>Reply to <c>sys moonlightHosts</c> (cap <c>moonlight</c>).</summary>
+public sealed class MoonlightHostsMessage : Message
+{
+    public IReadOnlyList<MoonlightHostEntry> Items { get; set; } = [];
 }
 
 public sealed class EventMessage : Message
@@ -463,7 +482,7 @@ public static class Caps
     public const string History = "history";
     /// <summary>Movies and series of the media folders with TMDB metadata (<c>getLibrary</c>, <c>getShow</c>).</summary>
     public const string Library = "library";
-    /// <summary>Moonlight is installed on the PC: <c>sys moonlightStart/moonlightStop</c>, <c>state.system.moonlight*</c>.</summary>
+    /// <summary>Moonlight is installed on the PC: <c>sys moonlightHosts/moonlightStart/moonlightStop</c>, <c>state.system.moonlight*</c>.</summary>
     public const string Moonlight = "moonlight";
     /// <summary>A browser for YouTube on the TV: <c>sys youtubeOpen</c>, <c>sys youtube</c>, <c>state.youtube</c>.</summary>
     public const string YouTube = "youtube";

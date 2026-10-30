@@ -12,6 +12,7 @@ import app.sofabird.data.secrets.SecretStore
 import app.sofabird.data.servers.ServerRepository
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.domain.model.CompanionSighting
+import app.sofabird.domain.model.MoonlightChoice
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.domain.model.mergeSighting
 import app.sofabird.protocol.backend.InputBatch
@@ -32,6 +33,7 @@ import app.sofabird.protocol.model.HistoryChange
 import app.sofabird.protocol.model.HistoryFilter
 import app.sofabird.protocol.model.HistoryPage
 import app.sofabird.protocol.model.Library
+import app.sofabird.protocol.model.MoonlightHost
 import app.sofabird.protocol.model.PlayerState
 import app.sofabird.protocol.model.PlaylistItem
 import app.sofabird.protocol.model.ShowDetails
@@ -301,6 +303,16 @@ class PlayerController(
     suspend fun audioDevices(): Result<List<AudioDevice>> = withBackend { it.audioDevices() }
 
     suspend fun listDisplays(): Result<DisplayList> = withBackend { it.listDisplays() }
+
+    /** The computers paired in Moonlight on the PC; with [refresh] each is asked for its apps first (~15 s at most). */
+    suspend fun moonlightHosts(refresh: Boolean): Result<List<MoonlightHost>> = withBackend { it.moonlightHosts(refresh) }
+
+    /** What was just started through Moonlight on the connected PC: preselected next time (kept with the saved PC). */
+    fun rememberMoonlight(choice: MoonlightChoice) {
+        val server = _activeServer.value ?: return
+        if (server.moonlight == choice) return
+        scope.launch { servers.update(server.id) { it.copy(moonlight = choice) } }
+    }
 
     /** Hardware volume keys: ±[delta] VLC units (the PC's volume while YouTube is on the TV), then report the percentage. */
     fun adjustVolume(delta: Int) {

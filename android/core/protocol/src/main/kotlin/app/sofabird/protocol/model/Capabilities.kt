@@ -19,7 +19,7 @@ enum class Capability(val wire: String) {
     /** Movies and series of the PC's media folders with TMDB metadata (companion). */
     LIBRARY("library"),
 
-    /** Moonlight is installed on the PC: start/stop streaming another computer's screen to the TV. */
+    /** Moonlight is installed on the PC: list its computers and apps, start/stop streaming one to the TV. */
     MOONLIGHT("moonlight"),
 
     /** A browser for YouTube on the PC: open a shared link on the TV and control it. */

@@ -171,7 +171,36 @@ public sealed class Session : IAsyncDisposable
             return;
         }
         if (msg is null) return;
+        if (msg is SysMessage { Name: var name } && ConcurrentSys.Contains(name))
+        {
+            _ = Task.Run(() => DispatchBesideAsync(msg, ct), CancellationToken.None);
+            return;
+        }
+        await DispatchAsync(msg, ct).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// <c>sys</c> requests that only read and may take long (<c>moonlightHosts</c> asks each Moonlight computer for its
+    /// apps, up to ~15 s): they run beside the session's other messages, so that pings, input and commands do not wait
+    /// for them (a late <c>pong</c> would make the phone reconnect). Their reply comes whenever they are done.
+    /// </summary>
+    private static readonly HashSet<string> ConcurrentSys = new(StringComparer.Ordinal) { "moonlightHosts" };
+
+    private async Task DispatchBesideAsync(Message msg, CancellationToken ct)
+    {
+        try
+        {
+            await DispatchAsync(msg, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // The session ended meanwhile: nobody to answer.
+        }
+    }
+
+    /// <summary>One request: its reply, or an <c>err</c> with its id.</summary>
+    private async Task DispatchAsync(Message msg, CancellationToken ct)
+    {
         try
         {
             Message? reply = msg switch

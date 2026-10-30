@@ -67,6 +67,9 @@ enum class PcKey(val wire: String) {
     C("c"),
     D("d"),
     L("l"),
+    M("m"),
+    Q("q"),
+    S("s"),
     V("v"),
     Z("z"),
 }
@@ -76,6 +79,28 @@ enum class KeyMod(val wire: String) {
     ALT("alt"),
     SHIFT("shift"),
     WIN("win"),
+}
+
+/**
+ * Moonlight's own shortcuts during a stream: Ctrl+Alt+Shift with a letter, typed into the stream window on the TV PC
+ * (Moonlight takes them itself and does not pass them on). [MINIMIZE] and [DISCONNECT] (the app keeps running on the
+ * other computer) are known too; the remote offers the two that are safe to press from the sofa.
+ */
+enum class MoonlightShortcut(val key: PcKey) {
+    /** The performance overlay: frame rate, latency, dropped frames. */
+    STATS(PcKey.S),
+
+    /** The mouse between "remote desktop" (the cursor where it is) and "game" mode (captured, relative). */
+    MOUSE_MODE(PcKey.M),
+
+    /** Minimises the stream window (it keeps running behind; the TV PC's own desktop is then under the touchpad). */
+    MINIMIZE(PcKey.D),
+
+    /** Leaves the stream; the app keeps running on the other computer. */
+    DISCONNECT(PcKey.Q),
+    ;
+
+    val input: PcInput.Key get() = PcInput.Key(key, setOf(KeyMod.CTRL, KeyMod.ALT, KeyMod.SHIFT))
 }
 
 /**

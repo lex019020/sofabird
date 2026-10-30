@@ -161,7 +161,7 @@ Messages have `t` (type), `id` (for replies), `v` (protocol version, in `hello`)
 |---|---|---|
 | → PC | `hello {token or pairCode, device, v}` | handshake; reply `welcome {caps, vlc: {running, version}, token?}` |
 | → PC | `cmd {name, args}` | player commands: `play`, `pause`, `seek`, `volume`, `track`, `chapter`, `rate`, `delay`, `fullscreen`, `open {uri, subtitle?, audio?}`, `enqueue`, `launch`, `quit` |
-| → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume`, `moonlightStart`, `moonlightStop` |
+| → PC | `sys {name, args}` | `moveToDisplay`, `displayPower`, `keepAwake`, `sleep`, `shutdown`, `audioDevice`, `systemVolume`, `moonlightHosts`, `moonlightStart`, `moonlightStop` |
 | → PC | `browse {uri}` / `library {query}` | file lists / library with metadata |
 | → PC | `input {kind, …}` | touchpad and keyboard: `move`, `click`/`down`/`up`, `scroll`, `text`, `key`; no reply |
 | ← PC | `state {…diff}` | push of `PlayerState` changes (at most 4 Hz, seek/volume are coalesced) |
@@ -374,8 +374,13 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       history over and uninstalls it; the phone app is a new app.
 - [x] **Moonlight, first step** (user request): "Another PC's screen" in the "More" sheet starts Moonlight's stream of
       the paired computer's desktop on the TV (VLC paused) and ends it; the stream window comes to the front and takes
-      the gamepad without focus; the remote shows a "Moonlight is on the TV" card. Later: the app list (Steam Big
-      Picture, games), choosing the host, a game-session remote.
+      the gamepad without focus; the remote shows a "Moonlight is on the TV" card.
+- [x] **Moonlight, the computer and the app** (owner's request "fuller Moonlight control", 0.5): the home screen's
+      "Another PC" tile and "More" open a sheet with the computers paired in Moonlight and the chosen one's apps
+      (Desktop first, Steam Big Picture, games; `sys moonlightHosts`), refreshed on request from the computers
+      themselves (`Moonlight.exe list <host> --csv`, 15 s each, an absent computer keeps the remembered list); the last
+      choice is remembered per PC on the phone. During a stream the quick row has Moonlight's own shortcuts: the stats
+      overlay and the mouse mode. Later: a game remote / gamepad on the phone.
 - [ ] **YouTube on the TV** (user request): Firefox with a TV profile of its own (uBlock Origin possible; the user signs
       in once), "Share → Sofabird" and a pasted link open the video fullscreen on the TV, the remote controls it through
       Windows' media controls. Done (#52): the link parsing, the TV browser and its media session, the protocol, the
@@ -417,7 +422,8 @@ iOS via Compose Multiplatform.
 ### Later ideas (user requests)
 - **Casting from the YouTube app** to the PC through VacuumTube (YouTube's TV interface with DIAL discovery; sign-in
   with a code on the phone); the companion would keep it running and switch the TV to it when a video starts.
-- **Moonlight, further:** other hosts and apps (Steam Big Picture), the stream on a chosen monitor, a game remote.
+- **Moonlight, further:** a game remote / gamepad on the phone (the computer, the app and the TV screen can already be
+  chosen).
 
 ### Postponed
 - **TV control** (user decision 2026-10-13): Samsung UE55H6200 (2014, Orsay) — no HDMI-CEC on the laptop's

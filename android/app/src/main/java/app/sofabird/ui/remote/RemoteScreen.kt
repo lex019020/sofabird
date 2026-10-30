@@ -82,8 +82,8 @@ interface RemoteActions {
     fun input(input: PcInput) {}
 }
 
-/** Where the remote leads: its sheets (the TV screen, "More", YouTube) and other screens of the app. */
-enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, YOUTUBE_VIDEO, LIBRARY, HISTORY, TOUCHPAD }
+/** Where the remote leads: its sheets (the TV screen, "More", YouTube, Moonlight) and other screens of the app. */
+enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, YOUTUBE_VIDEO, MOONLIGHT, LIBRARY, HISTORY, TOUCHPAD }
 
 @Composable
 fun RemoteScreen(
@@ -101,6 +101,7 @@ fun RemoteScreen(
     var displaySheet by remember { mutableStateOf(false) }
     var youtubeSheet by remember { mutableStateOf(false) }
     var youtubeVideoSheet by remember { mutableStateOf(false) }
+    var moonlightSheet by remember { mutableStateOf(false) }
     val openConnection by rememberUpdatedState(onOpenConnection)
     val openLibrary by rememberUpdatedState(onOpenLibrary)
     val openHistory by rememberUpdatedState(onOpenHistory)
@@ -131,6 +132,7 @@ fun RemoteScreen(
                 RemotePlace.MORE -> moreSheet = true
                 RemotePlace.YOUTUBE -> youtubeSheet = true
                 RemotePlace.YOUTUBE_VIDEO -> youtubeVideoSheet = true
+                RemotePlace.MOONLIGHT -> moonlightSheet = true
                 RemotePlace.LIBRARY -> openLibrary()
                 RemotePlace.HISTORY -> openHistory()
                 RemotePlace.TOUCHPAD -> openTouchpad()
@@ -159,6 +161,10 @@ fun RemoteScreen(
                 moreSheet = false
                 actions.open(RemotePlace.TOUCHPAD)
             },
+            onOpenMoonlight = {
+                moreSheet = false
+                moonlightSheet = true
+            },
         )
     }
     if (displaySheet && ui.showDisplayChoice) {
@@ -166,6 +172,9 @@ fun RemoteScreen(
     }
     if (youtubeSheet) {
         YouTubeSheet(ui = ui, viewModel = viewModel, onDismiss = { youtubeSheet = false })
+    }
+    if (moonlightSheet && ui.capabilities.moonlight) {
+        MoonlightSheet(ui = ui, viewModel = viewModel, onDismiss = { moonlightSheet = false })
     }
     val youtube = ui.youtube
     if (youtubeVideoSheet && youtube != null) {

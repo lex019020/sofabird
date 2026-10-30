@@ -106,6 +106,12 @@ sealed class SystemCommand {
     data object MoonlightStop : SystemCommand()
 
     /**
+     * The computers paired in Moonlight on the PC and their apps (answered with data: [PlayerBackend.moonlightHosts]);
+     * with [refresh] the companion asks each computer for its apps first (up to ~15 s for one that is off).
+     */
+    data class MoonlightHosts(val refresh: Boolean = false) : SystemCommand()
+
+    /**
      * Show a YouTube video on the TV: [url] is a link or the text the YouTube app shares; the companion keeps only the
      * video id, playlist and start time. VLC is paused first.
      */

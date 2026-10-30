@@ -199,6 +199,8 @@ public sealed class CompanionHost : ISessionHost
         MonitorInfo? display = null;
         try { display = Displays.FindVlcMonitor(); }
         catch (Exception ex) { _log.LogDebug(ex, "Monitor of the VLC window not found"); }
+        var moonlight = _moonlight.ExePath is not null;
+        var streamingHost = moonlight ? MoonlightService.StreamingHost() : null;
         return new SystemInfo
         {
             Volume = vol?.Percent,
@@ -207,8 +209,9 @@ public sealed class CompanionHost : ISessionHost
             DisplayId = display?.Id,
             PreferredDisplayId = Displays.PreferredId,
             KeepAwake = _power.KeepAwakeEnabled,
-            MoonlightHost = _moonlight.ExePath is null ? null : MoonlightCommandLine.ChooseHost(_moonlight.Hosts(), null)?.Name,
-            MoonlightStreaming = _moonlight.ExePath is null ? null : MoonlightService.StreamingHost() is not null,
+            // The computer on the TV while a stream runs (any paired one may be chosen), else the first paired one.
+            MoonlightHost = moonlight ? streamingHost ?? MoonlightCommandLine.ChooseHost(_moonlight.Hosts(), null)?.Name : null,
+            MoonlightStreaming = moonlight ? streamingHost is not null : null,
             SleepTimer = _sleepTimer.Info,
         };
     }
@@ -387,6 +390,13 @@ public sealed class CompanionHost : ISessionHost
                 _vlc.Poke();
                 return null;
             }
+
+            case "moonlightHosts":
+                // With "refresh" each computer is asked for its apps (up to ~15 s for one that is off).
+                return new MoonlightHostsMessage
+                {
+                    Items = await _moonlight.HostsAsync(args.GetBool("refresh") == true, ct).ConfigureAwait(false),
+                };
 
             case "moonlightStart":
                 // The stream covers the TV: a movie playing behind it would go on unseen.

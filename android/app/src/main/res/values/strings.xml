@@ -220,6 +220,18 @@
     <string name="moonlight_streaming_host">The screen of %1$s; the movie is paused</string>
     <string name="moonlight_on_tv">Moonlight on the TV</string>
     <string name="action_moonlight_end">End</string>
+    <string name="moonlight_sheet_hint">Moonlight on the PC at the TV shows the screen or a game of another computer.</string>
+    <string name="moonlight_choose">Choose a computer and an app</string>
+    <string name="moonlight_host_app">%1$s · %2$s</string>
+    <string name="moonlight_computer">Computer</string>
+    <string name="moonlight_apps">What to show</string>
+    <string name="moonlight_desktop_hint">The whole screen</string>
+    <string name="moonlight_apps_unknown">Moonlight does not know the apps of %1$s yet: refresh the list, or show its desktop.</string>
+    <string name="moonlight_stale">%1$s did not answer, so these are the apps Moonlight remembers.</string>
+    <string name="moonlight_refreshing">Asking the computers for their apps…</string>
+    <string name="moonlight_refresh">Refresh the list of apps</string>
+    <string name="moonlight_stats">Stats</string>
+    <string name="moonlight_mouse_mode">Mouse mode</string>
 
     <!-- Touchpad and keyboard (companion `input` capability) -->
     <string name="touchpad_title">Touchpad and keyboard</string>

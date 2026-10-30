@@ -49,7 +49,7 @@ class InputProtocolTest {
         val names = PcKey.entries.map { it.wire }.toSet()
         val companion = (
             "enter backspace tab escape space left up right down home end pageup pagedown delete win f4 f5 f11 " +
-                "volumeup volumedown volumemute a c d l v z"
+                "volumeup volumedown volumemute a c d l m q s v z"
             ).split(" ").toSet()
         assertEquals(companion, names)
     }

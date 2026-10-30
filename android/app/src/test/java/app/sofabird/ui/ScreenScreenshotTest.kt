@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onRoot
 import app.sofabird.data.discovery.DiscoveredHost
 import app.sofabird.data.player.PcWaker
 import app.sofabird.domain.model.AppSettings
+import app.sofabird.domain.model.MoonlightChoice
 import app.sofabird.domain.model.SavedServer
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.Capability
@@ -61,6 +62,7 @@ import app.sofabird.ui.media.ShowUiState
 import app.sofabird.ui.playlist.PlaylistActions
 import app.sofabird.ui.playlist.PlaylistContent
 import app.sofabird.ui.playlist.PlaylistUiState
+import app.sofabird.ui.remote.MoonlightUi
 import app.sofabird.ui.remote.RemoteActions
 import app.sofabird.ui.remote.RemoteContent
 import app.sofabird.ui.remote.RemoteUiState
@@ -310,7 +312,10 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
             capabilities = Capabilities(playing.capabilities.flags + Capability.MOONLIGHT + Capability.INPUT),
         )
 
-        /** VLC closed, a history with a file, a YouTube video and a next episode; YouTube and Moonlight on the PC. */
+        /**
+         * VLC closed, a history with a file, a YouTube video and a next episode; YouTube and Moonlight on the PC (the phone
+         * last showed Steam Big Picture through it).
+         */
         private val home = playing.copy(
             state = PlayerState(
                 vlc = VlcInfo(running = false, level = 2, status = VlcProcessStatus.NOT_RUNNING),
@@ -331,6 +336,7 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 HistoryItem("file:///D:/Series/Severance/Severance.S01E03.mkv", name = "Severance.S01E03.1080p.WEB-DL.mkv", next = true),
                 HistoryItem("file:///D:/Movies/matrix.mkv", title = "The Matrix", position = 600, length = 8160, progress = 0.07),
             ),
+            moonlight = MoonlightUi(last = MoonlightChoice("GAMING-PC", "Steam Big Picture")),
         )
 
         private val playlist = PlaylistUiState(

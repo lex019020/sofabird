@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Sofabird.Companion.Interop;
 using Sofabird.Core.Localization;
+using Sofabird.Core.Protocol;
 using Sofabird.Core.Session;
 using Sofabird.Core.Streaming;
 
@@ -10,8 +12,10 @@ namespace Sofabird.Companion.Services;
 
 /// <summary>
 /// Shows another PC's screen on the TV through Moonlight (installed and paired with a Sunshine host by the user):
-/// <c>Moonlight.exe stream &lt;host&gt; Desktop</c> fullscreen, ended by <c>Moonlight.exe quit &lt;host&gt;</c>.
-/// Streams started by hand in Moonlight are seen and can be ended too.
+/// <c>Moonlight.exe stream &lt;host&gt; &lt;app&gt;</c> fullscreen, ended by <c>Moonlight.exe quit &lt;host&gt;</c>.
+/// The paired computers and their apps come from Moonlight's settings, refreshed on request with
+/// <c>Moonlight.exe list &lt;host&gt; --csv</c> (<see cref="MoonlightCatalog"/>). Streams started by hand in Moonlight
+/// are seen and can be ended too.
 /// </summary>
 public sealed class MoonlightService : IDisposable
 {
@@ -25,12 +29,14 @@ public sealed class MoonlightService : IDisposable
 
     private readonly ILogger _log;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly MoonlightCatalog _catalog;
     private Process? _stream; // the last stream we started (disposed when the next one starts)
 
     public MoonlightService(ILogger<MoonlightService> log)
     {
         _log = log;
         ExePath = Locate();
+        _catalog = new MoonlightCatalog(PairedHosts, ListAppsAsync);
         if (ExePath is not null) _log.LogInformation("Moonlight at {Path}", ExePath);
     }
 
@@ -51,8 +57,23 @@ public sealed class MoonlightService : IDisposable
         return candidates.FirstOrDefault(File.Exists);
     }
 
-    /// <summary>Paired hosts from Moonlight's own settings (Qt keeps them under HKCU: <c>hosts\N\hostname</c>, <c>apps\M\name</c>).</summary>
-    public IReadOnlyList<MoonlightHost> Hosts()
+    /// <summary>
+    /// The paired computers with their apps, Desktop first (as a refresh fetched them, else as Moonlight remembers them).
+    /// </summary>
+    public IReadOnlyList<MoonlightHost> Hosts() => _catalog.Hosts();
+
+    /// <summary><c>sys moonlightHosts</c>: the paired computers; with <paramref name="refresh"/> their apps are asked for first.</summary>
+    public Task<IReadOnlyList<MoonlightHostEntry>> HostsAsync(bool refresh, CancellationToken ct)
+    {
+        if (ExePath is null) throw ProtocolException.Unsupported(ProtocolText.MoonlightNotInstalled);
+        return _catalog.ListAsync(refresh, ct);
+    }
+
+    /// <summary>
+    /// Paired hosts from Moonlight's own settings (Qt keeps them under HKCU: <c>hosts\N\hostname</c>,
+    /// <c>apps\M\name</c>); apps hidden in Moonlight (<c>apps\M\hidden</c>) are left out.
+    /// </summary>
+    private List<MoonlightHost> PairedHosts()
     {
         try
         {
@@ -71,7 +92,9 @@ public sealed class MoonlightService : IDisposable
                         foreach (var appIndex in Indexes(appsKey))
                         {
                             using var app = appsKey.OpenSubKey(appIndex);
-                            if (app?.GetValue("name") is string appName && appName.Length > 0) apps.Add(appName);
+                            if (app?.GetValue("name") is string appName && appName.Length > 0
+                                && !MoonlightCommandLine.IsTrue(app.GetValue("hidden")))
+                                apps.Add(appName);
                         }
                     }
                 }
@@ -89,6 +112,95 @@ public sealed class MoonlightService : IDisposable
     /// <summary>Qt arrays: numbered subkeys 1..size.</summary>
     private static IEnumerable<string> Indexes(RegistryKey key) =>
         key.GetSubKeyNames().Where(n => int.TryParse(n, out _)).OrderBy(n => int.Parse(n, System.Globalization.CultureInfo.InvariantCulture));
+
+    /// <summary>
+    /// <c>Moonlight.exe list &lt;host&gt; --csv</c>: Moonlight-qt asks the host for its apps and prints them (no window);
+    /// its output, or <c>null</c> when it failed. Cancelled (<see cref="MoonlightCatalog.ListTimeout"/>: a host that is
+    /// off keeps Moonlight seeking it), the process is stopped.
+    /// </summary>
+    private async Task<string?> ListAppsAsync(string host, CancellationToken ct)
+    {
+        if (ExePath is not { } exe) return null;
+        var psi = new ProcessStartInfo(exe)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            // Qt 6 writes UTF-8; anything else shows up as U+FFFD and the remembered list is kept.
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+            WorkingDirectory = Path.GetDirectoryName(exe)!,
+        };
+        foreach (var a in MoonlightCommandLine.List(host)) psi.ArgumentList.Add(a);
+        Process? process;
+        try
+        {
+            process = Process.Start(psi);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _log.LogWarning(ex, "Moonlight: listing the apps of {Host} did not start", host);
+            return null;
+        }
+        if (process is null) return null;
+        using (process)
+        {
+            var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+            var errors = process.StandardError.ReadToEndAsync(CancellationToken.None);
+            try
+            {
+                await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                _log.LogInformation("Moonlight: {Host} did not list its apps in time; keeping the apps Moonlight remembers", host);
+                TryKillTree(process);
+                await DrainAsync(output, errors).ConfigureAwait(false);
+                return null;
+            }
+            var (stdout, stderr) = await DrainAsync(output, errors).ConfigureAwait(false);
+            if (process.ExitCode != 0)
+            {
+                _log.LogInformation("Moonlight: listing the apps of {Host} failed (exit code {Code}): {Error}",
+                    host, process.ExitCode, Shorten(stderr.Length > 0 ? stderr : stdout));
+                return null;
+            }
+            _log.LogInformation("Moonlight: {Host} listed its apps", host);
+            return stdout;
+        }
+    }
+
+    /// <summary>What the process printed, once its pipes are closed (at most a couple of seconds after it ended).</summary>
+    private static async Task<(string Out, string Err)> DrainAsync(Task<string> output, Task<string> errors)
+    {
+        try
+        {
+            await Task.WhenAll(output, errors).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            return (output.Result, errors.Result);
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            return ("", "");
+        }
+    }
+
+    private static string Shorten(string text)
+    {
+        var line = text.ReplaceLineEndings(" ").Trim();
+        return line.Length <= 300 ? line : line[..300] + "â€¦";
+    }
+
+    private void TryKillTree(Process p)
+    {
+        try { p.Kill(entireProcessTree: true); }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception
+            or NotSupportedException or AggregateException)
+        {
+            _log.LogDebug(ex, "Stopping Moonlight {Pid} failed", p.Id);
+        }
+    }
 
     /// <summary>Moves the stream window to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
     public Action<IntPtr>? PlaceOnTv { get; set; }
