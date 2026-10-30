@@ -12,6 +12,7 @@ using Sofabird.Companion.YouTube;
 using Sofabird.Core.History;
 using Sofabird.Core.Lua;
 using Sofabird.Core.Pairing;
+using Sofabird.Core.Power;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Setup;
 using Sofabird.Core.Updates;
@@ -170,8 +171,9 @@ internal static class Program
             youtubeHistory, settings, settingsStore, paths.DataDir, lf.CreateLogger<YouTubeService>());
         using var wake = new WakeOnLanService(lf.CreateLogger<WakeOnLanService>());
         wake.Start();
+        using var sleepTimer = new SleepTimer();
         var host = new CompanionHost(settings, settingsStore, vlc, pairing, display, power, audio, audioWatcher, background,
-            library, moonlight, youtube, youtubeHistory, wake, lf.CreateLogger<CompanionHost>());
+            library, moonlight, youtube, youtubeHistory, wake, sleepTimer, lf.CreateLogger<CompanionHost>());
         var sessions = new SessionManager(host, lf);
         vlc.StateChanged += sessions.PublishState;
         vlc.Event += sessions.PublishEvent;

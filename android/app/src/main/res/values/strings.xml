@@ -180,6 +180,15 @@
     <string name="display_unmanaged_hint">The companion does not move VLC\'s window; YouTube and Moonlight go to VLC\'s display</string>
     <string name="display_preferred_missing">The chosen display is not connected right now (TV off?). Until it is back, VLC, YouTube and Moonlight open where Windows puts them.</string>
     <string name="display_choose_hint">Where VLC, YouTube and Moonlight open</string>
+    <string name="section_sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_off">Off</string>
+    <string name="sleep_timer_minutes">%1$d min</string>
+    <string name="sleep_timer_end_of_item">End of this</string>
+    <string name="sleep_timer_sleep_pc">Then put the PC to sleep</string>
+    <string name="sleep_timer_left">Pauses in %1$d min</string>
+    <string name="sleep_timer_left_sleep">The PC sleeps in %1$d min</string>
+    <string name="sleep_timer_at_end">Pauses at the end</string>
+    <string name="sleep_timer_at_end_sleep">The PC sleeps at the end</string>
     <string name="section_power">Power</string>
     <string name="section_moonlight">Another PC\'s screen</string>
     <string name="moonlight_from">%1$s through Moonlight</string>

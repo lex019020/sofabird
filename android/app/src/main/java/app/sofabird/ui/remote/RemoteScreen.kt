@@ -272,14 +272,25 @@ private fun ColumnScope.NowOnTv(
             }
             Spacer(Modifier.height(gap))
             YouTubeTitleBlock(youtube)
+            SleepTimerUnderTitle(ui)
         }
         else -> {
             Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
             Spacer(Modifier.height(gap))
-            if (block == null) TitleBlock(ui)
+            if (block == null) {
+                TitleBlock(ui)
+                SleepTimerUnderTitle(ui)
+            }
             next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
         }
     }
+}
+
+/** "Pauses in 23 min" under what plays while the sleep timer runs. */
+@Composable
+private fun SleepTimerUnderTitle(ui: RemoteUiState) {
+    val timer = ui.state.system?.sleepTimer?.takeIf { ui.capabilities.sleepTimer } ?: return
+    SleepTimerLine(timer, Modifier.padding(top = 4.dp))
 }
 
 /**

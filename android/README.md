@@ -296,6 +296,14 @@ stored token requires the pinned one. Artwork: on an encrypted link `/art` URLs 
 listener (`artOverTls`), and the shared OkHttp client trusts the pinned certificate for that host and port only
 (`PinnedServers`; everything else — TMDB, YouTube — is checked by the system as usual).
 
+## Sleep timer
+
+With `caps.sleepTimer` "More" has a "Sleep timer" section (`SleepTimerViews.kt`): Off, 15 … 120 min, "End of this", and
+with `power` "Then put the PC to sleep" — each a `sys sleepTimer`; switching "sleep" while a timer runs re-sends it
+with the minutes left. The companion keeps the timer and pauses VLC/YouTube when it runs out (see the protocol);
+`state.system.sleepTimer` drives "Pauses in 23 min" / "The PC sleeps at the end" under the title of the remote (VLC and
+YouTube), refreshed every 15 s.
+
 ## Home screen
 
 When nothing is on the TV (`RemoteUiState.home`: online, VLC closed or open with nothing in it, no
@@ -376,7 +384,6 @@ The companion is the source of truth: the phone keeps no history of its own.
 ## Deferred
 
 - `CompanionDeviceManager` (system PC picker, presence events) instead of our own list of bonded devices.
-- Sleep timer (next).
 - A Quick Settings tile, a Glance widget.
 - Landscape and tablet layouts (postponed).
 
