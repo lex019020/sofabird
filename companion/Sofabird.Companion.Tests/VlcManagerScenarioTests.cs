@@ -112,7 +112,7 @@ public sealed class VlcManagerScenarioTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task A_file_that_ends_early_is_reported_ended_by_the_rc_stop_line()
+    public async Task A_file_that_ends_early_is_reported_ended_by_vlcs_end_state()
     {
         await using var s = NewScenario();
         // A cut download: VLC reports 90 minutes, but playback stops after 2000 s.
@@ -125,7 +125,7 @@ public sealed class VlcManagerScenarioTests(ITestOutputHelper output)
         s.ClearEvents();
 
         s.Elapse(15);
-        await s.RcSyncAsync(); // the companion has read "status change: ( stop state: 0 )"
+        await s.RcSyncAsync(); // the companion has read "status change: ( play state: 4 ): End"
         var stopped = await s.PollAsync();
 
         Assert.Equal("stopped", stopped.Playback.State);
@@ -147,6 +147,29 @@ public sealed class VlcManagerScenarioTests(ITestOutputHelper output)
 
         await s.CmdAsync("stop");
         await s.RcSyncAsync();
+        var stopped = await s.PollAsync();
+
+        Assert.Equal("stopped", stopped.Playback.State);
+        Assert.Empty(s.EventNames);
+        Assert.Equal(0, s.ItemEnded);
+        var entry = s.Store.Find(Movie.Uri)!;
+        Assert.False(entry.Finished);
+        Assert.Equal(1500, entry.Position);
+    }
+
+    [Fact]
+    public async Task Stop_pressed_in_vlc_itself_is_not_the_end_either()
+    {
+        await using var s = NewScenario();
+        s.Vlc.StartProcess(Scenario.Password, null, Movie);
+        await s.PollAsync();
+        await s.RcSyncAsync();
+        s.Elapse(1500);
+        await s.PollAsync();
+        s.ClearEvents();
+
+        s.Vlc.PressStop();
+        await s.RcSyncAsync(); // the companion has read "status change: ( stop state: 0 )"
         var stopped = await s.PollAsync();
 
         Assert.Equal("stopped", stopped.Playback.State);
