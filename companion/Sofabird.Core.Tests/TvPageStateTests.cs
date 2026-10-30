@@ -27,6 +27,31 @@ public class TvPageStateTests
         Assert.Equal(At, s.ReceivedAt);
     }
 
+    [Fact]
+    public void Parse_reads_subtitles_and_quality_and_an_unchanged_report_is_no_change()
+    {
+        const string extra = """
+            "fullscreen":true,
+            "captions":{"tracks":[{"code":"en","name":"English"},{"code":"ru","name":"Russian (auto-generated)","auto":true},
+            {"name":"no code"}],"current":"en"},"quality":{"levels":["hd1080","hd720","auto"],"current":"hd720"}}
+            """;
+        var json = Playing.Replace("\"fullscreen\":true}", extra, StringComparison.Ordinal);
+        var s = TvPageState.Parse(json, At)!;
+        Assert.Equal([new TvCaption("en", "English", false), new TvCaption("ru", "Russian (auto-generated)", true)], s.Captions!.Tracks);
+        Assert.Equal("en", s.Captions.Current);
+        Assert.Equal(["hd1080", "hd720", "auto"], s.Quality!.Levels);
+        Assert.Equal("hd720", s.Quality.Current);
+
+        // The lists are compared by content: the same report a second later is not news for the phones.
+        var again = TvPageState.Parse(json, At.AddSeconds(1))! with { Time = s.Time + 1 };
+        Assert.False(again.DiffersFrom(s));
+        Assert.True(TvPageState.Parse(json.Replace("\"current\":\"en\"", "\"current\":null", StringComparison.Ordinal), At)!.DiffersFrom(s));
+
+        // No tracks, or none usable: no subtitles.
+        Assert.Null(TvPageState.Parse(Playing, At)!.Captions);
+        Assert.Null(TvPageState.Parse(json.Replace("\"code\":", "\"lang\":", StringComparison.Ordinal), At)!.Captions);
+    }
+
     [Theory]
     [InlineData("""{"t":"hello","version":"1.0.0"}""")]
     [InlineData("""[1,2]""")]

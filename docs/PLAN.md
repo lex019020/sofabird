@@ -379,7 +379,7 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       "Sign in to YouTube…", uBlock Origin opt-in from the setup window or the phone); SponsorBlock (#59, user request:
       opt-in like uBlock Origin, the browser restarts at the same moment); the YouTube history (user request: every
       video played on the TV with where it stopped, in History, "Continue watching" and "More → Recently on the TV",
-      opened where it stopped). Later: captions and quality.
+      opened where it stopped); subtitles and quality from the phone (0.5, the extension 1.1).
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
 - [x] **Wake-on-LAN** (user request): "Wake up the PC" on the phone's "No connection" card (the magic packet for the
@@ -474,7 +474,7 @@ sofabird/
 The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
 Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
-Then (0.5): the sleep timer (done), fake-VLC scenario tests (M4), YouTube captions and quality. **Later**: Quick Settings tile, widget, Wear OS, subtitle
+Then (0.5): the sleep timer and YouTube subtitles and quality (done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS; dropping the plain `ws` (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

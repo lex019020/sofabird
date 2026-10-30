@@ -98,6 +98,7 @@ object CommandMapping {
             is SystemCommand.YouTube -> "youtube" to args {
                 put("action", command.action.wire)
                 command.time?.let { put("time", it.coerceAtLeast(0.0)) }
+                command.value?.let { put("value", it) }
             }
         }
         return CompanionMessage.Sys(id = id, name = name, args = args)

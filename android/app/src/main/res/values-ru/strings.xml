@@ -212,6 +212,12 @@
     <string name="youtube_link_hint">Ссылка на видео YouTube</string>
     <string name="action_paste">Вставить</string>
     <string name="action_youtube_show">Показать на ТВ</string>
+    <string name="youtube_video_tile">Видео</string>
+    <string name="youtube_video_title">Видео на ТВ</string>
+    <string name="youtube_captions_title">Субтитры</string>
+    <string name="youtube_captions_off">Выкл.</string>
+    <string name="youtube_quality_title">Качество</string>
+    <string name="youtube_quality_auto">Авто</string>
     <string name="youtube_recent">Недавно на ТВ</string>
     <string name="history_youtube">YouTube</string>
     <string name="youtube_share_hint">Или поделитесь видео в Sofabird из приложения YouTube.</string>

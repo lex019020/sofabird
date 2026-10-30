@@ -416,7 +416,7 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "youtube":
-                await _youtube.ControlAsync(args.RequireString("action"), args.GetDouble("time")).ConfigureAwait(false);
+                await _youtube.ControlAsync(args.RequireString("action"), args.GetDouble("time"), args.GetString("value")).ConfigureAwait(false);
                 return null;
 
             case "sleepTimer":
