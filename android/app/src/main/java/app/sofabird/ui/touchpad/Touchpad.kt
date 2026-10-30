@@ -94,6 +94,7 @@ fun Touchpad(
     var focusField by remember { mutableStateOf(false) }
     val tick = rememberTick(haptics)
     val softKeyboard = LocalSoftwareKeyboardController.current
+    LowLatencyWifi(active = enabled)
     Column(modifier) {
         TouchSurface(onInput, haptics, enabled, Modifier.weight(1f).fillMaxWidth())
         Row(
@@ -298,10 +299,12 @@ private suspend fun PointerInputScope.detectTouchpad(emit: (PcInput) -> Unit, on
         pointer.reset()
         var fingers = 1
         var travel = Offset.Zero
+        var travelMs = 0L
         val began = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
             awaitMotion { motion ->
                 fingers = maxOf(fingers, motion.fingers)
                 travel += motion.delta
+                travelMs += motion.dtMs
                 when {
                     motion.fingers == 0 -> Stroke.TAP
                     travel.getDistance() > viewConfiguration.touchSlop -> if (fingers > 1) Stroke.SCROLL else Stroke.MOVE
@@ -321,7 +324,8 @@ private suspend fun PointerInputScope.detectTouchpad(emit: (PcInput) -> Unit, on
             }
             Stroke.SCROLL -> scroll.start(travel.x, travel.y)
             Stroke.HOLD -> scroll.start(0f, 0f) // two fingers held still: they may scroll yet, but it is no click
-            Stroke.MOVE -> Unit
+            // The way the finger went before it counted as a stroke moves the pointer too: no dead zone at the start.
+            Stroke.MOVE -> pointer.move(travel.x / density, travel.y / density, travelMs)?.let(emit)
         }
         var scrolling = began == Stroke.SCROLL || began == Stroke.HOLD
         awaitMotion { motion ->

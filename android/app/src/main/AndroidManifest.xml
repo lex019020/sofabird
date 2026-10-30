@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- A Wi-Fi lock in low-latency mode while the touchpad is on the screen (no power-saving delays for the pointer). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- The app installs its own updates from GitHub Releases (the system asks the user to confirm each one). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
