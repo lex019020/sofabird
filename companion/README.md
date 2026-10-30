@@ -429,6 +429,10 @@ YouTube's player on watch pages (`#movie_player` through `wrappedJSObject`: the 
 duration, playing, an ad — `ad-showing` — and its "Skip" button, next/previous) and carries out commands with the
 player's own API (`playVideo`, `pauseVideo`, `seekTo`, `nextVideo`, `previousVideo`, the fullscreen and "Skip"
 buttons); it also answers YouTube's "Video paused. Continue watching?" so that a video on the TV does not stop by itself.
+Since 1.1 it also reports the video's subtitles (`getOption("captions", "tracklist")`, with the auto-generated ones)
+and the one shown, and the qualities (`getAvailableQualityLevels`, `getPlaybackQuality`); `captions` sets
+`setOption("captions", "track", {languageCode})` (empty — off), `quality` calls `setPlaybackQualityRange` (objects go
+to the page through `cloneInto`). These are YouTube's own, undocumented player calls: a YouTube change can break them.
 It reports on every change and the position at most once a second.
 
 - **Signing.** Release Firefox loads only extensions signed by Mozilla: `python scripts/sign_extension.py sign` packs
