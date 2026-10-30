@@ -5,6 +5,7 @@ import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DecodedMessage
 import app.sofabird.protocol.companion.DeviceInfo
 import app.sofabird.protocol.companion.LanRoute
+import app.sofabird.protocol.companion.TlsInfo
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.protocol.model.Playback
@@ -41,6 +42,8 @@ class TransportSelectionTest {
         override val kind: TransportKind,
         private val refuse: ConnectionError? = null,
         private val title: String,
+        override val certificate: String? = null,
+        private val artUrl: String? = null,
     ) : CompanionTransport {
         private val incoming = Channel<String>(Channel.UNLIMITED)
         val sent = mutableListOf<CompanionMessage>()
@@ -62,6 +65,7 @@ class TransportSelectionTest {
                             caps = listOf("launchVlc", "bluetooth"),
                             vlc = VlcInfo(running = true),
                             bt = "AA:BB:CC:DD:EE:FF",
+                            tls = certificate?.let { TlsInfo(47557, it) },
                         )
                     },
                 )
@@ -69,7 +73,7 @@ class TransportSelectionTest {
                     CompanionMessage.State(
                         vlc = VlcInfo(running = true, level = 2),
                         playback = Playback(state = PlaybackStatus.PLAYING, time = 904, length = 10705),
-                        item = PlayingItem(title = title),
+                        item = PlayingItem(title = title, artUrl = artUrl),
                     ),
                 )
                 is CompanionMessage.Ping -> reply(CompanionMessage.Pong())
@@ -110,12 +114,14 @@ class TransportSelectionTest {
         val rfcomm = mutableListOf<FakeLink>()
         var probes = 0
         var wsAttempts = 0
+        val routes = mutableListOf<LanRoute>()
 
         override suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport {
             wsAttempts++
+            routes += route
             if (lanHangs) awaitCancellation()
             if (!lanUp) throw ConnectException("Connection refused")
-            return FakeLink(TransportKind.WIFI, refuse, title = "via wifi").also { ws += it }
+            return FakeLink(TransportKind.WIFI, refuse, title = "via wifi", certificate = "CERT", artUrl = ART).also { ws += it }
         }
 
         override fun bluetoothStatus(address: String?): BluetoothStatus =
@@ -123,7 +129,7 @@ class TransportSelectionTest {
 
         override suspend fun openRfcomm(address: String): CompanionTransport {
             if (!btUp) throw BluetoothConnectException("no answer")
-            return FakeLink(TransportKind.BLUETOOTH, refuse, title = "via bluetooth").also { rfcomm += it }
+            return FakeLink(TransportKind.BLUETOOTH, refuse, title = "via bluetooth", artUrl = ART).also { rfcomm += it }
         }
 
         override suspend fun probeLan(host: String, port: Int, pcId: String?, btAddress: String?): LanEndpoint? {
@@ -132,7 +138,12 @@ class TransportSelectionTest {
         }
     }
 
-    private class Harness(val backend: CompanionBackend, val history: MutableList<ConnectionState>, val welcomes: MutableList<CompanionMessage.Welcome>)
+    private class Harness(
+        val backend: CompanionBackend,
+        val history: MutableList<ConnectionState>,
+        val welcomes: MutableList<CompanionMessage.Welcome>,
+        val pins: MutableList<TlsPin?>,
+    )
 
     private fun TestScope.backend(
         transports: FakeTransports,
@@ -141,6 +152,7 @@ class TransportSelectionTest {
         bluetoothAllowed: Boolean = true,
     ): Harness {
         val welcomes = mutableListOf<CompanionMessage.Welcome>()
+        val pins = mutableListOf<TlsPin?>()
         val backend = CompanionBackend(
             transports = transports,
             endpoint = { endpoint },
@@ -149,12 +161,15 @@ class TransportSelectionTest {
             credentials = CompanionCredentials(token = token),
             onToken = {},
             scope = backgroundScope,
-            onWelcome = { welcome, _ -> welcomes += welcome },
+            onWelcome = { welcome, pin ->
+                welcomes += welcome
+                pins += pin
+            },
             bluetoothAllowed = { bluetoothAllowed },
         )
         val history = mutableListOf<ConnectionState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { backend.connection.toList(history) }
-        return Harness(backend, history, welcomes)
+        return Harness(backend, history, welcomes, pins)
     }
 
     private val CompanionBackend.transport: TransportKind?
@@ -173,6 +188,40 @@ class TransportSelectionTest {
         assertEquals("tok", t.ws.single().hellos().single().token)
         assertEquals("AA:BB:CC:DD:EE:FF", h.welcomes.single().bt) // persisted by the controller
         assertEquals("via wifi", h.backend.state.value.item.title)
+    }
+
+    @Test
+    fun `the LAN link is encrypted - default port and trust on first use until pinned`() = runTest {
+        val t = FakeTransports()
+        val h = backend(t)
+        h.backend.connect()
+        runCurrent()
+        assertEquals(listOf(LanRoute(47557, pin = null)), t.routes)
+        assertEquals(listOf(TlsPin(47557, "CERT")), h.pins) // the controller saves it
+
+        val pinned = FakeTransports()
+        val p = backend(pinned, endpoint = lanEndpoint.copy(tlsPort = 47600, certPin = "CERT"))
+        p.backend.connect()
+        runCurrent()
+        assertEquals(listOf(LanRoute(47600, pin = "CERT")), pinned.routes)
+        assertEquals(listOf<TlsPin?>(null), p.pins) // nothing new to pin
+    }
+
+    @Test
+    fun `artwork is fetched from the host the link was opened to`() = runTest {
+        val t = FakeTransports()
+        val h = backend(t)
+        h.backend.connect()
+        runCurrent()
+        // The companion names its own LAN address; the pin and the token are kept for the address we connected to.
+        assertEquals("https://192.168.0.10:47557/art?plId=3", h.backend.state.value.item.artUrl)
+
+        val bt = FakeTransports().apply { lanUp = false }
+        val b = backend(bt)
+        b.backend.connect()
+        runCurrent()
+        assertEquals(TransportKind.BLUETOOTH, b.backend.transport)
+        assertEquals(ART, b.backend.state.value.item.artUrl)
     }
 
     @Test
@@ -408,5 +457,10 @@ class TransportSelectionTest {
         val c = backend.connection.value as ConnectionState.Connecting
         assertEquals(ConnectionError.BluetoothFailed, c.lastError)
         assertFalse(c.attempt == 0)
+    }
+
+    private companion object {
+        /** `state.item.artUrl` as the companion sends it: its own LAN address and the encrypted port. */
+        const val ART = "https://192.168.0.17:47557/art?plId=3"
     }
 }

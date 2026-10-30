@@ -41,11 +41,10 @@ class CompanionPairingLink(
         val known = saved(target)
         val lan = tester.testCompanion(
             host = target.host,
-            wsPort = target.wsPort,
             token = token,
             pairCode = pairCode,
             device = identity.deviceInfo(),
-            tlsPort = known?.tlsPort,
+            tlsPort = target.tlsPort ?: known?.tlsPort,
             certPin = known?.certPin.takeIf { pairCode == null },
         )
         // Same rule as the live session: LAN first, then the bonded PC over RFCOMM.

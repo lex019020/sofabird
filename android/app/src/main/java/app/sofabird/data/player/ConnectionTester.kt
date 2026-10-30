@@ -5,11 +5,10 @@ import app.sofabird.data.companion.CompanionTransport
 import app.sofabird.data.companion.CompanionTransports
 import app.sofabird.data.companion.classifyCompanionError
 import app.sofabird.data.companion.handshake
-import app.sofabird.data.companion.isTerminalHandshakeError
 import app.sofabird.protocol.companion.BtAddress
 import app.sofabird.protocol.companion.CompanionMessage
 import app.sofabird.protocol.companion.DeviceInfo
-import app.sofabird.protocol.companion.lanRoutes
+import app.sofabird.protocol.companion.lanRoute
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionError
 import app.sofabird.protocol.model.VlcInfo
@@ -27,7 +26,10 @@ sealed class TestResult {
         val vlc: VlcInfo,
         /** PC Bluetooth address from `welcome`, normalized. */
         val bt: String? = null,
-        /** The encrypted WebSocket used for this test: its port and the certificate to pin; `null` — plain. */
+        /**
+         * The companion's encrypted WebSocket: its port and, after a LAN test, the certificate it showed (to pin).
+         * Over Bluetooth only the port the companion names; `null` when it has none.
+         */
         val tlsPort: Int? = null,
         val certPin: String? = null,
     ) : TestResult()
@@ -39,29 +41,20 @@ sealed class TestResult {
 class ConnectionTester(private val transports: CompanionTransports) {
 
     /**
-     * One `hello` over the LAN WebSocket; the link is closed afterwards. Encrypted first ([lanRoutes]; a known
-     * [certPin] is required), plain for an older companion; an encrypted success carries the certificate to pin.
+     * One `hello` over the encrypted LAN WebSocket ([lanRoute]: a known [certPin] is required, without one the
+     * certificate shown is trusted); the link is closed afterwards. A success carries the certificate to pin.
      */
     suspend fun testCompanion(
         host: String,
-        wsPort: Int,
         token: String?,
         pairCode: String?,
         device: DeviceInfo,
         tlsPort: Int? = null,
         certPin: String? = null,
     ): TestResult {
-        var last: TestResult = TestResult.Failed(ConnectionError.Timeout)
-        for (route in lanRoutes(wsPort, tlsPort, certPin)) {
-            last = helloOver(token, pairCode, device, timeoutMs = if (route.tls) TLS_TRY_MS else 12_000) {
-                transports.openWebSocket(host, route)
-            }
-            val result = last
-            if (result is TestResult.CompanionOk) return if (route.tls) result.copy(tlsPort = route.port) else result.copy(certPin = null)
-            // A refusal (wrong code, pairing needed, another certificate) is the companion's answer: do not go plain.
-            if (result is TestResult.Failed && result.error.isTerminalHandshakeError) return result
-        }
-        return last
+        val route = lanRoute(tlsPort, certPin)
+        val result = helloOver(token, pairCode, device, timeoutMs = LAN_HELLO_TIMEOUT_MS) { transports.openWebSocket(host, route) }
+        return if (result is TestResult.CompanionOk) result.copy(tlsPort = route.port) else result
     }
 
     /** The same over RFCOMM to the bonded PC at [address] (first connection via Bluetooth). */
@@ -98,7 +91,7 @@ class ConnectionTester(private val transports: CompanionTransports) {
                         capabilities = Capabilities.fromWire(welcome.caps),
                         vlc = welcome.vlc,
                         bt = BtAddress.normalize(welcome.bt),
-                        // Plain: the companion says it has the encrypted one; the first session then pins it.
+                        // Over Bluetooth: where the LAN link will be; the first session there pins the certificate.
                         tlsPort = welcome.tls?.port,
                         certPin = certificate,
                     )
@@ -115,5 +108,5 @@ class ConnectionTester(private val transports: CompanionTransports) {
     }
 }
 
-/** An encrypted try during pairing: a companion without it (older) must not hold up the plain one for long. */
-private const val TLS_TRY_MS = 5_000L
+/** A LAN `hello` for pairing: connecting (the TLS handshake included) and the companion's answer. */
+private const val LAN_HELLO_TIMEOUT_MS = 12_000L

@@ -18,7 +18,7 @@ import kotlinx.coroutines.withTimeout
 interface CompanionTransport {
     val kind: TransportKind
 
-    /** The SHA-256 of the companion's certificate on an encrypted WebSocket; `null` on a plain one and RFCOMM. */
+    /** The SHA-256 of the companion's certificate on the encrypted WebSocket; `null` on RFCOMM. */
     val certificate: String? get() = null
 
     /** Sends one message (a JSON object; framing is the transport's business). */
@@ -93,8 +93,8 @@ suspend fun CompanionTransport.handshake(
 /** Opens links to a companion. Real implementation: [AndroidCompanionTransports]; fakes in tests. */
 interface CompanionTransports {
     /**
-     * WebSocket `ws://host:port/ws`, or `wss://` trusting only the pinned certificate ([LanRoute]). Throws when the PC
-     * is unreachable; a certificate other than the pinned one is [app.sofabird.data.net.CertificateChangedException].
+     * The encrypted WebSocket `wss://host:port/ws` trusting only the pinned certificate ([LanRoute]). Throws when the
+     * PC is unreachable; a certificate other than the pinned one is [app.sofabird.data.net.CertificateChangedException].
      */
     suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport
 
@@ -105,14 +105,14 @@ interface CompanionTransports {
     suspend fun openRfcomm(address: String): CompanionTransport
 
     /**
-     * Is the companion reachable over the LAN? Asks `/info` on the known [host] first; without a
+     * Is the companion reachable over the LAN? Asks the plain `/info` on the known [host]:[port] first; without a
      * host (or when it does not answer) runs a short UDP beacon round looking for [pcId] / [btAddress].
      * Returns where it answered, or `null`.
      */
     suspend fun probeLan(host: String, port: Int, pcId: String?, btAddress: String?): LanEndpoint?
 }
 
-/** Where the companion answered on the LAN. */
+/** Where the companion answered on the LAN ([port]: the plain one, `/info`). */
 data class LanEndpoint(val host: String, val port: Int, val btAddress: String? = null)
 
 /** Thrown by RFCOMM when the connection to the PC could not be established. */

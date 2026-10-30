@@ -50,7 +50,7 @@ certificate's SHA-256 (DER, upper-case hex) as `"tls": {"port": 47557, "sha256":
 - The companion lists in `macs` (`["AA:BB:CC:DD:EE:FF", …]`, wired first) the MAC addresses of the adapters that will
   wake it from sleep: connected, "Wake on Magic Packet" on, allowed to wake the PC, and able to (driver and firmware,
   `powercfg /devicequery wake_from_any`) — in `/info`, `beacon` and `welcome`. `[]` — the PC cannot be woken (a phone
-  then forgets the MACs and offers no waking); absent — not known yet (an older companion, or the first look, ~1 s
+  then forgets the MACs and offers no waking); absent — not known yet (the first look, ~1 s
   after the start, is not done): a phone keeps what it knew.
 - A phone keeps them with the PC. When the PC does not answer, the phone offers "Wake up the PC": it sends the magic
   packet (6 × `0xFF` + the MAC 16 times) for every MAC as a UDP broadcast (`255.255.255.255` and the subnet-directed
@@ -96,7 +96,8 @@ Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vl
    tray menu ("Pair a phone…"). The token is 32 bytes base64url; the PC stores its SHA-256. A repeated `pairing_required`
    from the same phone while the code is active does not create the window again (it only brings it to the front).
 
-Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
+The companion also answers `unauthorized` when no valid `hello` came in time; the phone treats that (to a `hello`
+without `pairCode`) as an ordinary failure and retries, not as a pairing error.
 
 `caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
 `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`, `library`, `moonlight`, `youtube`.
@@ -247,7 +248,7 @@ per second with an updated `time`). Always the full object (not a diff) — simp
 
 (The track names above are real media metadata, "Mosfilm" in Russian; track names are passed through as-is.)
 
-`vlc.status` — the state of VLC on the PC (added within protocol 1, optional; old companions do not send it):
+`vlc.status` — the state of VLC on the PC (always sent since 0.5; a value the phone does not know is taken from `running`):
 
 | status | Meaning | `running` | What the phone shows |
 |---|---|---|---|

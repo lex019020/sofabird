@@ -127,6 +127,7 @@ class DiscoveryRepository(
                     vlcStatus = info.vlc?.effectiveStatus,
                     infoAt = System.currentTimeMillis(),
                     wsPort = info.wsPort,
+                    tlsPort = info.tls?.port ?: existing.tlsPort,
                     bt = BtAddress.normalize(info.bt) ?: existing.bt,
                 )
                 )

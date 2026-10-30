@@ -21,8 +21,8 @@ import app.sofabird.protocol.backend.onTv
 import app.sofabird.protocol.backend.resultOf
 import app.sofabird.protocol.backend.routeToYouTube
 import app.sofabird.protocol.companion.AudioDevice
-import app.sofabird.protocol.companion.COMPANION_TLS_PORT
 import app.sofabird.protocol.companion.DisplayList
+import app.sofabird.protocol.companion.lanRoute
 import app.sofabird.protocol.model.Capabilities
 import app.sofabird.protocol.model.ConnectionState
 import app.sofabird.protocol.model.Entry
@@ -142,10 +142,9 @@ class PlayerController(
                 list.firstOrNull { it.id == active.id }?.let { fresh ->
                     if (fresh == active) return@let
                     _activeServer.value = fresh
-                    // A Bluetooth-paired PC got its LAN address (or DHCP moved it): artwork needs the token there.
-                    val addressChanged = fresh.host != active.host || fresh.wsPort != active.wsPort
-                    if (fresh.host.isNotBlank() && addressChanged) {
-                        secrets.companionToken(fresh.id)?.let { artAuth.set(fresh.host, fresh.wsPort, "Bearer $it") }
+                    // A Bluetooth-paired PC got its LAN address (or DHCP moved it): artwork needs the pin and token there.
+                    if (fresh.host != active.host || fresh.tlsPort != active.tlsPort || fresh.certPin != active.certPin) {
+                        authorizeArt(fresh, secrets.companionToken(fresh.id))
                     }
                 }
             }
@@ -205,19 +204,17 @@ class PlayerController(
             credentials = CompanionCredentials(token = token),
             onToken = { newToken ->
                 secrets.setCompanionToken(server.id, newToken)
-                current().takeIf { it.host.isNotBlank() }?.let { artAuth.set(it.host, it.wsPort, "Bearer $newToken") }
+                authorizeArt(current(), newToken)
                 _events.tryEmit(PlayerEvent.Paired(server))
             },
             scope = backendScope,
             onWelcome = { welcome, pin ->
-                // A plain session with a companion that has the encrypted WebSocket: the next connection uses it.
-                welcome.tls?.port?.takeIf { pin == null && current().certPin == null && it != current().tlsPort }?.let { port ->
+                // The port of the encrypted WebSocket (e.g. told over Bluetooth): the LAN link uses it from now on.
+                welcome.tls?.port?.takeIf { pin == null && it != current().tlsPort }?.let { port ->
                     scope.launch { servers.update(server.id) { it.copy(tlsPort = port) } }
                 }
                 if (pin != null) {
-                    current().takeIf { it.host.isNotBlank() }?.let {
-                        pinArt(it.host, pin.port, pin.sha256, secrets.companionToken(server.id))
-                    }
+                    authorizeArt(current().copy(tlsPort = pin.port, certPin = pin.sha256), secrets.companionToken(server.id))
                     scope.launch { servers.update(server.id) { it.copy(tlsPort = pin.port, certPin = pin.sha256) } }
                 }
                 val sighting = CompanionSighting(pcId = welcome.pcId, btAddress = welcome.bt, macs = welcome.macs)
@@ -232,10 +229,7 @@ class PlayerController(
             // A PC known only by Bluetooth is always reached over it; otherwise the user setting decides.
             bluetoothAllowed = { settings.settings.value.bluetoothFallback || current().host.isBlank() },
         )
-        if (token != null && server.host.isNotBlank()) artAuth.set(server.host, server.wsPort, "Bearer $token")
-        if (server.certPin != null && server.host.isNotBlank()) {
-            pinArt(server.host, server.tlsPort ?: COMPANION_TLS_PORT, server.certPin, token)
-        }
+        authorizeArt(server, token)
         return backend
     }
 
@@ -312,10 +306,15 @@ class PlayerController(
 
     suspend fun show(key: String): Result<ShowDetails> = withBackend { it.show(key) }
 
-    /** The artwork of an encrypted link comes from [host]:[port] over https with the companion's own certificate. */
-    private fun pinArt(host: String, port: Int, sha256: String, token: String?) {
-        pinned.set(host, port, sha256)
-        if (token != null) artAuth.set(host, port, "Bearer $token")
+    /**
+     * The artwork comes from the encrypted listener of [server] (its host and `tls.port`, as the link rewrites `artUrl`)
+     * over https with the companion's own certificate, once it is pinned, and the token.
+     */
+    private fun authorizeArt(server: SavedServer, token: String?) {
+        if (server.host.isBlank()) return
+        val port = lanRoute(server.tlsPort, server.certPin).port
+        server.certPin?.let { pinned.set(server.host, port, it) }
+        token?.let { artAuth.set(server.host, port, "Bearer $it") }
     }
 
     /** Reconnect now instead of waiting for the backoff (Bluetooth permission granted, radio on). */

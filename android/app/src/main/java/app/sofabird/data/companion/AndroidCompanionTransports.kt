@@ -14,7 +14,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import kotlin.coroutines.cancellation.CancellationException
 
-/** [CompanionTransports] over Ktor (WebSocket, `/info`), the UDP beacon and Android Bluetooth. */
+/** [CompanionTransports] over Ktor (the encrypted WebSocket, plain `/info`), the UDP beacon and Android Bluetooth. */
 class AndroidCompanionTransports(
     private val ktor: HttpClient,
     private val okHttp: OkHttpClient,
@@ -23,7 +23,7 @@ class AndroidCompanionTransports(
 ) : CompanionTransports {
 
     override suspend fun openWebSocket(host: String, route: LanRoute): CompanionTransport =
-        if (route.tls) WebSocketTransport.openTls(okHttp, host, route.port, route.pin) else WebSocketTransport.open(ktor, host, route.port)
+        WebSocketTransport.openTls(okHttp, host, route.port, route.pin)
 
     override fun bluetoothStatus(address: String?): BluetoothStatus = bluetooth.status(address)
 

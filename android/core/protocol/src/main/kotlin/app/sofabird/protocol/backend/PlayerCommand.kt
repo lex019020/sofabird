@@ -55,8 +55,8 @@ sealed class PlayerCommand {
     data class Loop(val on: Boolean) : PlayerCommand()
     data class Repeat(val on: Boolean) : PlayerCommand()
 
-    /** Start VLC (optionally with a file and on a display). */
-    data class Launch(val uri: String? = null, val display: Int? = null) : PlayerCommand()
+    /** Start VLC (optionally with a file) on the preferred monitor. */
+    data class Launch(val uri: String? = null) : PlayerCommand()
     data object Quit : PlayerCommand()
 
     /** Companion `history`: answer the resume prompt (`state.resume`). */
@@ -70,14 +70,9 @@ sealed class PlayerCommand {
 sealed class SystemCommand {
     /**
      * Move the VLC window to a monitor and remember it as the preferred one (when VLC is closed the
-     * companion only remembers it). [displayId] is the stable `id` from `listDisplays`; companions that
-     * report no ids only understand [legacyIndex] (`{"display": int}`).
+     * companion only remembers it). [displayId] is the stable `id` from `listDisplays`.
      */
-    data class MoveToDisplay(val displayId: String?, val legacyIndex: Int? = null) : SystemCommand() {
-        init {
-            require(displayId != null || legacyIndex != null) { "displayId or legacyIndex is required" }
-        }
-    }
+    data class MoveToDisplay(val displayId: String) : SystemCommand()
 
     /** Only remember the monitor VLC opens on; `null` = the companion does not manage the VLC window. */
     data class PreferredDisplay(val displayId: String?) : SystemCommand()

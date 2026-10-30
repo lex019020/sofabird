@@ -50,10 +50,7 @@ object CommandMapping {
             is PlayerCommand.Random -> "random" to args { put("on", command.on) }
             is PlayerCommand.Loop -> "loop" to args { put("on", command.on) }
             is PlayerCommand.Repeat -> "repeat" to args { put("on", command.on) }
-            is PlayerCommand.Launch -> "launch" to args {
-                command.uri?.let { put("uri", it) }
-                command.display?.let { put("display", it) }
-            }
+            is PlayerCommand.Launch -> "launch" to args { command.uri?.let { put("uri", it) } }
             PlayerCommand.Quit -> "quit" to EMPTY
             is PlayerCommand.Resume -> "resume" to args { put("choice", command.choice.wire) }
             PlayerCommand.DismissNext -> "dismissNext" to EMPTY
@@ -63,10 +60,7 @@ object CommandMapping {
 
     fun toSys(id: String, command: SystemCommand): CompanionMessage.Sys {
         val (name, args) = when (command) {
-            is SystemCommand.MoveToDisplay -> "moveToDisplay" to args {
-                // New companions work by stable id; the index is only for those that report no ids.
-                if (command.displayId != null) put("displayId", command.displayId) else put("display", command.legacyIndex)
-            }
+            is SystemCommand.MoveToDisplay -> "moveToDisplay" to args { put("displayId", command.displayId) }
             is SystemCommand.PreferredDisplay -> "preferredDisplay" to args { put("displayId", command.displayId) }
             SystemCommand.ListDisplays -> "listDisplays" to EMPTY
             is SystemCommand.KeepAwake -> "keepAwake" to args { put("on", command.on) }

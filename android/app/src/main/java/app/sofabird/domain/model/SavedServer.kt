@@ -20,6 +20,7 @@ data class SavedServer(
     val name: String,
     /** LAN address; empty for a companion paired over Bluetooth until it is seen on the network. */
     val host: String,
+    /** The companion's plain port: `GET /info` only (the link itself is the encrypted WebSocket on [tlsPort]). */
     val wsPort: Int = COMPANION_WS_PORT,
     val lastUsedAt: Long = 0L,
     /** Last folder opened in the Library on this server. */
@@ -31,7 +32,7 @@ data class SavedServer(
     val btAddress: String? = null,
     /** Companion PC's network adapters (`welcome.macs`): "Wake up the PC" when it does not answer. */
     val wakeMacs: List<String> = emptyList(),
-    /** The companion's encrypted WebSocket port (`tls.port`), once used. */
+    /** The companion's encrypted WebSocket port (`tls.port`) when known; `null` — the default one. */
     val tlsPort: Int? = null,
     /** SHA-256 of the companion's certificate, pinned at the first encrypted connection: from then on only that. */
     val certPin: String? = null,

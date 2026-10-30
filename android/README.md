@@ -108,11 +108,14 @@ its password, optionally with our Lua pages); the owner removed it on 2026-10-29
 when the saved list is read (`SavedServer.decodeList`); companion entries keep working (their old `mode`/`httpPort`
 keys are ignored).
 
-**Companion** (`CompanionBackend`): `ws://host:47555/ws`, `hello` with the token, `welcome` with `caps`,
+**Companion** (`CompanionBackend`): `wss://host:47557/ws` (see "Encryption"; the plain port 47555 is only asked for
+`/info`), `hello` with the token, `welcome` with `caps`,
 push `state`, requests `cmd`/`sys`/`browse`/`getPlaylist` by `id`, `ping` every 30 s (no `pong` within 10 s →
 reconnect), exponential backoff, commands are buffered for up to 5 s while reconnecting.
-`pairing_required`/`unauthorized` during the handshake are terminal (`ConnectionError.PairingRequired` /
-`InvalidPairCode`): the backend does not hammer the PC with retries, and the "Connection" screen asks for a code.
+`pairing_required` (and `unauthorized` to a `hello` with a code) during the handshake are terminal
+(`ConnectionError.PairingRequired` / `InvalidPairCode`): the backend does not hammer the PC with retries, and the
+"Connection" screen asks for a code. The app needs a companion of the same version (0.5+): there is no compatibility
+with older ones, which have no encrypted link anyway.
 
 **Bluetooth (M3)** — a fallback channel to the companion when there is no Wi‑Fi or the PC does not answer over it:
 
@@ -166,7 +169,7 @@ reconnect), exponential backoff, commands are buffered for up to 5 s while recon
    (`/info` → `vlc.status`: running / not running / without control / starting / not installed) and
    a "paired" badge if there is a token for this PC.
 2. Tapping a card → `hello` with the saved token. Token accepted → straight to the remote. A
-   `pairing_required` response (no token, or the PC has forgotten it; an old companion answers `unauthorized`) → the
+   `pairing_required` response (no token, or the PC has forgotten it) → the
    token is deleted, **the companion shows a code on the TV/laptop screen by itself**, and the phone shows the "Enter
    the code from the computer screen" dialog: six large cells, the numeric keyboard opens by itself, the code is sent
    on the sixth digit (`hello` with `pairCode`). Success → the token goes to `EncryptedSharedPreferences`, the PC is
@@ -186,8 +189,9 @@ reconnect), exponential backoff, commands are buffered for up to 5 s while recon
 A PC is matched to a saved one by id, then by the installation GUID (`pcId`; the address is updated if DHCP
 gave the PC a different IP), then by address and port.
 
-**VLC state on the remote**: `vlc.status` (absent in old companions → derived from
-`running`). While VLC cannot be controlled, a card replaces the seek bar, the volume and the transport buttons:
+**VLC state on the remote**: `vlc.status` (`VlcInfo.effectiveStatus`: a value this app does not know, from a newer
+companion, is taken from `running`). While VLC cannot be controlled, a card replaces the seek bar, the volume and the
+transport buttons:
 `notRunning` — the home screen (see "Home screen"; "Launch VLC", `cmd launch`, is in "More");
 `starting` — "VLC is starting…"; `noControl` (VLC was opened by hand before the companion configured it) —
 "VLC is open without phone control" + "Restart with control" (`cmd launch`, the position in the movie
@@ -207,9 +211,8 @@ on; the chosen monitor is captioned "VLC, YouTube and Moonlight open here". The 
 (TV off) — an explanation under the list. The list is re-read on opening and after every action; an error is shown as
 text in the sheet and as a snackbar. After a successful command the choice is marked at once (optimistically) until the
 companion sends a new `state.system` (`displayId`, `preferredDisplayId`); after that it is trusted. The choice logic is
-a pure function `displayChoice` (`ui/remote/DisplayChoice.kt`), covered by tests.
-Old companions (monitors without `id`): the radio button shows the monitor with VLC, moving is `moveToDisplay {display: N}`
-by index and only while VLC is open, there is no "Do not manage" item.
+a pure function `displayChoice` (`ui/remote/DisplayChoice.kt`), covered by tests. Monitors are named by their stable
+`id` only (the companion's list `index` went in 0.5).
 
 **Discovery**: NSD `_sofabird._tcp` (one discovery session, sequential resolve,
 MulticastLock, "loss" with a 3 s delay), UDP beacon `SOFABIRD_DISCOVER 1` → `255.255.255.255:47556`
@@ -285,16 +288,18 @@ side is an item of the companion's setup window.
 
 ## Encryption
 
-`lanRoutes` (`:core:protocol`, tested) decides how to reach the companion on the LAN: a pinned PC
-(`SavedServer.certPin`) only over `wss` with that certificate; a PC known to have it (`tlsPort` from `welcome`) over
-`wss` first (trust on first use), then plain; otherwise plain `ws`, and its `welcome` tells `tls` for next time.
-`WebSocketTransport.openTls` opens `wss` with its own OkHttp client and `PinningTrustManager` (SHA-256 of the
-certificate, no host name check); the first accepted encrypted session hands the certificate to `onWelcome`, and it
-is saved. Another certificate than the pinned one → `ConnectionError.CertificateChanged` ("pair again with the code
-shown on the PC"), never a fallback to plain. Pairing with a code trusts the certificate anew; connecting with the
-stored token requires the pinned one. Artwork: on an encrypted link `/art` URLs are rewritten to the encrypted
-listener (`artOverTls`), and the shared OkHttp client trusts the pinned certificate for that host and port only
-(`PinnedServers`; everything else — TMDB, YouTube — is checked by the system as usual).
+The LAN link is only the encrypted WebSocket (since 0.5 the companion has no plain `ws`; its plain port answers only
+`GET /info`). `lanRoute` (`:core:protocol`, tested) names it: the PC's `tls.port` when known (saved from `welcome`,
+or from the beacon / `/info` of a discovered PC), else 47557, with the pinned certificate (`SavedServer.certPin`) when
+there is one. `WebSocketTransport.openTls` opens `wss` with its own OkHttp client and `PinningTrustManager` (SHA-256 of
+the certificate, no host name check). Without a pin (a PC paired before 0.5, over Bluetooth, or not yet) the
+certificate shown is trusted on first use: once the companion accepted the token or the code and its `welcome.tls`
+names the same certificate, `onWelcome` gets it and it is saved. Another certificate than the pinned one →
+`ConnectionError.CertificateChanged` ("pair again with the code shown on the PC"). Pairing with a code trusts the
+certificate anew; connecting with the stored token requires the pinned one. Artwork: the companion's `artUrl` is
+`https://<its LAN address>:47557/art?…`; the backend puts the host the link was opened to in it (`artViaLink`), and the
+shared OkHttp client trusts the pinned certificate and sends the token for that host and port only (`PinnedServers`,
+`ArtAuth`; everything else — TMDB, YouTube — is checked by the system as usual).
 
 ## Home screen
 
@@ -313,7 +318,7 @@ or not installed keeps its card.
 ## Watch history
 
 With the `history` capability only (protocol: "Watch history and resume" in
-[`../protocol/README.md`](../protocol/README.md)); older companions show none of this.
+[`../protocol/README.md`](../protocol/README.md)).
 The companion is the source of truth: the phone keeps no history of its own.
 
 - **Protocol** (`:core:protocol`): `Capability.HISTORY`; `PlayerState.resume` / `next` / `history`
@@ -423,7 +428,7 @@ after changing that area:
     9. The laptop sleeps during a Bluetooth session → reconnect after it wakes up.
     10. The companion closes during a Bluetooth session → the break is noticed at once (`read() == -1`/`IOException`),
         then the usual reconnect attempts.
-14. **TV screen** (Galaxy S24 ↔ the TV laptop: built-in panel + TV over HDMI, a companion with monitor `id`s):
+14. **TV screen** (Galaxy S24 ↔ the TV laptop: built-in panel + TV over HDMI):
     1. On the remote, the chip "Display: <TV name>" with a TV icon (or "<panel>" with a laptop icon); the name comes from
        EDID, as in the Windows display settings; on a narrow screen the chips wrap to a second line without cutting "More".
     2. VLC open on the laptop → sheet: "VLC is here" on the panel, the radio button on the preferred monitor, resolutions
@@ -437,9 +442,7 @@ after changing that area:
        right now"; turn the TV on → the "Refresh" button (or reopen the sheet) → the TV is back in the list and chosen.
     6. Drag the VLC window with the mouse to another monitor → the chip and "VLC is here" update (push `state`), the
        choice is not reset.
-    7. Old companion (no `id`): the list by index, radio button = where VLC is, no "Do not manage", while VLC is closed
-       the rows are disabled with a hint to update the companion.
-    8. Remote over Bluetooth: moving works the same way.
+    7. Remote over Bluetooth: moving works the same way.
 15. **First-run permissions** (Galaxy S24, Android 16). Reset: `adb shell pm clear app.sofabird` (forgets
     pairings) or `pm revoke` both permissions + the `show_permissions` hook above.
     1. Fresh start → the "Permissions" screen before "Connection": two cards (Notifications, Nearby devices), nothing
@@ -475,7 +478,12 @@ after changing that area:
     8. History: groups Today / Yesterday / This week / Earlier; rows with folder and progress or "Watched"; swipe left
        removes; menu → Mark as unwatched resets the progress; scroll through 50+ entries loads more; "Clear history" →
        confirmation with the PC name → empty screen text; the Library row is empty too ("History" link).
-    9. Old companion (no `history`): no dialog, no card, no row, no History link, no marks.
 17. **Companion only** (0.5): a phone that had a direct VLC server saved updates without a crash; that entry is gone
     from "Saved PCs", companions stay paired. "Other ways to connect" shows Bluetooth, the manual address (port 47555)
     and "How to set up the PC"; a wrong address ends in the pairing-failed card with a hint.
+18. **Encrypted only** (0.5 app and companion):
+    1. A phone paired with a 0.4 app (no pinned certificate) updates → it connects over `wss` at once, without a new
+       code, and pins the certificate; the cover art shows.
+    2. Pair a new phone with a code, by the discovered card and by the address typed by hand → connected, art shows.
+    3. Reinstall the companion with `-Purge` (a new certificate) → the remote says to pair again; a new code works.
+    4. Bluetooth-only pairing, then Wi‑Fi comes back → the session moves to the LAN and pins the certificate.
