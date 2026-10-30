@@ -6,8 +6,9 @@ the media station mode, the installer with quiet auto-updates, layout polish and
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
 and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
 with what to watch. In 0.5 the app works only with the companion: the direct VLC mode (levels 0/1) is removed (the
-owner's decision, 2026-10-29). Next, in 0.5: the sleep timer, the phone as the PC's touchpad and keyboard, dropping the
-unencrypted connection (§ 10).
+owner's decision, 2026-10-29). Done in 0.5: the sleep timer, YouTube subtitles and quality, the phone as the PC's
+touchpad and keyboard, the Moonlight computer and app, dropping the unencrypted connection (§ 10). Next: fake-VLC
+scenario tests (M4).
 
 ## 0. Essence
 
@@ -486,7 +487,8 @@ sofabird/
 The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
 Wake-on-LAN, the encrypted connection and the home screen (§ 9).
 
-Then (0.5): the sleep timer, YouTube subtitles and quality, the phone as touchpad and keyboard (done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
+Then (0.5): the sleep timer, YouTube subtitles and quality, the phone as touchpad and keyboard, the Moonlight computer
+and app (all done), fake-VLC scenario tests (M4). **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS. The plain `ws` and the compatibility with versions before 0.5 are gone (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.

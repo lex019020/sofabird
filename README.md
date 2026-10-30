@@ -134,7 +134,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. In 0.5 so far: a sleep timer; 0.5 also drops the unencrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. In 0.5 so far: a sleep timer, YouTube subtitles and quality from the phone, the phone as the PC's touchpad and keyboard, and choosing the Moonlight computer and app; 0.5 works only with the companion and only over the encrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 
