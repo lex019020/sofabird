@@ -223,6 +223,10 @@ fun MoreSheet(ui: RemoteUiState, viewModel: RemoteViewModel, onDismiss: () -> Un
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 DisplayEntry(ui, onOpenDisplays)
             }
+            if (caps.sleepTimer) {
+                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                SleepTimerSection(ui, tick, viewModel::sendSystem)
+            }
             if (caps.power) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 PowerSection(ui, viewModel, onDismiss)
@@ -471,7 +475,7 @@ private fun PowerSection(ui: RemoteUiState, viewModel: RemoteViewModel, onDismis
 }
 
 @Composable
-private fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+internal fun RadioRow(title: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -532,7 +536,7 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun SwitchRow(title: String, checked: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+internal fun SwitchRow(title: String, checked: Boolean, enabled: Boolean, onToggle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

@@ -44,6 +44,7 @@ import app.sofabird.protocol.model.TrackKind.AUDIO
 import app.sofabird.protocol.model.TrackKind.SUBTITLE
 import app.sofabird.protocol.model.VlcProcessStatus
 import app.sofabird.protocol.model.YouTubeState
+import app.sofabird.ui.common.rememberTick
 import app.sofabird.ui.history.NextEpisodeCard
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -78,7 +79,7 @@ interface RemoteActions {
 }
 
 /** Where the remote leads: its sheets (the TV screen, "More", YouTube) and other screens of the app. */
-enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, LIBRARY, HISTORY }
+enum class RemotePlace { DISPLAYS, MORE, YOUTUBE, YOUTUBE_VIDEO, LIBRARY, HISTORY }
 
 @Composable
 fun RemoteScreen(
@@ -94,6 +95,7 @@ fun RemoteScreen(
     var moreSheet by remember { mutableStateOf(false) }
     var displaySheet by remember { mutableStateOf(false) }
     var youtubeSheet by remember { mutableStateOf(false) }
+    var youtubeVideoSheet by remember { mutableStateOf(false) }
     val openConnection by rememberUpdatedState(onOpenConnection)
     val openLibrary by rememberUpdatedState(onOpenLibrary)
     val openHistory by rememberUpdatedState(onOpenHistory)
@@ -122,6 +124,7 @@ fun RemoteScreen(
                 RemotePlace.DISPLAYS -> displaySheet = true
                 RemotePlace.MORE -> moreSheet = true
                 RemotePlace.YOUTUBE -> youtubeSheet = true
+                RemotePlace.YOUTUBE_VIDEO -> youtubeVideoSheet = true
                 RemotePlace.LIBRARY -> openLibrary()
                 RemotePlace.HISTORY -> openHistory()
             }
@@ -151,6 +154,11 @@ fun RemoteScreen(
     }
     if (youtubeSheet) {
         YouTubeSheet(ui = ui, viewModel = viewModel, onDismiss = { youtubeSheet = false })
+    }
+    val youtube = ui.youtube
+    if (youtubeVideoSheet && youtube != null) {
+        val tick = rememberTick(ui.settings.haptics)
+        YouTubeVideoSheet(youtube, ui.connection.isOnline, tick, viewModel::sendSystem, onDismiss = { youtubeVideoSheet = false })
     }
 }
 
@@ -272,19 +280,31 @@ private fun ColumnScope.NowOnTv(
             }
             Spacer(Modifier.height(gap))
             YouTubeTitleBlock(youtube)
+            SleepTimerUnderTitle(ui)
         }
         else -> {
             Artwork(ui, Modifier.weight(1f, fill = false), onStop = { actions.send(PlayerCommand.Stop) })
             Spacer(Modifier.height(gap))
-            if (block == null) TitleBlock(ui)
+            if (block == null) {
+                TitleBlock(ui)
+                SleepTimerUnderTitle(ui)
+            }
             next?.let { NextEpisodeCard(it, ui.settings.haptics, onPlay = actions::playNext, onDismiss = actions::dismissNext) }
         }
     }
 }
 
+/** "Pauses in 23 min" under what plays while the sleep timer runs. */
+@Composable
+private fun SleepTimerUnderTitle(ui: RemoteUiState) {
+    val timer = ui.state.system?.sleepTimer?.takeIf { ui.capabilities.sleepTimer } ?: return
+    SleepTimerLine(timer, Modifier.padding(top = 4.dp))
+}
+
 /**
- * VLC's tracks, the TV screen and "More"; with YouTube on the TV "Skip" (while an ad can be skipped), "Fullscreen", the
- * TV screen and "More" (VLC's tracks do not apply).
+ * VLC's tracks, the TV screen and "More"; with YouTube on the TV "Skip" (while an ad can be skipped), "Video" (its
+ * subtitles and quality, once the TV extension tells them — the TV screen then moves to "More"), "Fullscreen" and
+ * "More" (VLC's tracks do not apply).
  */
 @Composable
 private fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: RemoteActions) {
@@ -299,12 +319,20 @@ private fun BottomActions(ui: RemoteUiState, youtube: YouTubeState?, actions: Re
                     },
                 )
             }
+            val video = youTubeVideoSummary(youtube)
+            if (video != null) {
+                add(
+                    QuickAction(Icons.Default.Subtitles, stringResource(R.string.youtube_video_tile), video, online) {
+                        actions.open(RemotePlace.YOUTUBE_VIDEO)
+                    },
+                )
+            }
             add(
                 QuickAction(Icons.Default.Fullscreen, stringResource(R.string.action_youtube_fullscreen), null, online) {
                     actions.system(SystemCommand.YouTube(YouTubeAction.FULLSCREEN))
                 },
             )
-            displayAction(ui) { actions.open(RemotePlace.DISPLAYS) }?.let(::add)
+            if (video == null) displayAction(ui) { actions.open(RemotePlace.DISPLAYS) }?.let(::add)
             add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true) { actions.open(RemotePlace.MORE) })
         }
         QuickActionsRow(list)

@@ -21,6 +21,7 @@ phone.
 - Watch history: resume prompt ("continue from 37:27?"), next-episode offer, watched marks, per-folder audio and
   subtitle choice for series; YouTube videos played on the TV are in the history and "Continue watching" and open
   where they stopped.
+- Sleep timer: pause the TV after a while or at the end of the episode or video, optionally putting the PC to sleep.
 - Home screen: when nothing plays, the remote opens on "What shall we watch?" — continue watching (TMDB stills,
   YouTube thumbnails), the library, YouTube and another PC's screen (Moonlight).
 - Companion (Windows tray app): pairing with a 6-digit code shown on the TV (the connection is then encrypted with
@@ -30,7 +31,8 @@ phone.
   updates.
 - YouTube on the TV: "Share → Sofabird" from the YouTube app or a pasted link opens the video fullscreen in Firefox
   (a TV profile of its own, signed in once) on the TV; a Sofabird extension in that browser gives exact seeking,
-  fullscreen after ads and "Skip ad"; the remote, notification, lock screen and volume keys control it; optional ad
+  fullscreen after ads, "Skip ad", subtitles and quality; the remote, notification, lock screen and volume keys
+  control it; optional ad
   blocking with uBlock Origin and sponsor skipping with SponsorBlock; the companion's setup window installs Firefox.
 - One TV screen: the display chosen for the TV is used by VLC, YouTube and Moonlight alike.
 - Moonlight: start and end a stream of another computer's desktop (Sunshine host) on the TV from the phone.

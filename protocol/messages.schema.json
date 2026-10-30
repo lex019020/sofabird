@@ -241,7 +241,8 @@
         "history",
         "library",
         "moonlight",
-        "youtube"
+        "youtube",
+        "sleepTimer"
       ]
     },
     "vlcInfo": {
@@ -1018,6 +1019,29 @@
                 "null"
               ],
               "description": "A Moonlight stream is on the screen; absent - Moonlight is not installed"
+            },
+            "sleepTimer": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "endsAt": {
+                  "type": "integer",
+                  "description": "Unix time in ms when it runs out"
+                },
+                "endOfItem": {
+                  "type": "boolean",
+                  "description": "It runs out when what plays now ends"
+                },
+                "action": {
+                  "enum": [
+                    "pause",
+                    "sleep"
+                  ]
+                }
+              },
+              "description": "The sleep timer (sys sleepTimer); absent - off"
             }
           }
         },
@@ -1149,6 +1173,43 @@
             "sponsorBlock": {
               "type": "boolean",
               "description": "sponsor segments are skipped with SponsorBlock (sys youtubeSponsorBlock)"
+            },
+            "captions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "name"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "auto": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "description": "the video's subtitles (the TV extension tells); absent - none, or an ad plays"
+            },
+            "caption": {
+              "type": "string",
+              "description": "the code of the subtitles shown; absent - off (sys youtube captions)"
+            },
+            "qualities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "the qualities YouTube offers: hd2160 ... tiny, auto"
+            },
+            "quality": {
+              "type": "string",
+              "description": "the quality playing (sys youtube quality)"
             }
           }
         }

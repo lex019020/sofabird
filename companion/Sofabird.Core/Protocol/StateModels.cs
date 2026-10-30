@@ -126,6 +126,8 @@ public sealed class SystemInfo
     public string? MoonlightHost { get; set; }
     /// <summary>A Moonlight stream is on the screen; <c>null</c> — Moonlight is not installed.</summary>
     public bool? MoonlightStreaming { get; set; }
+    /// <summary>The sleep timer (<c>sys sleepTimer</c>); <c>null</c> — off.</summary>
+    public Power.SleepTimerInfo? SleepTimer { get; set; }
 }
 
 public sealed class StateMessage : Message
@@ -226,6 +228,22 @@ public sealed class YouTubeInfo
     public bool AdBlock { get; set; }
     /// <summary>Sponsor segments are skipped with SponsorBlock in the TV browser (<c>sys youtubeSponsorBlock</c>).</summary>
     public bool SponsorBlock { get; set; }
+    /// <summary>The video's subtitles (the TV extension tells); absent — none, or an ad plays.</summary>
+    public IReadOnlyList<YouTubeCaption>? Captions { get; set; }
+    /// <summary>The subtitles shown: a <see cref="YouTubeCaption.Code"/>; absent — off (<c>sys youtube captions</c>).</summary>
+    public string? Caption { get; set; }
+    /// <summary>The qualities YouTube offers (<c>hd2160</c> … <c>tiny</c>, <c>auto</c>); absent — unknown.</summary>
+    public IReadOnlyList<string>? Qualities { get; set; }
+    /// <summary>The quality playing (<c>sys youtube quality</c>).</summary>
+    public string? Quality { get; set; }
+}
+
+/// <summary>A subtitle track of the YouTube video: language code, name, made by YouTube itself.</summary>
+public sealed class YouTubeCaption
+{
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public bool? Auto { get; set; }
 }
 
 public sealed class LibraryInfo

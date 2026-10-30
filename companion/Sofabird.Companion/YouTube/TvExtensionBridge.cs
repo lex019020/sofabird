@@ -39,10 +39,10 @@ public sealed class TvExtensionBridge : IDisposable
 
     /// <summary>
     /// Sends a command to the page (<c>play</c>, <c>pause</c>, <c>toggle</c>, <c>seek</c>, <c>next</c>,
-    /// <c>previous</c>, <c>fullscreen</c>, <c>skipAd</c>) or to the extension (<c>open</c> with a watch URL).
-    /// <c>false</c> — not connected.
+    /// <c>previous</c>, <c>fullscreen</c>, <c>skipAd</c>, <c>captions</c>/<c>quality</c> with a <paramref name="value"/>)
+    /// or to the extension (<c>open</c> with a watch URL). <c>false</c> — not connected.
     /// </summary>
-    public bool Send(string action, double? time = null, string? url = null)
+    public bool Send(string action, double? time = null, string? url = null, string? value = null)
     {
         using var buffer = new MemoryStream();
         using (var w = new Utf8JsonWriter(buffer))
@@ -52,6 +52,7 @@ public sealed class TvExtensionBridge : IDisposable
             w.WriteString("action", action);
             if (time is double t) w.WriteNumber("time", Math.Round(t, 2));
             if (url is not null) w.WriteString("url", url);
+            if (value is not null) w.WriteString("value", value);
             w.WriteEndObject();
         }
         lock (_gate)

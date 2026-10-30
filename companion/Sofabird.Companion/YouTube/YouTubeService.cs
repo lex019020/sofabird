@@ -57,6 +57,9 @@ public sealed class YouTubeService : IDisposable
         _page.Changed += () =>
         {
             _history.Record(_page.State);
+            var ended = _page.State is { Ended: true };
+            if (ended && !_ended) VideoEnded?.Invoke();
+            _ended = ended;
             Changed?.Invoke();
         };
         _historyTimer = new System.Threading.Timer(_ => RecordPlaying(), null, HistoryEvery, HistoryEvery);
@@ -69,6 +72,11 @@ public sealed class YouTubeService : IDisposable
 
     /// <summary>Something changed on the TV (phones get the new state).</summary>
     public event Action? Changed;
+
+    /// <summary>The video on the TV played to its end (YouTube may go on with the next one).</summary>
+    public event Action? VideoEnded;
+
+    private bool _ended;
 
     /// <summary>Moves a window of the TV browser to the TV (set by the host: the monitor VLC opens on); no-op there.</summary>
     public Action<IntPtr>? PlaceOnTv { get; set; }
@@ -213,16 +221,18 @@ public sealed class YouTubeService : IDisposable
         }
     }
 
-    public async Task ControlAsync(string action, double? time)
+    public async Task ControlAsync(string action, double? time, string? value = null)
     {
         if (!_browser.IsRunning()) throw ProtocolException.BadRequest(ProtocolText.YouTubeNotOpen);
         if (action == "seek" && time is null) throw ProtocolException.BadRequest("seek requires 'time'");
+        if (action == "quality" && string.IsNullOrEmpty(value)) throw ProtocolException.BadRequest("quality requires 'value'");
         var ok = action switch
         {
             "fullscreen" => MakeFullscreen(),
             "close" => Close(),
             "play" or "pause" or "toggle" or "seek" or "next" or "previous" or "skipAd" when _page.Connected => _page.Send(action, time),
-            "skipAd" => false, // only the extension sees the ad's button
+            "captions" or "quality" when _page.Connected => _page.Send(action, value: value ?? ""),
+            "skipAd" or "captions" or "quality" => false, // only the extension reaches the page's player
             "play" => await _media.PlayAsync().ConfigureAwait(false),
             "pause" => await _media.PauseAsync().ConfigureAwait(false),
             "toggle" => await _media.TogglePlayPauseAsync().ConfigureAwait(false),
@@ -338,6 +348,10 @@ public sealed class YouTubeService : IDisposable
             CanPrevious = page.CanPrevious,
             Ad = page.Ad,
             AdSkippable = page.AdSkippable,
+            Captions = page.Captions?.Tracks.Select(t => new YouTubeCaption { Code = t.Code, Name = t.Name, Auto = t.Auto ? true : null }).ToList(),
+            Caption = page.Captions?.Current,
+            Qualities = page.Quality?.Levels,
+            Quality = page.Quality?.Current,
         };
     }
 

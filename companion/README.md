@@ -429,6 +429,10 @@ YouTube's player on watch pages (`#movie_player` through `wrappedJSObject`: the 
 duration, playing, an ad — `ad-showing` — and its "Skip" button, next/previous) and carries out commands with the
 player's own API (`playVideo`, `pauseVideo`, `seekTo`, `nextVideo`, `previousVideo`, the fullscreen and "Skip"
 buttons); it also answers YouTube's "Video paused. Continue watching?" so that a video on the TV does not stop by itself.
+Since 1.1 it also reports the video's subtitles (`getOption("captions", "tracklist")`, with the auto-generated ones)
+and the one shown, and the qualities (`getAvailableQualityLevels`, `getPlaybackQuality`); `captions` sets
+`setOption("captions", "track", {languageCode})` (empty — off), `quality` calls `setPlaybackQualityRange` (objects go
+to the page through `cloneInto`). These are YouTube's own, undocumented player calls: a YouTube change can break them.
 It reports on every change and the position at most once a second.
 
 - **Signing.** Release Firefox loads only extensions signed by Mozilla: `python scripts/sign_extension.py sign` packs
@@ -487,6 +491,14 @@ listens with it on `tlsPort` (47557: `wss` `/ws`, `/info`, `/art`, whose `artUrl
 (`tls`), which phones pin (see the protocol README, "Encryption"). Without a certificate (the store cannot be used)
 no phone can connect, and the log says so as an error. The firewall rules are per program, so the new port needs no new rule.
 `deploy-windows.ps1 -Uninstall -Purge` removes the certificate too; a new one means the phones pair again.
+
+## Sleep timer
+
+`SleepTimer` (Core, tested with a fake clock) runs out after N minutes or at the end of what plays now
+(`VlcManager.ItemEnded`: VLC stopped at the end or went on to the next playlist item; `YouTubeService.VideoEnded`).
+Then the host pauses VLC and YouTube and, for `sleep`, puts the PC to sleep 3 s later (`PowerService.Sleep`, so the
+phones get `event sleeping`). `sys sleepTimer` sets or cancels it, `state.system.sleepTimer` shows it; it lives in
+memory only (a restart clears it).
 
 ## Setup and permissions
 

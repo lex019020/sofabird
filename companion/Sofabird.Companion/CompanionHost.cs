@@ -7,6 +7,7 @@ using Sofabird.Core.Displays;
 using Sofabird.Core.History;
 using Sofabird.Core.Library;
 using Sofabird.Core.Pairing;
+using Sofabird.Core.Power;
 using Sofabird.Core.Protocol;
 using Sofabird.Core.Session;
 using Sofabird.Core.Streaming;
@@ -22,11 +23,15 @@ public sealed class CompanionHost : ISessionHost
     /// <summary><c>sys sleep</c>: time for the reply to reach the phone before Windows suspends.</summary>
     private static readonly TimeSpan SleepAfterReply = TimeSpan.FromMilliseconds(300);
 
+    /// <summary>The sleep timer: time between pausing the TV and putting the PC to sleep.</summary>
+    private static readonly TimeSpan SleepAfterPause = TimeSpan.FromSeconds(3);
+
     private readonly Settings _settings;
     private readonly SettingsStore _settingsStore;
     private readonly VlcManager _vlc;
     private readonly DisplayService _display;
     private readonly PowerService _power;
+    private readonly SleepTimer _sleepTimer;
     private readonly AudioService _audio;
     private readonly BackgroundWork _background;
     private readonly LibraryService _library;
@@ -41,7 +46,7 @@ public sealed class CompanionHost : ISessionHost
     public CompanionHost(Settings settings, SettingsStore settingsStore, VlcManager vlc, PairingService pairing,
         DisplayService display, PowerService power, AudioService audio, AudioDeviceWatcher audioWatcher, BackgroundWork background,
         LibraryService library, MoonlightService moonlight, YouTubeService youtube, YouTubeHistory youtubeHistory,
-        WakeOnLanService wake, ILogger<CompanionHost> log)
+        WakeOnLanService wake, SleepTimer sleepTimer, ILogger<CompanionHost> log)
     {
         _settings = settings;
         _settingsStore = settingsStore;
@@ -67,6 +72,7 @@ public sealed class CompanionHost : ISessionHost
             Core.Protocol.Caps.LaunchVlc,
             Core.Protocol.Caps.WindowControl,
             Core.Protocol.Caps.Power,
+            Core.Protocol.Caps.SleepTimer,
             Core.Protocol.Caps.SystemVolume,
             Core.Protocol.Caps.Metadata,
             Core.Protocol.Caps.Library,
@@ -92,6 +98,11 @@ public sealed class CompanionHost : ISessionHost
         _library.Changed += _vlc.Poke;
         _moonlight.Changed += _vlc.Poke;
         _youtube.Changed += _vlc.Poke;
+        _sleepTimer = sleepTimer;
+        _sleepTimer.Changed += _vlc.Poke;
+        _sleepTimer.Fired += OnSleepTimerFired;
+        _vlc.ItemEnded += _sleepTimer.OnItemEnded;
+        _youtube.VideoEnded += _sleepTimer.OnItemEnded;
         _vlc.YouTubeInfoProvider = _youtube.Info;
         _vlc.YouTubeHistoryRevision = () => _youtubeHistory.Revision;
         _youtubeHistory.Changed += _vlc.Poke;
@@ -195,6 +206,7 @@ public sealed class CompanionHost : ISessionHost
             KeepAwake = _power.KeepAwakeEnabled,
             MoonlightHost = _moonlight.ExePath is null ? null : MoonlightCommandLine.ChooseHost(_moonlight.Hosts(), null)?.Name,
             MoonlightStreaming = _moonlight.ExePath is null ? null : MoonlightService.StreamingHost() is not null,
+            SleepTimer = _sleepTimer.Info,
         };
     }
 
@@ -212,6 +224,48 @@ public sealed class CompanionHost : ISessionHost
             await Task.Delay(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
             if (await _vlc.RestoreAudioDeviceAsync(id, ct).ConfigureAwait(false))
                 _log.LogInformation("Audio device {Id} is back: VLC switched back to it", id);
+        });
+    }
+
+    /// <summary>
+    /// <c>sys sleepTimer</c>: <c>{"minutes": n}</c> or <c>{"endOfItem": true}</c>, with <c>"action": "pause" | "sleep"</c>;
+    /// neither — off.
+    /// </summary>
+    private void SetSleepTimer(CommandArgs args)
+    {
+        var action = args.GetString("action") == "sleep" ? SleepTimerAction.Sleep : SleepTimerAction.Pause;
+        if (args.GetBool("endOfItem") == true)
+        {
+            _sleepTimer.SetEndOfItem(action);
+            _log.LogInformation("Sleep timer: at the end of what plays now, then {Action}", action);
+        }
+        else if (args.GetInt("minutes") is int minutes)
+        {
+            if (minutes < 1 || minutes > SleepTimer.MaxMinutes)
+                throw ProtocolException.BadRequest($"minutes must be 1..{SleepTimer.MaxMinutes}");
+            _sleepTimer.SetMinutes(minutes, action);
+            _log.LogInformation("Sleep timer: in {Minutes} min, then {Action}", minutes, action);
+        }
+        else
+        {
+            _sleepTimer.Cancel();
+            _log.LogInformation("Sleep timer: off");
+        }
+    }
+
+    /// <summary>The sleep timer ran out: pause VLC and YouTube, then (<see cref="SleepTimerAction.Sleep"/>) the PC sleeps.</summary>
+    private void OnSleepTimerFired(SleepTimerAction action)
+    {
+        _log.LogInformation("Sleep timer ran out: pausing the TV{Then}", action == SleepTimerAction.Sleep ? ", then the PC sleeps" : "");
+        _background.Run("Sleep timer", async ct =>
+        {
+            if (_vlc.LastState?.Playback.State == "playing")
+                await _vlc.ExecuteCommandAsync("pause", default, ct).ConfigureAwait(false);
+            if (_youtube.Info()?.Playing == true)
+                await _youtube.ControlAsync("pause", null).ConfigureAwait(false);
+            if (action != SleepTimerAction.Sleep) return;
+            await Task.Delay(SleepAfterPause, ct).ConfigureAwait(false); // the phones see the pause first
+            _power.Sleep();
         });
     }
 
@@ -354,7 +408,11 @@ public sealed class CompanionHost : ISessionHost
                 return null;
 
             case "youtube":
-                await _youtube.ControlAsync(args.RequireString("action"), args.GetDouble("time")).ConfigureAwait(false);
+                await _youtube.ControlAsync(args.RequireString("action"), args.GetDouble("time"), args.GetString("value")).ConfigureAwait(false);
+                return null;
+
+            case "sleepTimer":
+                SetSleepTimer(args);
                 return null;
 
             case "moonlightStop":

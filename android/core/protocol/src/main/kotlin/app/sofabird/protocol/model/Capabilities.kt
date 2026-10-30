@@ -23,7 +23,10 @@ enum class Capability(val wire: String) {
     MOONLIGHT("moonlight"),
 
     /** A browser for YouTube on the PC: open a shared link on the TV and control it. */
-    YOUTUBE("youtube");
+    YOUTUBE("youtube"),
+
+    /** The sleep timer: pause the TV (and maybe put the PC to sleep) after a while or at the end of what plays. */
+    SLEEP_TIMER("sleepTimer");
 
     companion object {
         private val byWire = entries.associateBy { it.wire }
@@ -47,6 +50,7 @@ data class Capabilities(val flags: Set<Capability> = emptySet()) {
     val library: Boolean get() = Capability.LIBRARY in flags
     val moonlight: Boolean get() = Capability.MOONLIGHT in flags
     val youtube: Boolean get() = Capability.YOUTUBE in flags
+    val sleepTimer: Boolean get() = Capability.SLEEP_TIMER in flags
 
     operator fun contains(capability: Capability): Boolean = capability in flags
 

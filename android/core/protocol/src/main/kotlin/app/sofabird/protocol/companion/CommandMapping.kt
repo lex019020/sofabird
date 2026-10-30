@@ -2,6 +2,7 @@ package app.sofabird.protocol.companion
 
 import app.sofabird.protocol.backend.PlayerCommand
 import app.sofabird.protocol.backend.SystemCommand
+import app.sofabird.protocol.model.SleepTimerState
 import app.sofabird.protocol.model.TrackKind
 import app.sofabird.protocol.model.VlcVolume
 import kotlinx.serialization.json.JsonObject
@@ -66,6 +67,13 @@ object CommandMapping {
             is SystemCommand.KeepAwake -> "keepAwake" to args { put("on", command.on) }
             is SystemCommand.DisplayPower -> "displayPower" to args { put("on", command.on) }
             SystemCommand.Sleep -> "sleep" to EMPTY
+            is SystemCommand.SleepTimer -> "sleepTimer" to args {
+                when {
+                    command.endOfItem -> put("endOfItem", true)
+                    command.minutes != null -> put("minutes", command.minutes)
+                }
+                put("action", if (command.sleepPc) SleepTimerState.ACTION_SLEEP else SleepTimerState.ACTION_PAUSE)
+            }
             SystemCommand.Shutdown -> "shutdown" to EMPTY
             is SystemCommand.AudioDevice -> "audioDevice" to args { put("id", command.id) }
             is SystemCommand.SystemVolume -> "systemVolume" to args {
@@ -84,6 +92,7 @@ object CommandMapping {
             is SystemCommand.YouTube -> "youtube" to args {
                 put("action", command.action.wire)
                 command.time?.let { put("time", it.coerceAtLeast(0.0)) }
+                command.value?.let { put("value", it) }
             }
         }
         return CompanionMessage.Sys(id = id, name = name, args = args)
