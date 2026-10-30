@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Sofabird.Companion.Interop;
 
@@ -72,4 +74,27 @@ internal static class WinTrust
             Marshal.FreeHGlobal(filePtr);
         }
     }
+
+    /// <summary>
+    /// The organization (<c>O=</c>) that signed <paramref name="path"/> with a valid, trusted Authenticode signature;
+    /// <c>null</c> when the file is not signed so, or the signer cannot be read.
+    /// </summary>
+    public static string? TrustedSigner(string path)
+    {
+        if (!IsTrusted(path)) return null;
+        try
+        {
+#pragma warning disable SYSLIB0057 // the signer of a signed file: there is no loader replacement for this
+            using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+#pragma warning restore SYSLIB0057
+            return cert.SubjectName.EnumerateRelativeDistinguishedNames()
+                .FirstOrDefault(n => n.GetSingleElementType().Value == OrganizationOid)?.GetSingleElementValue();
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    private const string OrganizationOid = "2.5.4.10";
 }

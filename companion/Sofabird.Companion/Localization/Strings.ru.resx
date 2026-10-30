@@ -101,7 +101,12 @@
   <data name="SetupVlcConfigured" xml:space="preserve"><value>✓ VLC настроен</value></data>
   <data name="SetupVlcNotConfigured" xml:space="preserve"><value>Ещё не настроен</value></data>
   <data name="SetupVlcRunning" xml:space="preserve"><value>VLC запущен — настройки будут записаны после его закрытия</value></data>
-  <data name="SetupVlcNotInstalled" xml:space="preserve"><value>VLC не установлен. Установите VLC 3.x и снова откройте это окно из меню в трее.</value></data>
+  <data name="SetupVlcNotInstalled" xml:space="preserve"><value>VLC media player не установлен — фильмы играют в нём. Установите его здесь (бесплатно, с videolan.org).</value></data>
+  <data name="SetupVlcInstall" xml:space="preserve"><value>Установить VLC</value></data>
+  <data name="SetupVlcDownloading" xml:space="preserve"><value>Скачивание VLC с videolan.org…</value></data>
+  <data name="SetupVlcInstalling" xml:space="preserve"><value>Установка VLC… Windows запросит права администратора.</value></data>
+  <data name="SetupVlcInstallFailed" xml:space="preserve"><value>VLC не установлен ({0})</value></data>
+  <data name="SetupVlcInstallCancelled" xml:space="preserve"><value>VLC не установлен: права администратора не выданы</value></data>
   <data name="SetupVlcOff" xml:space="preserve"><value>Выключено — настройки VLC остаются как есть</value></data>
   <data name="SetupVlcFailed" xml:space="preserve"><value>✗ Не удалось настроить VLC (подробности в журнале)</value></data>
   <data name="SetupKeepAwakeTitle" xml:space="preserve"><value>Не давать ПК уснуть во время фильма</value></data>

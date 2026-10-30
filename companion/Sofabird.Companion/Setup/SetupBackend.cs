@@ -90,6 +90,12 @@ public interface ISetupBackend
     /// <summary>Downloads and installs Firefox for YouTube on the TV; <c>null</c> — done, otherwise what went wrong.</summary>
     Task<string?> InstallBrowserAsync(IProgress<FirefoxInstallStep>? progress, CancellationToken ct);
 
+    /// <summary>
+    /// Downloads and installs VLC media player (one administrator prompt) and configures it for the phone. Call it on the
+    /// UI thread.
+    /// </summary>
+    Task<StepResult> InstallVlcAsync(IProgress<VlcInstallStep>? progress, CancellationToken ct);
+
     /// <summary>Opens the TV browser on this PC's screen at the sign-in to YouTube.</summary>
     void SignInToYouTube();
 }
@@ -107,11 +113,14 @@ public sealed class SetupBackend : ISetupBackend
     private readonly PowerPlanService _powerPlan;
     private readonly YouTubeService _youtube;
     private readonly WakeOnLanService _wake;
+    private readonly VlcInstaller _vlcInstaller;
     private readonly ILogger _log;
 
     public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host, LibraryService library,
-        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, WakeOnLanService wake, ILogger<SetupBackend> log)
+        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, WakeOnLanService wake,
+        VlcInstaller vlcInstaller, ILogger<SetupBackend> log)
     {
+        _vlcInstaller = vlcInstaller;
         _youtube = youtube;
         _wake = wake;
         _powerPlan = powerPlan;
@@ -215,6 +224,22 @@ public sealed class SetupBackend : ISetupBackend
         _youtube.InstallBrowserAsync(progress, ct);
 
     public void SignInToYouTube() => _youtube.SignIn();
+
+    public async Task<StepResult> InstallVlcAsync(IProgress<VlcInstallStep>? progress, CancellationToken ct)
+    {
+        var result = await _vlcInstaller.InstallAsync(progress, ct);
+        if (result.Outcome != StepOutcome.Done) return result;
+        if (!_vlc.UseInstalledVlc()) return new StepResult(StepOutcome.Failed, "VLC is not found after its installation");
+        // VLC is installed to be used from the phone: configured at once, as ticking "Configure VLC" and applying would.
+        _store.Update(s =>
+        {
+            s.ConfigureVlc = true;
+            s.AutoInstallLuaPages = true;
+        });
+        var configured = ApplyVlc(true);
+        _log.LogInformation("Setup: VLC installed, configured: {Outcome}", configured.Outcome);
+        return StepResult.Done;
+    }
 
     /// <summary>Unticking only stops the watching: the previous power settings are not known, so they stay.</summary>
     private StepResult ApplyMediaStation(bool on)

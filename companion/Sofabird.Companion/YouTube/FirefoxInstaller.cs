@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Sofabird.Companion.Interop;
 using Sofabird.Core.YouTube;
@@ -82,26 +81,9 @@ public sealed class FirefoxInstaller
     /// <summary>A valid, trusted Authenticode signature whose signer is Mozilla Corporation.</summary>
     private bool SignedByMozilla(string path)
     {
-        if (!WinTrust.IsTrusted(path))
-        {
-            _log.LogWarning("The Firefox installer's signature is not valid");
-            return false;
-        }
-        try
-        {
-#pragma warning disable SYSLIB0057 // the signer of a signed file: there is no loader replacement for this
-            using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
-#pragma warning restore SYSLIB0057
-            var subject = cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
-            var organization = cert.SubjectName.Name;
-            var ok = organization.Contains("O=" + FirefoxDownload.Publisher, StringComparison.Ordinal);
-            if (!ok) _log.LogWarning("The Firefox installer is signed by {Subject}", subject);
-            return ok;
-        }
-        catch (System.Security.Cryptography.CryptographicException ex)
-        {
-            _log.LogWarning(ex, "The Firefox installer's signer could not be read");
-            return false;
-        }
+        var signer = WinTrust.TrustedSigner(path);
+        if (signer == FirefoxDownload.Publisher) return true;
+        _log.LogWarning("The Firefox installer is not signed by {Publisher} (signer: {Signer})", FirefoxDownload.Publisher, signer ?? "none");
+        return false;
     }
 }

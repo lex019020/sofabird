@@ -1,9 +1,16 @@
+using Microsoft.Extensions.Logging;
+using Sofabird.Core.Lua;
+
 namespace Sofabird.Companion.Vlc;
 
 /// <summary>Our Lua pages (companion/lua/requests/*.json), embedded into the assembly as resources.</summary>
 public static class EmbeddedLuaPages
 {
     private static readonly string[] Names = ["tracks.json", "setvar.json"];
+
+    /// <summary>Installs our pages next to <paramref name="vlc"/>'s own ones, in the user's VLC folder.</summary>
+    public static LuaPagesInstaller Installer(VlcInstallation vlc, ILoggerFactory lf) =>
+        new(vlc.LuaHttpDir, LuaPagesInstaller.DefaultTargetDir, Load(), lf.CreateLogger<LuaPagesInstaller>());
 
     public static IReadOnlyDictionary<string, byte[]> Load()
     {

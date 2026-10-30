@@ -530,7 +530,7 @@ user presses **Apply**; **Later** closes the window (it opens again at the next 
 |---|---|---|
 | Network access (Windows Firewall) | allow rules for the companion and VLC, **private networks only**; removes rules that block them (one UAC prompt, see below) | on |
 | Start with Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (no admin rights) | on |
-| Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes | on |
+| Configure VLC for phone control | `configureVlc` + `autoInstallLuaPages`: vlcrc (with a backup copy) and the Lua pages; if VLC is running — after it closes. Without VLC the item has **Install VLC** (see below) | on |
 | Keep the PC awake during a movie | `keepAwake` | on |
 | This PC is a media station | `mediaStation`: the active power plan gets lid close action "do nothing", sleep and hibernate "never", **plugged in and on battery** (powrprof, no admin rights); unticking does not restore the old values | on |
 | Wake this PC from the phone | Wake-on-LAN (see below): "Wake on Magic Packet" on and "Allow this device to wake the computer" for the adapters that can (the same elevated helper as the firewall, one UAC prompt for both); unticking changes nothing back | on (when an adapter can) |
@@ -549,6 +549,17 @@ update, the user) changed it back, a notification offers to fix it (once per set
 > **Rule:** every new permission or system change (firewall, registry, files of other programs, power, devices…)
 > must be added as an item of this window, with a short "what and why" text in `tools/gen_localization.py`, and
 > `SetupPolicy.CurrentVersion` must be bumped so users who completed the window see it once more.
+
+### Installing VLC
+
+Without VLC media player the VLC item shows **Install VLC** (`VlcInstaller`): it reads VideoLAN's release list for the
+newest 3.0.x (`VlcDownload`, Core — the series the companion drives; `last/` would become VLC 4), downloads
+`vlc-<version>-win64.exe` (VideoLAN redirects to a mirror), checks it against the SHA-256 that VideoLAN serves itself and
+that it carries a valid Authenticode signature of VideoLAN (`WinTrust.TrustedSigner`), and runs it with `/S` through
+`runas`: VLC installs for all users into Program Files, so Windows asks for administrator rights (declining is
+reported, not an error). Then `VlcManager.UseInstalledVlc` picks it up without a restart (the Lua pages installer, the
+phone's `vlc.status`), and the item is applied at once (`configureVlc`, vlcrc, the Lua pages): VLC is installed to be
+used from the phone. The firewall item may then ask to add VLC's rule.
 
 ### Wake-on-LAN
 

@@ -75,7 +75,8 @@ the system language: English and Russian.
 - PC controls: system volume, turn the screen off, sleep, "keep awake during a movie".
 - Media station mode: the laptop keeps working with the lid closed, survives the TV being switched off and on
   (VLC pauses and comes back fullscreen on the TV).
-- A setup window for the firewall, autostart and VLC, and quiet automatic updates.
+- A setup window for the firewall, autostart and VLC (it installs VLC media player when it is missing), and quiet
+  automatic updates.
 
 ## Install
 
@@ -84,7 +85,8 @@ publishes a test build; releases are published from time to time.
 
 1. **PC:** download and run `Sofabird-Setup.exe`. It installs for the current user (the .NET 10
    runtime is added when missing, with one administrator prompt), opens the setup window — allow the firewall rules
-   there — and then keeps itself up to date. VLC media player must be installed (3.0.x).
+   there — and then keeps itself up to date. Without VLC media player, **Install VLC** in that window downloads it
+   from videolan.org and installs it (one more administrator prompt).
 2. **Phone (Android 8+):** install `Sofabird-<version>.apk` from the same release. After that the app offers its
    own updates (Settings → "Updates": test builds or releases only); Android asks you to confirm each one.
 3. Open the app: it finds the PC, the PC shows a code on the TV, enter it on the phone. Done.
