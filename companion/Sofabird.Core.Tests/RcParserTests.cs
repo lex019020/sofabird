@@ -40,7 +40,8 @@ public class RcParserTests
     [Theory]
     [InlineData("status change: ( audio volume: 266 )", RcStatusKind.AudioVolume, 266)]
     [InlineData("status change: ( stop state: 0 )", RcStatusKind.StopState, 0)]
-    [InlineData("status change: ( pause state: 4 ): Pause", RcStatusKind.PauseState, 4)]
+    [InlineData("status change: ( pause state: 4 )", RcStatusKind.PauseState, 4)]
+    [InlineData("status change: ( play state: 4 ): End", RcStatusKind.InputState, RcParser.InputStateEnd)]
     [InlineData("status change: ( time: 12s )", RcStatusKind.Time, 12)]
     public void StatusChange_Numbers(string line, RcStatusKind kind, long number)
     {

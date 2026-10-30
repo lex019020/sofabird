@@ -28,8 +28,8 @@ public sealed partial class VlcManager
         _log.LogDebug("RC: {Raw}", change.Raw);
         switch (change.Kind)
         {
-            case RcStatusKind.StopState when change.Number == 0:
-                _endReachedHint = true;
+            case RcStatusKind.InputState when change.Number == RcParser.InputStateEnd:
+                _endReachedAt = Environment.TickCount64;
                 break;
             case RcStatusKind.NewInput:
                 _playlistDirty = true;

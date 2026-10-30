@@ -464,6 +464,11 @@ localized `information` keys.
     Play, Pause, End, Error`, `:67-74`); in `Run` additionally `( play state: 3 )`,
     `( pause state: 4 )`, `( stop state: 5 )` without a suffix (`:565-581`), `( stop state: 0 )`
     at end/error of the input (`:544-555`)
+  - Measured with VLC 3.0.23 (2026-10-30, a separate `-I dummy` instance, HTTP `pl_stop`, RC `stop`, a stop while
+    paused, a file playing to its end): the suffix-less lines come from RC's own loop and are printed only when it
+    reads the next command, and `( stop state: 0 )` is printed for **every** stop, not only at the end. The end of a
+    file is told by `( play state: 4 ): End` (input state `END_S` = 4, printed twice, at once from the callback); a
+    stop prints no such line. The companion takes the end from that line (and from the position near the length).
   - `( audio volume: <0..512> )` (`:849-861`)
   - `( new rate: 1.500 )` (`:897-904`)
   - `( time: <s>s )` after buffering (`:905-920`)

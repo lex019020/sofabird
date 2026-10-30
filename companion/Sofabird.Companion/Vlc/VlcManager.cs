@@ -49,7 +49,10 @@ public sealed partial class VlcManager : IAsyncDisposable
     private bool _muted;
     private int _savedVolume = 256;
     private bool _luaInstallPending;
-    private bool _endReachedHint;
+    /// <summary>When VLC said the input reached its end (RC <c>): End</c>); <c>null</c> — not lately.</summary>
+    private long? _endReachedAt;
+    /// <summary>How long that "End" explains a stop or the next item (polls come every 0.5 s while playing).</summary>
+    private const long EndHintMs = 5000;
     private int _consecutiveHttpFailures;
     private CancellationTokenSource? _postOpenCts;
     private string? _lastAudioDevice;
@@ -259,11 +262,15 @@ public sealed partial class VlcManager : IAsyncDisposable
             _lastStatus = status;
             if (status.Fullscreen) LastFullscreenAt = DateTimeOffset.UtcNow;
 
+            // VLC's own "End" covers a file that ends before its reported length; it is printed at once, so a poll or
+            // two later it is still fresh, and an old one does not turn a later stop into an end.
+            var endHint = _endReachedAt is { } at && Environment.TickCount64 - at < EndHintMs;
             // A movie that ends and stops VLC changes both the item (currentplid → -1) and the state: one ItemEnded.
             var itemEnded = false;
             if (prev is not null && prev.CurrentPlId != status.CurrentPlId)
             {
-                itemEnded = prev.Length > 0 && prev.Time >= prev.Length - 3;
+                itemEnded = (prev.Length > 0 && prev.Time >= prev.Length - 3) || endHint;
+                _endReachedAt = null;
                 _playlistDirty = true;
                 _rcTracksDirty = true;
                 _muted = false;
@@ -275,14 +282,14 @@ public sealed partial class VlcManager : IAsyncDisposable
             if (prev is not null && !prev.IsStopped && status.IsStopped)
             {
                 var nearEnd = prev.Length > 0 && prev.Time >= prev.Length - 3;
-                if (nearEnd || _endReachedHint)
+                if (nearEnd || endHint)
                 {
                     endReached = true;
                     itemEnded = true;
                     RaiseEvent(new EventMessage { Name = EventNames.EndReached });
                 }
             }
-            _endReachedHint = false;
+            if (status.IsStopped) _endReachedAt = null;
             if (itemEnded)
             {
                 try { ItemEnded?.Invoke(); }

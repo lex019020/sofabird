@@ -14,6 +14,14 @@ public enum RcStatusKind
     NewRate,
     Time,
     Quit,
+
+    /// <summary>
+    /// The input's own state, printed by VLC at once from its callback: <c>( play state: 4 ): End</c> — the number is
+    /// VLC's input state (<see cref="RcParser.InputStateEnd"/> …), whatever word precedes it. The suffix-less
+    /// <c>( play state: 3 )</c> / <c>( stop state: 0 )</c> lines come from RC's own loop, only when it reads a command,
+    /// and <c>( stop state: 0 )</c> is printed for any stop, not only the end (measured with VLC 3.0.23).
+    /// </summary>
+    InputState,
 }
 
 /// <summary>Asynchronous RC line <c>status change: ( … )</c>.</summary>
@@ -30,6 +38,9 @@ public sealed record RcTrackEntry(int Id, string Name, string? Language, bool Cu
 /// <summary>Parser of the text protocol of VLC's RC interface (modules/control/oldrc.c).</summary>
 public static partial class RcParser
 {
+    /// <summary>VLC's input state "End" (<c>END_S</c>): the file played to its end.</summary>
+    public const int InputStateEnd = 4;
+
     [GeneratedRegex(@"^status change:\s*\(\s*(?<inner>.*?)\s*\)\s*(?::\s*(?<suffix>.*))?$")]
     private static partial Regex StatusChangeRegex();
 
@@ -63,6 +74,11 @@ public static partial class RcParser
         var colon = inner.IndexOf(':');
         var key = colon >= 0 ? inner[..colon].Trim() : inner.Trim();
         var value = colon >= 0 ? inner[(colon + 1)..].Trim() : "";
+        if (m.Groups["suffix"].Success && key.EndsWith(" state", StringComparison.Ordinal))
+        {
+            change = new RcStatusChange(RcStatusKind.InputState, line, m.Groups["suffix"].Value.Trim(), ParseLong(value));
+            return true;
+        }
         switch (key)
         {
             case "new input":

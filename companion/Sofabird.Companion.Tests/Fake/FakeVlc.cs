@@ -185,6 +185,12 @@ internal sealed class FakeVlc : IDisposable
         lock (_gate) ExitLocked();
     }
 
+    /// <summary>Stop pressed in VLC's own window (or its keyboard shortcut), not through the companion.</summary>
+    public void PressStop()
+    {
+        lock (_gate) StopLocked();
+    }
+
     /// <summary>Playback moves on by <paramref name="seconds"/>; at the end VLC goes to the next item or stops.</summary>
     public void Advance(long seconds)
     {
@@ -229,10 +235,13 @@ internal sealed class FakeVlc : IDisposable
         EmitLocked(state == "paused" ? "status change: ( pause state: 4 )" : "status change: ( play state: 3 )");
     }
 
-    /// <summary>The input reached its end: RC prints <c>( stop state: 0 )</c>, the playlist goes on or stops.</summary>
+    /// <summary>
+    /// The input reached its end: VLC prints its input state "End" at once (twice, as VLC 3.0.23 does), then the playlist
+    /// goes on or stops.
+    /// </summary>
     private void EndOfInputLocked()
     {
-        EmitLocked("status change: ( stop state: 0 )");
+        EmitLocked("status change: ( play state: 4 ): End", "status change: ( play state: 4 ): End");
         var index = _current is null ? -1 : _playlist.IndexOf(_current);
         Item? next = _repeat ? _current
             : index >= 0 && index + 1 < _playlist.Count ? _playlist[index + 1]
@@ -247,7 +256,9 @@ internal sealed class FakeVlc : IDisposable
         if (_state == "stopped") return;
         _state = "stopped";
         _time = 0;
-        EmitLocked("status change: ( stop state: 5 )");
+        // Real VLC prints this for any stop, the end of a file included (RC's loop prints it when it next reads a
+        // command; here at once — the worst case for telling a stop from the end).
+        EmitLocked("status change: ( stop state: 0 )");
     }
 
     private void ExitLocked()
