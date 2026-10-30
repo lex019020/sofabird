@@ -4,8 +4,7 @@ Sofabird turns a Windows PC or laptop connected to a TV into a media station you
 Android phone: your movies and series as a poster library that remembers where you stopped, YouTube on the TV, games
 and the desktop of another computer through [Moonlight](https://moonlight-stream.org/), and the phone as the PC's
 touchpad and keyboard. A small Windows app on the PC (Sofabird for Windows) does the work; movies play in the free
-[VLC media player](https://www.videolan.org/vlc/), as they are — no media server, no transcoding. Formerly called
-*VLC Remote*.
+[VLC media player](https://www.videolan.org/vlc/), as they are — no media server, no transcoding.
 
 [![CI](https://github.com/lex019020/sofabird/actions/workflows/ci.yml/badge.svg)](https://github.com/lex019020/sofabird/actions/workflows/ci.yml)
 [![Release](https://github.com/lex019020/sofabird/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/sofabird/releases)
@@ -153,3 +152,5 @@ Third-party libraries keep their own licenses (MIT / Apache-2.0). Movie and seri
 [TMDB](https://www.themoviedb.org/): this product uses the TMDB API but is not endorsed or certified by TMDB.
 VLC is a trademark of VideoLAN; YouTube is a trademark of Google LLC; Firefox is a trademark of the Mozilla
 Foundation. This project is not affiliated with VideoLAN, Google, Mozilla or the Moonlight project.
+
+Until October 2026 the project was called VLC Remote.
