@@ -150,6 +150,13 @@ class TouchpadInputTest {
     }
 
     @Test
+    fun `an ordinary stroke is accelerated well past a creeping one`() {
+        val slow = PointerMotion().total(60, 1f, 0f, 50).first // 60 dp at 0.02 dp/ms
+        val ordinary = PointerMotion().total(6, 10f, 0f, 10).first // 60 dp at 1 dp/ms (~16 cm/s)
+        assertTrue("ordinary $ordinary slow $slow", ordinary > slow * 2)
+    }
+
+    @Test
     fun `the wheel follows the fingers like the phone's own lists`() {
         val scroll = ScrollMotion()
         scroll.start(1f, -20f) // up: a vertical stroke

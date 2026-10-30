@@ -284,7 +284,8 @@ class PlayerController(
 
     /**
      * Sends [inputs] one after another (so a button's press and release never swap). What piles up while a frame's
-     * move is sent and the frame passes is merged ([InputBatch]): at most one move and one scroll per frame (~60/s).
+     * move is sent and the frame passes is merged ([InputBatch]): at most one move and one scroll per frame (as often as
+     * a 120 Hz screen reports the finger).
      */
     private suspend fun pumpInput() {
         val batch = InputBatch()
@@ -373,6 +374,6 @@ class PlayerController(
         const val TAG = "PlayerController"
 
         /** A display frame at 60 Hz: the touchpad sends at most one move per frame. */
-        const val INPUT_FRAME_MS = 16L
+        const val INPUT_FRAME_MS = 8L
     }
 }

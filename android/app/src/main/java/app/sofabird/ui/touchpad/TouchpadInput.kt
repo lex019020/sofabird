@@ -27,9 +27,10 @@ internal class Remainder {
 }
 
 /**
- * One finger on the touchpad → the PC's pointer: [sensitivity] pixels per dp the finger travels, and a little more for a
- * fast stroke (up to [MAX_BOOST] times from [FAST_DP_PER_MS]): a slow finger is precise, a flick crosses the screen.
- * Whole pixels are sent; the fraction is carried over to the next event.
+ * One finger on the touchpad → the PC's pointer, with acceleration like a laptop's touchpad: [sensitivity] pixels per dp
+ * while the finger creeps (up to [SLOW_DP_PER_MS]), then more and more the faster it goes, up to [MAX_BOOST] times from
+ * [FAST_DP_PER_MS]: a slow finger is precise, an ordinary stroke goes most of the way across the screen, a flick all of
+ * it. Whole pixels are sent; the fraction is carried over to the next event.
  */
 class PointerMotion(private val sensitivity: Float = SENSITIVITY) {
     private val rest = Remainder()
@@ -45,7 +46,8 @@ class PointerMotion(private val sensitivity: Float = SENSITIVITY) {
     fun move(dx: Float, dy: Float, dtMs: Long): PcInput.Move? {
         val instant = hypot(dx, dy) / dtMs.coerceAtLeast(MIN_DT_MS)
         speed += (instant - speed) * SPEED_SMOOTHING
-        val gain = sensitivity * (1 + (MAX_BOOST - 1) * (speed / FAST_DP_PER_MS).coerceAtMost(1f))
+        val ramp = ((speed - SLOW_DP_PER_MS) / (FAST_DP_PER_MS - SLOW_DP_PER_MS)).coerceIn(0f, 1f)
+        val gain = sensitivity * (1 + (MAX_BOOST - 1) * ramp)
         val (x, y) = rest.take(dx * gain, dy * gain)
         return if (x == 0 && y == 0) null else PcInput.Move(x, y)
     }
@@ -55,10 +57,13 @@ class PointerMotion(private val sensitivity: Float = SENSITIVITY) {
         const val SENSITIVITY = 1.5f
 
         /** A fast stroke moves the pointer this many times further than a slow one. */
-        const val MAX_BOOST = 2.5f
+        const val MAX_BOOST = 4f
 
-        /** From this speed (dp per ms, ~40 cm/s) on, a stroke gets the whole [MAX_BOOST]. */
-        const val FAST_DP_PER_MS = 2.5f
+        /** Up to this speed (dp per ms, ~1.5 cm/s) the pointer follows the finger without acceleration. */
+        const val SLOW_DP_PER_MS = 0.1f
+
+        /** From this speed (dp per ms, ~24 cm/s) on, a stroke gets the whole [MAX_BOOST]. */
+        const val FAST_DP_PER_MS = 1.5f
 
         /** How much of a new event's speed counts (the rest is the speed so far): one jittery event does not jump. */
         private const val SPEED_SMOOTHING = 0.5f

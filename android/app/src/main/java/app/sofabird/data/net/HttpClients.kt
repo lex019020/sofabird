@@ -25,6 +25,7 @@ object HttpClients {
     /** [pinned]: companions whose artwork comes over https with their own certificate. */
     fun okHttp(authInterceptor: Interceptor? = null, pinned: PinnedServers? = null): OkHttpClient = OkHttpClient.Builder()
         .apply { pinned?.let { sslSocketFactory(it.socketFactory(), it.trustManager).hostnameVerifier(it.hostnameVerifier) } }
+        .socketFactory(NoDelaySocketFactory()) // the companion's WebSocket (built from this client) sends small frames
         .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .readTimeout(IO_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .writeTimeout(IO_TIMEOUT_MS, TimeUnit.MILLISECONDS)
