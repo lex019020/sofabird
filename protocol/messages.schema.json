@@ -756,14 +756,10 @@
           "items": {
             "type": "object",
             "required": [
-              "index",
               "id",
               "name"
             ],
             "properties": {
-              "index": {
-                "type": "integer"
-              },
               "name": {
                 "type": "string"
               },
@@ -992,12 +988,6 @@
             "audioDevice": {
               "type": [
                 "string",
-                "null"
-              ]
-            },
-            "display": {
-              "type": [
-                "integer",
                 "null"
               ]
             },

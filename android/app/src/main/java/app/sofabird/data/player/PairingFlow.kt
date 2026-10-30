@@ -19,6 +19,8 @@ data class PairingTarget(
     val host: String,
     val wsPort: Int = COMPANION_WS_PORT,
     val name: String,
+    /** The encrypted WebSocket's port when known (beacon / `/info` / saved server `tls.port`); else the default one. */
+    val tlsPort: Int? = null,
     /** Companion installation GUID, when known (discovery / saved server). */
     val pcId: String? = null,
     /** The saved server this target is, when known. */

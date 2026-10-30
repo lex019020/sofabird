@@ -28,14 +28,12 @@ class VlcBlockingStatusTest {
     }
 
     @Test
-    fun `old companion without status falls back to running flag`() {
-        assertEquals(VlcProcessStatus.NOT_RUNNING, vlcBlockingStatus(online, VlcInfo(running = false, level = 2)))
-        assertNull(vlcBlockingStatus(online, VlcInfo(running = true, level = 2)))
-        // Unknown future value: derived from `running` too.
+    fun `a status this app does not know falls back to the running flag`() {
         assertEquals(
             VlcProcessStatus.NOT_RUNNING,
             vlcBlockingStatus(online, VlcInfo(running = false, level = 2, status = VlcProcessStatus.UNKNOWN)),
         )
+        assertNull(vlcBlockingStatus(online, VlcInfo(running = true, level = 2, status = VlcProcessStatus.UNKNOWN)))
     }
 
     @Test

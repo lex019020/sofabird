@@ -352,7 +352,7 @@ internal fun displayAction(ui: RemoteUiState, onDisplays: () -> Unit): QuickActi
     if (!ui.showDisplayChoice) return null
     val shown = ui.displayChoice.chipDisplay
     val title = stringResource(R.string.section_display)
-    return QuickAction(displayIcon(shown), title, shown?.let { displayLabel(it) }, ui.connection.isOnline, onDisplays)
+    return QuickAction(displayIcon(shown), title, shown?.let { displayLabel(it, ui.displayChoice) }, ui.connection.isOnline, onDisplays)
 }
 
 /** The PC's volume for YouTube (the browser plays through Windows, not VLC). */

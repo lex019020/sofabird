@@ -203,8 +203,6 @@ public sealed class DisplayBounds
 
 public sealed class DisplayEntry
 {
-    /// <summary>Position in the list (ordered by GDI device name); changes when monitors are (re)connected.</summary>
-    public int Index { get; set; }
     /// <summary>Stable monitor id (<c>monitorDevicePath</c>, or the GDI device name when it is unknown).</summary>
     public string Id { get; set; } = "";
     /// <summary>Friendly name from EDID, or a fallback ("Display 2"). See <see cref="NameText"/>.</summary>

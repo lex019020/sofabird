@@ -15,13 +15,13 @@ import io.ktor.websocket.readText
 import okhttp3.OkHttpClient
 
 /**
- * `ws://host:47555/ws` or `wss://host:47557/ws`: one JSON message per text frame (a trailing `\n` is tolerated by the
- * codec). An encrypted one has its own HTTP client (the certificate pin is per PC), closed with it.
+ * `wss://host:47557/ws`: one JSON message per text frame (a trailing `\n` is tolerated by the codec). It has its own
+ * HTTP client (the certificate pin is per PC), closed with it.
  */
-class WebSocketTransport(
+class WebSocketTransport private constructor(
     private val session: DefaultClientWebSocketSession,
-    override val certificate: String? = null,
-    private val ownClient: HttpClient? = null,
+    override val certificate: String?,
+    private val ownClient: HttpClient,
 ) : CompanionTransport {
     override val kind: TransportKind = TransportKind.WIFI
 
@@ -42,14 +42,11 @@ class WebSocketTransport(
     override suspend fun close() {
         closed = true
         runCatching { session.close(CloseReason(CloseReason.Codes.NORMAL, "bye")) }
-        ownClient?.close()
+        ownClient.close()
     }
 
     companion object {
         const val WS_PATH = "/ws"
-
-        suspend fun open(client: HttpClient, host: String, port: Int): WebSocketTransport =
-            WebSocketTransport(session(client, URLProtocol.WS, host, port))
 
         /** `wss` trusting only [pin] (or, without one, the certificate shown, which [certificate] then tells). */
         suspend fun openTls(base: OkHttpClient, host: String, port: Int, pin: String?): WebSocketTransport {
@@ -58,22 +55,19 @@ class WebSocketTransport(
                 base.newBuilder().sslSocketFactory(trust.socketFactory(), trust).hostnameVerifier(PinningTrustManager.anyHost).build(),
             )
             return try {
-                val session = session(client, URLProtocol.WSS, host, port)
+                val session = client.webSocketSession {
+                    url {
+                        protocol = URLProtocol.WSS
+                        this.host = host
+                        this.port = port
+                        path(WS_PATH)
+                    }
+                }
                 WebSocketTransport(session, certificate = trust.seen, ownClient = client)
             } catch (e: Throwable) {
                 client.close()
                 throw e
             }
         }
-
-        private suspend fun session(client: HttpClient, scheme: URLProtocol, host: String, port: Int) =
-            client.webSocketSession {
-                url {
-                    protocol = scheme
-                    this.host = host
-                    this.port = port
-                    path(WS_PATH)
-                }
-            }
     }
 }

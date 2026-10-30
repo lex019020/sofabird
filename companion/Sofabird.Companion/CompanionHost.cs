@@ -80,12 +80,6 @@ public sealed class CompanionHost : ISessionHost
             .. moonlight.ExePath is null ? Array.Empty<string>() : [Core.Protocol.Caps.Moonlight],
         ];
         _bluetoothCaps = [.. _baseCaps, Core.Protocol.Caps.Bluetooth];
-        var migrated = false;
-        settingsStore.Update(s => migrated = s.MigratePreferredDisplay(display.GetMonitors()));
-        if (migrated)
-        {
-            _log.LogInformation("Migrated the preferred display index to id {Id}", settings.PreferredDisplayId ?? "(none)");
-        }
         Displays = new DisplayController(display, new SettingsDisplayPreference(settings, settingsStore), new VlcWindowHost(vlc, display), log)
         {
             FullscreenAfterManualPlacement = () => _settings.LaunchFullscreen,
@@ -115,7 +109,8 @@ public sealed class CompanionHost : ISessionHost
         _youtube.PlaceOnTv = window => PlaceOnTv(window, null);
         _moonlight.PlaceOnTv = window => PlaceOnTv(window, null);
         Displays.TvScreenChosen += OnTvScreenChosen;
-        _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"http://{ip}:{_settings.WsPort}" : null;
+        // /art is served over TLS only; a phone on Bluetooth gets no artwork (it is HTTP over the LAN).
+        _vlc.ArtBaseUrlProvider = () => NetworkUtil.GetPrimaryLanAddress() is { } ip ? $"https://{ip}:{_settings.TlsPort}" : null;
         _vlc.StateChanged += s => _power.OnPlaybackState(s.Playback.State == "playing");
         _power.KeepAwakeEnabled = settings.KeepAwake;
     }
@@ -206,7 +201,6 @@ public sealed class CompanionHost : ISessionHost
             Volume = vol?.Percent,
             Muted = vol?.Muted,
             AudioDevice = _vlc.LastAudioDevice,
-            Display = display?.Index,
             DisplayId = display?.Id,
             PreferredDisplayId = Displays.PreferredId,
             KeepAwake = _power.KeepAwakeEnabled,
@@ -284,15 +278,13 @@ public sealed class CompanionHost : ISessionHost
     }
 
     /// <summary>
-    /// Monitor for a companion-launched VLC window: the one-off legacy <c>display</c> index or the preferred monitor,
-    /// if connected; <c>null</c> with a single monitor (nothing to choose) or when the window is not managed.
+    /// Monitor for a companion-launched VLC window: the preferred monitor, if connected; <c>null</c> with a single
+    /// monitor (nothing to choose) or when the window is not managed.
     /// </summary>
-    private string? ResolveLaunchTarget(int? displayIndex)
+    private string? ResolveLaunchTarget()
     {
         var monitors = _display.GetMonitors();
-        if (monitors.Count < 2) return null;
-        var target = displayIndex is int i ? MonitorTopology.FindByIndex(monitors, i) : MonitorTopology.FindById(monitors, Displays.PreferredId);
-        return target?.Id;
+        return monitors.Count < 2 ? null : MonitorTopology.FindById(monitors, Displays.PreferredId)?.Id;
     }
 
     /// <summary>One TV screen: YouTube and the Moonlight stream follow the monitor just chosen (VLC moves by itself).</summary>

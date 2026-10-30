@@ -34,25 +34,25 @@ enum class PlaybackStatus {
 
 @Serializable
 data class VlcInfo(
-    /** "Can be controlled right now" — kept for old companions; see [status] for the details. */
+    /** "Can be controlled right now": the same as [status] [VlcProcessStatus.RUNNING]. */
     val running: Boolean = false,
     val version: String? = null,
     val apiVersion: Int? = null,
     /** The companion always says 2 (levels 0/1 were the app's direct VLC mode, removed in 0.5). */
     val level: Int = 0,
-    /** Companion only, optional: old companions don't send it. Use [effectiveStatus]. */
-    val status: VlcProcessStatus? = null,
+    /** The state of VLC on the PC; the companion always sends it. Use [effectiveStatus]. */
+    val status: VlcProcessStatus = VlcProcessStatus.NOT_RUNNING,
 ) {
     /**
-     * [status] when the companion reported a known value, otherwise derived from [running]
-     * (`running` → [VlcProcessStatus.RUNNING], else [VlcProcessStatus.NOT_RUNNING]).
+     * [status]; a value this app does not know ([VlcProcessStatus.UNKNOWN], from a newer companion — it updates itself
+     * and may be ahead of the app) is taken from [running]: [VlcProcessStatus.RUNNING] or [VlcProcessStatus.NOT_RUNNING].
      */
     val effectiveStatus: VlcProcessStatus
-        get() = status?.takeIf { it != VlcProcessStatus.UNKNOWN }
+        get() = status.takeIf { it != VlcProcessStatus.UNKNOWN }
             ?: if (running) VlcProcessStatus.RUNNING else VlcProcessStatus.NOT_RUNNING
 
     /** Same info after VLC exited: not controllable, process gone. */
-    fun exited(): VlcInfo = copy(running = false, status = status?.let { VlcProcessStatus.NOT_RUNNING })
+    fun exited(): VlcInfo = copy(running = false, status = VlcProcessStatus.NOT_RUNNING)
 }
 
 /**
@@ -270,16 +270,14 @@ data class SystemState(
     val volume: Int? = null,
     val muted: Boolean? = null,
     val audioDevice: String? = null,
-    /** Index of the monitor with the VLC window (old and new companions). */
-    val display: Int? = null,
-    /** Stable id of the monitor with the VLC window; `null` = no window (or an old companion). */
+    /** Stable id of the monitor with the VLC window; `null` = no window. */
     val displayId: String? = null,
-    /** Monitor VLC opens on; `null` = not managed (or an old companion). */
+    /** Monitor VLC opens on; `null` = not managed. */
     val preferredDisplayId: String? = null,
     val keepAwake: Boolean? = null,
     /** The computer Moonlight streams from; `null` = none paired (or Moonlight is not installed). */
     val moonlightHost: String? = null,
-    /** A Moonlight stream is on the TV; `null` = Moonlight is not installed (or an old companion). */
+    /** A Moonlight stream is on the TV; `null` = Moonlight is not installed. */
     val moonlightStreaming: Boolean? = null,
     /** The sleep timer (`sys sleepTimer`); `null` = off. */
     val sleepTimer: SleepTimerState? = null,

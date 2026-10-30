@@ -12,32 +12,31 @@ is always 2 now.
 
 ## Transport
 
-- WebSocket: `wss://<host>:47557/ws` (encrypted, see "Encryption") and `ws://<host>:47555/ws` (plain, for older
-  apps; it goes away in the next version). Text frames, one JSON object per frame. The same NDJSON
-  (a trailing `\n`) is allowed and ignored when parsing.
+- WebSocket: `wss://<host>:47557/ws` (encrypted, see "Encryption"). Text frames, one JSON object per frame. The same
+  NDJSON (a trailing `\n`) is allowed and ignored when parsing. Since 0.5 there is no plain `ws`: a plain `/ws` or
+  `/art` gets `426 Upgrade Required`.
 - RFCOMM (Bluetooth Classic): service with UUID **`47fe5bd6-98ad-4d9f-9812-174b3394037d`**, SDP name `Sofabird`.
   A UTF-8 byte stream, one JSON line per message, `\n` as the separator, at most 1 MiB per line. The same messages,
   handshake and token as over WebSocket. The channel is encrypted by Bluetooth pairing; the token is still required.
-- Diagnostics without WebSocket: `GET http://<host>:47555/info` → `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool}` (no authorization, only for display in the list of discovered PCs).
+- Diagnostics without WebSocket: `GET http://<host>:47555/info` (or `https://<host>:47557/info`) →
+  `{"name","version","protocol":1,"vlc":{...},"wsPort":47555,"needsPairing":bool,"tls":{...}}` (no authorization,
+  what the beacon says too: for the list of discovered PCs and the scripts). The plain port answers only this.
 
 ## Encryption
 
 The companion has a self-signed certificate (ECDSA P-256, made at its first start, kept in the Windows user's
-certificate store) and listens with TLS on `tlsPort` (47557) — the same `/ws`, `/info` and `/art` as on 47555. It
-names the port and the certificate's SHA-256 (DER, upper-case hex) as `"tls": {"port": 47557, "sha256": "…"}` in
-`/info`, `beacon` and `welcome` (absent without a certificate).
+certificate store) and listens with TLS on `tlsPort` (47557): `/ws`, `/info` and `/art`. It names the port and the
+certificate's SHA-256 (DER, upper-case hex) as `"tls": {"port": 47557, "sha256": "…"}` in `/info`, `beacon` and
+`welcome` (absent without a certificate — then no phone can connect, and the log says so).
 
 - **Pinning, trust on first use.** A phone trusts no authority and no host name, only the certificate it pinned:
   the first encrypted connection that the companion accepts (a pairing code or the stored token) pins the
   certificate it showed, after checking that `welcome.tls.sha256` names the same one. From then on the phone uses
-  only `wss` with that certificate; it never goes back to plain `ws`, and another certificate is an error
-  (`CertificateChanged`) until the user pairs again with a code (how a reinstalled companion with a new certificate
-  is trusted again).
-- **Moving over.** A phone that does not know `tls` yet (paired with an older app, or found by an address only)
-  connects plainly; the `welcome` tells it `tls`, and its next connection is encrypted and pins. A phone talking to an
-  older companion (no `tls`) stays on `ws`.
-- **Artwork.** On an encrypted link the phone fetches `/art` from the encrypted listener too (it rewrites
-  `http://<pc>:47555/art…` to `https://<host>:47557/art…`), so the token in `Authorization` is never sent in plain text.
+  that certificate only, and another one is an error (`CertificateChanged`) until the user pairs again with a code
+  (how a reinstalled companion with a new certificate is trusted again).
+- A phone that does not know the port yet (found by an address only) tries 47557.
+- **Artwork.** `artUrl` points at the encrypted listener (`https://<pc>:47557/art?plId=…`); the phone trusts the
+  pinned certificate there too, so the token in `Authorization` is never sent in plain text.
 - Bluetooth needs none of this: the RFCOMM link is encrypted by the Bluetooth pairing.
 
 ## Discovery
@@ -51,7 +50,7 @@ names the port and the certificate's SHA-256 (DER, upper-case hex) as `"tls": {"
 - The companion lists in `macs` (`["AA:BB:CC:DD:EE:FF", …]`, wired first) the MAC addresses of the adapters that will
   wake it from sleep: connected, "Wake on Magic Packet" on, allowed to wake the PC, and able to (driver and firmware,
   `powercfg /devicequery wake_from_any`) — in `/info`, `beacon` and `welcome`. `[]` — the PC cannot be woken (a phone
-  then forgets the MACs and offers no waking); absent — not known yet (an older companion, or the first look, ~1 s
+  then forgets the MACs and offers no waking); absent — not known yet (the first look, ~1 s
   after the start, is not done): a phone keeps what it knew.
 - A phone keeps them with the PC. When the PC does not answer, the phone offers "Wake up the PC": it sends the magic
   packet (6 × `0xFF` + the MAC 16 times) for every MAC as a UDP broadcast (`255.255.255.255` and the subnet-directed
@@ -97,7 +96,8 @@ Codes: `pairing_required`, `unauthorized`, `bad_request`, `vlc_not_running`, `vl
    tray menu ("Pair a phone…"). The token is 32 bytes base64url; the PC stores its SHA-256. A repeated `pairing_required`
    from the same phone while the code is active does not create the window again (it only brings it to the front).
 
-Compatibility: old clients that receive `pairing_required` behave as on `unauthorized`.
+The companion also answers `unauthorized` when no valid `hello` came in time; the phone treats that (to a `hello`
+without `pairCode`) as an ordinary failure and retries, not as a pairing error.
 
 `caps` — strings: `currentTrack`, `chapterNames`, `audioDevices`, `pushEvents`, `launchVlc`,
 `windowControl`, `power`, `systemVolume`, `metadata`, `bluetooth`, `history`, `library`, `moonlight`, `youtube`.
@@ -128,7 +128,7 @@ and state changes arrive in a separate `state`.
 | `playlistRemove` | `{"plId": int}` | `pl_delete` (unreliable, the companion re-checks) |
 | `playlistClear` | — | `pl_empty` |
 | `random` / `loop` / `repeat` | `{"on": bool}` | `pl_random`/`pl_loop`/`pl_repeat` (toggle, the companion verifies) |
-| `launch` | `{"uri": string?, "display": int?}` | starts `vlc.exe` with the required parameters |
+| `launch` | `{"uri": string?}` | starts `vlc.exe` with the required parameters (on the preferred monitor) |
 | `quit` | — | RC `quit` or `in_play&input=vlc://quit` |
 | `resume` | `{"choice": "resume"\|"restart"}` | answer to the resume prompt (see «Watch history») |
 | `dismissNext` | — | hide the «next episode» offer |
@@ -137,8 +137,8 @@ and state changes arrive in a separate `state`.
 
 | name | args | cap |
 |---|---|---|
-| `listDisplays` | — → `{"t":"displays","id":..,"items":[{"index","id","name","kind","primary","current","preferred","bounds"}],"preferredId":string?}` | `windowControl` |
-| `moveToDisplay` | `{"displayId": string}` (the old `{"display": int}` is also accepted) | `windowControl` |
+| `listDisplays` | — → `{"t":"displays","id":..,"items":[{"id","name","kind","primary","current","preferred","bounds"}],"preferredId":string?}` | `windowControl` |
+| `moveToDisplay` | `{"displayId": string}` | `windowControl` |
 | `preferredDisplay` | `{"displayId": string \| null}` | `windowControl` |
 | `keepAwake` | `{"on": bool}` | `power` |
 | `displayPower` | `{"on": bool}` | `power` |
@@ -206,7 +206,7 @@ browser for it is installed. The PC's volume
 Monitors (`listDisplays`):
 - `id` — a **stable** monitor identifier (the monitor device path from `DisplayConfigGetDeviceInfo` /
   `monitorDevicePath`; if absent — the GDI device name `\\.\DISPLAYn`). Does not change when the TV is turned off and
-  on, unlike `index`. All new commands work by `id`.
+  on. Commands work by `id` only (the old list `index` went in 0.5).
 - `name` — a friendly name from EDID (`monitorFriendlyDeviceName`, e.g. "LG TV SSCR2"); if empty — the model/
   "Screen N"; `kind` — `internal` (the laptop's built-in panel) or `external` (HDMI/DP/…); `primary` — the primary one.
 - `current` — the VLC window is here now; `preferred` — VLC opens here by default (`preferredId` duplicates it).
@@ -222,8 +222,7 @@ Companion behaviour:
   later drags the window themselves, the companion does not move it back). If `launchFullscreen` is on when the companion starts VLC,
   the window goes fullscreen already on the right monitor.
 - The preferred monitor is not connected (TV turned off) — the window is left alone.
-- In `state.system`: `display` (index of where VLC is now), `displayId` (id of the monitor where VLC is now),
-  `preferredDisplayId`.
+- In `state.system`: `displayId` (id of the monitor where VLC is now), `preferredDisplayId`.
 
 ## Data requests
 
@@ -244,7 +243,7 @@ per second with an updated `time`). Always the full object (not a diff) — simp
   "t": "state",
   "vlc": {"running": true, "status": "running", "version": "3.0.23", "apiVersion": 3, "level": 2},
   "playback": {"state": "playing|paused|stopped", "time": 904, "length": 10705, "position": 0.084, "rate": 1.0, "updatedAt": 1760280000123},
-  "item": {"plId": 3, "uri": "file:///D:/shared/x.mkv", "title": "The Lord of the Rings", "artUrl": "http://<host>:47555/art?plId=3"},
+  "item": {"plId": 3, "uri": "file:///D:/shared/x.mkv", "title": "The Lord of the Rings", "artUrl": "https://<host>:47557/art?plId=3"},
   "tracks": {
     "audio":    [{"id": 1, "name": "Dub Мосфильм / AC3 5.1", "lang": "Russian", "codec": "a52"}],
     "subtitle": [{"id": 7, "name": "Мосфильм / SRT", "lang": "Russian", "codec": "subt"}],
@@ -257,13 +256,13 @@ per second with an updated `time`). Always the full object (not a diff) — simp
   "video": {"fullscreen": true, "aspect": "default"},
   "delays": {"audio": 0.0, "subtitle": 0.0},
   "flags": {"random": false, "loop": false, "repeat": false},
-  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "display": 1, "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true, "moonlightHost": "GAMING-PC", "moonlightStreaming": false, "sleepTimer": {"endsAt": 1793311200000, "action": "pause"}}
+  "system": {"volume": 60, "muted": false, "audioDevice": "{0.0.0.00000000}.{guid}", "displayId": "\\?\DISPLAY#GSM5B7F#...", "preferredDisplayId": "...", "keepAwake": true, "moonlightHost": "GAMING-PC", "moonlightStreaming": false, "sleepTimer": {"endsAt": 1793311200000, "action": "pause"}}
 }
 ```
 
 (The track names above are real media metadata, "Mosfilm" in Russian; track names are passed through as-is.)
 
-`vlc.status` — the state of VLC on the PC (added within protocol 1, optional; old companions do not send it):
+`vlc.status` — the state of VLC on the PC (always sent since 0.5; a value the phone does not know is taken from `running`):
 
 | status | Meaning | `running` | What the phone shows |
 |---|---|---|---|

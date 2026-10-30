@@ -170,8 +170,6 @@
     <string name="sheet_display_title">TV screen</string>
     <string name="display_hint_open">Tap a display: what is on the TV moves there now, and VLC, YouTube and Moonlight open on it from now on.</string>
     <string name="display_hint_closed">Choose the display VLC, YouTube and Moonlight open on. An open YouTube or Moonlight moves there now.</string>
-    <string name="display_hint_legacy">Tap a display to move the VLC window there.</string>
-    <string name="display_hint_legacy_closed">Start VLC to move its window. To choose the display in advance, update the companion on the PC.</string>
     <string name="display_opens_here">VLC, YouTube and Moonlight open here</string>
     <string name="display_resolution">%1$d × %2$d</string>
     <string name="display_kind_external">External display</string>

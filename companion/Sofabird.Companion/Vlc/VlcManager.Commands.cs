@@ -89,10 +89,10 @@ public sealed partial class VlcManager
         {
             case "open" when RunState != VlcRunState.Running && !(args.GetBool("enqueue") ?? false):
                 // VLC is closed / starting / without control: start (or restart) it right away with this file.
-                await LaunchAsync(args.RequireString("uri"), args.GetInt("display"), ct).ConfigureAwait(false);
+                await LaunchAsync(args.RequireString("uri"), ct).ConfigureAwait(false);
                 return;
             case "launch":
-                await LaunchAsync(args.GetString("uri"), args.GetInt("display"), ct).ConfigureAwait(false);
+                await LaunchAsync(args.GetString("uri"), ct).ConfigureAwait(false);
                 return;
             case "quit":
                 if (!IsProcessRunning) return;

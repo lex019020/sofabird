@@ -69,6 +69,7 @@ class UdpBeaconDiscovery(private val localNetwork: LocalNetwork) {
             host = host,
             name = beacon.name,
             wsPort = beacon.wsPort,
+            tlsPort = beacon.tls?.port,
             needsPairing = beacon.needsPairing,
             pcId = beacon.pcId,
             bt = BtAddress.normalize(beacon.bt),

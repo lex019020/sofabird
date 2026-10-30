@@ -10,9 +10,11 @@ data class DiscoveredHost(
     val host: String,
     val name: String,
     val wsPort: Int = COMPANION_WS_PORT,
+    /** The encrypted WebSocket's port (beacon / `/info` `tls.port`); `null` = not said. */
+    val tlsPort: Int? = null,
     /** Companion `/info`: whether pairing is needed; `null` when unknown. */
     val needsPairing: Boolean? = null,
-    /** Companion `/info` → `vlc.status` (derived from `running` for old companions); `null` = unknown. */
+    /** Companion `/info` → `vlc.status`; `null` = unknown. */
     val vlcStatus: VlcProcessStatus? = null,
     /** When `/info` was last read (0 = never). */
     val infoAt: Long = 0L,
@@ -27,6 +29,7 @@ data class DiscoveredHost(
     fun merge(other: DiscoveredHost): DiscoveredHost = copy(
         name = other.name.ifBlank { name },
         wsPort = other.wsPort,
+        tlsPort = other.tlsPort ?: tlsPort,
         needsPairing = other.needsPairing ?: needsPairing,
         vlcStatus = other.vlcStatus ?: vlcStatus,
         infoAt = maxOf(infoAt, other.infoAt),

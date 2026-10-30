@@ -324,7 +324,7 @@ private fun DisplayEntry(ui: RemoteUiState, onOpen: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.sheet_display_title), style = MaterialTheme.typography.bodyLarge)
             Text(
-                shown?.let { displayLabel(it) } ?: stringResource(R.string.display_choose_hint),
+                shown?.let { displayLabel(it, ui.displayChoice) } ?: stringResource(R.string.display_choose_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
