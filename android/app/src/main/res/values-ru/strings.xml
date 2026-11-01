@@ -155,7 +155,7 @@
     <string name="settings_dynamic_color">Цвета из обоев</string>
     <string name="settings_background">Фон</string>
     <string name="settings_keep_connection">Держать соединение в фоне</string>
-    <string name="settings_keep_connection_hint">Уведомление с кнопками, пока на ПК идёт воспроизведение; снимается через 10 минут после остановки.</string>
+    <string name="settings_keep_connection_hint">Уведомление с кнопками, пока на телевизоре что-то есть; снимается, когда там ничего нет, или после 10 минут паузы.</string>
     <string name="settings_about">О программе</string>
     <string name="about_license">Sofabird — свободная программа под лицензией GNU General Public License v3 или более поздней версии; она поставляется без каких-либо гарантий.</string>
     <string name="about_source">Исходный код</string>

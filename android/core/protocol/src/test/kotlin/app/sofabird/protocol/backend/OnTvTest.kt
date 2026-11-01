@@ -26,6 +26,16 @@ class OnTvTest {
     )
 
     @Test
+    fun `something is on the tv while vlc has a movie, youtube is open or a question stands`() {
+        val idle = PlayerState(playback = Playback(state = PlaybackStatus.STOPPED))
+        assertEquals(false, idle.somethingOnTv) // connected, nothing loaded: no notification
+        assertEquals(true, vlc.copy(resume = null).somethingOnTv) // paused
+        assertEquals(true, idle.copy(resume = vlc.resume).somethingOnTv)
+        assertEquals(true, idle.copy(youtube = youtube.copy(playing = false)).onTv().somethingOnTv)
+        assertEquals(false, idle.copy(youtube = youtube.copy(open = false)).onTv().somethingOnTv)
+    }
+
+    @Test
     fun `vlc stays itself without youtube or when the browser is closed`() {
         assertSame(vlc, vlc.onTv())
         val closed = vlc.copy(youtube = youtube.copy(open = false))

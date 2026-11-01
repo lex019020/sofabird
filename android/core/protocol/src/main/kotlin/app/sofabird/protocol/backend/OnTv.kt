@@ -16,6 +16,12 @@ import kotlin.math.roundToInt
  * the TV browser (VLC is paused behind it; the PC's volume is the one YouTube plays at), otherwise VLC itself. The
  * [PlayerState.youtube] block stays, so callers can tell the two apart.
  */
+/**
+ * Something to control on the TV ([onTv]'s state): VLC playing or paused (also held paused for the resume question),
+ * YouTube open, or the next episode offered. Without it the phone shows no media notification.
+ */
+val PlayerState.somethingOnTv: Boolean get() = !isStopped || resume != null || next != null
+
 fun PlayerState.onTv(): PlayerState {
     val yt = youtube?.takeIf { it.open } ?: return this
     val time = yt.time ?: 0.0
