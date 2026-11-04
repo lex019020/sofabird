@@ -96,10 +96,20 @@ function Get-OpenPorts([string]$Ip, [int]$From = 30000, [int]$To = 49999, [int]$
     for ($start = $From; $start -le $To; $start += $Batch) {
         $end = [Math]::Min($To, $start + $Batch - 1)
         $pending = @()
+        $refused = 0
         for ($port = $start; $port -le $end; $port++) {
             $c = New-Object System.Net.Sockets.TcpClient
-            $pending += [pscustomobject]@{ Port = $port; Client = $c; Task = $c.ConnectAsync($Ip, $port) }
+            try { $task = $c.ConnectAsync($Ip, $port) }
+            catch {
+                # Windows refuses some connections before they start ("access permissions": a firewall rule, a
+                # reserved port range): not the phone's debugging port, and no reason to print an error.
+                $c.Dispose()
+                $refused++
+                continue
+            }
+            $pending += [pscustomobject]@{ Port = $port; Client = $c; Task = $task }
         }
+        if ($refused -gt 0) { Write-Verbose "Port scan: Windows refused $refused connections in $start-$end" }
         try { [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]($pending | ForEach-Object { $_.Task }), $TimeoutMs) }
         catch { Write-Verbose "Port scan: some connections failed ($($_.Exception.Message)); the open ports are read below" }
         foreach ($x in $pending) {
