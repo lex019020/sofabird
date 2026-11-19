@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -322,11 +323,16 @@ private class HomeTile(val icon: ImageVector, val title: String, val hint: Strin
 /** A third of a phone width fits "Library" / "Библиотека" only if the labels barely grow with the font. */
 private const val TILE_MAX_SCALE = 1.1f
 
-/** Nothing plays, so no tracks: the TV screen (where VLC, YouTube and Moonlight open) and "More". */
+/** Nothing plays, so no tracks: the TV screen (where VLC, YouTube and Moonlight open), the touchpad and "More". */
 @Composable
 private fun HomeQuickActions(ui: RemoteUiState, actions: RemoteActions) {
     val list = buildList {
         displayAction(ui) { actions.open(RemotePlace.DISPLAYS) }?.let(::add)
+        if (ui.capabilities.input) {
+            add(QuickAction(Icons.Default.Mouse, stringResource(R.string.chip_touchpad), null, ui.connection.isOnline) {
+                actions.open(RemotePlace.TOUCHPAD)
+            })
+        }
         add(QuickAction(Icons.Default.MoreHoriz, stringResource(R.string.chip_more), null, true) { actions.open(RemotePlace.MORE) })
     }
     QuickActionsRow(list)

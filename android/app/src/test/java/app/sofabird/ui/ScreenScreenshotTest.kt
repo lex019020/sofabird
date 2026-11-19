@@ -322,7 +322,8 @@ class ScreenScreenshotTest(private val locale: String, private val fontScale: Fl
                 system = SystemState(moonlightHost = "GAMING-PC"),
             ),
             capabilities = Capabilities(
-                playing.capabilities.flags + Capability.HISTORY + Capability.YOUTUBE + Capability.MOONLIGHT + Capability.WINDOW_CONTROL,
+                playing.capabilities.flags + Capability.HISTORY + Capability.YOUTUBE + Capability.MOONLIGHT + Capability.WINDOW_CONTROL +
+                    Capability.INPUT,
             ),
             continueItems = listOf(
                 HistoryItem(

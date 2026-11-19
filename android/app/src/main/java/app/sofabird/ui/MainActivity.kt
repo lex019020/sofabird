@@ -1,5 +1,6 @@
 package app.sofabird.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -15,7 +16,9 @@ import app.sofabird.data.player.PlayerController
 import app.sofabird.data.settings.SettingsRepository
 import app.sofabird.protocol.backend.SystemCommand
 import app.sofabird.ui.theme.SofabirdTheme
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
@@ -25,17 +28,25 @@ class MainActivity : ComponentActivity() {
     private val controller: PlayerController by inject()
     private val settings: SettingsRepository by inject()
 
+    /** "Touchpad" from the launcher shortcut or the Quick Settings tile ([ACTION_TOUCHPAD]): opened over the remote. */
+    private val touchpadRequests = Channel<Unit>(Channel.CONFLATED)
+    private val touchpadFlow = touchpadRequests.receiveAsFlow()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         // Test hook (adb): `am start -S -n <package>/app.sofabird.ui.MainActivity --ez show_permissions true`
         // shows the first-run permissions screen again without clearing the app data.
         val forcePermissions = savedInstanceState == null && intent?.getBooleanExtra(EXTRA_SHOW_PERMISSIONS, false) == true
-        if (savedInstanceState == null) shareToTv(intent)
+        if (savedInstanceState == null) {
+            shareToTv(intent)
+            openTouchpad(intent)
+        }
+        TouchpadShortcut.publish(this)
         setContent {
             val prefs by settings.settings.collectAsStateWithLifecycle()
             SofabirdTheme(prefs) {
-                AppRoot(forcePermissionsScreen = forcePermissions)
+                AppRoot(forcePermissionsScreen = forcePermissions, touchpadRequests = touchpadFlow)
             }
         }
     }
@@ -43,6 +54,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         shareToTv(intent)
+        openTouchpad(intent)
+    }
+
+    private fun openTouchpad(intent: Intent?) {
+        if (intent?.action == ACTION_TOUCHPAD) touchpadRequests.trySend(Unit)
     }
 
     /**
@@ -84,6 +100,11 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_SHOW_PERMISSIONS = "show_permissions"
+        const val ACTION_TOUCHPAD = "app.sofabird.action.TOUCHPAD"
         private const val SHARE_WAIT_MS = 15_000L
+
+        /** Opens the app on the touchpad (the launcher shortcut, the Quick Settings tile). */
+        fun touchpadIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java).setAction(ACTION_TOUCHPAD).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

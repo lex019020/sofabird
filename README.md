@@ -41,8 +41,9 @@ gone and wakes a sleeping PC. The apps follow the system language: English and R
   YouTube thumbnails), the Library, YouTube and another PC's screen.
 - A media notification with lock-screen controls while a movie plays.
 - A sleep timer: pause the TV after 15 min … 2 h or at the end of the episode, and put the PC to sleep if you like.
-- The phone as the PC's touchpad and keyboard: by itself while a Moonlight stream is on the TV, and any time from
-  "More" — move the pointer, tap to click, two fingers to scroll or right-click, hold to drag; type in any language
+- The phone as the PC's touchpad and keyboard: by itself while a Moonlight stream is on the TV, and any time with
+  the mouse button in the top bar, the home screen's "Touchpad", a long press on the app's icon or a Quick Settings
+  tile — move the pointer, tap to click, two fingers to scroll or right-click, hold to drag; type in any language
   (the text goes over as you type), plus Esc, Tab, Win and the arrows.
 - Updates itself from GitHub Releases: test builds or releases only (Android asks you to confirm each update).
 
