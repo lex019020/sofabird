@@ -70,6 +70,9 @@
     <string name="chapter_unnamed">Глава %1$d</string>
     <string name="quick_audio">Аудио</string>
     <string name="quick_subtitles">Субтитры</string>
+    <string name="chip_touchpad">Тачпад</string>
+    <string name="tile_touchpad">Тачпад</string>
+    <string name="shortcut_touchpad_long">Тачпад и клавиатура</string>
     <string name="chip_more">Ещё</string>
     <string name="track_off">выкл.</string>
     <string name="track_unknown_count">\? из %1$d</string>

@@ -66,6 +66,9 @@
     <string name="chapter_unnamed">Chapter %1$d</string>
     <string name="quick_audio">Audio</string>
     <string name="quick_subtitles">Subtitles</string>
+    <string name="chip_touchpad">Touchpad</string>
+    <string name="tile_touchpad">Touchpad</string>
+    <string name="shortcut_touchpad_long">Touchpad and keyboard</string>
     <string name="chip_more">More</string>
     <string name="track_off">off</string>
     <string name="track_unknown_count">\? of %1$d</string>

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.PlayCircle
@@ -83,7 +84,9 @@ import app.sofabird.ui.remote.RemoteScreen
 import app.sofabird.ui.settings.SettingsScreen
 import app.sofabird.ui.touchpad.TouchpadScreen
 import app.sofabird.ui.update.UpdatePromptHost
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -102,7 +105,7 @@ object Routes {
 }
 
 @Composable
-fun AppRoot(forcePermissionsScreen: Boolean = false) {
+fun AppRoot(forcePermissionsScreen: Boolean = false, touchpadRequests: Flow<Unit> = emptyFlow()) {
     val controller: PlayerController = koinInject()
     val navController = rememberNavController()
     val snackbar = remember { SnackbarHostState() }
@@ -110,6 +113,7 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
 
     val connection by controller.connection.collectAsStateWithLifecycle()
     val server by controller.activeServer.collectAsStateWithLifecycle()
+    val capabilities by controller.capabilities.collectAsStateWithLifecycle()
     val backStack by navController.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val settings: SettingsRepository = koinInject()
@@ -191,6 +195,12 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
         }
     }
 
+    // The launcher shortcut / Quick Settings tile "Touchpad": over the remote, once the screens are there.
+    LaunchedEffect(showPermissions) {
+        if (showPermissions != false) return@LaunchedEffect
+        touchpadRequests.collect { navController.navigate(Routes.TOUCHPAD) { launchSingleTop = true } }
+    }
+
     // "Continue from …?" — modal over any screen while the PC waits paused for the answer.
     ResumePromptHost()
 
@@ -226,6 +236,8 @@ fun AppRoot(forcePermissionsScreen: Boolean = false) {
                     hostName = server?.displayName,
                     onClick = { navController.navigate(Routes.CONNECTION) { launchSingleTop = true } },
                     onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                    onTouchpad = { navController.navigate(Routes.TOUCHPAD) { launchSingleTop = true } }
+                        .takeIf { connection.isOnline && capabilities.input },
                 )
             }
         },
@@ -338,6 +350,7 @@ private fun ConnectionTopBar(
     hostName: String?,
     onClick: () -> Unit,
     onSettings: () -> Unit,
+    onTouchpad: (() -> Unit)?,
 ) {
     val (color, text) = connectionSummary(connection)
     TopAppBar(
@@ -364,6 +377,8 @@ private fun ConnectionTopBar(
         actions = {
             val transport = connection.transportOrNull
             if (transport != null) TransportIndicator(transport)
+            // The PC's pointer and keyboard from any screen with these bars, playing or not.
+            onTouchpad?.let { IconButton(onClick = it) { Icon(Icons.Default.Mouse, stringResource(R.string.touchpad_title)) } }
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),

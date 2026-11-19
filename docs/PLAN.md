@@ -372,7 +372,9 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
 - [x] **The phone as touchpad and keyboard** (owner's request): while a Moonlight stream is on the TV the remote becomes
       the streamed computer's touchpad (move, tap to click, two fingers to scroll or right-click, hold to drag) and
       keyboard (typed text goes over live, plus Esc / Tab / Win / arrows); "More" → "Touchpad and keyboard" opens it any
-      time for the PC itself. The companion injects it with `SendInput`; text into a Moonlight stream goes through the
+      time for the PC itself — also the mouse button in the top bar, "Touchpad" on the home screen, the launcher
+      shortcut and a Quick Settings tile (owner's request: a handier way into it). The companion injects it with
+      `SendInput`; text into a Moonlight stream goes through the
       clipboard and Moonlight's paste shortcut. Latency (owner's feedback): the phone's sockets use `TCP_NODELAY` (with
       Nagle's algorithm on, Windows' 200 ms delayed ACK let the moves through a few times a second), Wi-Fi stays in its
       low-latency mode while the touchpad is shown, moves go out every 8 ms, and the pointer accelerates like a laptop's
