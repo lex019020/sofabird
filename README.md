@@ -10,7 +10,7 @@ touchpad and keyboard. A small Windows app on the PC (Sofabird for Windows) does
 [![Release](https://github.com/lex019020/sofabird/actions/workflows/release.yml/badge.svg)](https://github.com/lex019020/sofabird/releases)
 
 <p align="center">
-  <img src="docs/images/home.png" width="200" alt="Home: what to watch when nothing plays — continue watching, Library, YouTube, another PC">
+  <img src="docs/images/home.png" width="200" alt="Home: what to watch when nothing plays — continue watching, Library, YouTube, another PC, the touchpad">
   <img src="docs/images/remote.png" width="200" alt="Remote: cover, playback controls, tracks and chapters">
   <img src="docs/images/library.png" width="200" alt="Library with movie posters">
   <img src="docs/images/movie.png" width="200" alt="Movie card with backdrop, rating, description and Play">
