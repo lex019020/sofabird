@@ -1,14 +1,15 @@
 # Sofabird — project plan
 
-Date: 2026-10-30. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+Date: 2026-11-19. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
 and a history of the videos), an app that updates itself, Wake-on-LAN, the encrypted connection and a home screen
 with what to watch. In 0.5 the app works only with the companion: the direct VLC mode (levels 0/1) is removed (the
-owner's decision, 2026-10-29). Done in 0.5: the sleep timer, YouTube subtitles and quality, the phone as the PC's
-touchpad and keyboard, the Moonlight computer and app, dropping the unencrypted connection, fake-VLC scenario tests of
-the companion (§ 10).
+owner's decision, 2026-10-29). Stable v0.5.0 is released (2026-11-19): the sleep timer, YouTube subtitles and
+quality, the phone as the PC's touchpad and keyboard (and its latency fixed), the Moonlight computer and app, VLC
+installed by the setup window, the notification only with something on the TV, dropping the unencrypted connection,
+fake-VLC scenario tests of the companion (§ 10). `VERSION` is 0.6.0.
 
 ## 0. Essence
 
@@ -391,7 +392,7 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       themselves (`Moonlight.exe list <host> --csv`, 15 s each, an absent computer keeps the remembered list); the last
       choice is remembered per PC on the phone. During a stream the quick row has Moonlight's own shortcuts: the stats
       overlay and the mouse mode. Later: a game remote / gamepad on the phone.
-- [ ] **YouTube on the TV** (user request): Firefox with a TV profile of its own (uBlock Origin possible; the user signs
+- [x] **YouTube on the TV** (user request): Firefox with a TV profile of its own (uBlock Origin possible; the user signs
       in once), "Share → Sofabird" and a pasted link open the video fullscreen on the TV, the remote controls it through
       Windows' media controls. Done (#52): the link parsing, the TV browser and its media session, the protocol, the
       share target, the link field, the remote's YouTube mode, the notification / lock screen / volume keys following
@@ -497,10 +498,12 @@ sofabird/
 ## 10. Next steps
 
 The stable 0.4.0 is released (2026-10-29) with the owner's list: the app updates itself, the YouTube history,
-Wake-on-LAN, the encrypted connection and the home screen (§ 9).
+Wake-on-LAN, the encrypted connection and the home screen (§ 9). The stable 0.5.0 followed (2026-11-19): the sleep
+timer, YouTube subtitles and quality, the phone as touchpad and keyboard, the Moonlight computer and app, fake-VLC
+scenario tests (M4), VLC installed from the setup window.
 
-Then (0.5): the sleep timer, YouTube subtitles and quality, the phone as touchpad and keyboard, the Moonlight computer
-and app, fake-VLC scenario tests (M4) — all done. **Later**: Quick Settings tile, widget, Wear OS, subtitle
+Next (0.6), to choose from: casting from the YouTube app (VacuumTube), a gamepad for Moonlight, subtitle download.
+**Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS. The plain `ws` and the compatibility with versions before 0.5 are gone (0.5).
 
 Postponed (see § 6 "Postponed"): TV control, BLE transport, Bluetooth PAN hint, landscape/tablet layouts.
