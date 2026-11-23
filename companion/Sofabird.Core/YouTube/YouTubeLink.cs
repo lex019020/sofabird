@@ -47,6 +47,9 @@ public static partial class YouTubeLink
         return null;
     }
 
+    /// <summary>A YouTube video id: 11 characters of letters, digits, <c>-</c> and <c>_</c>.</summary>
+    public static bool IsVideoId(string? id) => id is not null && IdPattern().IsMatch(id);
+
     private static string? VideoIdFrom(Uri uri, Dictionary<string, string> query)
     {
         var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);

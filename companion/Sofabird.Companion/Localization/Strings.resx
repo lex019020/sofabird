@@ -168,4 +168,8 @@ Posters and descriptions: TMDB. This product uses the TMDB API but is not endors
   <data name="SetupSponsorBlockText" xml:space="preserve"><value>Adds SponsorBlock, a free and open-source add-on, to the TV browser: it skips the sponsor segments and self-promotion that its community has marked in a video. It asks sponsor.ajay.app for the segments of each video watched. It can be switched on the phone too.</value></data>
   <data name="SetupSponsorBlockOn" xml:space="preserve"><value>✓ Sponsor segments are skipped (SponsorBlock)</value></data>
   <data name="SetupSponsorBlockFailed" xml:space="preserve"><value>SponsorBlock could not be downloaded: check the internet connection</value></data>
+  <data name="SetupCastTitle" xml:space="preserve"><value>Cast from the YouTube app</value></data>
+  <data name="SetupCastText" xml:space="preserve"><value>This PC appears in the cast list of the YouTube app on phones on this network: tap the cast button in YouTube, choose this PC, and the video plays on the TV in the TV browser, with the phone as its remote. No Google account is needed on the PC; the phone and the PC meet through YouTube's servers.</value></data>
+  <data name="SetupCastOn" xml:space="preserve"><value>✓ This PC is in the YouTube app's cast list</value></data>
+  <data name="SetupCastConnecting" xml:space="preserve"><value>Connecting to YouTube… If this stays, check the PC's internet connection</value></data>
 </root>

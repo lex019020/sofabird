@@ -9,6 +9,7 @@ using Sofabird.Companion.Setup;
 using Sofabird.Companion.Tray;
 using Sofabird.Companion.Vlc;
 using Sofabird.Companion.YouTube;
+using Sofabird.Companion.YouTube.Cast;
 using Sofabird.Core.History;
 using Sofabird.Core.Pairing;
 using Sofabird.Core.Power;
@@ -182,13 +183,17 @@ internal static class Program
         power.Suspending += () => sessions.PublishEventAsync(new EventMessage { Name = EventNames.Sleeping }).Wait(SleepNoticeTimeout);
         power.Start();
 
+        // Casting from the YouTube app plays on YouTube on the TV; a movie playing behind the browser pauses first.
+        var castPlayer = new YouTubeCastPlayer(youtube, audio,
+            async () => { if (vlc.IsPlaying) await vlc.PauseAsync(CancellationToken.None); }, vlc.Poke, lf.CreateLogger<YouTubeCastPlayer>());
+        var cast = new CastReceiver(settings, settingsStore, youtube, castPlayer, host.MachineName, settings.WsPort, lf);
         var tlsCertificate = TlsCertificate.LoadOrCreate(settings, settingsStore, lf.CreateLogger<WebServer>());
-        var web = new WebServer(settings, host, sessions, vlc, tlsCertificate, lf.CreateLogger<WebServer>());
+        var web = new WebServer(settings, host, sessions, vlc, cast, tlsCertificate, lf.CreateLogger<WebServer>());
         var beacon = new UdpBeaconResponder(IPAddress.Parse(settings.ListenAddress), settings.BeaconPort, host.BuildBeacon, lf.CreateLogger<UdpBeaconResponder>());
         var dnssd = new DnsSdAdvertiser(lf.CreateLogger<DnsSdAdvertiser>());
         var bluetooth = new BluetoothRfcommServer(settings, sessions, lf);
         host.Bluetooth = bluetooth;
-        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, wake,
+        var setup = new SetupBackend(paths, settings, settingsStore, vlc, host, library, bluetooth, powerPlan, youtube, cast, wake,
             new VlcInstaller(lf.CreateLogger<VlcInstaller>()), lf.CreateLogger<SetupBackend>());
 
         TrayContext? tray = null;
@@ -249,6 +254,7 @@ internal static class Program
             return 3;
         }
         beacon.Start();
+        _ = cast.RefreshAsync(); // after the web server: phones fetch the DIAL description from it
         bluetooth.Start(); // background; no adapter / radio off is not an error
         if (settings.AdvertiseDnsSd)
             _ = dnssd.RegisterAsync(Environment.MachineName, settings.WsPort, settings.InstallationId, startupCts.Token);
@@ -266,6 +272,7 @@ internal static class Program
             power.KeepAwakeEnabled = false;
             audioWatcher.Dispose();
             dnssd.Dispose();
+            await cast.DisposeAsync();
             await beacon.DisposeAsync();
             await bluetooth.DisposeAsync();
             await sessions.CloseAllAsync();

@@ -22,9 +22,10 @@ public static class SetupPolicy
     /// Bluetooth (info). 2: + media station (power plan: lid closed, no sleep). 3: + media folders (the library).
     /// 4: the rename from VLC Remote Companion to Sofabird (new program path and firewall rules). 5: + YouTube on the TV
     /// (installing Firefox, signing in) and blocking its ads (uBlock Origin, opt-in). 6: + waking this PC from the phone
-    /// (Wake-on-LAN: the network adapter's wake settings).
+    /// (Wake-on-LAN: the network adapter's wake settings). 7: + casting from the YouTube app (this PC in the app's cast
+    /// list on the network).
     /// </summary>
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     /// <summary>Show the window at startup: never completed, or completed for an older item set.</summary>
     public static bool ShouldShowOnStart(bool completed, int completedVersion) =>

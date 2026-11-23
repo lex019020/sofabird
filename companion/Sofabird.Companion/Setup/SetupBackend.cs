@@ -4,6 +4,7 @@ using Sofabird.Companion.Net;
 using Sofabird.Companion.Services;
 using Sofabird.Companion.Vlc;
 using Sofabird.Companion.YouTube;
+using Sofabird.Companion.YouTube.Cast;
 using Sofabird.Core.Power;
 using Sofabird.Core.Setup;
 using Sofabird.Core.Vlc;
@@ -39,14 +40,16 @@ public sealed record SetupSnapshot(
     bool BlockAds = false,
     bool SkipSponsors = false,
     IReadOnlyList<string>? MissingMediaFolders = null,
-    IReadOnlyList<WakeAdapter>? WakeAdapters = null)
+    IReadOnlyList<WakeAdapter>? WakeAdapters = null,
+    bool Cast = true,
+    bool CastConnected = false)
 {
     public WakeState Wake => WakeOnLan.State(WakeAdapters ?? []);
 }
 
 /// <summary>What the user ticked.</summary>
 public sealed record SetupChoices(bool Firewall, bool Autostart, bool ConfigureVlc, bool KeepAwake, bool MediaStation = false,
-    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false, bool SkipSponsors = false, bool Wake = false);
+    IReadOnlyList<string>? MediaFolders = null, bool BlockAds = false, bool SkipSponsors = false, bool Wake = false, bool Cast = true);
 
 public enum StepOutcome
 {
@@ -112,14 +115,16 @@ public sealed class SetupBackend : ISetupBackend
     private readonly BluetoothRfcommServer _bluetooth;
     private readonly PowerPlanService _powerPlan;
     private readonly YouTubeService _youtube;
+    private readonly CastReceiver _cast;
     private readonly WakeOnLanService _wake;
     private readonly VlcInstaller _vlcInstaller;
     private readonly ILogger _log;
 
     public SetupBackend(AppPaths paths, Settings settings, SettingsStore store, VlcManager vlc, CompanionHost host, LibraryService library,
-        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, WakeOnLanService wake,
+        BluetoothRfcommServer bluetooth, PowerPlanService powerPlan, YouTubeService youtube, CastReceiver cast, WakeOnLanService wake,
         VlcInstaller vlcInstaller, ILogger<SetupBackend> log)
     {
+        _cast = cast;
         _vlcInstaller = vlcInstaller;
         _youtube = youtube;
         _wake = wake;
@@ -159,7 +164,7 @@ public sealed class SetupBackend : ISetupBackend
             _settings.SetupCompleted && _settings.SetupVersion >= SetupPolicy.CurrentVersion, _settings.ManageFirewall, _settings.ConfigureVlc,
             _settings.MediaStation, _powerPlan.CheckMediaStation(), _settings.SetupCompleted, _settings.MediaRoots.ToList(),
             _youtube.BrowserPath, _youtube.BlockAds, _youtube.SkipSponsors,
-            _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList(), _wake.Inspect());
+            _settings.MediaRoots.Where(r => !Directory.Exists(r)).ToList(), _wake.Inspect(), _cast.Enabled, _cast.Connected);
     }
 
     private VlcSetupState InspectVlc()
@@ -200,6 +205,7 @@ public sealed class SetupBackend : ISetupBackend
 
         var blockAds = await ApplyAddonAsync(TvAddon.UBlock, choices.BlockAds, ct);
         var skipSponsors = await ApplyAddonAsync(TvAddon.SponsorBlock, choices.SkipSponsors, ct);
+        await _cast.SetEnabledAsync(choices.Cast);
         var (firewall, wake) = await ApplyElevatedAsync(choices.Firewall, choices.Wake, ct);
         _log.LogInformation("Setup: firewall {Firewall}, autostart {Autostart}, VLC {Vlc}, media station {MediaStation}, ad blocking {BlockAds}, wake {Wake}",
             firewall.Outcome, autostart.Outcome, vlc.Outcome, mediaStation.Outcome, blockAds.Outcome, wake.Outcome);
