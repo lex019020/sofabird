@@ -59,6 +59,11 @@ public sealed class CastSession : IDisposable
     private static readonly TimeSpan PendingFor = TimeSpan.FromSeconds(20);
     /// <summary>A position this far from where it would be by now is a seek the phones should hear about.</summary>
     private const double SeekTolerance = 2.5;
+    /// <summary>
+    /// While phones are connected the state is checked this often too: the TV browser closing raises no event once its
+    /// window is gone, and the phones would keep showing the video "loading".
+    /// </summary>
+    private static readonly TimeSpan RecheckEvery = TimeSpan.FromSeconds(5);
     private const string Unsupported = "UNSUPPORTED";
 
     private readonly ICastPlayer _player;
@@ -74,6 +79,7 @@ public sealed class CastSession : IDisposable
     private DateTimeOffset _sentAt;
     private string _cpn;
     private (string VideoId, double Start, DateTimeOffset Until)? _pending;
+    private readonly ITimer _recheck;
 
     public CastSession(ICastPlayer player, Action<IReadOnlyList<LoungeCommand>> send, TimeProvider? time = null, ILogger? log = null)
     {
@@ -84,12 +90,27 @@ public sealed class CastSession : IDisposable
         _cpn = NewCpn();
         _player.Changed += Report;
         _player.Ended += OnEnded;
+        _recheck = _time.CreateTimer(_ => Recheck(), null, RecheckEvery, RecheckEvery);
     }
 
     public void Dispose()
     {
+        _recheck.Dispose();
         _player.Changed -= Report;
         _player.Ended -= OnEnded;
+    }
+
+    private void Recheck()
+    {
+        if (Remotes == 0) return;
+        try
+        {
+            Report();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "YouTube cast: checking the TV failed");
+        }
     }
 
     private void OnEnded() => _ = AdvanceAsync();
@@ -170,7 +191,8 @@ public sealed class CastSession : IDisposable
                 _send([Autoplay()]);
                 break;
             default:
-                _log.LogDebug("YouTube cast: {Name} not handled", m.Name);
+                var args = string.Join(",", m.Args.Select(a => a.GetRawText()));
+                _log.LogDebug("YouTube cast: {Name} not handled {Args}", m.Name, args.Length > 400 ? args[..400] + "…" : args);
                 break;
         }
     }

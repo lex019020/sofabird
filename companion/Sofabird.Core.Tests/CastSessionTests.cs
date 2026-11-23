@@ -136,8 +136,8 @@ public sealed class CastSessionTests : IDisposable
         _player.Playback = new CastPlayback(Bunny, CastState.Playing, 10, 600);
         await Connect();
         _sent.Clear();
-        _time.Advance(TimeSpan.FromSeconds(5));
-        _player.Playback = new CastPlayback(Bunny, CastState.Playing, 15, 600);
+        _player.Playback = new CastPlayback(Bunny, CastState.Playing, 15, 600); // 5 s on, as a real player would be
+        _time.Advance(TimeSpan.FromSeconds(5)); // the periodic check too
         _player.Raise();
         Assert.Empty(_sent); // where the phones expect it
 
@@ -168,6 +168,21 @@ public sealed class CastSessionTests : IDisposable
         var now = Assert.Single(_sent);
         Assert.Equal("nowPlaying", now.Name);
         Assert.Empty(now.Fields);
+    }
+
+    [Fact]
+    public async Task A_browser_gone_without_an_event_is_noticed()
+    {
+        _player.Playback = new CastPlayback(Bunny, CastState.Loading, 0, 0);
+        await Connect();
+        _sent.Clear();
+        _player.Playback = CastPlayback.Nothing; // the browser's process ended: nobody raises Changed
+        _time.Advance(TimeSpan.FromSeconds(5));
+        var now = Assert.Single(_sent);
+        Assert.Equal("nowPlaying", now.Name);
+        Assert.Empty(now.Fields);
+        _time.Advance(TimeSpan.FromSeconds(5));
+        Assert.Single(_sent); // only changes
     }
 
     [Fact]
