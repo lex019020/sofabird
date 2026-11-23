@@ -1,6 +1,6 @@
 # Sofabird — project plan
 
-Date: 2026-11-19. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
+Date: 2026-11-23. Status: M1 (direct VLC HTTP), M2 (companion over LAN) and M3 (Bluetooth RFCOMM fallback) are
 done; M4 is nearly done: watch history and "Continue watching", the library with posters (movie and series pages),
 the media station mode, the installer with quiet auto-updates, layout polish and refactoring, the rename to Sofabird.
 Stable v0.4.0 is released (2026-10-29): Moonlight streams and YouTube on the TV (with uBlock Origin, SponsorBlock
@@ -9,7 +9,7 @@ with what to watch. In 0.5 the app works only with the companion: the direct VLC
 owner's decision, 2026-10-29). Stable v0.5.0 is released (2026-11-19): the sleep timer, YouTube subtitles and
 quality, the phone as the PC's touchpad and keyboard (and its latency fixed), the Moonlight computer and app, VLC
 installed by the setup window, the notification only with something on the TV, dropping the unencrypted connection,
-fake-VLC scenario tests of the companion (§ 10). `VERSION` is 0.6.0.
+fake-VLC scenario tests of the companion (§ 10). `VERSION` is 0.6.0; in 0.6 so far: casting from the YouTube app.
 
 ## 0. Essence
 
@@ -391,7 +391,7 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       (Desktop first, Steam Big Picture, games; `sys moonlightHosts`), refreshed on request from the computers
       themselves (`Moonlight.exe list <host> --csv`, 15 s each, an absent computer keeps the remembered list); the last
       choice is remembered per PC on the phone. During a stream the quick row has Moonlight's own shortcuts: the stats
-      overlay and the mouse mode. Later: a game remote / gamepad on the phone.
+      overlay and the mouse mode. A gamepad on the phone is not planned (owner's decision, 2026-11-23).
 - [x] **YouTube on the TV** (user request): Firefox with a TV profile of its own (uBlock Origin possible; the user signs
       in once), "Share → Sofabird" and a pasted link open the video fullscreen on the TV, the remote controls it through
       Windows' media controls. Done (#52): the link parsing, the TV browser and its media session, the protocol, the
@@ -403,6 +403,15 @@ Criterion: with Wi-Fi off on the phone, the remote keeps working.
       opt-in like uBlock Origin, the browser restarts at the same moment); the YouTube history (user request: every
       video played on the TV with where it stopped, in History, "Continue watching" and "More → Recently on the TV",
       opened where it stopped); subtitles and quality from the phone (0.5, the extension 1.1).
+- [x] **Casting from the YouTube app** (user request, 0.6): the companion is a cast receiver of its own — DIAL (SSDP
+      on UDP 1900; the device description and the "YouTube" app under `/dial/` on the plain port 47555) and a "screen"
+      of YouTube's lounge service (a kept screen id, its token, the channel's long poll). The phone's `setPlaylist`,
+      play/pause/seek, next/previous over its queue, volume (the PC's) and `stopVideo` drive YouTube on the TV (the TV
+      browser with its add-ons, history and the phone remote); the TV's state goes back (`nowPlaying`,
+      `onStateChange`, `onVolumeChanged`), so the YouTube app's mini-player and seek bar follow. No Google account on
+      the PC; a switch in the setup window, on by default. VacuumTube was considered and rejected: a second YouTube
+      player without an API, and its spoofed TV identity trips YouTube's playback attestation. Checked against
+      YouTube's servers with a scripted phone; a real phone is still to be checked.
 - [x] **One TV screen for everything** (user request, #54): the monitor chosen for VLC is also where YouTube and the
       Moonlight stream go; choosing it from the phone or the tray moves whatever is on the TV.
 - [x] **Wake-on-LAN** (user request): "Wake up the PC" on the phone's "No connection" card (the magic packet for the
@@ -434,10 +443,8 @@ Quick Settings tile, Glance widget, Wear OS, subtitles via the companion (OpenSu
 iOS via Compose Multiplatform.
 
 ### Later ideas (user requests)
-- **Casting from the YouTube app** to the PC through VacuumTube (YouTube's TV interface with DIAL discovery; sign-in
-  with a code on the phone); the companion would keep it running and switch the TV to it when a video starts.
-- **Moonlight, further:** a game remote / gamepad on the phone (the computer, the app and the TV screen can already be
-  chosen).
+- **"Link with TV code"** for casting where the network blocks multicast (guest Wi-Fi, client isolation): a code
+  shown on the TV, typed in the YouTube app.
 
 ### Postponed
 - **TV control** (user decision 2026-10-13): Samsung UE55H6200 (2014, Orsay) — no HDMI-CEC on the laptop's
@@ -502,7 +509,8 @@ Wake-on-LAN, the encrypted connection and the home screen (§ 9). The stable 0.5
 timer, YouTube subtitles and quality, the phone as touchpad and keyboard, the Moonlight computer and app, fake-VLC
 scenario tests (M4), VLC installed from the setup window.
 
-Next (0.6), to choose from: casting from the YouTube app (VacuumTube), a gamepad for Moonlight, subtitle download.
+In 0.6: casting from the YouTube app (done: a receiver of our own, § 6). Next, to choose from: subtitle download,
+"Link with TV code". A gamepad for Moonlight is dropped (owner's decision, 2026-11-23).
 **Later**: Quick Settings tile, widget, Wear OS, subtitle
 download, VLC 4.x, iOS. The plain `ws` and the compatibility with versions before 0.5 are gone (0.5).
 

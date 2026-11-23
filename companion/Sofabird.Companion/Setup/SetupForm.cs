@@ -33,6 +33,7 @@ public sealed class SetupForm : Form
     private readonly LinkLabel _youtubeSignIn;
     private readonly Item _adBlock;
     private readonly Item _sponsorBlock;
+    private readonly Item _cast;
     private readonly Item _bluetooth;
     private readonly Label _networkHint;
     private readonly LinkLabel _networkLink;
@@ -135,6 +136,7 @@ public sealed class SetupForm : Form
         _youtube.Content.Controls.Add(_youtubeSignIn);
         _adBlock = AddItem(UiText.SetupAdBlockTitle, UiText.SetupAdBlockText, toggle: true);
         _sponsorBlock = AddItem(UiText.SetupSponsorBlockTitle, UiText.SetupSponsorBlockText, toggle: true);
+        _cast = AddItem(UiText.SetupCastTitle, UiText.SetupCastText, toggle: true);
         _bluetooth = AddItem(UiText.SetupBluetoothTitle, UiText.SetupBluetoothText, toggle: false, last: true);
         _bluetooth.Content.Controls.Add(Link(UiText.SetupOpenBluetoothSettings, () => _backend.OpenBluetoothSettings()));
 
@@ -188,7 +190,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems) item.Status.Text = UiText.SetupChecking;
     }
 
-    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _wake, _youtube, _adBlock, _sponsorBlock, _bluetooth];
+    private IEnumerable<Item> AllItems => [_firewall, _autostart, _vlc, _media, _keepAwake, _mediaStation, _wake, _youtube, _adBlock, _sponsorBlock, _cast, _bluetooth];
 
     private static bool HighContrast => SystemInformation.HighContrast;
     private static Color SecondaryText => HighContrast ? SystemColors.WindowText : Color.FromArgb(0x5A, 0x5A, 0x5A);
@@ -377,6 +379,7 @@ public sealed class SetupForm : Form
         _wake.Toggle!.Checked = s.Wake != WakeState.Unsupported; // nothing is stored: the adapters say how it is
         _adBlock.Toggle!.Checked = s.BlockAds; // opt-in: never ticked by default
         _sponsorBlock.Toggle!.Checked = s.SkipSponsors;
+        _cast.Toggle!.Checked = s.Cast;
         _mediaList.Items.Clear();
         foreach (var folder in s.MediaFolders ?? []) _mediaList.Items.Add(folder);
     }
@@ -500,6 +503,12 @@ public sealed class SetupForm : Form
             SetStatus(_sponsorBlock, UiText.SetupAdBlockNoBrowser, Tone.Neutral);
         else
             SetStatus(_sponsorBlock, s.SkipSponsors ? UiText.SetupSponsorBlockOn : UiText.SetupOff, s.SkipSponsors ? Tone.Ok : Tone.Neutral);
+        if (!installed)
+            SetStatus(_cast, UiText.SetupAdBlockNoBrowser, Tone.Neutral);
+        else if (!s.Cast)
+            SetStatus(_cast, UiText.SetupOff, Tone.Neutral);
+        else
+            SetStatus(_cast, s.CastConnected ? UiText.SetupCastOn : UiText.SetupCastConnecting, s.CastConnected ? Tone.Ok : Tone.Neutral);
     }
 
     private async Task InstallBrowserAsync()
@@ -607,7 +616,7 @@ public sealed class SetupForm : Form
         foreach (var item in AllItems)
             if (item.Toggle is not null)
                 item.Toggle.Enabled = enabled && (item != _vlc || _snapshot?.Vlc != VlcSetupState.NotInstalled)
-                    && ((item != _adBlock && item != _sponsorBlock) || _snapshot?.Browser is not null)
+                    && ((item != _adBlock && item != _sponsorBlock && item != _cast) || _snapshot?.Browser is not null)
                     && (item != _wake || _snapshot?.Wake == WakeState.NeedsSetup); // ready: nothing to change
         _youtubeInstall.Enabled = enabled;
         _vlcInstall.Enabled = enabled;
@@ -624,7 +633,8 @@ public sealed class SetupForm : Form
         SetEnabled(false);
         _result = null;
         var choices = new SetupChoices(_firewall.Toggle!.Checked, _autostart.Toggle!.Checked, _vlc.Toggle!.Checked, _keepAwake.Toggle!.Checked,
-            _mediaStation.Toggle!.Checked, MediaFolders, _adBlock.Toggle!.Checked, _sponsorBlock.Toggle!.Checked, _wake.Toggle!.Checked);
+            _mediaStation.Toggle!.Checked, MediaFolders, _adBlock.Toggle!.Checked, _sponsorBlock.Toggle!.Checked, _wake.Toggle!.Checked,
+            _cast.Toggle!.Checked);
         if (choices.Firewall && _snapshot.Firewall is not { Ok: true })
             SetStatus(_firewall, UiText.SetupFirewallWaiting, Tone.Neutral);
         if (choices.Wake && _snapshot.Wake == WakeState.NeedsSetup)

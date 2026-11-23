@@ -60,6 +60,17 @@ public sealed class Settings
     /// <summary>Skip sponsor segments on YouTube with SponsorBlock in the TV browser (opt-in, like <see cref="BlockAds"/>).</summary>
     public bool SkipSponsors { get; set; }
 
+    /// <summary>
+    /// Casting from the YouTube app: this PC appears in the app's cast list on phones on the same network (DIAL) and
+    /// plays what they cast on YouTube on the TV (through YouTube's lounge service). Works once the TV browser is
+    /// installed; switched in the setup window.
+    /// </summary>
+    public bool YouTubeCast { get; set; } = true;
+    /// <summary>The "screen" id YouTube's lounge service gave this PC for casting (kept: phones that cast before know it).</summary>
+    public string? CastScreenId { get; set; }
+    /// <summary>The device id of this PC as a cast screen (a GUID made at the first start of casting).</summary>
+    public string? CastDeviceId { get; set; }
+
     /// <summary>Whether an optional add-on of the TV browser is on.</summary>
     public bool IsOn(YouTube.TvAddon addon) => addon == YouTube.TvAddon.UBlock ? BlockAds : addon == YouTube.TvAddon.SponsorBlock && SkipSponsors;
 

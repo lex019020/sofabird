@@ -264,6 +264,16 @@ UI = [
     ("SetupSponsorBlockOn", "✓ Sponsor segments are skipped (SponsorBlock)", "✓ Спонсорские вставки пропускаются (SponsorBlock)"),
     ("SetupSponsorBlockFailed", "SponsorBlock could not be downloaded: check the internet connection",
      "Не удалось скачать SponsorBlock — проверьте подключение к интернету"),
+    ("SetupCastTitle", "Cast from the YouTube app", "Трансляция из приложения YouTube"),
+    ("SetupCastText", "This PC appears in the cast list of the YouTube app on phones on this network: tap the cast button "
+                      "in YouTube, choose this PC, and the video plays on the TV in the TV browser, with the phone as its "
+                      "remote. No Google account is needed on the PC; the phone and the PC meet through YouTube's servers.",
+     "Компьютер появляется в списке трансляции приложения YouTube на телефонах в этой сети: нажмите в YouTube кнопку "
+     "трансляции, выберите этот компьютер — и видео пойдёт на телевизоре в браузере для ТВ, а телефон станет пультом. "
+     "Аккаунт Google на компьютере не нужен; телефон и компьютер связываются через серверы YouTube."),
+    ("SetupCastOn", "✓ This PC is in the YouTube app's cast list", "✓ Компьютер есть в списке трансляции YouTube"),
+    ("SetupCastConnecting", "Connecting to YouTube… If this stays, check the PC's internet connection",
+     "Подключение к YouTube… Если это надолго, проверьте интернет на компьютере"),
 ]
 
 PROTO = [

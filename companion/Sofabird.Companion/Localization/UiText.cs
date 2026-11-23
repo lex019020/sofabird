@@ -324,4 +324,12 @@ internal static class UiText
     public static string SetupSponsorBlockOn => S("SetupSponsorBlockOn");
     /// <summary>SponsorBlock could not be downloaded: check the internet connection</summary>
     public static string SetupSponsorBlockFailed => S("SetupSponsorBlockFailed");
+    /// <summary>Cast from the YouTube app</summary>
+    public static string SetupCastTitle => S("SetupCastTitle");
+    /// <summary>This PC appears in the cast list of the YouTube app on phones on this network: tap the cast button in YouTube, choose this PC, and the video plays on the TV in the TV browser, with the phone as its remote. No Google account is needed on the PC; the phone and the PC meet through YouTube's servers.</summary>
+    public static string SetupCastText => S("SetupCastText");
+    /// <summary>✓ This PC is in the YouTube app's cast list</summary>
+    public static string SetupCastOn => S("SetupCastOn");
+    /// <summary>Connecting to YouTube… If this stays, check the PC's internet connection</summary>
+    public static string SetupCastConnecting => S("SetupCastConnecting");
 }

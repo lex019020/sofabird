@@ -65,7 +65,10 @@ gone and wakes a sleeping PC. The apps follow the system language: English and R
   video's subtitles and quality from the phone. The remote,
   the phone's notification, lock screen and volume keys control it, and a movie started from the phone closes it.
   Ads can be blocked with uBlock Origin and sponsor segments skipped with SponsorBlock (a switch each, on the phone
-  or in the setup window); the setup window installs Firefox and opens the YouTube sign-in.
+  or in the setup window); the setup window installs Firefox and opens the YouTube sign-in. You can also cast from
+  the YouTube app itself: the PC shows up in its cast list on the same network, the video plays on the TV the same way
+  and the YouTube app's own controls and volume keys work too (no Google account is needed on the PC; a switch in the
+  setup window turns it off).
 - One TV screen: the display chosen on the phone (or in the tray) is where VLC, YouTube and Moonlight open; choosing
   it moves whatever is on the TV.
 - Another PC's screen: start a [Moonlight](https://moonlight-stream.org/) stream of another computer on the TV —
@@ -138,7 +141,7 @@ builds. Conventions for code, pull requests, versions and releases are in [CLAUD
 
 ## Roadmap
 
-In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. In 0.5.0: a sleep timer, YouTube subtitles and quality from the phone, the phone as the PC's touchpad and keyboard, choosing the Moonlight computer and app, and the setup window installs VLC; it works only with the companion and only over the encrypted connection. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
+In 0.4.0: the app updates itself, a YouTube history, Wake-on-LAN, an encrypted connection and the home screen. In 0.5.0: a sleep timer, YouTube subtitles and quality from the phone, the phone as the PC's touchpad and keyboard, choosing the Moonlight computer and app, and the setup window installs VLC; it works only with the companion and only over the encrypted connection. In 0.6 so far: casting from the YouTube app. Later: a Quick Settings tile, widgets, Wear OS, subtitle download, VLC 4. The full plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## License
 

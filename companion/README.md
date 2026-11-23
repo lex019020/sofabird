@@ -25,11 +25,15 @@ companion/
 │   ├── Displays/              MonitorTopology (monitor names/ids/kinds), DisplayController (display sys commands,
 │   │                          preferred monitor, one-time move of a new VLC window), AutoPlacement
 │   ├── Lua/                   LuaPagesInstaller (copy of VLC's stock pages + ours in %APPDATA%)
+│   ├── YouTube/Cast/          Dial (SSDP/DIAL texts), LoungeChannel + LoungeChunkReader (YouTube's lounge channel),
+│   │                          CastSession (what phones cast → YouTube on the TV, and its state back)
 │   └── Setup/                 FirewallPlanner (which firewall rules allow/block, what to remove/add), SetupPolicy
 │                              (when the setup window and the startup notice appear)
 ├── Sofabird.Companion/       WinExe net10.0-windows10.0.19041.0: tray, Kestrel, VlcManager, Win32
 │   ├── Net/                   WebServer (/ws, /info, /art), WebSocketLineTransport, UdpBeaconResponder, DnsSdAdvertiser,
 │   │                          BluetoothRfcommServer + RfcommLineTransport (RFCOMM service, M3)
+│   ├── YouTube/Cast/          CastReceiver, SsdpResponder (UDP 1900), LoungeConnection (HTTP to the lounge service),
+│   │                          YouTubeCastPlayer (a cast plays on YouTubeService)
 │   ├── Vlc/                   VlcLocator, VlcManager (process, polling, RC, commands), VlcProcesses (vlc.exe processes and
 │   │                          VlcBackend: what VlcManager talks to, a fake VLC in tests), EmbeddedLuaPages
 │   ├── Services/              DisplayService (monitors via the CCD API, the VLC window), VlcWindowHost, PowerService,
@@ -108,7 +112,8 @@ sets `<SelfContained>false</SelfContained>` just in case). .NET 10 is an LTS rel
    notification (see below).
 1. Starts Kestrel with TLS on `0.0.0.0:47557`: `wss://…/ws` (NDJSON session), `GET /info` (no authorization),
    `GET /art?plId=N` (header `Authorization: Bearer <token>`, proxies VLC's `/art`); the plain `0.0.0.0:47555` answers
-   only `GET /info` (`/ws` and `/art` there: `426 Upgrade Required`).
+   only `GET /info` (`/ws` and `/art` there: `426 Upgrade Required`) and, while casting from the YouTube app is on,
+   DIAL under `/dial/` (see "Casting from the YouTube app").
 2. Answers the UDP beacon `SOFABIRD_DISCOVER 1` on port 47556 with unicast JSON `{"t":"beacon",…}`.
 3. Advertises `_sofabird._tcp` through the built-in Windows DNS-SD responder (`DnsServiceRegister`);
    on error it writes to the log and keeps working (the beacon and manual address entry remain).
@@ -126,6 +131,8 @@ sets `<SelfContained>false</SelfContained>` just in case). .NET 10 is an LTS rel
    until VLC closes (the menu item shows "after VLC closes").
 7. Publishes the "Sofabird" Bluetooth RFCOMM service for a phone without Wi‑Fi (see "Bluetooth"). No adapter or
    Bluetooth off — it writes to the log and works without it.
+8. With casting from the YouTube app on and the TV browser installed: answers DIAL searches on UDP 1900 and connects to
+   YouTube's lounge service (see "Casting from the YouTube app").
 
 VLC launched by the companion:
 
@@ -473,6 +480,44 @@ It reports on every change and the position at most once a second.
   the video itself (not an ad) and needs no key press. Without it (an older profile, the extension not loaded yet) the
   media session and the `f` key are used as before.
 
+### Casting from the YouTube app
+
+The PC shows up in the cast list of the YouTube app on phones on the same network, like a smart TV, and plays what
+they cast on YouTube on the TV (`CastReceiver`, on while `youTubeCast` is on — the default — and the TV browser is
+installed; the setup window's "Cast from the YouTube app" switches it). It is a cast receiver of its own, not Google
+Cast (which needs a device certificate signed by Google):
+
+- **DIAL** (how the app finds a TV): `SsdpResponder` answers SSDP `M-SEARCH` for
+  `urn:dial-multiscreen-org:service:dial:1` on 239.255.255.250:1900 (the port is shared with Windows' SSDP Discovery
+  service by address reuse; the group is joined on every LAN interface, again when the network changes) with
+  `LOCATION: http://<the address the phone reached>:47555/dial/dd.xml`. Kestrel's plain port serves the device
+  description there (with the `Application-URL` header), the "YouTube" app's status (`/dial/apps/YouTube`: `running`
+  while connected to the lounge service) and its launch: the phone `POST`s `pairingCode=…&theme=cl&dialLaunch=…`,
+  the companion answers `201`/`200` with a `Location` and registers the code with
+  `/api/lounge/pairing/register_pairing_code`. Everything is 404 while casting is off.
+- **The lounge service** (YouTube's relay between the app and a TV, `https://www.youtube.com/api/lounge`):
+  `LoungeConnection` gets a screen id once (`generate_screen_id`, kept in `castScreenId`; one YouTube no longer knows
+  is replaced), its token (`get_lounge_token_batch`, renewed when it says, at most weekly), starts a channel session
+  (`bc/bind`, Google's "browser channel": the session ids `c`/`S`, the request counter, the last array id received)
+  and keeps a long poll open that streams the phones' messages; a new poll when one ends or goes silent (90 s, YouTube
+  sends `noop` every ~30 s), a new session when YouTube forgets one, retries 2 s … 5 min apart without the internet.
+  Messages to the phones go out in order, batched; after a failed send a new session starts.
+- **What a cast does** (`CastSession`, pure, unit-tested with a fake player): `setPlaylist` opens the video at the
+  phone's position (`YouTubeService.Open`, VLC paused first) and keeps the phone's queue; `play`, `pause`, `seekTo`,
+  `stopVideo` (closes the TV browser), `next`/`previous` (the queue, else YouTube's own), `setVolume`/`getVolume` (the
+  PC's volume, as on the phone remote), `updatePlaylist`; a queued video that ends is followed by the next. Back go
+  `nowPlaying`, `onStateChange` (on a change of video or state, a seek, not the clock), `onVolumeChanged`,
+  `onHasPreviousNextChanged`, `onAutoplayModeChanged` (`UNSUPPORTED`): an ad or a page still opening is "loading". The
+  phone's own Sofabird remote works alongside (it is the same YouTube on the TV).
+
+No Google account is used on the PC (the screen is anonymous; the video plays in the TV profile, signed in or not).
+YouTube's servers see this PC's name (the cast list shows it) and what is cast, as with a smart TV. Anyone on the
+network with the YouTube app can cast, as to a TV. The firewall rule for `Sofabird.exe` (private networks, any
+protocol) already covers UDP 1900 and the DIAL requests. The protocol is undocumented: the details come from
+field notes on the YouTube app's DIAL ([rleroi/cast-dial-notes](https://github.com/rleroi/cast-dial-notes)), the
+receiver [patrickkfkan/yt-cast-receiver](https://github.com/patrickkfkan/yt-cast-receiver) and our own captures; no
+code was taken from them. A YouTube change can break it, and its terms do not cover such clients.
+
 ## Tray menu
 
 - the VLC status line, the number of connected phones and the Bluetooth state;
@@ -494,7 +539,7 @@ under its earlier name, VLC Remote Companion, is no longer taken over (0.5, no u
 
 | File | What |
 |---|---|
-| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
+| `settings.json` | ports (`wsPort` 47555, `beaconPort` 47556), `listenAddress`, the VLC path (`vlcPath`), `vlcHttpHost/Port/Password` (the password is generated on first start), `vlcRcPort`, `launchFullscreen`, `vlcExtraArgs`, `mediaRoots`, `preferredDisplayId` / `preferredDisplayName` (the preferred monitor), `keepAwake`, `mediaStation` (the power plan of a media station, see "Setup and permissions"), `vlcAudioDevice` (the VLC output device chosen from the phone: when it disappears — TV off — and comes back, VLC is switched back to it), `autoInstallLuaPages`, `autoLaunchVlc`, `configureVlc` (vlcrc auto-configuration, `true` by default), `vlcrcPath`, `advertiseDnsSd`, `bluetooth` (the RFCOMM service, `true` by default), `bluetoothRequireAuthentication` (`false` by default, see "Bluetooth"), `installationId`; `youTubeCast` (casting from the YouTube app, `true` by default), `castScreenId` / `castDeviceId` (this PC as a lounge screen); `setupCompleted` / `setupVersion` (the setup window was completed, for which item-set version), `manageFirewall` (network access was chosen in the setup window: check the firewall at startup, default `true`) |
 | `paired.json` | paired devices: token SHA-256, name, id, date |
 | `history.json` | watch history and per-folder track choices (see "Watch history"); a corrupt file is renamed to `history.json.corrupt-<time>` |
 | `youtube-history.json` | the YouTube videos played on the TV and where they stopped (see "Watch history") |
@@ -508,7 +553,7 @@ The VLC HTTP interface password is never written to the log.
 and keeps it in the current user's certificate store ("Personal", friendly name "Sofabird (encrypted connection to
 phones)"; Windows protects the private key) — `tlsThumbprint` in `settings.json` finds it. Kestrel (`WebServer`)
 listens with it on `tlsPort` (47557: `wss` `/ws`, `/info`, `/art`, whose `artUrl` points there); the plain `wsPort`
-(47555) answers only `/info` since 0.5. `/info`, the beacon and `welcome` name the port and the certificate's SHA-256
+(47555) answers only `/info` (and DIAL, for the YouTube app) since 0.5. `/info`, the beacon and `welcome` name the port and the certificate's SHA-256
 (`tls`), which phones pin (see the protocol README, "Encryption"). Without a certificate (the store cannot be used)
 no phone can connect, and the log says so as an error. The firewall rules are per program, so the new port needs no new rule.
 `deploy-windows.ps1 -Uninstall -Purge` removes the certificate too; a new one means the phones pair again.
@@ -535,6 +580,7 @@ user presses **Apply**; **Later** closes the window (it opens again at the next 
 | Keep the PC awake during a movie | `keepAwake` | on |
 | This PC is a media station | `mediaStation`: the active power plan gets lid close action "do nothing", sleep and hibernate "never", **plugged in and on battery** (powrprof, no admin rights); unticking does not restore the old values | on |
 | Wake this PC from the phone | Wake-on-LAN (see below): "Wake on Magic Packet" on and "Allow this device to wake the computer" for the adapters that can (the same elevated helper as the firewall, one UAC prompt for both); unticking changes nothing back | on (when an adapter can) |
+| Cast from the YouTube app | `youTubeCast`: this PC answers the YouTube app's DIAL searches and stays connected to YouTube's lounge service (see "Casting from the YouTube app"); needs the TV browser | on |
 | Bluetooth (info only) | nothing: Windows needs no permission; a link opens `ms-settings:bluetooth` to pair the phone | — |
 
 Each item shows its current state (✓ / not set up / ⚠ / ✗ with the reason) and, after Apply, the result. If a
@@ -681,6 +727,9 @@ RC `4212`) and the companion on `127.0.0.1:47557` with a separate data folder:
   (and after Play pressed in VLC); a movie launched from the phone (`--fullscreen`) → paused fullscreen; the time from
   the start to the pause (a fraction of a second of picture/sound is expected); the next-episode card with a real
   series folder on the share; a track change made in VLC's menu (needs the Lua pages) remembered for the folder.
+- Casting from the YouTube app: the PC in the cast list of a real phone (stock YouTube) on the laptop's network, the
+  launch and the first video, the app's seek bar and volume following the TV, the phone's queue, "Stop casting";
+  checked so far against YouTube's servers with a scripted phone (2026-11-23).
 - Bluetooth with a phone: a paired phone connecting to the service (Android `createRfcommSocketToServiceRecord`),
   `hello`/code window/commands over RFCOMM, latency; a phone paired with "Just Works"; switching Wi‑Fi ↔ Bluetooth;
   turning Bluetooth off/on on the laptop while running and restoring the service after sleep (Modern Standby).

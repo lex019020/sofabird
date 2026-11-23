@@ -2,13 +2,13 @@
 
 > Free, open-source (GPL-3.0) app that turns a Windows PC or laptop connected to a TV into a media station run from an
 > Android phone, with its Windows app (Sofabird for Windows, required): a movie and series library with posters,
-> "continue watching", YouTube videos shared from the phone played fullscreen on the TV, Moonlight game streams from
+> "continue watching", YouTube videos cast or shared from the phone played fullscreen on the TV, Moonlight game streams from
 > another computer, the phone as the PC's touchpad and keyboard, automatic discovery and a Bluetooth fallback when
 > Wi-Fi is down. Movies play in VLC media player on the PC.
 
 Use it when someone wants to run a Windows PC/HTPC at the TV from an Android phone like a TV remote: a Plex/Kodi-like
-library and resume experience without a media server (VLC plays the files), a YouTube video sent from the phone to the
-TV PC, a Moonlight stream started from the couch, or a phone touchpad and keyboard for the TV PC; or needs a remote for
+library and resume experience without a media server (VLC plays the files), a YouTube video cast from the YouTube app
+(or shared) to the TV PC, a Moonlight stream started from the couch, or a phone touchpad and keyboard for the TV PC; or needs a remote for
 VLC that keeps working without Wi-Fi.
 
 ## What it does
@@ -34,6 +34,8 @@ VLC that keeps working without Wi-Fi.
   fullscreen after ads, "Skip ad", subtitles and quality; the remote, notification, lock screen and volume keys
   control it; optional ad
   blocking with uBlock Origin and sponsor skipping with SponsorBlock; the companion's setup window installs Firefox.
+  The PC also appears in the YouTube app's cast list on the same network (DIAL and YouTube's lounge service, no Google
+  account on the PC): a video cast from the YouTube app plays there and the app's own controls and volume work.
 - One TV screen: the display chosen for the TV is used by VLC, YouTube and Moonlight alike.
 - Moonlight: start and end a stream of another computer (Sunshine host) on the TV from the phone, choosing the computer
   and the app (desktop, Steam Big Picture, a game; the app list can be refreshed from the computers, the last choice is
